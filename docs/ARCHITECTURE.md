@@ -233,6 +233,16 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 | `/api/generate` | ✅ 正常動作。回答のみ返る | **本ツールはこちらを採用** |
 | `/v1/chat/completions` | ⚠️ reasoning が `message.content` と `message.reasoning` 双方に混入 | トークン無駄が大。使用しない |
 
+**`think: true` の測定結果（2026-06-15）**:
+
+| シナリオ | `think:false` | `think:true` | 備考 |
+|---|---|---|---|
+| 短文（詩） | 75 tokens / 2.0s | 854 tokens / 14.9s | 品質差は小さい |
+| 長文（SF 200字） | 125 tokens / 3.4s | 5,460 tokens / 75.2s | thinking が全トークンの85% |
+| JSON構造化（キャラ） | 267 tokens ✅ | **壊れる** ❌ | response 空、thinking にJSONが逃げる |
+
+**結論**: 小説執筆は創造的タスクであり、`think:true` の恩恵は限定的。`think:false` + `format:json` が品質・効率・構造化出力のすべてで最適。
+
 **注意**: `/v1/chat/completions`（OpenAI 互換 API）は `think` パラメータをサポートしていない場合がある（GitHub Issue #15288）。本ツールでは使用しない。
 
 ### 6.2 リトライ戦略
