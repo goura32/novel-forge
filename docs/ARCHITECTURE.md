@@ -199,7 +199,7 @@ class BibleState(BaseModel):
 選定理由:
 
 - **日本語能力**: 日本語の小説生成において、高い表現力と文法稳定性を確認済み
-- **JSON 出力**: `response_format = {"type": "json_object"}` + `thinking:false` の組み合わせで安定した JSON Schema 適合を確認
+- **JSON 出力**: `/api/generate` + `format:"json"` + `think:false` の組み合わせで安定した JSON Schema 適合（2026-06-15 実測確認）
 - **長文処理**: 131,072 トークンの context 長を備え、長大なプロンプトに対しても情報を保持
 - **VRAM 効率**: Q4 量子化により、24GB VRAM  GPU での動作が可能
 - **MTP (Multi-Token Prediction)**: 推論高速化により、長時間の生成でも実用的なレスポンスタイムを実現
@@ -225,6 +225,13 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 - `format: "json"` + `think: false` の組み合わせで安定した JSON Schema 適合を確認
 - エンドポイント: `http://ws1.local:11434/api/generate`
+
+**実測結果（2026-06-15, qwen3.6:35b-a3b-mtp-q4_K_M）**:
+
+| エンドポイント | `think: false` | 備考 |
+|---|---|---|
+| `/api/generate` | ✅ 正常動作。回答のみ返る | **本ツールはこちらを採用** |
+| `/v1/chat/completions` | ⚠️ reasoning が `message.content` と `message.reasoning` 双方に混入 | トークン無駄が大。使用しない |
 
 **注意**: `/v1/chat/completions`（OpenAI 互換 API）は `think` パラメータをサポートしていない場合がある（GitHub Issue #15288）。本ツールでは使用しない。
 

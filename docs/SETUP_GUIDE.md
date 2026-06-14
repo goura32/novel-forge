@@ -107,8 +107,12 @@ uv run novel-forge status   --workdir ./work/series1
 ### `probe failed: LLM did not return valid JSON`
 
 - モデルがJSON以外の文章を返した
-- `thinking` モデルが推論欄に出力した
-- 対処: `probe_logs/` を確認、別モデルを指定
+- 対処: `probe_logs/` を確認。`/api/generate` + `format:"json"` + `think:false` を使用しているか確認
+
+### `thinking` モデルが reasoning を返す
+
+- Qwen 3.6 などの thinking 対応モデルは、`/v1/chat/completions` の `think:false` を無視して reasoning を返す場合がある（2026-06-15 実測）
+- **対処**: `/api/generate` エンドポイント + `think:false` + `format:"json"` を使用。`/v1/chat/completions` は使わない
 
 ### `LLM HTTP error 404`
 
