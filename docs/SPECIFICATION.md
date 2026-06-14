@@ -42,7 +42,8 @@ novel-forge/
 │   ├── blackboard.json
 │   ├── bible.json
 │   ├── kdp_metadata.json
-│   └── revision_priority.json
+│   ├── revision_priority.json
+│   └── cover_prompt.json
 ├── src/
 │   └── novel_forge/
 │       ├── __init__.py
@@ -105,6 +106,9 @@ uv run novel-forge next-volume   --workdir ./work/series1
 
 # 破損状態からの復旧
 uv run novel-forge recover-state --workdir ./work/series1
+
+# 表紙画像生成
+uv run novel-forge illustrate --workdir ./work/series1 --volume 1
 ```
 
 ## 3. データモデル
@@ -121,6 +125,7 @@ class Character(BaseModel):
     name: str
     role: str
     arc: str
+    appearance: str | None = None
 
 class PlannedVolume(BaseModel):
     number: int
@@ -226,6 +231,7 @@ workspace/<slug>/
 | `complete` | 企画からレビューまでの全工程を一括実行 |
 | `next-volume` | 次巻のアウトラインを生成 |
 | `recover-state` | 破損した状態ファイルを復旧 |
+| `illustrate` | 表紙画像生成用のプロンプトとメタデータを出力 |
 
 ### 4.2 ScenePipeline (scene_pipeline.py)
 
@@ -236,7 +242,7 @@ workspace/<slug>/
 3. **Quality Gate** — レビュー結果に基づき合格/不合格を判定。不合格の場合は自動改稿して再評価
 4. **Summarize** — 改稿済み本文から要約を生成し、Blackboard に事実を記録
 
-### 4.3 Blackboard (blackboard.py)
+### 4.7 Whiteboard (blackboard.py)
 
 ```python
 class Blackboard:
@@ -249,7 +255,22 @@ class Blackboard:
     def to_prompt_context() -> str    # LLM 注入用フォーマット
 ```
 
-### 4.4 QualityGate (quality.py)
+### 4.5 CoverPromptGenerator (cover_prompt.py)
+
+表紙画像を生成するためのプロンプトとメタデータを出力します。画像自体は生成しません（外部の画像生成ツールを使用します）。
+
+```python
+class CoverPromptGenerator:
+    def __init__(self, prompts, bible, series_plan):
+
+    def generate(self, volume_number: int) -> dict
+        # cover_prompt.json スキーマに適合する dict を返す
+```
+
+入力: シリーズ企画、Bible、黒板
+出力: `exports/cover_prompt.json`
+
+### 4.3 QualityGate (quality.py)
 
 ```python
 class QualityGate:
@@ -283,7 +304,8 @@ prompts/
 ├── volume_revision.md     # 巻改稿
 ├── series_review.md       # シリーズレビュー
 ├── bible_update.md        # メタデータ台帳更新
-└── kdp_metadata.md        # KDP メタデータ
+├── kdp_metadata.md        # KDP メタデータ
+└── cover_prompt.md        # 表紙画像生成プロンプト
 ```
 
 各プロンプトは `{variable}` プレースホルダーを使用。`prompts.py` の `render_prompt()` で置換。

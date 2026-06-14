@@ -221,10 +221,12 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 ### 6.1 API Endpoint
 
-`/v1/chat/completions` を採用。
+`/api/generate` を採用。
 
-- `response_format = {"type": "json_object"}` は `thinking:false` 併用で安定
-- role 構造 (system/user/assistant) で精密な制御が可能
+- `format: "json"` + `think: false` の組み合わせで安定した JSON Schema 適合を確認
+- エンドポイント: `http://ws1.local:11434/api/generate`
+
+**注意**: `/v1/chat/completions`（OpenAI 互換 API）は `think` パラメータをサポートしていない場合がある（GitHub Issue #15288）。本ツールでは使用しない。
 
 ### 6.2 リトライ戦略
 
