@@ -2,7 +2,7 @@
 
 **NovelForge** は、ローカル Ollama モデルを使って小説シリーズを企画・構成・執筆・レビュー・改稿・出力する Python CLI ツールです。
 
-3つの先行プロジェクト（[seriescraft-novel](https://github.com/goura32/seriescraft-openrouter.git), [novelpress](https://github.com/goura32/novelpress-chatgpt.git), [novel-craftsman](https://github.com/goura32/novel-craftsman.git)）の知見を統合し、より堅牢で高品質な制作パイプラインを実現します。
+3つの先行プロジェクト（[seriescraft-novel](https://github.com/goura32/seriescraft-openrouter), [novelpress](https://github.com/goura32/novelpress-chatgpt), [novel-craftsman](https://github.com/goura32/novel-craftsman)）の知見を統合し、より堅牢で高品質な制作パイプラインを実現します。
 
 ## 設計思想
 
@@ -23,6 +23,12 @@ uv pip install -e .
 
 Ollama に `qwen3.6:35b-a3b-mtp-q4_K_M` が存在することを確認してください。
 
+## モデル接続確認
+
+```bash
+uv run novel-forge probe-model
+```
+
 ## クイックスタート
 
 ```bash
@@ -37,6 +43,12 @@ uv run novel-forge write    --workdir ./work/series1 --volume 1
 uv run novel-forge review   --workdir ./work/series1 --volume 1
 uv run novel-forge revise   --workdir ./work/series1 --volume 1
 uv run novel-forge export   --workdir ./work/series1 --volume 1
+
+# 次巻へ進む
+uv run novel-forge next-volume --workdir ./work/series1
+
+# 破損状態からの復旧
+uv run novel-forge recover-state --workdir ./work/series1
 
 # 中断・再開
 uv run novel-forge status   --workdir ./work/series1

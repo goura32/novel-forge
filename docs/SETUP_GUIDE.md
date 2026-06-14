@@ -92,6 +92,12 @@ uv run novel-forge review   --workdir ./work/series1 --volume 1
 uv run novel-forge revise   --workdir ./work/series1 --volume 1
 uv run novel-forge export   --workdir ./work/series1 --volume 1
 
+# 次巻へ進む
+uv run novel-forge next-volume --workdir ./work/series1
+
+# 破損状態からの復旧
+uv run novel-forge recover-state --workdir ./work/series1
+
 # 進捗確認
 uv run novel-forge status   --workdir ./work/series1
 ```

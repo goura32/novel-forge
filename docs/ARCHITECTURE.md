@@ -205,16 +205,21 @@ class BibleState(BaseModel):
 `/v1/chat/completions` を採用 (novelpress-olient で verified)
 
 理由:
-- `/api/generate` + `format:json` はティップシップな挙動がある
+- `/api/generate` + `format:json` は不安定な挙動がある
 - `response_format = {"type": "json_object"}` は `thinking:false` 併用で安定
 - `/v1/chat/completions` は role構造で制御可能
 
 ### 5.2 リトライ戦略
 
 ```python
-async def chat_json_with_retry(messages, schema, max_retries=2):
+async def chat_json_with_retry(
+    client: "OllamaOpenAIClient",
+    messages: list[dict[str, str]],
+    schema: dict[str, Any],
+    max_retries: int = 2,
+) -> Any:
     for attempt in range(max_retries + 1):
-        raw = await client.post(chat_completions, ...)
+        raw = await client.post_chat_completion(messages, schema)
         content = extract_content(raw)         # content 優先, thinking fallback
         parsed = unwrap_schema(content)          # schema適合オブジェクト取り出し
         errors = validate_schema(parsed, schema) # Draft202012Validator

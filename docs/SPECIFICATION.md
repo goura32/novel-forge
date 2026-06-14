@@ -48,7 +48,7 @@ novel-forge/
 │       ├── __init__.py
 │       ├── cli.py               # typer CLI
 │       ├── models.py             # Pydantic state/eventモデル (episode対応)
-│       ├── schemas.py           # SKEMA_BY_NAME レジストリ
+│       ├── schemas.py           # SCHEMA_BY_NAME レジストリ
 │       ├── storage.py            # StateStorage 実装 (episode永続化、Markdown/JSON)
 │       ├── ollama_client.py      # LLMクライアント
 │       ├── engine.py            # NovelEngine (状態機械)
@@ -102,6 +102,12 @@ uv run novel-forge quality  --workdir ./work/series1 --volume 1
 uv run novel-forge export   --workdir ./work/series1 --volume 1
 uv run novel-forge bible    --workdir ./work/series1 --action view
 uv run novel-forge status   --workdir ./work/series1
+
+# 次巻へ進む
+uv run novel-forge next-volume --workdir ./work/series1
+
+# 破損状態からの復旧
+uv run novel-forge recover-state --workdir ./work/series1
 ```
 
 ## 3. データモデル
