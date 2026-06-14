@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VolumeOutline",
+  "type": "object",
+  "required": ["volume_number", "title", "premise", "chapters"],
+  "properties": {
+    "volume_number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string", "maxLength": 128 },
+    "premise": { "type": "string", "maxLength": 200 },
+    "chapters": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["number", "title", "purpose", "scenes"],
+        "properties": {
+          "number": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "maxLength": 128 },
+          "purpose": { "type": "string", "maxLength": 200 },
+          "scenes": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": ["number", "title", "pov", "goal", "conflict", "outcome"],
+              "properties": {
+                "number": { "type": "integer", "minimum": 1 },
+                "title": { "type": "string", "maxLength": 128 },
+                "pov": { "type": "string", "maxLength": 64 },
+                "goal": { "type": "string", "description": "MVME: (State > Action | Result)" },
+                "conflict": { "type": "string", "maxLength": 200 },
+                "outcome": { "type": "string", "maxLength": 200 },
+                "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

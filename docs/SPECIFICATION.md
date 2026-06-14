@@ -318,7 +318,92 @@ uv run python scripts/make_smoke_workspace.py --root /tmp/novel-forge-smoke
 uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 ```
 
-## 8. 依存関係 (pyproject.toml)
+## 8. 受け入れ基準
+
+各コマンドが「完了」と見なすための基準です。
+
+### 8.1 plan
+
+- キーワードから `series_plan.json` が生成されること
+- `series_plan.json` が `series_plan.json` スキーマに適合すること
+- `state.json` が作成され、`series_plan` フィールドが設定されていること
+
+### 8.2 outline
+
+- `volume_N/outline.json` が生成されること
+- `volume_N/outline.json` が `volume_outline.json` スキーマに適合すること
+- 章が 1 件以上、各章にシーンが 1 件以上含まれること
+
+### 8.3 write
+
+- アウトラインに記載された全シーンについて、`scene_NNN.md` が生成されること
+- 各シーンのレビュー結果（`scene_NNN_review.json`）が保存されていること
+- 各シーンの品質ゲート結果（`scene_NNN_quality.json`）が保存されていること
+- 章単位の Markdown（`chapter_NNN.md`）が全章分生成されていること
+
+### 8.4 review
+
+- `volume_N/volume_review.json` が生成されること
+- 評価点、問題点、改善提案が構造化されていること
+
+### 8.5 revise
+
+- `volume_N/volume_revised.md` が生成されること
+- 改稿後の章見出し数がアウトラインの章数と一致すること
+
+### 8.6 quality
+
+- 全シーンの品質ゲート結果が `state.json` に記録されていること
+- 不合格シーンが存在する場合、その理由が `quality_gate.json` に記録されていること
+
+### 8.7 export
+
+- `exports/manuscript.md` が生成されること
+- `exports/metadata.json` が生成されること
+- 品質ゲート不合格が `--force` なしの場合、出力が停止すること
+
+### 8.8 complete
+
+- plan → outline → write → review の全工程がエラーなく完了すること
+- `state.json` のステータスが `reviewed` 以降に更新されていること
+
+### 8.9 next-volume
+
+- 現在巻が完了状態の場合のみ、次巻のアウトラインが生成されること
+- 計画巻数を超える場合、エラーで停止すること
+
+### 8.10 recover-state
+
+- 破損した `state.json` を検出できること
+- 有効なバックアップ（`.bak`）から復元できること
+- 復元後の `state.json` がパース可能なこと
+
+### 8.11 bible
+
+- `bible.json` が生成・更新されること
+- キャラクター情報、用語、伏線が構造化されて保存されていること
+
+### 8.12 status
+
+- `state.json` の内容を人間が読める形式で表示すること
+- 破損状態の場合はその旨と復旧手段を表示すること
+
+## 9. 構造制約
+
+LLM の context 長と出力トークンの実力に合わせた上限値です。
+
+| 項目 | 上限値 | 根拠 |
+|---|---|---|
+| シリーズ最大巻数 | 3 | 長期記憶の context 制限 |
+| 各巻最大章数 | 10 | レビュー時の長文処理上限 |
+| 各章最大シーン数 | 10 | 章内の一貫性維持 |
+| 1 シーンの最大文字数 | 4,000 字 | LLM 出力トークン上限 |
+| 1 巻の最大文字数 | 80,000 字 | KDP ライトノベル想定 |
+| slug の最大長 | 64 文字 | ファイルシステム制約 |
+
+番号の重複を避けるため、依存関係セクションの番号を 10 に変更します。
+
+## 10. 依存関係 (pyproject.toml)
 
 ```toml
 [project]

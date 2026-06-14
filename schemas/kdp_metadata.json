@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KdpMetadata",
+  "type": "object",
+  "required": [
+    "title",
+    "description",
+    "keywords",
+    "categories"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "subtitle": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "series_name": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "back_cover_text": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "target_audience": {
+      "type": "string",
+      "maxLength": 50
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 32
+      }
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "content_warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "author_note": {
+      "type": "string",
+      "maxLength": 500
+    }
+  }
+}
