@@ -14,8 +14,7 @@
 ### 2.1 リポジトリのクローン
 
 ```bash
-cd /mnt/hdd/projects
-git clone https://github.com/goura32/novel-forge.git
+git clone <repository-url>
 cd novel-forge
 ```
 
@@ -58,7 +57,8 @@ uv run novel-forge probe-model
 ```json
 {
   "ok": true,
-  "note": "モデル接続成功"
+  "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+  "response_time_ms": 1234
 }
 ```
 
@@ -81,7 +81,7 @@ uv run ruff check .
 
 ```bash
 # シリーズ企画 → 1巻 → 全工程を一括実行
-uv run novel-forge complete "近未来東京 記憶探偵 親子の和解" \
+uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解" \
   --workdir ./work/series1 --volume 1
 
 # 段階的に進める場合

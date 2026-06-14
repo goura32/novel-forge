@@ -2,30 +2,30 @@
 
 ## 1. プロジェクト構造
 
-```
+```text
 novel-forge/
 ├── pyproject.toml
 ├── README.md
 ├── docs/
-│   ├── ARCHITECTURE.md       # アーキテクチャ設計書
-│   ├── SPECIFICATION.md      # このファイル
-│   └── SETUP_GUIDE.md         # セットアップガイド
+│   ├── ARCHITECTURE.md
+│   ├── SPECIFICATION.md
+│   └── SETUP_GUIDE.md
 ├── prompts/
-│   ├── system.md             # LLM システムプロンプト共通部
-│   ├── series_plan.md        # シリーズ企画
-│   ├── volume_outline.md     # 巻アウトライン
-│   ├── scene_draft.md        # シーン初稿 (MVME goal 使用)
-│   ├── scene_review.md       # シーンレビュー
-│   ├── scene_revision.md     # シーン改稿
-│   ├── scene_summary.md      # シーン要約
-│   ├── scene_quality_gate.md # シーン品質ゲート
-│   ├── chapter_review.md     # 章レビュー
-│   ├── chapter_revision.md   # 章改稿
-│   ├── volume_review.md      # 巻レビュー
-│   ├── volume_revision.md    # 巻改稿
-│   ├── series_review.md      # シリーズレビュー
-│   ├── bible_update.md       # メタデータ台帳更新
-│   └── kdp_metadata.md       # KDP メタデータ
+│   ├── system.md              # LLM システムプロンプト共通部
+│   ├── series_plan.md         # シリーズ企画
+│   ├── volume_outline.md      # 巻アウトライン
+│   ├── scene_draft.md         # シーン初稿 (MVME goal 使用)
+│   ├── scene_review.md        # シーンレビュー
+│   ├── scene_revision.md      # シーン改稿
+│   ├── scene_summary.md       # シーン要約
+│   ├── scene_quality_gate.md  # シーン品質ゲート
+│   ├── chapter_review.md      # 章レビュー
+│   ├── chapter_revision.md    # 章改稿
+│   ├── volume_review.md       # 巻レビュー
+│   ├── volume_revision.md     # 巻改稿
+│   ├── series_review.md       # シリーズレビュー
+│   ├── bible_update.md        # メタデータ台帳更新
+│   └── kdp_metadata.md        # KDP メタデータ
 ├── schemas/
 │   ├── series_plan.json
 │   ├── volume_outline.json
@@ -46,26 +46,26 @@ novel-forge/
 ├── src/
 │   └── novel_forge/
 │       ├── __init__.py
-│       ├── cli.py               # typer CLI
-│       ├── models.py             # Pydantic state/eventモデル (episode対応)
-│       ├── schemas.py           # SCHEMA_BY_NAME レジストリ
-│       ├── storage.py            # StateStorage 実装 (episode永続化、Markdown/JSON)
-│       ├── ollama_client.py      # LLMクライアント
-│       ├── engine.py            # NovelEngine (状態機械)
-│       ├── agents.py            # PlannerAgent, WriterAgent, CriticAgent
-│       ├── orchestrator.py      # NovelOrchestrator (Engine + Agents 統合)
-│       ├── scene_pipeline.py    # SceneWritingPipeline 実装
-│       ├── scene_workflow.py    # シーン単体 (> novel_forge の scene_workflow)
-│       ├── volume_workflow.py   # 巻単位ワークフロー
-│       ├── blackboard.py        # Blackboard 実装
-│       ├── bible.py            # Bible 実装
-│       ├── quality.py            # QualityGate 実装
-│       ├── manuscript.py        # 原稿アセンブリ
-│       ├── publisher.py         # KDP メタデータ + 出版前チェック
-│       ├── prompts.py           # プロンプトテンプレート管理
-│       ├── context_injection.py # コンテキスト注入 (Blackboard, Bible, RevisionHistory)
-│       ├── revision.py          # 改稿優先ロジック
-│       └── markdown_export.py   # Markdown エクスポート
+│       ├── cli.py              # typer CLI
+│       ├── models.py            # Pydantic state/eventモデル
+│       ├── schemas.py          # SCHEMA_BY_NAME レジストリ
+│       ├── storage.py           # StateStorage 永続化
+│       ├── ollama_client.py     # LLMクライアント
+│       ├── engine.py           # NovelEngine (状態機械)
+│       ├── agents.py           # PlannerAgent, WriterAgent, CriticAgent
+│       ├── orchestrator.py     # NovelOrchestrator (Engine + Agents 統合)
+│       ├── scene_pipeline.py   # シーン単位パイプライン
+│       ├── scene_workflow.py   # シーン単体ワークフロー
+│       ├── volume_workflow.py  # 巻単位ワークフロー
+│       ├── blackboard.py       # Blackboard 実装
+│       ├── bible.py           # Bible 実装
+│       ├── quality.py           # QualityGate 実装
+│       ├── manuscript.py       # 原稿アセンブリ
+│       ├── publisher.py        # KDP メタデータ + 出版前チェック
+│       ├── prompts.py          # プロンプトテンプレート管理
+│       ├── context_injection.py# コンテキスト注入
+│       ├── revision.py         # 改稿優先ロジック
+│       └── markdown_export.py  # Markdown エクスポート
 ├── tests/
 │   ├── test_models.py
 │   ├── test_ollama_client.py
@@ -84,27 +84,24 @@ novel-forge/
 uv run novel-forge --help
 
 # モデル接続確認
-uv run novel-forge probe-model \
-  --ollama-url http://ws1.local:11434 \
-  --model qwen3.6:35b-a3b-mtp-q4_K_M
+uv run novel-forge probe-model
 
 # 一括実行 (v1 → 全工程)
-uv run novel-forge complete "近未来東京 記憶探偵 親子の和解" \
-  --workdir ./work/series1 --volume 1
+uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解" --workdir ./work/series1 --volume 1
 
 # 段階実行
-uv run novel-forge plan     --workdir ./work/series1 --keywords "..."
-uv run novel-forge outline  --workdir ./work/series1 --volume 1
-uv run novel-forge write    --workdir ./work/series1 --volume 1
-uv run novel-forge review   --workdir ./work/series1 --volume 1
-uv run novel-forge revise   --workdir ./work/series1 --volume 1
-uv run novel-forge quality  --workdir ./work/series1 --volume 1
-uv run novel-forge export   --workdir ./work/series1 --volume 1
-uv run novel-forge bible    --workdir ./work/series1 --action view
-uv run novel-forge status   --workdir ./work/series1
+uv run novel-forge plan          --workdir ./work/series1 --keywords "..."
+uv run novel-forge outline       --workdir ./work/series1 --volume 1
+uv run novel-forge write         --workdir ./work/series1 --volume 1
+uv run novel-forge review        --workdir ./work/series1 --volume 1
+uv run novel-forge revise        --workdir ./work/series1 --volume 1
+uv run novel-forge quality       --workdir ./work/series1 --volume 1
+uv run novel-forge export        --workdir ./work/series1 --volume 1
+uv run novel-forge bible         --workdir ./work/series1 --action view
+uv run novel-forge status        --workdir ./work/series1
 
 # 次巻へ進む
-uv run novel-forge next-volume --workdir ./work/series1
+uv run novel-forge next-volume   --workdir ./work/series1
 
 # 破損状態からの復旧
 uv run novel-forge recover-state --workdir ./work/series1
@@ -157,11 +154,11 @@ class SceneRecord(BaseModel):
     title: str | None = None
     status: Literal["planned","drafted","reviewed","revised"] = "planned"
     content: str | None = None
-    draft_meta: dict | None = None      # LLM 出力メタ
-    review: dict | None = None
-    revision: dict | None = None
-    quality_gate: dict | None = None
-    summary: dict | None = None
+    draft_meta: SceneMeta | None = None      # LLM 出力メタ
+    review: SceneReview | None = None
+    revision: SceneRevision | None = None
+    quality_gate: SceneQualityGate | None = None
+    summary: SceneSummary | None = None
 
 # ── 進捗 ──
 class VolumeProgress(BaseModel):
@@ -184,7 +181,7 @@ class ProjectState(BaseModel):
 
 ### 3.2 作業フォルダ構造
 
-```
+```text
 workspace/<slug>/
 ├── state.json                    # メイン状態ファイル
 ├── state.json.bak                # 破損時退避
@@ -245,16 +242,15 @@ class ScenePipeline:
     async def process(
         self, scene_plan: ScenePlan, context: SceneContext
     ) -> SceneRecord:
-        # 1. Draft → draft.json
+        # 1. Draft
         draft = await self.write_draft(scene_plan, context)
 
-        # 2. Review → review.json
+        # 2. Review
         review = await self.review_draft(draft, context)
 
         # 3. Quality Gate check
         gate = await self.check_quality(draft, review, context)
         if not gate["passed"]:
-            # auto-revise
             revision = await self.revise(draft, review, context)
             gate = await self.check_quality(revision, review, context)
         else:
@@ -297,19 +293,19 @@ class QualityGate:
         # Raises QualityGateError if not ready
 ```
 
-## 5. プロンプトバージョン管理
+## 5. プロンプト管理
 
 プロンプトは `prompts/` の Markdown ファイルで管理:
 
-```
+```text
 prompts/
-├── system.md              # 共通システムプロンプト (JSON 出力 + ジャンル/ペルソナ)
-├── series_plan.md         # シリーズ企画プロンプト
+├── system.md              # 共通システムプロンプト
+├── series_plan.md         # シリーズ企画
 ├── volume_outline.md      # 巻アウトライン
-├── scene_draft.md         # シーン初稿 (MVME goal 使用)
+├── scene_draft.md         # シーン初稿
 ├── scene_review.md        # シーンレビュー
 ├── scene_revision.md      # シーン改稿
-├── scene_summary.md       # シーン要約 (Blackboard facts 抽出)
+├── scene_summary.md       # シーン要約
 ├── scene_quality_gate.md  # シーン品質ゲート
 ├── chapter_review.md      # 章レビュー
 ├── chapter_revision.md    # 章改稿
@@ -344,19 +340,10 @@ uv run novel-forge recover-state --workdir ./work/series1
 ## 7. テスト要件
 
 ```bash
-# 全テスト実行
-uv run pytest -q
-
-# カバレッジ
-uv run pytest --cov=novel_forge --cov-report=term-missing
-
-# Lint
-uv run ruff check .
-
-# 型チェック
-uv run mypy src/
-
-# スモーク検証 (LLMなし)
+uv run pytest -q                              # 全テスト
+uv run pytest --cov=novel_forge --cov-report=term-missing  # カバレッジ
+uv run ruff check .                           # Lint
+uv run mypy src/                              # 型チェック
 uv run python scripts/make_smoke_workspace.py --root /tmp/novel-forge-smoke
 uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 ```

@@ -2,23 +2,13 @@
 
 ## 1. 設計背景
 
-NovelForge は、3つの先行リポジトリ（`seriescraft-novel`, `novelpress`, `novel-craftsman`）の知見を統合した、次世代のローカルLLM小説制作パイプラインです。
+NovelForge は、ローカルLLMを使って小説シリーズを企画・構成・執筆・レビュー・改稿・出力する Python CLI ツールです。
 
-### 先行リポジトリの分析サマリー
+既存の複数ツールで実績のある設計パターンを調査・統合し、より堅牢で高品質な制作パイプラインを実現します。
 
-| 概念 | seriescraft-novel | novelpress | novel-craftsman |
-|---|---|---|---|
-| 制御構造 | State階層モデル（シリーズ>巻>章>シーン）+ 進捗管理パイプライン | Workflow統合パイプライン + 品質ゲート | RS-Arch 3層分離（Agent/Engine/WorldModel） |
-| 記憶管理 | state.json 逐次保存 + 要約蓄積 | bible.json メタデータ蓄積 | Blackboard 事実ベース共有メモリ |
-| プロンプト戦略 | 段階的コンテキスト注入 | JSON Schema 構造化検証 | MVME (State>Action|Result) 因果強制 |
-| API方式 | `/api/generate` + `format:json` | `/v1/chat/completions` + `response_format` | `/api/chat` + `format` schema |
-| JSON抽出 | パース + リペア + スキーマ検証 | フォン補正 + Draft202012Validator | 3段階フォールバック（直接>コードブロック>ブレース） |
-| 品質管理 | シーン/巻ごとのレビュー + 品質ゲート + 出版前チェック | ready_for_publication + blocking issues チェック | CriticAgent + ConsistencyEngine |
-| 中断再開 | state.json永続化 + 备份/復旧 | state.json + .bak + fsync | Blackboard永続化 |
+### 設計パターンの採用
 
-### NovelForge 採用アプローチ
-
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    CLI Interface (typer)                  │
 ├─────────────────────────────────────────────────────────┤
@@ -41,24 +31,20 @@ NovelForge は、3つの先行リポジトリ（`seriescraft-novel`, `novelpress
 ├─────────────────────────────────────────────────────────┤
 │              Infrastructure Layer                        │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │ Ollama   │  │ Storage  │  │ Logger   │              │
+│  │ LLM      │  │ Storage  │  │ Logger   │              │
 │  │ Client   │  │ (atomic) │  │ (RAW)    │              │
 │  └──────────┘  └──────────┘  └──────────┘              │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Layer採用の根拠**:
+**Layer 構成の考え方**:
 
-| Layer | 採用元 | 採用理由 |
-|---|---|---|
-| Orchestration | seriescraft-novel のエンジン + novelpress のWorkflow | 堅牢な状態遷移 + パイプライン統合 |
-| Intelligence | novel-craftsman の Agent 分離 | LLM出力を隔離し、Engineが検証・制御 |
-| State: State Machine | seriescraft-novel の `NovelState` + `ProgressState` | 中断再開・段階的進行管理 |
-| State: Blackboard | novel-craftsman の `Blackboard` | Story facts の共有・矛盾防止 |
-| State: Bible | novelpress の `bible.json` | キャラクター・用語・継続性のメタデータ管理 |
-| Quality Gate | novelpress の `QualityGate` + seriescraft の品質ゲート | ready_for_publication + blocking issues による出版可否判定 |
-| LLM Client | novelpress の `OllamaOpenAIClient` | `/v1/chat/completions` + `think:false` で verified |
-| Storage | novelpress の atomic write + .bak | データ破壊防止 |
+| Layer | 役割 |
+|---|---|
+| Orchestration | 状態遷移管理、パイプライン順序制御、リトライ |
+| Intelligence | LLM を使った生成・評価・改善（ロジックを持たない） |
+| State / Memory | 進捗管理、物語の事実、メタデータ台帳 |
+| Infrastructure | LLM 通信、永続化、ログ記録 |
 
 ---
 
@@ -66,7 +52,7 @@ NovelForge は、3つの先行リポジトリ（`seriescraft-novel`, `novelpress
 
 ### 2.1 制作パイプライン
 
-```
+```text
 Input: keywords (Japanese)
   │
   ▼
@@ -110,7 +96,7 @@ chapter_N/chapter.md (assembled scenes)
 
 ### 2.2 状態遷移
 
-```
+```text
 Volume status:
   planned → outlined → drafting → drafted → reviewed → revised → published
                                                               → force_exported
@@ -130,13 +116,13 @@ Scene status:
 ```json
 {
   "goal": "(State > Action | Result)",
-  "description": "雾が濃くなる > 主人公が踏み込む | 視界が完全に遮断される"
+  "description": "街灯が揺れる > 主人公が駆け出す | 雨が全身を打つ"
 }
 ```
 
 ### 3.2 JSON Schema 検証パイプライン
 
-```
+```text
 LLM Response
   │
   ├─▶ Step 1: Raw content parse (unwrap markdown fence, `{result:...}`)
@@ -160,7 +146,7 @@ LLM Response
 
 ### 4.1 State Machine (進捗管理)
 
-Pydantic モデルの厳格な状態管理:
+Pydantic モデルの厳格な状態管理。Blackboard と Bible は `state.json` とは別ファイルとして永続化し、State はメタデータ参照のみ保持します。
 
 ```python
 class NovelState(BaseModel):
@@ -169,16 +155,16 @@ class NovelState(BaseModel):
     series_plan: SeriesPlan | None
     volume_outlines: dict[str, VolumeOutline]
     scenes: dict[str, SceneRecord]       # key = "v01_c01_s01"
-    blackboard: BlackboardState          # facts + relationships
-    bible: BibleState                    # characters + terms + foreshadowing
 ```
 
 ### 4.2 Blackboard (物語の事実)
 
+`blackboard.json` として独立ファイルで管理。
+
 ```python
 class BlackboardState(BaseModel):
     facts: list[Fact]                    # (subject, predicate, object, confidence)
-    scene_summaries: dict[str, str]    # key → summary
+    scene_summaries: dict[str, str]      # key → summary
     continuity_notes: list[str]          # 次シーンへの引き継ぎメモ
 ```
 
@@ -187,6 +173,8 @@ class BlackboardState(BaseModel):
 - **Verify**: ConsistencyEngine が新 facts と既存 facts の矛盾を検出
 
 ### 4.3 Bible (メタデータ台帳)
+
+`bible.json` として独立ファイルで管理。
 
 ```python
 class BibleState(BaseModel):
@@ -202,12 +190,10 @@ class BibleState(BaseModel):
 
 ### 5.1 API Endpoint
 
-`/v1/chat/completions` を採用 (novelpress-olient で verified)
+`/v1/chat/completions` を採用。
 
-理由:
-- `/api/generate` + `format:json` は不安定な挙動がある
 - `response_format = {"type": "json_object"}` は `thinking:false` 併用で安定
-- `/v1/chat/completions` は role構造で制御可能
+- role 構造 (system/user/assistant) で精密な制御が可能
 
 ### 5.2 リトライ戦略
 
@@ -220,9 +206,9 @@ async def chat_json_with_retry(
 ) -> Any:
     for attempt in range(max_retries + 1):
         raw = await client.post_chat_completion(messages, schema)
-        content = extract_content(raw)         # content 優先, thinking fallback
-        parsed = unwrap_schema(content)          # schema適合オブジェクト取り出し
-        errors = validate_schema(parsed, schema) # Draft202012Validator
+        content = extract_content(raw)
+        parsed = unwrap_schema(content)
+        errors = validate_schema(parsed, schema)
         if not errors:
             return parsed
         if attempt < max_retries:
@@ -262,7 +248,7 @@ def extract_json(raw_response) -> dict:
 ## 6. セキュリティとデータ保全
 
 ### 6.1 パストラバーサル防止
-- `safe_child_dir(parent, slug)`: `..` を含むslug を拒否
+- `safe_child_dir(parent, slug)`: `..` を含む slug を拒否
 - シーン本文パスがシリーズディレクトリ外を指す場合は拒否
 
 ### 6.2 原子的書き込み
@@ -281,7 +267,7 @@ def extract_json(raw_response) -> dict:
 |---|---|---|
 | Unit | Pydantic モデル、パーサー、バリデーター | pytest |
 | Integration | LLM リクエスト/レスポンスモック | pytest + httpx mock |
-| Smoke | CLI エンドツ南 (小さなワークスペース) | CLI直接実行 |
+| Smoke | CLI エンドツー (小さなワークスペース) | CLI直接実行 |
 | Golden | プロンプト-出力ペアのスナップショット | syrupy |
 
 ---

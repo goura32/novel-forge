@@ -2,15 +2,9 @@
 
 **NovelForge** は、ローカル Ollama モデルを使って小説シリーズを企画・構成・執筆・レビュー・改稿・出力する Python CLI ツールです。
 
-3つの先行プロジェクト（[seriescraft-novel](https://github.com/goura32/seriescraft-openrouter), [novelpress](https://github.com/goura32/novelpress-chatgpt), [novel-craftsman](https://github.com/goura32/novel-craftsman)）の知見を統合し、より堅牢で高品質な制作パイプラインを実現します。
+KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足をツール側で補う設計にしています。**シリーズ > 巻 > 章 > シーン** の階層で制作を管理します。
 
-## 設計思想
-
-| 先行プロジェクト | 採用した機能 | 採用理由 |
-|---|---|---|
-| seriescraft-novel | 階層モデル + 状態機械 + 中断再開 | 長期プロジェクトの安定性 |
-| novelpress | Quality Gate + atomic write + バリデーション | データ整合性と出版可否判定 |
-| novel-craftsman | RS-Arch 3層分離 + Blackboard + MVME | エージェント制御と物語の一貫性 |
+> **注意**: NovelForge は「出版保証ツール」ではありません。KDP 出版可能品質の最終判断は人間が行う前提です。
 
 ## セットアップ
 
@@ -33,7 +27,7 @@ uv run novel-forge probe-model
 
 ```bash
 # 1巻を一括実行
-uv run novel-forge complete "近未来東京 記憶探偵 親子の和解" \
+uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解" \
   --workdir ./work/series1 --volume 1
 
 # 段階的に進める
