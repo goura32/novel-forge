@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+    "messages": [
+      {
+        "role": "system",
+        "content": "必ずJSONのみを返してください。Markdownコードフェンスは禁止です。"
+      },
+      {
+        "role": "user",
+        "content": "日本語で短い小説企画をJSONで返してください。キーは title, genre, hooks(配列3件), protagonist.name, protagonist.goal のみ。"
+      }
+    ],
+    "temperature": 0.2,
+    "max_tokens": 512
+  },
+  "status": 200,
+  "elapsed_sec": 8.853996544959955,
+  "body": {
+    "id": "chatcmpl-528",
+    "object": "chat.completion",
+    "created": 1781066530,
+    "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+    "system_fingerprint": "fp_ollama",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Language:** Japanese (日本語)\n   - **Format:** JSON only (必ずJSONのみを返してください。Markdownコードフェンスは禁止です。)\n   - **Content:** Short novel pitch/plan (短い小説企画)\n   - **Required Keys:** `title`, `genre`, `hooks` (array of 3 strings), `protagonist.name`, `protagonist.goal`\n   - **Constraints:** No markdown code fences, only raw JSON.\n\n2.  **Deconstruct Requirements:**\n   - Must be valid JSON.\n   - Keys must exactly match: `title`, `genre`, `hooks`, `protagonist.name`, `protagonist.goal`.\n   - `hooks` must be an array with exactly 3 elements.\n   - All content in Japanese.\n   - No extra text, no markdown formatting like ```json ... ```.\n\n3.  **Draft Content (Mental Refinement in Japanese):**\n   - `title`: \"時計塔の最後の刻印\" (The Last Mark of the Clock Tower)\n   - `genre`: \"SFミステリー / サイバーパンク\" (SF Mystery / Cyberpunk)\n   - `hooks`: [\n       \"記憶を商品化する街で、主人公は他人の過去を盗む罪人として追われる\",\n       \"時計塔の針が逆回転し始めると、街の時間が1日だけループする\",\n       \"最後の刻印を解く鍵は、主人公自身が忘却した初恋の記憶にある\"\n     ]\n   - `protagonist.name`: \"神崎 蓮（かんざき れん）\"\n   - `protagonist.goal`: \"時計塔の核心に到達し、街の時間ループを解除して失われた記憶を取り戻すこと\"\n\n4.  **Validate JSON Structure:**\n   ```json\n   {\n     \"title\": \"時計塔の最後の刻印\",\n     \"genre\": \"SFミステリー / サイバーパンク\",\n     \"hooks\": [\n       \"記憶を商品化する街で、主人公は他人の過去を盗む罪人として追われる\",\n       \"時計塔の針が逆回転し始めると、街の時間が1日だけループする\",\n       \"最後の刻印を解く鍵は"
+        },
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 62,
+      "completion_tokens": 512,
+      "total_tokens": 574
+    }
+  },
+  "content_parse": {
+    "json_ok": false,
+    "parse_error": "Expecting value: line 1 column 1 (char 0)",
+    "parsed_sample": null,
+    "content_sample": ""
+  }
+}

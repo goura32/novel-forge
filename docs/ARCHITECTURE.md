@@ -109,9 +109,11 @@ Scene status:
 
 ## 3. プロンプト戦略
 
-### 3.1 MVME (Minimalist & Mathematical Edition) の全シーン目標に適用
+### 3.1 MVME (Minimalist & Mathematical Edition)
 
-全シーン目標に構造的アンカー `(S > A | R)` を強制:
+MVME はシーン目標を因果関係で表す手法です。「どのような状態から、誰がどのような行動をとり、その結果どうなるか」を構造的に指定することで、LLM が物語の論理を飛ばすのを防ぎます。
+
+全シーン目標に `(State > Action | Result)` パターンを強制:
 
 ```json
 {
@@ -157,6 +159,8 @@ class NovelState(BaseModel):
     scenes: dict[str, SceneRecord]       # key = "v01_c01_s01"
 ```
 
+Blackboard と Bible は `state.json` とは別ファイル（`blackboard.json`, `bible.json`）として永続化します。State は制作進捗の最小限の情報のみ保持し、物語の事実とメタデータは各ファイルの責務とします。
+
 ### 4.2 Blackboard (物語の事実)
 
 `blackboard.json` として独立ファイルで管理。
@@ -197,51 +201,22 @@ class BibleState(BaseModel):
 
 ### 5.2 リトライ戦略
 
-```python
-async def chat_json_with_retry(
-    client: "OllamaOpenAIClient",
-    messages: list[dict[str, str]],
-    schema: dict[str, Any],
-    max_retries: int = 2,
-) -> Any:
-    for attempt in range(max_retries + 1):
-        raw = await client.post_chat_completion(messages, schema)
-        content = extract_content(raw)
-        parsed = unwrap_schema(content)
-        errors = validate_schema(parsed, schema)
-        if not errors:
-            return parsed
-        if attempt < max_retries:
-            messages = enrich_with_errors(messages, errors)
-            continue
-        raise ValidationError(errors)
-```
+LLM リクエストは失敗しやすいため、検証エラー時に自動リトライします。
+
+- 最大リトライ回数: 2回（合計3回まで試行）
+- リトライ時はエラーフィードバックをメッセージに追加し、LLM に自己修正を促す
+- 最終試行でも失敗した場合は `ValidationError` を発生させる
 
 ### 5.3 JSON抽出パイプライン
 
-```python
-def extract_json(raw_response) -> dict:
-    content = raw_response["choices"][0]["message"]["content"]
-    thinking = raw_response["choices"][0]["message"].get("thinking", "")
+LLM の応答から JSON を安定して抽出するため、4段階のフォールバックを使用します。
 
-    # 1. Content直接parse
-    obj = try_parse(content)
-    if obj: return obj
+1. **Content 直接 parse** — message.content をそのまま JSON として解釈
+2. **Markdown fence 除去** — `` ```json ``` `` で囲まれた中身を抽出
+3. **Brace 検索** — 応答内の最初の `{...}` を候補として抽出
+4. **Thinking fallback** — qwen3.6 系で content ではなく thinking 欄に出力が逃げる問題への対策
 
-    # 2. Markdown fence除去
-    obj = try_parse(strip_fence(content))
-    if obj: return obj
-
-    # 3. brute-force { } 検索
-    obj = try_parse(extract_brace(content))
-    if obj: return obj
-
-    # 4. thinking fallback (qwen3.6 対策)
-    obj = try_parse(thinking)
-    if obj: return obj
-
-    raise ParseError(content)
-```
+いずれの段階でもパースに失敗し、スキーマ検証でも不一致の場合は `ParseError` を発生させます。
 
 ---
 

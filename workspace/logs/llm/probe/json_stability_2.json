@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+    "messages": [
+      {
+        "role": "system",
+        "content": "必ずJSONのみを返してください。Markdownコードフェンスは禁止です。"
+      },
+      {
+        "role": "user",
+        "content": "日本語で短い小説企画をJSONで返してください。キーは title, genre, hooks(配列3件), protagonist.name, protagonist.goal のみ。"
+      }
+    ],
+    "temperature": 0.2,
+    "max_tokens": 512
+  },
+  "status": 200,
+  "elapsed_sec": 7.933681335998699,
+  "body": {
+    "id": "chatcmpl-303",
+    "object": "chat.completion",
+    "created": 1781066537,
+    "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+    "system_fingerprint": "fp_ollama",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Language:** Japanese (日本語)\n   - **Content:** Short novel proposal/plan (短い小説企画)\n   - **Format:** JSON only (必ずJSONのみを返してください。Markdownコードフェンスは禁止です。)\n   - **Required Keys:** `title`, `genre`, `hooks` (array of 3 items), `protagonist.name`, `protagonist.goal`\n   - **Constraints:** No markdown code fences, only raw JSON.\n\n2.  **Deconstruct Requirements:**\n   - `title`: String (Japanese)\n   - `genre`: String (Japanese)\n   - `hooks`: Array of 3 strings (Japanese)\n   - `protagonist`: Object with `name` and `goal` keys (both strings in Japanese)\n   - Output must be valid JSON.\n   - No markdown formatting like ```json ... ```.\n\n3.  **Draft Content (Mental Refinement in Japanese):**\n   - Title: 「時計の裏側で逢いましょう」(Let's Meet Behind the Clock)\n   - Genre: サスペンス・ファンタジー (Suspense/Fantasy)\n   - Hooks: \n     1. 毎日同じ朝に目覚める主人公が、壁に書かれた謎のメッセージに気づく。\n     2. メッセージの正体は、未来から送られた警告だった。\n     3. 時間を止める代償として、記憶が一つずつ消えていく。\n   - Protagonist:\n     - name: \"神崎 蓮\" (Kanzaki Ren)\n     - goal: \"ループを打破し、失われた大切な記憶を取り戻すこと\"\n\n4.  **Structure as JSON:**\n   ```json\n   {\n     \"title\": \"時計の裏側で逢いましょう\",\n     \"genre\": \"サスペンス・ファンタジー\",\n     \"hooks\": [\n       \"毎日同じ朝に目覚める主人公が、壁に書かれた謎のメッセージに気づく。\",\n       \"メッセージの正体は、未来から送られた警告だった。\",\n       \"時間を止める代償として、記憶が一つずつ消えていく。\"\n     ],\n     \"protagonist\": {\n       \"name\": \"神崎 蓮\","
+        },
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 62,
+      "completion_tokens": 512,
+      "total_tokens": 574
+    }
+  },
+  "content_parse": {
+    "json_ok": false,
+    "parse_error": "Expecting value: line 1 column 1 (char 0)",
+    "parsed_sample": null,
+    "content_sample": ""
+  }
+}

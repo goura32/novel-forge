@@ -154,11 +154,11 @@ class SceneRecord(BaseModel):
     title: str | None = None
     status: Literal["planned","drafted","reviewed","revised"] = "planned"
     content: str | None = None
-    draft_meta: SceneMeta | None = None      # LLM 出力メタ
-    review: SceneReview | None = None
-    revision: SceneRevision | None = None
-    quality_gate: SceneQualityGate | None = None
-    summary: SceneSummary | None = None
+    draft_meta: dict | None = None      # LLM 出力メタ（scene.json スキーマ）
+    review: dict | None = None           # scene_review.json スキーマ
+    revision: dict | None = None         # scene_revision.json スキーマ
+    quality_gate: dict | None = None     # scene_quality_gate.json スキーマ
+    summary: dict | None = None          # scene_summary.json スキーマ
 
 # ── 進捗 ──
 class VolumeProgress(BaseModel):
@@ -210,61 +210,31 @@ workspace/<slug>/
 
 ### 4.1 NovelEngine (engine.py)
 
-中核となる状態機械。全コマンドはこのエンジンを通る。
+中核となる状態機械。全コマンドはこのエンジンを通ります。
 
-```python
-class NovelEngine:
-    def __init__(self, workdir: Path, client: OllamaClient):
-        self.storage = StateStorage(workdir)
-        self.client = client
-
-    def plan_series(keywords: str) -> Result
-    def outline_volume(volume: int) -> Result
-    def write_volume(volume: int, max_scenes: int | None = None) -> Result
-    def review_volume(volume: int) -> Result
-    def revise_volume(volume: int) -> Result
-    def check_quality(volume: int) -> Result
-    def export_volume(volume: int, force: bool = False) -> Result
-    def update_bible(volume: int) -> Result
-    def generate_kdp_metadata(volume: int) -> Result
-    def status() -> ProjectState
-    def complete(keywords: str, volume: int) -> Result
-```
+| コマンド | 役割 |
+|---|---|
+| `plan` | キーワードからシリーズ企画を生成 |
+| `outline` | 巻アウトライン（章・シーン構成）を生成 |
+| `write` | シーン本文を生成し、レビュー・改稿・品質ゲートを実行 |
+| `review` | 巻全体をレビュー |
+| `revise` | レビュー結果に基づき巻全体を改稿 |
+| `quality` | シーン品質ゲートを再評価 |
+| `export` | KDP 向け出力を生成 |
+| `bible` | メタデータ台帳を更新・参照 |
+| `status` | 現在の進捗を表示 |
+| `complete` | 企画からレビューまでの全工程を一括実行 |
+| `next-volume` | 次巻のアウトラインを生成 |
+| `recover-state` | 破損した状態ファイルを復旧 |
 
 ### 4.2 ScenePipeline (scene_pipeline.py)
 
-シーン単位の処理パイプライン。
+シーン単位の処理パイプライン。各シーンを以下の順序で処理します。
 
-```python
-class ScenePipeline:
-    def __init__(self, client, blackboard, bible, prompts):
-
-    async def process(
-        self, scene_plan: ScenePlan, context: SceneContext
-    ) -> SceneRecord:
-        # 1. Draft
-        draft = await self.write_draft(scene_plan, context)
-
-        # 2. Review
-        review = await self.review_draft(draft, context)
-
-        # 3. Quality Gate check
-        gate = await self.check_quality(draft, review, context)
-        if not gate["passed"]:
-            revision = await self.revise(draft, review, context)
-            gate = await self.check_quality(revision, review, context)
-        else:
-            revision = draft
-
-        # 4. Summarize → update Blackboard
-        summary = await self.summarize(revision, context)
-        self.blackboard.add_facts(summary.extract_facts())
-
-        return SceneRecord(
-            draft=draft, review=review,
-            revision=revision, quality_gate=gate
-        )
-```
+1. **Draft** — アウトラインとコンテキストから初稿を生成
+2. **Review** — 初稿を評価し、改善点を抽出
+3. **Quality Gate** — レビュー結果に基づき合格/不合格を判定。不合格の場合は自動改稿して再評価
+4. **Summarize** — 改稿済み本文から要約を生成し、Blackboard に事実を記録
 
 ### 4.3 Blackboard (blackboard.py)
 

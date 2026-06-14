@@ -9,7 +9,8 @@ KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足を
 ## セットアップ
 
 ```bash
-cd /mnt/hdd/projects/novel-forge
+git clone https://github.com/goura32/novel-forge.git
+cd novel-forge
 uv venv --python 3.14 .venv
 source .venv/bin/activate
 uv pip install -e .

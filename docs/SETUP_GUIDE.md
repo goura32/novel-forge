@@ -14,7 +14,7 @@
 ### 2.1 リポジトリのクローン
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/goura32/novel-forge.git
 cd novel-forge
 ```
 
