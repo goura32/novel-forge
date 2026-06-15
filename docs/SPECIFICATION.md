@@ -256,16 +256,32 @@ workspace/<slug>/
     │   └── {timestamp}_{phase}.json
     └── volumes/                      # 中間生成データ
         └── vol01/
-            ├── outline.json          # 巻アウトライン
+            ├── vol01_outline.json      # 巻アウトライン（vol01 プレフィックスでユニーク）
             ├── ch01/                  # 章1
             │   ├── vol01_ch01_sc01.md  # シーン1（シリーズ内ユニーク）
             │   └── vol01_ch01_sc02.md  # シーン2
             ├── ch02/                  # 章2
             │   └── vol01_ch02_sc01.md
-            ├── review.json           # 巻レビュー（中間）
-            ├── revision.json         # 巻改稿中間データ
+            ├── vol01_review.json       # 巻レビュー（vol01 プレフィックスでユニーク）
+            ├── vol01_revision.json     # 巻改稿中間データ
             └── quality_reports/
-                └── ch01_sc01_quality.json
+                └── vol01_ch01_sc01_quality.json  # vol01 プレフィックスでユニーク
+```
+
+**ファイル名ユニークルール**: 全ファイル名は `{vol}_{container}_{type}` の形式。`vol01` を必ず含めることで、シリーズディレクトリ内で一意を保証。
+
+**ループ生成時の上書き戦略**:
+
+| ファイル | 再実行時の挙動 | 根拠 |
+|---|---|---|
+| `vol01_outline.json` | 上書き | 再企画時に最新に更新 |
+| `vol01_ch01_sc01.md` | 上書き | 再執筆時に最新に更新 |
+| `vol01_review.json` | 上書き | 再レビュー時に最新に更新 |
+| `vol01_revision.json` | 上書き | 再改稿時に最新に更新 |
+| `vol01_ch01_sc01_quality.json` | 上書き | 再評価時に最新に更新 |
+| `raw_logs/*.json` | **上書きしない**（タイムスタンプ付き） | 全 LLM やり取りの履歴を保持 |
+
+**全履歴の保持**: `raw_logs/` にタイムスタンプ付きで保存されるため、再実行前の LLM レスポンスも失われない。作品ファイル（outline, scene, review 等）は上書きされるが、LLM の生ログは全履歴が残る。
 ```
 
 **番号割り当て（統一フォーマット: プレフィックス2文字 + ゼロ埋め2桁）**:
@@ -279,10 +295,10 @@ workspace/<slug>/
 **設計原則**:
 
 1. **人間が目にするのは `exports/` のマークダウンだけ**: `manuscript.md` が完成原稿
-2. **原稿の実体は `.novel-forge/volumes/` だが、マークダウンだけ**: `ch{N}/sc{N}.md`。JSON は一切混在しない
-3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json` 等。人間は見ないし触らない
+2. **原稿の実体は `.novel-forge/volumes/` だが、マークダウンだけ**: `ch{N}/vol{NN}_ch{NN}_sc{NN}.md`。JSON は一切混在しない
+3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json`, `vol{NN}_outline.json`, `vol{NN}_review.json` 等。人間は見ないし触らない
 4. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
-5. **階層は2層まで**: `vol{N}/ch{N}/sc{N}.md`。`chapters/`, `scenes/` は廃止
+5. **階層は2層まで**: `vol{N}/ch{N}/vol{NN}_ch{NN}_sc{NN}.md`。`chapters/`, `scenes/` は廃止
 6. **プレフィックス2文字 + ゼロ埋め2桁で統一**: `vol01`, `ch01`, `sc01`
 
 ```
