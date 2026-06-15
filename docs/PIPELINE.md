@@ -318,7 +318,20 @@ class QualityGate:
 
     def ensure_export_allowed(review: dict, force: bool) -> None
         # Raises QualityGateError if not ready
+
+    def check_simplified_chinese(text: str) -> list[str]
+        # 簡体字検出: opencc-purepy で繁体字に変換できる文字を特定
+        # 返り値: 検出された簡体字のリスト（空なら問題なし）
 ```
+
+### 8.1 簡体字検出
+
+LLM の応答に簡体字が混じった場合、品質ゲートで `critical` issue として記録する。
+
+- **検出手法**: opencc-purepy（`s2t` 変換）を使用。テキスト中の各文字を繁体字に変換し、変換された文字を簡体字と判定
+- **誤検知防止**: 日本語常用漢字（簡・体・学・国・会など）は繁体字と同一コードポイントのため変換されない。opencc の辞書ベース判定により、これらは誤検知されない
+- **アクション**: リトライなし。`SceneRecord.quality_gate` に `simplified_chinese: [検出文字リスト]` を記録。`kdp_readiness_report.md` に集約
+- **防止策**: システムプロンプト（`prompts/system.md`）に「简体中文・簡体字は使用しない」と明記
 
 ---
 
