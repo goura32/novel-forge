@@ -10,6 +10,8 @@ from novel_forge.models import (
     SceneRecord,
     VolumeOutline,
     SeriesPlan,
+    SceneDesign,
+    ChapterDesign,
 )
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.ollama_client import LLMClient
@@ -71,9 +73,9 @@ class NovelEngine:
         )
         schema = self._load_schema("series_plan")
         result = self._llm.complete_json("series_plan", system, user, schema)
-        series_plan = SeriesPlan(**result)
-        self._state.series_title = series_plan.title
+        self._state.series_title = result.get("title", "")
         self._state.status = "planned"
+        self._save_path(0, "series_plan.json", result)
         self._save()
         return result
 
@@ -83,18 +85,18 @@ class NovelEngine:
         vol_num = volume_number or self._state.current_volume
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._get_series_plan_summary()
+        genre = self._get_genre()
         user = self._prompts.render(
             "volume_outline.md",
             {
                 "series_plan": series_plan,
                 "volume_number": str(vol_num),
-                "genre": str(self._state.volumes[0].volume_number) if self._state.volumes else "fantasy",
+                "genre": genre,
                 "lang": self._lang,
             },
         )
         schema = self._load_schema("volume_outline")
         result = self._llm.complete_json("volume_outline", system, user, schema)
-        outline = VolumeOutline(**result)
         vol = self._current_volume()
         vol.status = "outlined"
         self._state.status = "outlined"
@@ -109,23 +111,41 @@ class NovelEngine:
         outline_data = self._load_path(vol_num, "outline.json")
         outline = VolumeOutline(**outline_data)
         vol = self._current_volume()
+        vol.status = "drafting"
         results = []
+
         for chapter in outline.chapters:
+            chapter_scenes: list[str] = []
             for scene in chapter.scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("revised", "force_exported"):
+                    chapter_scenes.append(self._load_scene_draft(vol_num, scene.number))
                     continue
-                result = self._write_scene(outline, chapter, scene, record)
+                result = self._write_scene(outline, chapter, scene, record, vol_num)
                 results.append(result)
+                chapter_scenes.append(self._load_scene_draft(vol_num, scene.number))
+
+            # 章自動組立
+            self._assemble_chapter(vol_num, chapter, chapter_scenes)
+
         vol.status = "drafted"
-        self._state.status = "drafting"
+        self._state.status = "drafted"
         self._save()
         return results
 
-    def _write_scene(self, outline, chapter, scene, record) -> dict[str, Any]:
+    def _write_scene(
+        self,
+        outline: VolumeOutline,
+        chapter,
+        scene,
+        record: SceneRecord,
+        vol_num: int,
+    ) -> dict[str, Any]:
         system = self._prompts.render("system.md", {"lang": self._lang})
         context = self._build_context()
         continuity = self._build_continuity(record.scene_number)
+
+        # Draft
         user = self._prompts.render(
             "scene_draft.md",
             {
@@ -137,11 +157,111 @@ class NovelEngine:
                 "lang": self._lang,
             },
         )
-        draft = self._llm.complete_json("scene_draft", system, user)
+        draft_text = self._llm.complete_text("scene_draft", system, user)
         record.status = "drafted"
-        record.quality_retries = 0
+        self._save_scene_draft(vol_num, record.scene_number, draft_text)
+
+        # Review → Quality Gate → 改稿ループ（最大3回）
+        for retry in range(QualityGate.MAX_RETRIES + 1):
+            review = self._review_scene(draft_text, outline, scene)
+            qg_result = self._quality.check_scene(review)
+            record.quality_retries = retry + 1
+
+            if qg_result.passed:
+                record.status = "revised"
+                record.quality_gate = qg_result
+                break
+
+            if retry < QualityGate.MAX_RETRIES:
+                draft_text = self._revise_scene(draft_text, review)
+                self._save_scene_draft(vol_num, record.scene_number, draft_text)
+            else:
+                record.status = "force_exported"
+                record.quality_gate = qg_result
+
+        # Summarize → Blackboard更新
+        self._summarize_scene(record.scene_number, draft_text)
         self._save()
         return {"scene_number": record.scene_number, "status": record.status}
+
+    def _review_scene(self, draft_text: str, outline: VolumeOutline, scene) -> dict:
+        system = self._prompts.render("system.md", {"lang": self._lang})
+        user = self._prompts.render(
+            "scene_review.md",
+            {
+                "scene": draft_text[:3000],
+                "outline": outline.model_dump_json(),
+                "context": self._build_context(),
+                "lang": self._lang,
+            },
+        )
+        schema = self._load_schema("scene_review")
+        return self._llm.complete_json("scene_review", system, user, schema)
+
+    def _revise_scene(self, draft_text: str, review: dict) -> str:
+        system = self._prompts.render("system.md", {"lang": self._lang})
+        user = self._prompts.render(
+            "scene_revision.md",
+            {
+                "scene": draft_text[:3000],
+                "review": json.dumps(review, ensure_ascii=False),
+                "lang": self._lang,
+            },
+        )
+        return self._llm.complete_text("scene_revision", system, user)
+
+    def _summarize_scene(self, scene_number: int, draft_text: str) -> None:
+        system = self._prompts.render("system.md", {"lang": self._lang})
+        user = self._prompts.render(
+            "scene_summary.md",
+            {
+                "scene": draft_text[:3000],
+                "lang": self._lang,
+            },
+        )
+        schema = self._load_schema("scene_summary")
+        result = self._llm.complete_json("scene_summary", system, user, schema)
+        bb = self._blackboard_storage.load()
+        bb.scene_summaries[str(scene_number)] = result.get("summary", "")
+        for fact_data in result.get("facts", []):
+            from novel_forge.models import Fact
+            bb.facts.append(Fact(**fact_data))
+        bb.continuity_notes.extend(result.get("continuity_notes", []))
+        self._blackboard_storage.save(bb)
+
+    def _save_scene_draft(self, vol_num: int, scene_number: int, text: str) -> None:
+        path = (
+            self._workdir
+            / ".novel-forge"
+            / "volumes"
+            / f"vol{vol_num:02d}"
+            / "scenes"
+            / f"ch01"
+            / f"vol{vol_num:02d}_ch01_sc{scene_number:02d}.md"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def _load_scene_draft(self, vol_num: int, scene_number: int) -> str:
+        path = (
+            self._workdir
+            / ".novel-forge"
+            / "volumes"
+            / f"vol{vol_num:02d}"
+            / "scenes"
+            / f"ch01"
+            / f"vol{vol_num:02d}_ch01_sc{scene_number:02d}.md"
+        )
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+        return ""
+
+    def _assemble_chapter(self, vol_num: int, chapter, scene_texts: list[str]) -> None:
+        vol_dir = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}"
+        ch_path = vol_dir / "chapters" / f"ch{chapter.number:02d}.md"
+        ch_path.parent.mkdir(parents=True, exist_ok=True)
+        content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(scene_texts)
+        ch_path.write_text(content, encoding="utf-8")
 
     # ── export ────────────────────────────────────────────────────────
 
@@ -203,18 +323,41 @@ class NovelEngine:
             return json.dumps(data, ensure_ascii=False)
         return "{}"
 
+    def _get_genre(self) -> str:
+        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
+        if plan_path.exists():
+            data = json.loads(plan_path.read_text(encoding="utf-8"))
+            return data.get("genre", "fantasy")
+        return "fantasy"
+
     def _build_context(self) -> str:
         bb = self._blackboard_storage.load()
         bible = self._bible_storage.load()
         parts = []
         if bb.facts:
-            parts.append("## 事実記録\n" + "\n".join(
-                f"- {f.subject} {f.predicate} {f.object}" for f in bb.facts[-20:]
-            ))
+            parts.append(
+                "## 事実記録\n"
+                + "\n".join(
+                    f"- {f.subject} {f.predicate} {f.object}"
+                    for f in bb.facts[-20:]
+                )
+            )
         if bible.characters:
-            parts.append("## キャラクター\n" + "\n".join(
-                f"- {c.name}: {c.personality}" for c in bible.characters
-            ))
+            parts.append(
+                "## キャラクター\n"
+                + "\n".join(
+                    f"- {c.name}: {c.personality}" for c in bible.characters
+                )
+            )
+        if bible.glossary:
+            parts.append(
+                "## 用語\n"
+                + "\n".join(f"- {g.term}: {g.definition}" for g in bible.glossary[-10:])
+            )
+        if bible.world_rules:
+            parts.append(
+                "## 世界観ルール\n" + "\n".join(f"- {r}" for r in bible.world_rules)
+            )
         return "\n\n".join(parts)
 
     def _build_continuity(self, scene_number: int) -> str:
@@ -240,9 +383,16 @@ class NovelEngine:
         return record
 
     def _save_path(self, vol_num: int, filename: str, data: Any) -> None:
-        path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+        if vol_num == 0:
+            path = self._workdir / ".novel-forge" / filename
+        else:
+            path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
         path.parent.mkdir(parents=True, exist_ok=True)
-        content = json.dumps(data, ensure_ascii=False, indent=2) if isinstance(data, dict) else str(data)
+        content = (
+            json.dumps(data, ensure_ascii=False, indent=2)
+            if isinstance(data, dict)
+            else str(data)
+        )
         path.write_text(content, encoding="utf-8")
 
     def _load_path(self, vol_num: int, filename: str) -> dict:
@@ -250,7 +400,17 @@ class NovelEngine:
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _finalize_bible(self) -> None:
-        pass
+        """巻レベルの Bible 整合性を確認し、未反映の事実を更新する。"""
+        bible = self._bible_storage.load()
+        bb = self._blackboard_storage.load()
+
+        # Blackboard の continuity_notes から伏線回収を検出
+        for note in bb.continuity_notes:
+            for fh in bible.foreshadowing:
+                if not fh.resolved and fh.description in note:
+                    fh.resolved = True
+
+        self._bible_storage.save(bible)
 
     def _assemble_manuscript(self, vol_num: int) -> str:
         export_dir = self._workdir / "exports"
@@ -266,8 +426,13 @@ class NovelEngine:
     def _generate_kdp_metadata(self, vol_num: int) -> dict[str, Any]:
         export_dir = self._workdir / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
+        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
+        title = self._state.series_title
+        if plan_path.exists():
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+            title = plan.get("title", title)
         metadata = {
-            "title": self._state.series_title,
+            "title": title,
             "volume": vol_num,
             "language": self._lang,
         }
@@ -281,22 +446,43 @@ class NovelEngine:
         export_dir.mkdir(parents=True, exist_ok=True)
         vol = self._current_volume()
         force_count = sum(1 for s in vol.scenes if s.status == "force_exported")
+        revised_count = sum(1 for s in vol.scenes if s.status == "revised")
         lines = [
             "# KDP 準備完了レポート",
-            f"",
-            f"## サマリー",
+            "",
+            "## サマリー",
             f"- シリーズ: {self._state.series_title}",
             f"- 巻: {vol_num}",
             f"- ステータス: {vol.status}",
             f"- 総シーン数: {len(vol.scenes)}",
-            f"- 完了シーン: {sum(1 for s in vol.scenes if s.status == 'revised')}",
+            f"- 完了シーン: {revised_count}",
             f"- force_exported シーン: {force_count}",
         ]
         if force_count > 0:
-            lines.extend(["", "## ⚠️ 警告", "以下のシーンは品質ゲート3回不合格のまま出力されています:"])
+            lines.extend(
+                [
+                    "",
+                    "## ⚠️ 警告",
+                    "以下のシーンは品質ゲート3回不合格のまま出力されています:",
+                ]
+            )
             for s in vol.scenes:
                 if s.status == "force_exported":
                     lines.append(f"- シーン {s.scene_number}")
+
+        # 未回収伏線
+        bible = self._bible_storage.load()
+        unresolved = [fh for fh in bible.foreshadowing if not fh.resolved]
+        if unresolved:
+            lines.extend(["", "## ⚠️ 未回収伏線"])
+            for fh in unresolved:
+                lines.append(f"- {fh.description}")
+
+        lines.extend(["", "## 提出前確認事項"])
+        lines.append("- [ ] 表紙画像の準備")
+        lines.append("- [ ] 商品説明文の最終確認")
+        lines.append("- [ ] キーワード・カテゴリの確認")
+
         report = "\n".join(lines)
         (export_dir / "kdp_readiness_report.md").write_text(report, encoding="utf-8")
         return report

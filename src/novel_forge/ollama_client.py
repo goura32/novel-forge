@@ -97,6 +97,23 @@ class LLMClient:
                     continue
         raise last_error or LLMError("LLM request failed")
 
+    def complete_text(
+        self,
+        kind: str,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> str:
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "system": system_prompt,
+            "prompt": user_prompt,
+            "stream": False,
+            "think": False,
+        }
+        raw = self._call_api(payload)
+        self._write_log(kind, payload, raw, {"text": raw[:200]})
+        return raw
+
     def _call_api(self, payload: dict[str, Any]) -> str:
         try:
             resp = httpx.post(

@@ -115,10 +115,17 @@ class VolumeOutline(BaseModel):
 
 class SeriesPlan(BaseModel):
     title: str = ""
+    slug: str = Field(default="", max_length=64, pattern=r"^[a-z0-9-]+$")
+    logline: str = Field(default="", max_length=200)
     genre: str = ""
-    target_audience: str = ""
+    target_audience: str = Field(default="", max_length=50)
+    themes: list[str] = Field(default_factory=list)
+    selling_points: list[str] = Field(default_factory=list)
+    world_summary: str = Field(default="", max_length=500, alias="world_summary")
+    world_rules: list[str] = Field(default_factory=list)
+    main_characters: list[CharacterProfile] = Field(default_factory=list)
+    planned_volumes: list[dict[str, Any]] = Field(default_factory=list)
     premise: str = ""
-    volumes: int = Field(ge=1, default=1)
     keywords: list[str] = Field(default_factory=list)
     catchphrase: str = ""
     differentiation: str = ""
