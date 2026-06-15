@@ -58,6 +58,8 @@ Input: keywords (Japanese)
   ▼
 [Planning Phase]
   │ LLM: series_plan schema
+  │ LLM: 自己レビュー（キャラクター整合性・世界観的一貫性）
+  │ 不合格 → 自動修正 → 再評価 (最大3回)
   ▼
 series_plan.json ──▶ Blackboard (facts)
   │                  Bible (meta)
@@ -67,6 +69,8 @@ series_plan.json ──▶ Blackboard (facts)
   ▼
 [Outline Phase]
   │ LLM: volume_outline schema
+  │ LLM: 自己レビュー（構造的妥当性・シーン間の論理一貫性）
+  │ 不合格 → 自動修正 → 再評価 (最大3回)
   ▼
 volume_N/outline.json
   │
@@ -127,12 +131,20 @@ Resume (再開):
 | 介入ポイント | タイミング | 内容 | 必須/任意 |
 |---|---|---|---|
 | シリーズ企画の承認 | plan 直後 | 方向性のゴーサイン。`plan --approve` | **必須** |
-| 最終レビュー | export 直後 | kdp_readiness_report.md の確認 | 任意 |
+| 最終レビュー | export 直后 | kdp_readiness_report.md の確認 | 任意 |
 
-**それ以外の工程（シーン執筆、シーンレビュー、改稿、巻レビュー）はすべて LLM 自律。人間には見せない。**
+**それ以外の工程はすべて LLM 自律。人間には見せない。**
+
+**レビューワークフロー（原則: LLMが生成したものはLLMがレビューする）**:
+
+| 階層 | 設計 | レビュー | 無限ループ防止 |
+|---|---|---|---|
+| シリーズ企画 | LLM → `series_plan.json` | LLM → 自己レビュー結果を記録 | 最大3回 |
+| 巻アウトライン | LLM → `outline.json` | LLM → 自己レビュー結果を記録 | 最大3回 |
+| シーン本文 | LLM → 本文 | LLM → 改稿 → 品質ゲート | 最大3回（3回不合格→`force_exported`） |
 
 ```text
-シリーズ企画 ─▶ [人間承認] ─▶ 巻アウトライン ─▶ シーン執筆
+シリーズ企画(LLM設計) → LLMレビュー → [人間承認] → 巻アウトライン(LLM設計) → LLMレビュー → シーン本文(LLM設計) → LLMレビュー → 改稿 → 品質ゲート → export → [最終レビュー(任意)]
     │                                            │
     │                                    LLM自律レビュー
     │                                    LLM自律改稿
