@@ -26,7 +26,8 @@
         "type": "object",
         "required": [
           "subject",
-          "predicate"
+          "predicate",
+          "object"
         ],
         "properties": {
           "subject": {

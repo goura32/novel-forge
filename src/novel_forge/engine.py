@@ -145,7 +145,8 @@ class NovelEngine:
 
         for chapter in outline.chapters:
             chapter_scenes: list[str] = []
-            for scene in chapter.scenes:
+            ch_scenes = [s for s in outline.scenes if s.chapter_number == chapter.number]
+            for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("revised", "force_exported"):
                     chapter_scenes.append(self._load_scene_draft(vol_num, scene.number))

@@ -268,10 +268,10 @@ class TestSchemas:
         assert "act_role" in schema["required"]
         assert "act_role" in schema["properties"]
 
-    def test_volume_outline_purpose_is_enum(self):
+    def test_volume_outline_goal_has_description(self):
         schema = get_schema("volume_outline")
-        purpose = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"]["properties"]["goal"]
-        assert "description" in purpose
+        goal = schema["properties"]["scenes"]["items"]["properties"]["goal"]
+        assert "description" in goal
 
     def test_chapter_outline_purpose_is_enum(self):
         schema = get_schema("volume_outline")

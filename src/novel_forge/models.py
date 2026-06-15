@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 class Fact(BaseModel):
     subject: str
     predicate: str
-    object: str
+    object: str = ""
     confidence: float = Field(ge=0.0, le=1.0, default=1.0)
 
 
@@ -89,6 +89,7 @@ class ChapterDesign(BaseModel):
 
 class SceneOutline(BaseModel):
     number: int = Field(ge=1)
+    chapter_number: int = Field(ge=1)
     title: str = Field(max_length=128)
     pov: str = Field(max_length=64, default="")
     goal: str = ""
@@ -103,7 +104,6 @@ class ChapterOutline(BaseModel):
     purpose: str = Field(
         pattern="^(introduction|rising_action|turning_point|climax|resolution)$",
     )
-    scenes: list[SceneOutline] = Field(default_factory=list)
 
 
 class VolumeOutline(BaseModel):
@@ -111,6 +111,7 @@ class VolumeOutline(BaseModel):
     title: str = Field(max_length=128)
     premise: str = Field(max_length=200, default="")
     chapters: list[ChapterOutline] = Field(default_factory=list)
+    scenes: list[SceneOutline] = Field(default_factory=list)
 
 
 # ── シリーズ企画 ───────────────────────────────────────────────────────
