@@ -64,8 +64,7 @@ Input: keywords (Japanese)
 series_plan.json ──▶ Blackboard (facts)
   │                  Bible (meta)
   ▼
-  │ ★ 人間承認: シリーズ企画の方向性を確認してゴーサイン
-  │   (plan --approve で承認。未承認なら再生成 or 修正)
+  │ ★ 人間確認: LLM自己レビュー結果を人間が確認。問題なければ暗黙的に次工程へ
   ▼
 [Outline Phase]
   │ LLM: volume_outline schema
@@ -130,7 +129,7 @@ Resume (再開):
 
 | 介入ポイント | タイミング | 内容 | 必須/任意 |
 |---|---|---|---|
-| シリーズ企画の承認 | plan 直後 | 方向性のゴーサイン。`plan --approve` | **必須** |
+| シリーズ企画の承認 | plan 直後 | LLM自己レビュー結果を人間が確認。問題なければ暗黙的に次工程へ | **必須（暗黙承認）** |
 | 最終レビュー | export 直后 | kdp_readiness_report.md の確認 | 任意 |
 
 **それ以外の工程はすべて LLM 自律。人間には見せない。**
@@ -139,7 +138,7 @@ Resume (再開):
 
 | 階層 | 設計 | レビュー | 無限ループ防止 |
 |---|---|---|---|
-| シリーズ企画 | LLM → `series_plan.json` | LLM → 自己レビュー結果を記録 | 最大3回 |
+| シリーズ企画 | LLM → `series_plan.json` | LLM → 自己レビュー結果を記録 | 最大3回。人間が内容を確認（暗黙承認） |
 | 巻アウトライン | LLM → `outline.json` | LLM → 自己レビュー結果を記録 | 最大3回 |
 | シーン本文 | LLM → 本文 | LLM → 改稿 → 品質ゲート | 最大3回（3回不合格→`force_exported`） |
 
