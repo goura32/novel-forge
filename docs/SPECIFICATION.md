@@ -16,9 +16,9 @@ novel-forge/
 │   ├── volume_outline.json
 │   ├── volume_outline_review.json
 │   ├── scene.json              # シーン草稿（title + content）
-│   ├── scene_design.json       # シーン設計（TODO: スキーマ未作成）
-│   ├── chapter_design.json     # 章設計（TODO: スキーマ・ファイル未作成）
-│   ├── volume_outline_revision_log.json  # アウトライン修正履歴（TODO: スキーマ未作成）
+│   ├── scene_design.json       # シーン設計（§3.2 参照）
+│   ├── chapter_design.json     # 章設計（§3.2 参照）
+│   ├── volume_outline_revision_log.json  # アウトライン修正履歴（§3.2 参照）
 │   ├── scene_review.json
 │   ├── scene_revision.json
 │   ├── scene_summary.json
@@ -26,7 +26,6 @@ novel-forge/
 │   ├── blackboard.json
 │   ├── bible.json
 │   ├── kdp_metadata.json
-│   ├── revision_priority.json
 │   └── cover_prompt.json
 ├── src/
 │   └── novel_forge/
@@ -159,7 +158,65 @@ class ProjectState(BaseModel):
 # State Machine はメタデータ参照のみ保持し、物語の事実とメタデータは各ファイルの責務とする
 ```
 
-### 3.2 作業フォルダ構造
+### 3.2 スキーマ定義
+
+以下の3スキーマは `schemas/` ディレクトリに JSON Schema ファイルとして実装する必要がある。
+構造は §3.1 のデータモデル定義と PROMPTS.md のプレースホルダーに対応する。
+
+#### scene_design.json（シーン設計）
+
+ScenePipeline §4.1 の Draft ステップで LLM が出力する。
+
+```python
+class SceneDesign(BaseModel):
+    number: int
+    title: str
+    pov: str                        # 視点（一人称/三人称）
+    goal: str                        # MVME: "(State > Action | Result)"
+    conflict: str                   # 障害
+    outcome: str                    # 結果
+    characters: list[str]            # 登場キャラクター
+    emotional_arc: str              # 感情の変化
+    key_events: list[str]            # 主要イベント（3〜5個）
+    setting: str                    # 場所・時間
+    notes: str | None = None         # 備考
+```
+
+#### chapter_design.json（章設計）
+
+ScenePipeline §4.4 の章自動組立時に LLM が出力する。
+
+```python
+class ChapterDesign(BaseModel):
+    number: int
+    title: str
+    theme: str                      # 章のテーマ
+    scene_summaries: list[str]       # 各シーンの要約
+    emotional_arc: str              # 章全体の感情アーク
+    purpose: str                    # 章の役割（introduction/rising_action/turning_point/climax/resolution）
+    characters: list[str]            # 登場キャラクター
+```
+
+#### volume_outline_revision_log.json（アウトライン修正履歴）
+
+VolumeOutlinePipeline §3.3 の自己修正時に生成される。
+
+```python
+class RevisionEntry(BaseModel):
+    revision_number: int            # 修正回目（1, 2, 3）
+    target: str                     # 修正範囲（"outline" / "chapter:N" / "chapter:N:scene:M"）
+    reason: str                     # 修正理由
+    changes_summary: str            # 修正内容の要約
+    before_score: float             # 修正前の overall_score
+    after_score: float              # 修正後の overall_score
+
+class OutlineRevisionLog(BaseModel):
+    volume_number: int
+    revisions: list[RevisionEntry]
+    final_score: float              # 最終的な overall_score
+```
+
+### 3.3 作業フォルダ構造
 
 **設計原則**:
 
@@ -220,10 +277,7 @@ workspace/<slug>/
 - その設計に基づいて LLM が `scenes/` に Markdown で本文を執筆
 - 本文執筆時、JSON 設計の内容をプロンプトに注入する
 
-**未作成スキーマ（実装前に必要）**:
-- `chapter_design.json` — 章設計（ch{NN}_design.json のスキーマ）
-- `volume_outline_revision_log.json` — アウトライン修正履歴
-- `scene_design.json` — シーン設計（vol{NN}_ch{NN}_sc{NN}_design.json のスキーマ）
+**未作成スキーマファイル**: `schemas/` に JSON Schema として実装する。構造は §3.2 を参照。
 
 **上書き戦略**: `raw_logs/` 以外は再実行時に上書き。`raw_logs/` はタイムスタンプ付きで全履歴保持。
 

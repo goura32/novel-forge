@@ -14,6 +14,7 @@
 | シーン | scene | 章の分割単位。最小の執筆粒度 |
 | 章設計 | chapter design | 章のテーマ、全シーンの要約、章の感情アーク（`ch{NN}_design.json`） |
 | シーン設計 | scene design | MVME goal、POV、conflict、outcome、キャラクター（`vol{NN}_ch{NN}_sc{NN}_design.json`） |
+| アウトライン修正履歴 | outline revision log | 自己修正の履歴。修正箇所、理由、前後のスコア（`vol{NN}_outline_revision_log.json`） |
 
 **補足**: 番号フォーマットは `vol01`, `ch01`, `sc01`（プレフィックス2文字 + ゼロ埋め2桁）。
 

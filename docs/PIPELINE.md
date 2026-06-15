@@ -60,6 +60,8 @@ uv run novel-forge complete                      # plan から一括実行
 
 中核となる状態機械。全コマンドはこのエンジンを通ります。
 
+**タイムアウト**: 各工程のデフォルト値は [SETUP_GUIDE §3.3](../SETUP_GUIDE.md) のテーブルに従う。`--timeout` フラグで上書き可能。
+
 | コマンド | 役割 |
 |---|---|
 | `plan` | キーワードからシリーズ企画を生成。**LLM自己レビュー後、人間が内容を確認して次工程へ** |
@@ -419,6 +421,8 @@ class CoverPromptGenerator:
     def generate(self, volume_number: int) -> dict
         # cover_prompt.json スキーマに適合する dict を返す
 ```
+
+**CLI コマンド**: `novel-forge illustrate` が呼び出し、`exports/cover_prompt.json` を出力する。KDP 提出前の補助機能。
 
 ---
 
