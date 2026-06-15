@@ -230,7 +230,7 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 | `format` | レスポーンスキー | 備考 |
 |---|---|---|
-| `"json"` | `{"content":"..."}` | キー名が `content` で統一されない |
+|| `"json"` | `{"content":"..."}` | キー名が `content` で統一されない。JSON Schema を直接指定することを推奨 |
 | `{"type":"object","properties":{"scene":{"type":"string"}}}` | `{"scene":"..."}` ✅ | **キー名が指定通り**。JSON抽出パイブラインが簡略化できる |
 
 **基本原則**: トークン消費と時間は問題視しない。.Qwen 3.6 を使用する。`format` には JSON Schema を直接指定し、`think: false` をセットする。
@@ -252,11 +252,13 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 **結論**: 小説執筆は創造的タスクであり、`think:true` の恩恵は限定的。`think:false` + `format:json` が品質・効率・構造化出力のすべてで最適。
 
-#### `think:true` + `format:json` の相互作用問題
+#### `think:true` + `format:json` の排他性（Ollama 仕様）
 
-`think:true` + `format:json` を組み合わせると、Qwen 3.6 は `response` を空にし、`thinking` にJSONを出力する。これは Ollama の Qwen 3.6 特有の挙動（Gemma 4 では正常動作）。
+**Ollama のアーキテクチャ上、`format: "json"` と `think: true` は排他的であり、同時に機能しない。** これはバグではなく設計上の制約。
 
-**回避策**: `format:json` を使わず、プロンプトでJSONスキーマを指定する。
+**理由**: JSON 出力が指定されると、Ollama は GBNF 文法でトークン生成の確率分布を制御し、文法的に無効なトークンの生成確率を実質ゼロ（-INFINITY）にする。これにより `<think>` のような JSON 外のタグを生成できなくなり、モデルは思考タグを生成できなくなる（[参考: Zenn 記事](https://zenn.dev/7shi/articles/fa36989a04c9ed)）。
+
+**実測結果（2026-06-15, qwen3.6:35b-a3b-mtp-q4_K_M）**:
 
 | パターン | `response` | `thinking` |  tokens | 時間 | 品質 |
 |---|---|---|---|---|---|
@@ -265,7 +267,7 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 | `think:false` + `format:json` | JSON ✅ | なし | 119 | 3.3s | △ 品質最低 |
 | `think:false` + プロンプト指定 | JSON ✅ | なし | 20 | 0.3s | △ |
 
-トークン消費と時間はローカルLLM では大きなコスト。本書き出しでは `think:false` + `format:json` をデフォルトとし、品質優先モードとして `think.true` + プロンプト指定をオプション提供する。
+トークン消費と時間はローカルLLM では大きなコスト。本書き出しでは `think:false` + `format:Schema` をデフォルトとし、品質優先モードとして `think:true` + プロンプト指定をオプション提供する。
 
 **注意**: `/v1/chat/completions`（OpenAI 互換 API）は `think` パラメータをサポートしていない場合がある（GitHub Issue #15288）。本ツールでは使用しない。
 
