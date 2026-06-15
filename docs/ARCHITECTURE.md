@@ -103,6 +103,14 @@ Volume status:
 
 Scene status:
   planned → drafted → reviewed → revised
+
+Resume (再開):
+  任意の状態から再開可能。状態は .state.json から読み込まれる。
+  planned → plan から再開
+  outlined → outline から再開
+  drafting → write から再開（未完了のシーンのみ再生成）
+  drafted → review から再開
+  reviewed → revise または export から再開
 ```
 
 ---
