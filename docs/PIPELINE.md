@@ -190,16 +190,31 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 それ以外 → 不合格、自己修正を実行
 ```
 
+**修正範囲の切り分け:**
+
+| 修正範囲 | 条件 | 動作 |
+|---|---|---|
+| 全体再生成 | overall_score < 5.0、または critical issue が2件以上、または has_clear_arc == false | アウトライン全体を再生成 |
+| 章再生成 | chapter_roles_valid == false、または climax_placement_valid == false、または特定章に major issue が集中 | 該当章の全シーンを再生成 |
+| シーン再生成 | scene_transitions_valid == false、または state_continuity == false、または pace_analysis で特定シーンに問題 | 該当シーンのみ再生成 |
+
+**部分修正時のコンテキスト:**
+
+| 修正範囲 | LLM に渡す情報 |
+|---|---|
+| 章再生成 | アウトライン全文 + 再生成対象章の前後2章の要約 |
+| シーン再生成 | 所属章の全シーン定義 + 前後シーンの要約 |
+
 **自己修正の手順:**
-1. **critical** な issue を修正: 該当箇所を再生成
-2. **major** な issue を修正: 該当箇所を改善
-3. 修正後の再レビュー
+1. 修正範囲を判定（上記テーブルに基づく）
+2. 該当箇所を再生成（部分修正時は前後のコンテキストを注入）
+3. 修正後の再レビュー（§3.2 と同じ評価基準で再評価）
 4. **最大3回**まで繰り返す。3回不合格なら最も問題の少ないバージョンを採用
 
 **修正時の注意:**
-- 部分的修正（該当章・該当シーンのみ再生成）を基本とする
-- 全体的な構造に問題がある場合のみ全体を再生成する
-- 修正履歴を `vol01_outline_revision_log.json` に記録する
+- 部分修正を基本とする。全体再生成は最終手段
+- 修正前後の差分を `vol01_outline_revision_log.json` に記録する
+- 再生成された箇所は Blackboard の facts も更新する
 
 ### 3.4 出力
 
@@ -223,7 +238,9 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 | 巻アウトライン | LLM | LLM（構造的妥当性・シーン間の一貫性） | 最大3回 |
 | シーン本文 | LLM | LLM（文章品質・物語の論理） | 最大3回。3回不合格→`force_exported` |
 
-### 4.1 処理順序
+### 4.1 処理順序（sequential のみ）
+
+シーンは**必ず順序通り**に処理する。各シーンの処理は以下の順序:
 
 1. **Draft** — アウトラインとコンテキストから初稿を生成
 2. **Review** — 初稿を評価し、改善点を抽出（人間には見せない）
@@ -231,6 +248,22 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 4. **改稿** — 不合格の場合、レビュー結果に基づき自動改稿
 5. **再評価** — 改稿後に再度 Quality Gate 判定
 6. **Summarize** — 合格した本文から要約を生成し、Blackboard に事実を記録
+
+**前シーン要約の注入（必須）**:
+
+シーンNの Draft 時、必ず前シーン（N-1）の要約をプロンプトに注入する。
+
+```
+シーン1: Draft(アウトライン, コンテキスト) → Review → QualityGate → Summarize
+                                                                          ↓ 要約を注入
+シーン2: Draft(アウトライン, コンテキスト, 前シーン要約) → Review → QualityGate → Summarize
+                                                                          ↓ 要約を注入
+シーン3: Draft(アウトライン, コンテキスト, 前シーン要約) → Review → QualityGate → Summarize
+```
+
+- 前シーン要約は Blackboard から取得する
+- シーン1には前シーンがないため、要約注入なし
+- 要約は `prompts/scene_draft.md` の `{continuity}` プレースホルダーに展開する
 
 ### 4.2 無限ループ防止
 
@@ -253,6 +286,33 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 - **scene_review.md**: レビュー用（評価基準に特化。本文生成指示は含めない）
 - **scene_revision.md**: 改稿用（レビュー結果を受けて改善。新規生成ではない）
 
+### 4.4 章の自動組立
+
+全シーンが完了した時点で、章単位の Markdown を自動組立する。
+
+```
+出力タイミング:
+- シーン1 → designs/ch01/vol01_ch01_sc01_design.json + scenes/ch01/vol01_ch01_sc01.md
+- シーン2 → designs/ch01/vol01_ch01_sc02_design.json + scenes/ch01/vol01_ch01_sc02.md
+- ...
+- ch01 の全シーン完了 → designs/ch01/ch01_design.json（章設計）
+- ch01 の全シーン完了 → chapters/ch01.md（章 Markdown、全シーン結合）
+```
+
+**章設計** (`ch01_design.json`): 章のテーマ、全シーンの要約、章の感情アーク
+
+**章 Markdown** (`ch01.md`): 章見出し + 各シーンの Markdown を結合。章末に章要約を追加
+
+### 4.5 出力
+
+| ファイル | 内容 |
+|---|---|
+| `designs/ch01/vol01_ch01_sc01_design.json` | シーン1 設計（LLM設計出力） |
+| `scenes/ch01/vol01_ch01_sc01.md` | シーン1 本文（Markdown） |
+| `designs/ch01/ch01_design.json` | 章1 設計（全シーン完了後） |
+| `chapters/ch01.md` | 章1 原稿（全シーン完了後） |
+| `quality_reports/vol01_ch01_sc01_quality.json` | シーン1 品質レポート |
+
 ---
 
 ## 5. Resume (resume.py)
@@ -269,9 +329,31 @@ class Resume:
     def next_tasks(self) -> list[str]:
         """未完了のタスク一覧を返す"""
 
+    def is_scene_complete(self, record: SceneRecord) -> bool:
+        """シーンが完了しているか判定"""
+        # status == "revised" → 完了
+        # quality_gate.passed == true → 完了
+        # status == "drafted" かつ quality_retries >= 3 → force_exported、完了扱い
+        # それ以外 → 未完了
+
     def run(self, phase: str | None = None):
         """指定 phase から再開。None は最初の未完了から"""
 ```
+
+**未完了シーンの判定**:
+
+| 状態 | 判定 |
+|---|---|
+| `status == "revised"` | 完了 |
+| `quality_gate.passed == true` | 完了 |
+| `status == "drafted"` かつ `quality_retries >= 3` | force_exported、完了扱い（再生成なし） |
+| `status == "planned"` | 未生成、要生成 |
+| `status == "drafted"` かつ `quality_gate.passed == false` かつ `quality_retries < 3` | 要再生成 |
+
+**再開時の動作**:
+- 未完了のシーンを sequential で再生成
+- 既に完了したシーンはそのまま使用
+- 再生成時も前シーン要約を注入
 
 ---
 

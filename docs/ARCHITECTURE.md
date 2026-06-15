@@ -93,12 +93,14 @@ volume_N/outline.json
   ├─▶ chapters/*.md から manuscript.md を自動組立
   ├─▶ exports/vol01.md を生成（chapters/*.md の結合）
   ├─▶ metadata.json
-  └─▶ kdp_readiness_report.md (最終レビュー結果含む)
+  └─▶ 最終レビュー（LLM自律）
+      ├─ 入力: exports/vol01.md（巻単位の Markdown）
+      ├─ 評価基準: 巻全体の物語一貫性、キャラクターアークの完結、伏線の回収
+      ├─ 分割: 1巻が長い場合（>50K文字）は章単位に分割してレビュー
+      └─ 出力: kdp_readiness_report.md（章ごとの評価 + 巻全体の評価）
   │
   ▼
-  │ ★ 最終レビュー (1回だけ, LLM自律)
-  │   → kdp_readiness_report.md に全巻通読結果を記録
-  │   → 人間は確認してもよいが必須ではない
+  │ ★ 人間は kdp_readiness_report.md を確認してもよいが必須ではない
   ▼
 [完了]
 ```
