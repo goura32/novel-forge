@@ -33,7 +33,8 @@
               "sensory_coverage",
               "page_turner",
               "dialogue_naturalness",
-              "tone_consistency"
+              "tone_consistency",
+              "scene_completeness"
             ]
           },
           "score": {
