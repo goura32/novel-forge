@@ -9,17 +9,15 @@
     "premise": { "type": "string", "maxLength": 200 },
     "chapters": {
       "type": "array",
-      "maxItems": 10,
       "items": {
         "type": "object",
         "required": ["number", "title", "purpose", "scenes"],
         "properties": {
           "number": { "type": "integer", "minimum": 1 },
           "title": { "type": "string", "maxLength": 128 },
-          "purpose": { "type": "string", "maxLength": 200 },
+          "purpose": { "type": "string", "enum": ["introduction", "rising_action", "turning_point", "climax", "resolution"] },
           "scenes": {
             "type": "array",
-            "maxItems": 10,
             "items": {
               "type": "object",
               "required": ["number", "title", "pov", "goal", "conflict", "outcome"],
