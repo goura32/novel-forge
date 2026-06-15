@@ -48,23 +48,6 @@ def _parse_json_response(text: str) -> Any:
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 
-def _parse_ollama_options_env() -> dict[str, Any]:
-    """OLLAMA_OPTIONS 環境変数をパースして options dict を返す。
-    例: OLLAMA_OPTIONS='{"temperature": 0.7, "top_p": 0.9}'
-    """
-    import os, json
-    raw = os.environ.get("OLLAMA_OPTIONS", "")
-    if not raw:
-        return {}
-    try:
-        opts = json.loads(raw)
-        if isinstance(opts, dict):
-            return opts
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return {}
-
-
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
     """config.yaml を読み込んで設定 dict を返す。
     config_path が None の場合は親ディレクトリから探す。
@@ -120,6 +103,7 @@ class LLMClient:
         raw_log_dir: Path | None = None,
         num_ctx: int | None = None,
         num_predict: int = 65536,
+        ollama_options: dict[str, Any] | None = None,
     ):
         if api_url is None:
             import os
@@ -132,6 +116,7 @@ class LLMClient:
         self.raw_log_dir = raw_log_dir
         self.num_predict = num_predict
         self.num_ctx = num_ctx or self._detect_max_ctx()
+        self._ollama_options = ollama_options or {}
 
     def _detect_max_ctx(self) -> int:
         """Ollama /api/show からモデルの context_length を取得する。"""
@@ -172,7 +157,7 @@ class LLMClient:
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
-                **_parse_ollama_options_env(),
+                **self._ollama_options,
             },
         }
         if schema:
@@ -210,7 +195,7 @@ class LLMClient:
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
-                **_parse_ollama_options_env(),
+                **self._ollama_options,
             },
         }
         raw = self._call_api(payload)

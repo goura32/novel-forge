@@ -55,6 +55,7 @@ class NovelEngine:
                 max_retries=max_retries,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
+                ollama_options=llm_cfg.get("ollama_options"),
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
