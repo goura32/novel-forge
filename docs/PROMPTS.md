@@ -13,13 +13,13 @@ prompts/
 ├── series_plan_review.md        # シリーズ企画の自己レビュー
 ├── volume_outline.md            # 巻アウトライン生成
 ├── volume_outline_review.md     # 巻アウトラインの自己レビュー
-├── volume_outline_revision.md   # 卷五トラインの自己修正
+├── volume_outline_revision.md   # 巻アウトラインの自己修正
 ├── scene_draft.md               # シーン初稿（MVME goal 使用）
 ├── scene_review.md              # シーンレビュー（評価基準に特化）
 ├── scene_revision.md            # シーン改稿（レビュー結果を受けて改善）
 ├── scene_summary.md             # シーン要約
 ├── scene_quality_gate.md        # シーン品質ゲート（合格/不合格判定）
-├── bible_update.md              # メタデータ台帳更新
+├── bible_update.md              # 設定資料集（Bible）更新
 ├── kdp_metadata.md              # KDP メタデータ
 ├── kdp_final_review.md         # 最終レビュー（全巻通読）
 └── cover_prompt.md              # 表紙画像生成プロンプト
@@ -34,6 +34,7 @@ prompts/
 | シリーズ企画 | `series_plan.md` | `series_plan_review.md` | 該当なし（人間が確認） |
 | 巻アウトライン | `volume_outline.md` | `volume_outline_review.md` | `volume_outline_revision.md` |
 | シーン本文 | `scene_draft.md` | `scene_review.md` | `scene_revision.md` |
+| 設定資料集 | `bible_update.md` | 該当なし | 該当なし |
 | 最終レビュー | 該当なし | `kdp_final_review.md` | 該当なし |
 
 ## プロンプトの構造
@@ -47,7 +48,7 @@ prompts/
 | `{series_plan}` | シリーズ企画の要約 | — |
 | `{outline}` | 巻アウトライン | — |
 | `{scene}` | アウトライン内の当該シーン定義 | — |
-| `{context}` | Blackboard facts + Bible 情報 | context 注入 |
+| `{context}` | 事実記録（Blackboard）facts + 設定資料集（Bible）情報 | context 注入 |
 | `{continuity}` | 前シーン要約 + revision 履歴 | continuity 注入 |
 | `{lang}` | 出力言語 | system 指示 |
 
@@ -83,5 +84,45 @@ prompts/
 3. **網羅性**: 7感覚（視覚・聴覚・嗅覚・触覚・味覚・固有感覚・内臓感覚）を網羅
 4. **一貫性**: POV、キャラクター、世界観に矛盾がないこと
 5. **重複防止**: シーン内で同一段落や情報が繰り返されないこと
+
+## 読者を惹きつける工夫（全工程共通）
+
+商業出版で読者を引き込むための技法を、プロンプトの出力指示と品質ゲートの評価基準に反映する。
+
+### 冒頭（シーン1）の特別指示
+
+`scene_draft.md` でシーン1を生成する際、以下の指示を追加する。
+
+- **ホットスタート**: 冒頭から衝撃的なシーン（事件・戦闘・危機・謎）で始める。設定説明は最小限に
+- **起・起承転結**: 本編前の小さなエピソード（前日譚）で読者を引き込み、本編へ自然に接続
+- **謎の提示**: 「これは何？」という違和感を提示し、答えを知りたい欲を喚起
+- **五感描写**: 各シーンで最低3つの感覚（視覚・聴覚・嗅覚・触覚・味覚から）を使う
+
+### キャラクターの「キャラ立ち」
+
+`scene_draft.md` のキャラクター描写に以下の指示を追加する。
+
+- **行動で示す**: キャラクターの性格は行動とセリフで示す。説明しない
+- **口調の統一**: キャラクターごとに口調・語彙・行動パターンを統一する
+- **Show-Tell Divide**: キャラクターが言うこととやることにギャップを設け、本性を隠す
+- **感情移入**: キャラクターの弱点・欠点を見せることで共感を生む
+
+### 伏線と回収
+
+`scene_draft.md` と `scene_quality_gate.md` に以下の指示を追加する。
+
+- **伏線の仕込み**: 各シーンで伏線を1つ以上仕込む。設定資料集（Bible）の `foreshadowing` に記録する
+- **伏線の回収**: 仕込んだ伏線は必ず回収する。回収の爽快感を読者に与える
+- **三幕構成**: 各章に幕の役割（第一幕：提示 / 第二幕：対立 / 第三幕：解決）を明示する
+
+### 品質ゲートの追加評価カテゴリ
+
+`scene_quality_gate.md` の評価カテゴリに以下を追加する。
+
+- **冒頭のフック**: シーン1は読者を引き込む衝撃的な冒頭か（hot start / 謎の提示）
+- **キャラ立ち**: キャラクターが行動とセリフで個性を示しているか
+- **伏線の整合性**: 仕込んだ伏線に矛盾はないか、回収の見通しが立っているか
+- **五感の網羅**: シーンに3つ以上の感覚描写が含まれているか
+- **ページターナー**: 章末に次章を読みたくなる仕掛けがあるか
 
 ---

@@ -15,7 +15,7 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 | CLI Interface | ユーザーとの対話 | Typer |
 | Orchestration | 状態遷移、パイプライン制御、リトライ | NovelEngine, ScenePipeline, VolumeOutlinePipeline |
 | Intelligence | LLM による生成・評価・改善 | PlannerAgent, WriterAgent, CriticAgent |
-| State / Memory | 進捗管理、物語の事実、メタデータ | State Machine, Blackboard, Bible |
+| State / Memory | 進捗管理、物語の事実、メタデータ | State Machine, 事実記録（Blackboard）, 設定資料集（Bible） |
 | Infrastructure | LLM 通信、永続化、ログ | llm_client, storage, raw_logger |
 
 ---
@@ -102,9 +102,9 @@ LLM Response
 
 ### 4.1 State Machine (進捗管理)
 
-`ProjectState` が制作進捗を管理。**Blackboard と Bible は `state.json` とは別ファイル**として永続化し、State はメタデータ参照のみ保持します。
+`ProjectState` が制作進捗を管理。**事実記録と設定資料集は `state.json` とは別ファイル**として永続化し、State はメタデータ参照のみ保持します。
 
-### 4.2 Blackboard (物語の事実)
+### 4.2 事実記録（Blackboard）— 物語の事実
 
 `blackboard.json` として独立ファイルで管理。
 
@@ -114,7 +114,7 @@ LLM Response
 
 **更新**: シーン完了時に WriterAgent が facts を追加。生成時に直近 facts をコンテキスト注入。
 
-### 4.3 Bible (メタデータ台帳)
+### 4.3 設定資料集（Bible）— メタデータ台帳
 
 `bible.json` として独立ファイルで管理。
 

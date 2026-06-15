@@ -128,7 +128,7 @@ class ScenePlan(BaseModel):
 3. **ペース配分**: 全シーンの約20%を導入、50%を展開・転換、30%をクライマックス・収束に割り当てる
 4. **連続性**: 各シーンの `outcome` が次のシーンの `goal`（State部分）に繋がっていること。シーン間で事実・状態・ロケーションが矛盾しないこと
 5. **サブプロット**: メイン物語に加えて1〜2つのサブプロットが存在し、少なくとも1つは巻内で解決すること
-6. **伏線**: 次巻への伏線が1箇所以上含まれること。伏線は Bible に記録される
+6. **伏線**: 次巻への伏線が1箇所以上含まれること。伏線は設定資料集（Bible）に記録される
 
 ### 3.2 LLM自己レビュー
 
@@ -216,7 +216,7 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 **修正時の注意:**
 - 部分修正を基本とする。全体再生成は最終手段
 - 修正前後の差分を `vol01_outline_revision_log.json` に記録する
-- 再生成された箇所は Blackboard の facts も更新する
+- 再生成された箇所は事実記録（Blackboard）の facts も更新する
 
 ### 3.4 出力
 
@@ -249,7 +249,7 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 3. **Quality Gate** — レビュー結果に基づき合格/不合格を判定
 4. **改稿** — 不合格の場合、レビュー結果に基づき自動改稿
 5. **再評価** — 改稿後に再度 Quality Gate 判定
-6. **Summarize** — 合格した本文から要約を生成し、Blackboard に事実を記録
+6. **Summarize** — 合格した本文から要約を生成し、事実記録（Blackboard）に事実を記録
 
 **前シーン要約の注入（必須）**:
 
@@ -263,7 +263,7 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 シーン3: Draft(アウトライン, コンテキスト, 前シーン要約) → Review → QualityGate → Summarize
 ```
 
-- 前シーン要約は Blackboard から取得する
+- 前シーン要約は事実記録（Blackboard）から取得する
 - シーン1には前シーンがないため、要約注入なし
 - 要約は `prompts/scene_draft.md` の `{continuity}` プレースホルダーに展開する
 
@@ -299,7 +299,7 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 - ...
 - ch01 の全シーン完了 → designs/ch01/ch01_design.json（章設計）
 - ch01 の全シーン完了 → chapters/ch01.md（章 Markdown、全シーン結合）
-- ch01 の全シーン完了 → Bible 更新（§6.1 参照）
+- ch01 の全シーン完了 → 設定資料集（Bible）更新（§6.1 参照）
 ```
 
 **章設計** (`ch01_design.json`): 章のテーマ、全シーンの要約、章の感情アーク
@@ -360,7 +360,7 @@ class Resume:
 
 ---
 
-## 6. Blackboard (blackboard.py)
+## 6. 事実記録（Blackboard）(blackboard.py)
 
 物語の事実を管理する。
 
@@ -371,7 +371,7 @@ class Fact(BaseModel):
     object: str       # 対象（値・結果）
     confidence: float # 確信度 (0.0〜1.0)
 
-class Blackboard:
+class Blackboard:  # 事実記録
     facts: list[Fact]
     scene_summaries: dict[str, str]   # key "vol01_ch01_sc01" → summary
     continuity_notes: list[str]       # 次シーンへの引き継ぎメモ
@@ -387,7 +387,7 @@ class Blackboard:
 
 ---
 
-## 6.1 Bible (bible.py)
+## 6.1 設定資料集（Bible）(bible.py)
 
 メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理する。
 
@@ -416,7 +416,7 @@ class Bible:
 
 ```python
 class CoverPromptGenerator:
-    def __init__(self, prompts, bible, series_plan):
+    def __init__(self, prompts, bible, series_plan):  # bible = 設定資料集
 
     def generate(self, volume_number: int) -> dict
         # cover_prompt.json スキーマに適合する dict を返す

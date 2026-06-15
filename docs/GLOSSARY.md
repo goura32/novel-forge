@@ -49,10 +49,10 @@
 | 用語 | 説明 |
 |---|---|
 | State Machine | 制作進捗を管理する状態機械。`ProjectState` が担当 |
-| Blackboard | 物語の事実を格納する共有知識ベース。キャラクターの位置、状態、イベントの記録 |
-| Bible | メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理 |
+| 事実記録（Blackboard） | 物語の事実を格納する共有知識ベース。キャラクターの位置、状態、イベントの記録 |
+| 設定資料集（Bible） | メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理 |
 
-**Blackboard のデータ構造**:
+**事実記録のデータ構造**:
 - `facts`: 物語の事実リスト。各 fact は `(subject, predicate, object, confidence)` の形式
 - `scene_summaries`: シーンごとの要約
 - `continuity_notes`: 次シーンへの引き継ぎメモ
