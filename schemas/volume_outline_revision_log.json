@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VolumeOutlineRevisionLog",
+  "type": "object",
+  "required": ["volume_number", "revisions", "final_score"],
+  "properties": {
+    "volume_number": { "type": "integer", "minimum": 1 },
+    "revisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["revision_number", "target", "reason", "changes_summary", "before_score", "after_score"],
+        "properties": {
+          "revision_number": { "type": "integer", "minimum": 1 },
+          "target": { "type": "string", "maxLength": 128 },
+          "reason": { "type": "string", "maxLength": 500 },
+          "changes_summary": { "type": "string", "maxLength": 500 },
+          "before_score": { "type": "number", "minimum": 0, "maximum": 10 },
+          "after_score": { "type": "number", "minimum": 0, "maximum": 10 }
+        }
+      }
+    },
+    "final_score": { "type": "number", "minimum": 0, "maximum": 10 }
+  }
+}

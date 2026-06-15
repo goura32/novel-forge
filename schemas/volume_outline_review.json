@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OutlineReview",
+  "description": "巻アウトラインの自己レビュー結果（VolumeOutlinePipeline §3.2）",
+  "type": "object",
+  "required": ["structural_validity", "scene_coherence", "pace_analysis", "character_arc_review", "overall_score", "issues", "suggestions"],
+  "properties": {
+    "structural_validity": {
+      "type": "object",
+      "required": ["has_clear_arc", "chapter_roles_valid", "climax_placement_valid", "score"],
+      "properties": {
+        "has_clear_arc": { "type": "boolean" },
+        "chapter_roles_valid": { "type": "boolean" },
+        "climax_placement_valid": { "type": "boolean" },
+        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "scene_coherence": {
+      "type": "object",
+      "required": ["scene_transitions_valid", "no_contradictions", "state_continuity", "score"],
+      "properties": {
+        "scene_transitions_valid": { "type": "boolean" },
+        "no_contradictions": { "type": "boolean" },
+        "state_continuity": { "type": "boolean" },
+        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "pace_analysis": {
+      "type": "object",
+      "required": ["introduction_ratio", "development_ratio", "climax_ratio", "pacing_comment", "score"],
+      "properties": {
+        "introduction_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "development_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "climax_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "pacing_comment": { "type": "string", "maxLength": 500 },
+        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "character_arc_review": {
+      "type": "object",
+      "required": ["protagonist_has_arc", "arc_believability", "supporting_chars_used", "score"],
+      "properties": {
+        "protagonist_has_arc": { "type": "boolean" },
+        "arc_believability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "supporting_chars_used": { "type": "boolean" },
+        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "overall_score": { "type": "number", "minimum": 0, "maximum": 10 },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description", "affected_elements"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
+          "category": { "type": "string", "maxLength": 64 },
+          "description": { "type": "string", "maxLength": 500 },
+          "affected_elements": { "type": "array", "items": { "type": "string", "maxLength": 128 } }
+        }
+      }
+    },
+    "suggestions": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
+  }
+}
