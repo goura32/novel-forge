@@ -258,10 +258,10 @@ workspace/<slug>/
         └── vol01/
             ├── outline.json          # 巻アウトライン
             ├── ch01/                  # 章1
-            │   ├── sc01.md           # シーン1
-            │   └── sc02.md           # シーン2
+            │   ├── vol01_ch01_sc01.md  # シーン1（シリーズ内ユニーク）
+            │   └── vol01_ch01_sc02.md  # シーン2
             ├── ch02/                  # 章2
-            │   └── sc01.md
+            │   └── vol01_ch02_sc01.md
             ├── review.json           # 巻レビュー（中間）
             ├── revision.json         # 巻改稿中間データ
             └── quality_reports/
@@ -461,9 +461,9 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 
 ### 8.3 write
 
-- アウトラインに記載された全シーンについて、`.novel-forge/volumes/vol{N}/ch{M}/sc{K}.md` が生成されること
-- 各シーンのレビュー結果（`.novel-forge/volumes/vol{N}/review.json`）が保存されていること
-- 各シーンの品質ゲート結果（`.novel-forge/volumes/vol{N}/quality_reports/`）が保存されていること
+- アウトラインに記載された全シーンについて、`.novel-forge/volumes/vol01/ch01/vol01_ch01_sc01.md` のような形式で生成されること
+- 各シーンのレビュー結果（`.novel-forge/volumes/vol01/review.json`）が保存されていること
+- 各シーンの品質ゲート結果（`.novel-forge/volumes/vol01/quality_reports/`）が保存されていること
 - 章単位の Markdown は各章ディレクトリ直下に生成されること
 
 ### 8.4 review
