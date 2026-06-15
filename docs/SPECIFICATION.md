@@ -492,7 +492,6 @@ dependencies = [
     "httpx>=0.28",
     "pydantic>=2.0",
     "typer>=0.12",
-    "opencc-purepy>=1.3"
     "rich>=13.0",
     "jsonschema>=4.0",
 ]
