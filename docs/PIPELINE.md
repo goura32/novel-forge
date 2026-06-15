@@ -90,30 +90,7 @@ uv run novel-forge complete                      # plan から一括実行
 
 ### 3.1 生成（設計）
 
-シリーズ企画をベースに、1巻の構造を以下の階層で設計する。
-
-```python
-class VolumeOutline(BaseModel):
-    volume_number: int
-    title: str
-    premise: str                           # 巻の前提（1〜2文）
-    chapters: list[ChapterPlan]
-
-class ChapterPlan(BaseModel):
-    number: int
-    title: str
-    purpose: str                           # 章の役割（物語機能）
-    scenes: list[ScenePlan]
-
-class ScenePlan(BaseModel):
-    number: int
-    title: str
-    pov: str
-    goal: str                              # MVME: "(State > Action | Result)"
-    conflict: str
-    outcome: str
-    characters: list[str]
-```
+シリーズ企画をベースに、1巻の構造を以下の階層で設計する。データモデル定義は [SPECIFICATION.md §2](../SPECIFICATION.md) を参照。
 
 **章の役割（物語機能）:**
 
@@ -136,49 +113,7 @@ class ScenePlan(BaseModel):
 
 ### 3.2 LLM自己レビュー
 
-生成したアウトラインを LLM 自身で評価する。
-
-```python
-class OutlineReview(BaseModel):
-    structural_validity: StructuralReview      # 構造的妥当性
-    scene_coherence: CoherenceReview            # シーン間の論理一貫性
-    pace_analysis: PaceReview                  # ペース配分
-    character_arc_review: CharacterArcReview   # キャラクターアーク
-    overall_score: float                       # 総合評価（0.0〜10.0）
-    issues: list[Issue]                        # 問題点
-    suggestions: list[str]                     # 改善提案
-
-class StructuralReview(BaseModel):
-    has_clear_arc: bool
-    chapter_roles_valid: bool
-    climax_placement_valid: bool
-    score: float
-
-class CoherenceReview(BaseModel):
-    scene_transitions_valid: bool
-    no_contradictions: bool
-    state_continuity: bool
-    score: float
-
-class PaceReview(BaseModel):
-    introduction_ratio: float
-    development_ratio: float
-    climax_ratio: float
-    pacing_comment: str
-    score: float
-
-class CharacterArcReview(BaseModel):
-    protagonist_has_arc: bool
-    arc_believability: float
-    supporting_chars_used: bool
-    score: float
-
-class Issue(BaseModel):
-    severity: Literal["critical","major","minor"]
-    category: str
-    description: str
-    affected_elements: list[str]
-```
+生成したアウトラインを LLM 自身で評価する。評価モデルは `volume_outline_review.json` スキーマに対応する。
 
 **深刻度の定義:**
 
@@ -324,28 +259,9 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 
 ## 5. Resume (resume.py)
 
-中断した制作を再開する。
+中断した制作を再開する。`Resume` クラスは `state.json` から現在状態を読み込み、未完了のタスクから再開する。
 
-```python
-class Resume:
-    """現在の状態を読み込み、未完了のタスクから再開する"""
-
-    def detect_state(self) -> dict:
-        """state.json から現在状態を読み込む"""
-
-    def next_tasks(self) -> list[str]:
-        """未完了のタスク一覧を返す"""
-
-    def is_scene_complete(self, record: SceneRecord) -> bool:
-        """シーンが完了しているか判定"""
-        # status == "revised" → 完了
-        # quality_gate.passed == true → 完了
-        # status == "drafted" かつ quality_retries >= 3 → force_exported、完了扱い
-        # それ以外 → 未完了
-
-    def run(self, phase: str | None = None):
-        """指定 phase から再開。None は最初の未完了から"""
-```
+データモデルは [SPECIFICATION.md §2](../SPECIFICATION.md) の `SceneRecord` を参照。
 
 **未完了シーンの判定**:
 
@@ -366,26 +282,7 @@ class Resume:
 
 ## 6. 事実記録（Blackboard）(blackboard.py)
 
-物語の事実を管理する。
-
-```python
-class Fact(BaseModel):
-    subject: str      # 主体（キャラクター名等）
-    predicate: str    # 述語（状態・動作）
-    object: str       # 対象（値・結果）
-    confidence: float # 確信度 (0.0〜1.0)
-
-class Blackboard:  # 事実記録
-    facts: list[Fact]
-    scene_summaries: dict[str, str]   # key "vol01_ch01_sc01" → summary
-    continuity_notes: list[str]       # 次シーンへの引き継ぎメモ
-
-    def add_fact(self, fact: Fact) -> None
-    def query_recent(self, limit: int) -> str    # プロンプト注入用（最近N件のfactsを文字列化）
-    def check_consistency(self, new_fact: Fact) -> list[str]  # 矛盾検出
-    def get_scene_summary(self, key: str) -> str
-    def to_prompt_context(self) -> str           # LLM 注入用フォーマット
-```
+物語の事実を管理する。`Fact` モデルは `(subject, predicate, object, confidence)` の4-tuple。スキーマは `blackboard.json` を参照。
 
 **更新タイミング**: シーン完了時（ScenePipeline §4.1 の Summarize ステップ）に WriterAgent が facts を追加。
 
@@ -393,18 +290,7 @@ class Blackboard:  # 事実記録
 
 ## 6.1 設定資料集（Bible）(bible.py)
 
-メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理する。
-
-```python
-class Bible:
-    characters: list[CharacterProfile]
-    glossary: list[Term]
-    foreshadowing: list[ForeshadowItem]
-    world_rules: list[str]
-
-    def update_from_scene(self, scene_record: SceneRecord) -> None
-    def to_prompt_context(self) -> str           # LLM 注入用フォーマット
-```
+メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理する。スキーマは `bible.json` を参照。
 
 **更新タイミング**: 章完了時（全シーン完了 → 章 Markdown 組立の直前）に、当該章の全シーンから抽出した情報を Bible に反映。
 - 新キャラクターの登場 → `characters` に追加
@@ -416,15 +302,7 @@ class Bible:
 
 ## 7. CoverPromptGenerator (cover_prompt.py)
 
-表紙画像を生成するためのプロンプトとメタデータを出力する。画像自体は生成しない（外部ツールを使用）。
-
-```python
-class CoverPromptGenerator:
-    def __init__(self, prompts, bible, series_plan):  # bible = 設定資料集
-
-    def generate(self, volume_number: int) -> dict
-        # cover_prompt.json スキーマに適合する dict を返す
-```
+表紙画像を生成するためのプロンプトとメタデータを出力する。画像自体は生成しない（外部ツールを使用）。`cover_prompt.json` スキーマに適合する dict を出力する。
 
 **CLI コマンド**: `novel-forge illustrate` が呼び出し、`exports/cover_prompt.json` を出力する。KDP 提出前の補助機能。
 
@@ -432,17 +310,9 @@ class CoverPromptGenerator:
 
 ## 8. QualityGate (quality.py)
 
-```python
-class QualityGate:
-    def check_scene(record: SceneRecord) -> dict
-        # Returns: {"passed": bool, "score": float, "issues": [...]}
+シーンの品質を評価し、合格/不合格を判定する。`QualityGate` はシーン単位と巻単位の両方でチェックを行う。
 
-    def check_volume(records: list[SceneRecord], review: dict) -> dict
-        # Returns: {"ready_for_publication": bool, "issues": [...]}
-
-    def ensure_export_allowed(review: dict, force: bool) -> None
-        # Raises QualityGateError if not ready
-```
+- `check_scene`: シーン品質を判定 → `{"passed": bool, "score": float, "issues": [...]}`
 
 ---
 

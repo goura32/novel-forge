@@ -63,8 +63,6 @@ novel-forge/
     └── make_smoke_workspace.py
 ```
 
-**未使用スキーマ**: `series_review.json`, `volume_review.json`, `volume_revision.json` は schemas/ に存在するが、現在のデータモデルでは未使用。実装時に必要にならなければ削除する。
-
 ### 1.1 設定ファイル
 
 作業ディレクトリ直下に `.novel-forge.yaml` を置くことで CLI オプションを省略できる。

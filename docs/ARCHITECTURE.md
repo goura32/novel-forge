@@ -50,6 +50,8 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 
 **シーン**: `planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised`
 
+詳細な遷移条件・トリガーは PIPELINE §9 を参照。
+
 ### 2.3 人間介入ポイント
 
 詳細は [PIPELINE.md §10](PIPELINE.md) を参照してください。
