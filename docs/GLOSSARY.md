@@ -150,6 +150,13 @@
 - `pace_analysis`: ペース配分
 - `character_arc_review`: キャラクターアーク
 
+**評価カテゴリ（品質ゲート）**:
+- `opening_hook`: 冒頭のフック。シーン1が読者を引き込む衝撃的な冒頭か
+- `character_distinction`: キャラ立ち。キャラクターが行動とセリフで個性を示しているか
+- `foreshadowing_consistency`: 伏線の整合性。仕込んだ伏線に矛盾はないか
+- `sensory_coverage`: 五感の網羅。シーンに3つ以上の感覚描写が含まれているか
+- `page_turner`: ページターナー。章末に次章を読みたくなる仕掛けがあるか
+
 ---
 
 ## 7. LLM 関連

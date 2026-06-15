@@ -16,7 +16,7 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 | Orchestration | 状態遷移、パイプライン制御、リトライ | NovelEngine, ScenePipeline, VolumeOutlinePipeline |
 | Intelligence | LLM による生成・評価・改善 | PlannerAgent, WriterAgent, CriticAgent |
 | State / Memory | 進捗管理、物語の事実、メタデータ | State Machine, 事実記録（Blackboard）, 設定資料集（Bible） |
-| Infrastructure | LLM 通信、永続化、ログ | llm_client, storage, raw_logger |
+| Infrastructure | LLM 通信、永続化、ログ | ollama_client, storage, raw_logger |
 
 **用語の定義**: [GLOSSARY.md](GLOSSARY.md)
 
@@ -49,12 +49,13 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 **巻**: `planned → outlined → drafting → drafted → exported → finalized`（`force_exported` は例外パス）
 
 **シーン**: `planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised`
+                                           → `force_exported`（3回不合格時）
 
-詳細な遷移条件・トリガーは PIPELINE §9 を参照。
+詳細な遷移条件・トリガーは PIPELINE §10 を参照。
 
 ### 2.3 人間介入ポイント
 
-詳細は [PIPELINE.md §10](PIPELINE.md) を参照してください。
+詳細は [PIPELINE.md §11](PIPELINE.md) を参照してください。
 
 | 介入ポイント | タイミング | 内容 | 必須/任意 |
 |---|---|---|---|
@@ -122,7 +123,7 @@ LLM Response
 - **foreshadowing**: 伏線と回収状況
 - **world_rules**: 世界観ルール
 
-**更新**: 章完了時（全シーン完了 → 章 Markdown 組立の直前）に、当該章の全シーンから抽出した情報を Bible に反映。
+**更新**: 章完了時（全シーン完了 → 章 Markdown 組立の直後）に、当該章の全シーンから抽出した情報を Bible に反映。詳細は [PIPELINE.md §4.4](PIPELINE.md) を参照。
 
 ---
 

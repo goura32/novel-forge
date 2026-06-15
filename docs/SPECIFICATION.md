@@ -67,7 +67,7 @@ novel-forge/
 
 作業ディレクトリ直下に `.novel-forge.yaml` を置くことで CLI オプションを省略できる。
 
-設定項目: `workdir`, `model`, `lang`, `volume`。コマンドライン指定が優先。
+設定項目: `workdir`, `model`, `lang`, `volume`, `timeout`。コマンドライン指定が優先。
 
 **パイプラインとコンポーネントの詳細**: [docs/PIPELINE.md](PIPELINE.md)
 
@@ -108,7 +108,7 @@ novel-forge/
 3. **LLM 設計出力（JSON）は `designs/` に保存**: 後から設計意図を確認できる
 4. **JSON（状態・メタデータ）はすべて `.novel-forge/` に隔離**: 人間は見ないし触らない
 5. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
-6. **階層は4層まで**: `exports/`（人間閲覧）、`chapters/` + `scenes/`（Markdown原稿）、`designs/`（LLM設計JSON）
+6. **階層は5層まで**: `exports/`（人間閲覧）、`chapters/`（章単位Markdown）、`scenes/ch{NN}/`（シーン単位Markdown）、`designs/ch{NN}/`（LLM設計JSON）、`.novel-forge/`（機械用データ）
 7. **プレフィックス2文字 + ゼロ埋め2桁で統一**: `vol01`, `ch01`, `sc01`
 
 ```text
@@ -146,14 +146,14 @@ workspace/<slug>/
                 └── vol{NN}_ch{NN}_sc{NN}_quality.json
 ```
 
-**4層構造の役割**:
+**5層構造の役割**:
 
 | 層 | 保存先 | 形式 | 人間が触るか |
 |---|---|---|---|
 | 巻 | `.novel-forge/volumes/vol{NN}/` | — | いいえ |
 | 章 Markdown | `chapters/ch{NN}.md` | Markdown | はい（必要なら） |
 | シーン Markdown | `scenes/ch{NN}/vol{NN}_ch{NN}_sc{NN}.md` | Markdown | いいえ |
-| 設計 JSON | `designs/` | JSON | いいえ |
+| 設計 JSON | `designs/ch{NN}/vol{NN}_ch{NN}_sc{NN}_design.json` | JSON | いいえ |
 
 **設計と原稿の関係**:
 - LLM が `designs/` に JSON で設計を出力
@@ -181,6 +181,7 @@ uv run pytest -q                              # 全テスト
 uv run pytest --cov=novel_forge --cov-report=term-missing  # カバレッジ
 uv run ruff check .                           # Lint
 uv run mypy src/                              # 型チェック
+uv lock --offline --check                     # ロックファイル整合性
 uv run python scripts/make_smoke_workspace.py --root /tmp/novel-forge-smoke
 uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 ```
@@ -195,7 +196,7 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 - `--workdir` 省略時、`yyyymmdd_{slugified_keywords}` のフォルダが自動生成されること
 - `--workdir` 指定時、指定されたフォルダを使用すること
 - `.novel-forge.yaml` が自動作成され、`workdir` が設定されていること
-- LLM自己レビュー結果が `.novel-forge/` に記録されること
+- LLM自己レビュー結果（`series_plan_review.json`）が `.novel-forge/` に記録されること
 - 人間が内容を確認後、問題なければ自動的に次工程（outline）へ進むこと
 
 ### 6.2 outline
@@ -277,7 +278,7 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 
 KDP では 1 巻あたり 50,000〜120,000 文字が標準。ツールは全体の文字数を追跡し、目標との乖離をフィードバックする。
 
-**文字数カウント**: 日本語は文字数 × 0.4 で近似。コードブロック・JSONスキーマ部分は除外。
+**文字数カウント**: 日本語の文字数から KDP の word count に換算する。日本語1文字 ≒ 英語0.5ワードとして `word_count = 文字数 × 0.5` で近似。根拠: 日本語1文は平均2〜3文字/モーラで構成され、KDPのword換算ではおおむね半分程度のカウントになる。コードブロック・JSONスキーマ部分は除外。
 
 **目標管理**: `target_word_count` を設定可能（デフォルト: 80,000文字）。`status` 時に目標対比を表示。
 
