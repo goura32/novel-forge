@@ -74,6 +74,10 @@ class NovelEngine:
         schema = self._load_schema("series_plan")
         result = self._llm.complete_json("series_plan", system, user, schema)
 
+        # slug が 256 文字を超える場合は機械的に切り捨て
+        if result.get("slug") and len(result["slug"]) > 256:
+            result["slug"] = result["slug"][:256].rstrip("-")
+
         # LLM自己レビュー
         review = self._review_series_plan(result)
 
