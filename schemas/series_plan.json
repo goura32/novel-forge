@@ -12,9 +12,9 @@
     "slug": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 64,
+      "maxLength": 256,
       "pattern": "^[a-z0-9-]+$",
-      "description": "タイトルから生成するローマ字のハイフン区切りパス。厳格に32文字以内。32文字を超える場合はタイトルを短縮する。例: 「忘却」→ boukyaku、「記憶探偵」→ kioku-tantei。"
+      "description": "タイトルから生成するローマ字のハイフン区切りパス。256文字以内。例: 「忘却」→ boukyaku、「記憶探偵」→ kioku-tantei。"
     },
     "logline": {
       "type": "string",

@@ -124,7 +124,7 @@ class VolumePlanItem(BaseModel):
 
 class SeriesPlan(BaseModel):
     title: str = ""
-    slug: str = Field(default="", max_length=64, pattern=r"^[a-z0-9-]+$")
+    slug: str = Field(default="", max_length=256, pattern=r"^[a-z0-9-]+$")
     logline: str = Field(default="", max_length=200)
     genre: str = ""
     target_audience: str = Field(default="", max_length=50)
