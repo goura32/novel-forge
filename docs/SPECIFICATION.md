@@ -10,35 +10,17 @@ novel-forge/
 │   ├── ARCHITECTURE.md
 │   ├── SPECIFICATION.md
 │   └── SETUP_GUIDE.md
-├── prompts/
-│   ├── system.md              # LLM システムプロンプト共通部
-│   ├── series_plan.md         # シリーズ企画
-│   ├── volume_outline.md      # 巻アウトライン
-│   ├── scene_draft.md         # シーン初稿 (MVME goal 使用)
-│   ├── scene_review.md        # シーンレビュー
-│   ├── scene_revision.md      # シーン改稿
-│   ├── scene_summary.md       # シーン要約
-│   ├── scene_quality_gate.md  # シーン品質ゲート
-│   ├── chapter_review.md      # 章レビュー
-│   ├── chapter_revision.md    # 章改稿
-│   ├── volume_review.md       # 巻レビュー
-│   ├── volume_revision.md     # 巻改稿
-│   ├── series_review.md       # シリーズレビュー
-│   ├── bible_update.md        # メタデータ台帳更新
-│   └── kdp_metadata.md        # KDP メタデータ
-├── schemas/
+├── prompts/                    # プロンプトテンプレート（docs/PROMPTS.md を参照）
+├── schemas/                    # JSON Schema 定義
 │   ├── series_plan.json
 │   ├── volume_outline.json
+│   ├── volume_outline_review.json
 │   ├── scene.json
+│   ├── scene_design.json       # シーン設計（LLM設計出力）
 │   ├── scene_review.json
 │   ├── scene_revision.json
 │   ├── scene_summary.json
 │   ├── scene_quality_gate.json
-│   ├── chapter_review.json
-│   ├── chapter_revision.json
-│   ├── volume_review.json
-│   ├── volume_revision.json
-│   ├── series_review.json
 │   ├── blackboard.json
 │   ├── bible.json
 │   ├── kdp_metadata.json
@@ -178,10 +160,11 @@ class ProjectState(BaseModel):
 **設計原則**:
 
 1. **人間が目にするのは `exports/` のマークダウンだけ**: `manuscript.md` が完成原稿。`metadata.json` と `cover_prompt.json` は提出用手続き用
-2. **原稿の実体は `volumes/` だが、マークダウンだけ**: `ch*.md`, `s*.md`。JSON は一切混在しない
-3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json`, `.blackboard.json`, `.bible.json` 等はすべて `.novel-forge/` 内。人間は見ないし触らない
-4. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
-5. **`exports/` の原稿だけが Git 管理対象**: 作品のバージョン管理は `exports/manuscript.md` に対して行う
+2. **原稿（Markdown）は `chapters/` + `scenes/` に保存**: 両ディレクトリともマークダウンだけ。JSON は一切混在しない
+3. **LLM 設計出力（JSON）は `designs/` に保存**: シーン本文の元になった JSON 設計も保存し、後から設計意図を確認できる。`designs/` はマークダウン原稿の「設計」に対応する
+4. **JSON（状態・メタデータ）はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json`, `.blackboard.json`, `.bible.json` 等。人間は見ないし触らない
+5. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
+6. **`exports/` の原稿だけが Git 管理対象**: 作品のバージョン管理は `exports/manuscript.md` に対して行う
 
 ```text
 workspace/<slug>├── .novel-forge.yaml                 # CLI 設定（触ってもよい）
@@ -352,7 +335,7 @@ class SchemaValidationError(NovelForgeError): pass
 ### 6.1 破損状態復旧
 
 ```bash
-uv run novel-forge recover-state --workdir ./work/series1
+uv run novel-forge recover --workdir ./work/series1
 # state.json が破損 → .bak から復元
 # 破損ファイルは .corrupt として保存
 ```
@@ -399,7 +382,7 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 
 ### 8.3 write
 
-- アウトラインに記載された全シーンについて、`.novel-forge/volumes/vol01/ch01/vol01_ch01_sc01.md` のような形式で生成されること
+- アウトラインに記載された全シーンについて、各シーンの Markdown 原稿（`scenes/`）、章の Markdown 原稿（`chapters/`）、LLM 設計 JSON（`designs/`）が生成されること
 - 各シーンのレビュー結果が `.novel-forge/` 内に保存されていること（人間には見せない）
 - LLM が生成した全階層（シリーズ企画・巻アウトライン・シーン本文）のレビュー結果がそれぞれ `.novel-forge/` に記録されていること
 - 各シーンの品質ゲート結果（`.novel-forge/volumes/vol01/quality_reports/`）が保存されていること

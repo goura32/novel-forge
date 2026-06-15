@@ -36,9 +36,49 @@ ollama pull qwen3.6:35b-a3b-mtp-q4_K_M
 ollama list
 ```
 
-## 3. 動作確認
+GPU OOM の場合:
 
-### 3.1 モデル接続確認
+```bash
+# 小さいモデルに切替
+ollama pull qwen3.6:27b
+# --model qwen3.6:27b を指定
+```
+
+## 3. LLM API 設定
+
+### 3.1 API Endpoint
+
+`/api/generate` を採用。
+
+- `format: JSON Schema` + `think: false` で安定した構造化出力
+
+### 3.2 プリウォーミング（モデル事前ロード）
+
+```bash
+curl -X POST http://ws1.local:11434/api/generate \
+  -d '{"model":"qwen3.6:35b-a3b-mtp-q4_K_M","prompt":"","stream":false,"keep_alive":-1}'
+```
+
+- `keep_alive: -1` で GPU メモリに固定
+- プリロードはツール起動時に1回だけ実行
+
+### 3.3 タイムアウト設計
+
+| 工程 | タイムアウト |
+|---|---|
+| プリロード（`keep_alive:-1`） | 30s |
+| 短文生成（100字） | 60s |
+| 中段生成（200字） | 60s |
+| 長文生成（1000字） | 120s |
+| 超長文（企画・構成） | 180s |
+
+### 3.4 `think:true` + `format:json` の排他性
+
+Ollama のアーキテクチャ上、`format: "json"` と `think: true` は排他的。JSON 出力が指定されると GBNF 文法制御により思考タグを生成できなくなる。**必ず `think: false` を使用すること**。
+
+## 4. 動作確認
+
+### 4.1 モデル接続確認
 
 ```bash
 uv run novel-forge probe-model
@@ -54,7 +94,7 @@ uv run novel-forge probe-model
 }
 ```
 
-### 3.2 スモーク検証 (LLMなし)
+### 4.2 スモーク検証 (LLMなし)
 
 ```bash
 uv run python scripts/make_smoke_workspace.py \
@@ -62,14 +102,14 @@ uv run python scripts/make_smoke_workspace.py \
 uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-one-scene
 ```
 
-### 3.3 テスト実行
+### 4.3 テスト実行
 
 ```bash
 uv run pytest -q
 uv run ruff check .
 ```
 
-## 4. クイックスタート
+## 5. クイックスタート
 
 ```bash
 # シリーズ企画 → 1巻 → 全工程を一括実行
@@ -95,7 +135,7 @@ uv run novel-forge status   --workdir ./work/series1
 uv run novel-forge resume   --workdir ./work/series1
 ```
 
-## 5. トラブルシューティング
+## 6. トラブルシューティング
 
 ### `probe failed: LLM did not return valid JSON`
 
@@ -104,7 +144,7 @@ uv run novel-forge resume   --workdir ./work/series1
 
 ### `thinking` モデルが reasoning を返す
 
-- Qwen 3.6 などの thinking 対応モデルは、`/v1/chat/completions` の `think:false` を無視して reasoning を返す場合がある
+- Qwen 3.6 は `/v1/chat/completions` の `think:false` を無視して reasoning を返す場合がある
 - **対処**: `/api/generate` エンドポイント + `think:false` + `format:"json"` を使用。`/v1/chat/completions` は使わない
 
 ### `LLM HTTP error 404`
@@ -126,20 +166,21 @@ systemctl restart ollama
 
 ### 品質ゲートで不合格が続く
 
-- 対処: `.novel-forge/volumes/vol{N}/quality_reports/` を確認。`force_exported` フラグが立ったシーンは `--force` で出力可能
+- 対処: `.novel-forge/volumes/vol{N}/quality_reports/` を確認。`force_exported` フラグが立つと `--force` で出力可能
 
-## 6. 設計書
+## 7. 設計書
 
 詳細な仕様・設計については以下のドキュメントを参照してください。
 
 | ファイル | 内容 |
 |---|---|
+| [README.md](README.md) | 概要、セットアップ、クイックスタート |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | アーキテクチャ設計（レイヤー構成、データフロー、記憶モデル） |
 | [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、エラーハンドリング） |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、全コンポーネント） |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理 |
 
-## 7. セキュリティ
+## 8. セキュリティ
 
 - `shell=True` / `os.system` 不使用
 - `eval` / `exec` 不使用
