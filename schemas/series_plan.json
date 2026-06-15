@@ -4,19 +4,66 @@
   "type": "object",
   "required": ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world", "main_characters", "planned_volumes"],
   "properties": {
-    "title": { "type": "string", "maxLength": 128 },
-    "slug": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9-]+$" },
-    "logline": { "type": "string", "maxLength": 200 },
-    "genre": { "type": "string", "maxLength": 64 },
-    "target_audience": { "type": "string", "maxLength": 50 },
-    "themes": { "type": "array", "items": { "type": "string", "maxLength": 64 } },
-    "selling_points": { "type": "array", "items": { "type": "string", "maxLength": 128 } },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "シリーズのタイトルすること検索力・宣伝力を考慮した、商業的に魅力的なタイトル。"
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9-]+$",
+      "description": "タイトルから生成するローマ字のハイフン区切りパス。厳格に32文字以内。32文字を超える場合はタイトルを短縮する。例: 「忘却」→ boukyaku、「記憶探偵」→ kioku-tantei。"
+    },
+    "logline": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "シリーズのあらすじ（1-2文）"
+    },
+    "genre": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "ジャンル英語略語(SF/VR/AI等)は使わず、日本語またはカタカナで表記。例: SF→科学フィクション、VR→仮想現実。歴史SF→歴史科学フィクション。"
+    },
+    "target_audience": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "ターゲット読者。年齢層・性別・好みを具体的に定義作品名を引用する場合もカタカナ表記。"
+    },
+    "themes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64,
+        "description": "テーマ"
+      }
+    },
+    "selling_points": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 128,
+        "description": "売りポイント。"
+      }
+    },
     "world": {
       "type": "object",
       "required": ["summary", "rules"],
       "properties": {
-        "summary": { "type": "string", "maxLength": 500 },
-        "rules": { "type": "array", "items": { "type": "string", "maxLength": 200 } }
+        "summary": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "世界観の概要"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "世界観のルール"
+          }
+        }
       }
     },
     "main_characters": {
@@ -25,9 +72,21 @@
         "type": "object",
         "required": ["name", "role", "arc"],
         "properties": {
-          "name": { "type": "string", "maxLength": 64 },
-          "role": { "type": "string", "maxLength": 64 },
-          "arc": { "type": "string", "maxLength": 60 }
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "キャラクター名"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["主人公", "ヒロイン", "相棒", "敵対者", "師匠", "仲間"],
+            "description": "キャラクターの役割。上記6種から選択。"
+          },
+          "arc": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "キャラクターの成長・変化"
+          }
         }
       }
     },
@@ -39,8 +98,16 @@
         "required": ["number", "title", "premise"],
         "properties": {
           "number": { "type": "integer", "minimum": 1 },
-          "title": { "type": "string", "maxLength": 128 },
-          "premise": { "type": "string", "maxLength": 80 }
+          "title": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "巻タイトル"
+          },
+          "premise": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "巻のあらすじ"
+          }
         }
       }
     }

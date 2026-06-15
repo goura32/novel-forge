@@ -32,7 +32,7 @@
         "introduction_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
         "development_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
         "climax_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-        "pacing_comment": { "type": "string", "maxLength": 500 },
+        "pacing_comment": { "type": "string", "maxLength": 500, "description": "ペースのコメント" },
         "score": { "type": "number", "minimum": 0, "maximum": 10 }
       }
     },
@@ -54,12 +54,19 @@
         "required": ["severity", "category", "description", "affected_elements"],
         "properties": {
           "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
-          "category": { "type": "string", "maxLength": 64 },
-          "description": { "type": "string", "maxLength": 500 },
+          "category": { "type": "string", "maxLength": 64, "description": "問題のカテゴリ名" },
+          "description": { "type": "string", "maxLength": 500, "description": "問題の説明" },
           "affected_elements": { "type": "array", "items": { "type": "string", "maxLength": 128 } }
         }
       }
     },
-    "suggestions": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "改善提案"
+      }
+    }
   }
 }

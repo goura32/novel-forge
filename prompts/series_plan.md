@@ -11,7 +11,7 @@
 
 ## 出力スキーマ
 
-`series_plan.json` に適合する JSON を出力すること。
+`series_plan.json` に適合する JSON を出力すること。各フィールドの `description` に従い、言語制約・文字数制限・列挙値を守ること。
 
 ## 企画の要件
 

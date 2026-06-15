@@ -10,7 +10,8 @@
   "properties": {
     "summary": {
       "type": "string",
-      "maxLength": 1000
+      "maxLength": 1000,
+      "description": "シーンの要約"
     },
     "characters": {
       "type": "array",
@@ -29,13 +30,16 @@
         ],
         "properties": {
           "subject": {
-            "type": "string"
+            "type": "string",
+            "description": "主語"
           },
           "predicate": {
-            "type": "string"
+            "type": "string",
+            "description": "述語"
           },
           "object": {
-            "type": "string"
+            "type": "string",
+            "description": "目的語"
           }
         }
       }
@@ -44,7 +48,8 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 200
+        "maxLength": 200,
+        "description": "連続性メモ"
       }
     }
   }

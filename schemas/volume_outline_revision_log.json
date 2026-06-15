@@ -12,9 +12,9 @@
         "required": ["revision_number", "target", "reason", "changes_summary", "before_score", "after_score"],
         "properties": {
           "revision_number": { "type": "integer", "minimum": 1 },
-          "target": { "type": "string", "maxLength": 128 },
-          "reason": { "type": "string", "maxLength": 500 },
-          "changes_summary": { "type": "string", "maxLength": 500 },
+          "target": { "type": "string", "maxLength": 128, "description": "修正対象" },
+          "reason": { "type": "string", "maxLength": 500, "description": "修正理由" },
+          "changes_summary": { "type": "string", "maxLength": 500, "description": "変更内容の要約" },
           "before_score": { "type": "number", "minimum": 0, "maximum": 10 },
           "after_score": { "type": "number", "minimum": 0, "maximum": 10 }
         }

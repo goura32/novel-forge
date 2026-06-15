@@ -5,15 +5,48 @@
   "required": ["number", "title", "pov", "goal", "conflict", "outcome", "characters", "emotional_arc", "key_events", "setting"],
   "properties": {
     "number": { "type": "integer", "minimum": 1 },
-    "title": { "type": "string", "maxLength": 128 },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "シーンタイトル"
+    },
     "pov": { "type": "string", "maxLength": 64 },
-    "goal": { "type": "string", "description": "MVME: (State > Action | Result)" },
-    "conflict": { "type": "string", "maxLength": 200 },
-    "outcome": { "type": "string", "maxLength": 200 },
-    "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 } },
-    "emotional_arc": { "type": "string", "maxLength": 200 },
-    "key_events": { "type": "array", "items": { "type": "string", "maxLength": 200 } },
-    "setting": { "type": "string", "maxLength": 200 },
+    "goal": {
+      "type": "string",
+      "description": "MVME: (State > Action | Result)"
+    },
+    "conflict": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "葛藤"
+    },
+    "outcome": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "結果"
+    },
+    "characters": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 64 }
+    },
+    "emotional_arc": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "感情の弧"
+    },
+    "key_events": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200,
+        "description": "主要イベント"
+      }
+    },
+    "setting": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "舞台設定"
+    },
     "notes": { "type": "string", "maxLength": 500 }
   }
 }

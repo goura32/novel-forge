@@ -5,12 +5,41 @@
   "required": ["number", "title", "theme", "scene_summaries", "emotional_arc", "purpose", "act_role", "characters"],
   "properties": {
     "number": { "type": "integer", "minimum": 1 },
-    "title": { "type": "string", "maxLength": 128 },
-    "theme": { "type": "string", "maxLength": 200 },
-    "scene_summaries": { "type": "array", "items": { "type": "string", "maxLength": 500 } },
-    "emotional_arc": { "type": "string", "maxLength": 200 },
-    "purpose": { "type": "string", "enum": ["introduction", "rising_action", "turning_point", "climax", "resolution"] },
-    "act_role": { "type": "string", "enum": ["setup", "confrontation", "resolution"], "description": "三幕構成の役割" },
-    "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "章タイトル"
+    },
+    "theme": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "章のテーマ"
+    },
+    "scene_summaries": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "シーン要約"
+      }
+    },
+    "emotional_arc": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "感情の弧"
+    },
+    "purpose": {
+      "type": "string",
+      "enum": ["introduction", "rising_action", "turning_point", "climax", "resolution"]
+    },
+    "act_role": {
+      "type": "string",
+      "enum": ["setup", "confrontation", "resolution"],
+      "description": "三幕構成の役割"
+    },
+    "characters": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 64 }
+    }
   }
 }

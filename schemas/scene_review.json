@@ -24,7 +24,8 @@
         ],
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "評価次元名"
           },
           "score": {
             "type": "number",
@@ -54,7 +55,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 500
+            "maxLength": 500,
+            "description": "問題の説明"
           }
         }
       }

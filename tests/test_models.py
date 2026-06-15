@@ -197,25 +197,25 @@ class TestPrompts:
 class TestQualityGate:
     def test_pass_scene(self):
         qg = QualityGate()
-        result = qg.check_scene({"score": 8.0, "issues": []})
+        result = qg.check_scene({"score": 80.0, "issues": []})
         assert result.passed is True
 
     def test_fail_scene_low_score(self):
         qg = QualityGate()
-        result = qg.check_scene({"score": 5.0, "issues": []})
+        result = qg.check_scene({"score": 50.0, "issues": []})
         assert result.passed is False
 
     def test_fail_scene_critical_issue(self):
         qg = QualityGate()
         result = qg.check_scene(
-            {"score": 9.0, "issues": [{"severity": "critical"}]}
+            {"score": 90.0, "issues": [{"severity": "critical"}]}
         )
         assert result.passed is False
 
     def test_volume_check_caps_score_with_force_exported(self):
         qg = QualityGate()
-        result = qg.check_volume([8.0, 9.0], force_exported_count=1)
-        assert result["score"] <= 5.0
+        result = qg.check_volume([80.0, 90.0], force_exported_count=1)
+        assert result["score"] <= 50.0
 
 
 # ── Schemas ────────────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ class TestSchemas:
             "themes": ["adventure"],
             "selling_points": ["Unique"],
             "world": {"summary": "Magic world", "rules": ["magic exists"]},
-            "main_characters": [{"name": "Hero", "role": "protagonist", "arc": "growth"}],
+            "main_characters": [{"name": "Hero", "role": "主人公", "arc": "growth"}],
             "planned_volumes": [{"number": 1, "title": "Vol1", "premise": "Beginning"}],
         }
         errors = validate("series_plan", data)
@@ -258,7 +258,7 @@ class TestSchemas:
             "themes": ["adventure"],
             "selling_points": ["Unique"],
             "world": {"summary": "Magic world", "rules": ["magic exists"]},
-            "main_characters": [{"name": "Hero", "role": "protagonist", "arc": "growth"}],
+            "main_characters": [{"name": "Hero", "role": "主人公", "arc": "growth"}],
             "planned_volumes": [{"number": 1, "title": "Vol1", "premise": "Beginning"}],
         }
         validate_or_raise("series_plan", data)  # Should not raise

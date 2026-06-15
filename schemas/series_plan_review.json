@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanReview",
+  "type": "object",
+  "required": ["overall_score", "issues", "strengths", "recommendations"],
+  "properties": {
+    "overall_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "multipleOf": 0.1,
+      "description": "総合評価スコア。0.0〜10.0。厳格な評価: 入力JSONの値に日本語以外の文字が含まれる場合は必ず7.0以下。英語混在がn箇所あれば最低 5.0 - n * 0.5。言語純度100%で高評価なら8.0〜9.0。"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description", "suggestion"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "major", "minor"],
+            "description": "問題の重大度。critical=言語制約違反や致命的欠陥、major=改善必須、minor=任意改善"
+          },
+          "category": {
+            "type": "string",
+            "description": "問題のカテゴリ名"
+          },
+          "description": {
+            "type": "string",
+            "description": "問題の説明"
+          },
+          "suggestion": {
+            "type": "string",
+            "description": "改善提案"
+          }
+        }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "企画の強み"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "改善推奨事項"
+      }
+    }
+  }
+}

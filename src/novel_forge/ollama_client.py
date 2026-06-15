@@ -51,17 +51,48 @@ def _parse_json_response(text: str) -> Any:
 class LLMClient:
     def __init__(
         self,
-        api_url: str = "http://localhost:11434/api/generate",
+        api_url: str | None = None,
         model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
         timeout_seconds: int = 600,
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
+        num_ctx: int | None = None,
+        num_predict: int = 32768,
     ):
+        if api_url is None:
+            import os
+            host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
+            api_url = f"http://{host}/api/generate"
         self.api_url = api_url
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.raw_log_dir = raw_log_dir
+        self.num_predict = num_predict
+        self.num_ctx = num_ctx or self._detect_max_ctx()
+
+    def _detect_max_ctx(self) -> int:
+        """Ollama /api/show からモデルの context_length を取得する。"""
+        import os
+        host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
+        show_url = f"http://{host.rsplit('/', 1)[0]}/api/show"
+        try:
+            resp = httpx.post(
+                show_url,
+                json={"name": self.model},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            model_info = data.get("model_info", {})
+            # モデル固有の context_length キーを探す (例: qwen35moe.context_length)
+            for key, val in model_info.items():
+                if key.endswith(".context_length") and isinstance(val, (int, float)):
+                    return int(val)
+        except Exception as e:
+            import sys
+            print(f"[LLMClient] Warning: could not detect max context length: {e}", file=sys.stderr)
+        return 8192  # フォールバック
 
     def complete_json(
         self,
@@ -76,6 +107,10 @@ class LLMClient:
             "prompt": user_prompt,
             "stream": False,
             "think": False,
+            "options": {
+                "num_ctx": self.num_ctx,
+                "num_predict": self.num_predict,
+            },
         }
         if schema:
             payload["format"] = schema
@@ -109,6 +144,10 @@ class LLMClient:
             "prompt": user_prompt,
             "stream": False,
             "think": False,
+            "options": {
+                "num_ctx": self.num_ctx,
+                "num_predict": self.num_predict,
+            },
         }
         raw = self._call_api(payload)
         self._write_log(kind, payload, raw, {"text": raw[:200]})

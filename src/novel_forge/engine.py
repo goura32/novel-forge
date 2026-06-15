@@ -34,7 +34,7 @@ class NovelEngine:
         self._storage = StateStorage(workdir)
         self._blackboard_storage = BlackboardStorage(workdir)
         self._bible_storage = BibleStorage(workdir)
-        self._llm = llm_client or LLMClient(model=model)
+        self._llm = llm_client or LLMClient(model=model, raw_log_dir=workdir / ".novel-forge" / "raw_logs")
         self._prompts = prompt_manager or PromptManager()
         self._quality = QualityGate()
         self._state = self._storage.load()
@@ -73,11 +73,40 @@ class NovelEngine:
         )
         schema = self._load_schema("series_plan")
         result = self._llm.complete_json("series_plan", system, user, schema)
+
+        # slug の長さをスキーマ制限に合わせて補正
+        slug_max = 32
+        if result.get("slug") and len(result["slug"]) > slug_max:
+            result["slug"] = result["slug"][:slug_max].rstrip("-")
+
+        # バリデーション
+        from novel_forge.schemas import validate as _validate
+        from novel_forge.ollama_client import SchemaValidationError
+        errors = _validate("series_plan", result)
+        if errors:
+            raise SchemaValidationError(
+                "series_plan validation failed:\n" + "\n".join(errors)
+            )
+
+        # LLM自己レビュー
+        review = self._review_series_plan(result)
+
         self._state.series_title = result.get("title", "")
         self._state.status = "planned"
         self._save_path(0, "series_plan.json", result)
+        self._save_path(0, "series_plan_review.json", review)
         self._save()
         return result
+
+    def _review_series_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
+        system = self._prompts.render("system.md", {"lang": self._lang})
+        import json as _json
+        user = self._prompts.render(
+            "series_plan_review.md",
+            {"series_plan": _json.dumps(plan, ensure_ascii=False), "lang": self._lang},
+        )
+        schema = self._load_schema("series_plan_review")
+        return self._llm.complete_json("series_plan_review", system, user, schema)
 
     # ── outline ───────────────────────────────────────────────────────
 

@@ -11,30 +11,24 @@
 
 ## 評価基準
 
-1. **市場競争力**: 競合との差別化が明確か
-2. **ターゲット適合**: 想定読者が具体的か
-3. **シリーズ持続性**: 複数巻にわたる展開が見込めるか
-4. **タイトル力**: 検索・宣伝に有効か
-5. **キャッチコピー**: 読者の興味を引くか
+1. **言語純度**: {lang}の文字のみを含み、他言語(中国語・英語等)の混在がないか
+2. **市場競争力**: 競合との差別化が明確か
+3. **ターゲット適合**: 想定読者が具体的か
+4. **シリーズ持続性**: 複数巻にわたる展開が見込めるか
+5. **タイトル力**: 検索・宣伝に有効か
+6. **キャッチコピー**: 読者の興味を引くか
+
+**評価対象について:** シリーズ企画の JSON に含まれるキー名（title, slug, logline, genre, summary, rules, name, role, arc, number, premise 等）は評価対象としない。**値（value）の文字列のみ**を評価すること。
+
+**slug の例外:** `slug` フィールドはローマ字のハイフン区切りパスが許可される。slug のローマ字を言語制約違反として指摘してはならない。
+
+`overall_score` の計算方法は `series_plan_review.json` の `overall_score` の description に従うこと。
+
+## スコア制約
+
+`overall_score` は **0.0 以上 10.0 以下** の小数点以下1桁の数値とすること。
+100点満点や1000点満点など、異なる尺度で出力してはならない。
 
 ## 出力スキーマ
 
 `series_plan_review.json` に適合する JSON を出力すること。
-
-## 出力形式
-
-```json
-{
-  "overall_score": 0.0,
-  "issues": [
-    {
-      "severity": "critical|major|minor",
-      "category": "string",
-      "description": "string",
-      "suggestion": "string"
-    }
-  ],
-  "strengths": ["string"],
-  "recommendations": ["string"]
-}
-```
