@@ -219,8 +219,8 @@ class ProjectState(BaseModel):
     series: SeriesPlan | None = None
     current_volume: int = 1
     volumes: list[VolumeProgress] = []
-    scenes: dict[str, SceneRecord] = {}    # key "vol1_ch1_sc1"
-    volume_outlines: dict[str, VolumeOutline] = {}  # key "vol1", "vol2", ...
+    scenes: dict[str, SceneRecord] = {}    # key "vol01_ch01_sc01"
+    volume_outlines: dict[str, VolumeOutline] = {}  # key "vol01", "vol02", ...
     blackboard: BlackboardState | None = None
     bible: BibleState | None = None
     volume_reviews: dict[str, dict] = {}
@@ -243,7 +243,7 @@ workspace/<slug>/
 ├── .novel-forge.yaml                 # CLI 設定（触ってもよい）
 ├── exports/                          # ← 人間が目にする唯一の場所
 │   ├── manuscript.md                   # 完成原稿（全巻束ねたもの）
-│   ├── vol1.md                       # 巻1 原稿（個別提出用）
+│   ├── vol01.md                       # 巻1 原稿（個別提出用）
 │   ├── metadata.json                 # KDP メタデータ
 │   └── cover_prompt.json             # 表紙画像プロンプト
 └── .novel-forge/                     # ← 人間は見ない（.gitignore 推奨）
@@ -255,26 +255,26 @@ workspace/<slug>/
     ├── raw_logs/                     # LLM 生ログ
     │   └── {timestamp}_{phase}.json
     └── volumes/                      # 中間生成データ
-        └── vol1/
+        └── vol01/
             ├── outline.json          # 巻アウトライン
-            ├── ch1/                  # 章1
-            │   ├── sc1.md           # シーン1
-            │   └── sc2.md           # シーン2
-            ├── ch2/                  # 章2
-            │   └── sc1.md
+            ├── ch01/                  # 章1
+            │   ├── sc01.md           # シーン1
+            │   └── sc02.md           # シーン2
+            ├── ch02/                  # 章2
+            │   └── sc01.md
             ├── review.json           # 巻レビュー（中間）
             ├── revision.json         # 巻改稿中間データ
             └── quality_reports/
-                └── ch1_sc1_quality.json
+                └── ch01_sc01_quality.json
 ```
 
-**番号割り当て（統一フォーマット: プレフィックス2文字 + 数字）**:
+**番号割り当て（統一フォーマット: プレフィックス2文字 + ゼロ埋め2桁）**:
 
 | 要素 | フォーマット | 例 |
 |---|---|---|
-| 巻 | `vol{N}` | `vol1`, `vol2` |
-| 章 | `ch{N}` | `ch1`, `ch2` |
-| シーン | `sc{N}` | `sc1`, `sc2` |
+| 巻 | `vol{NN}` | `vol01`, `vol02` |
+| 章 | `ch{NN}` | `ch01`, `ch02` |
+| シーン | `sc{NN}` | `sc01`, `sc02` |
 
 **設計原則**:
 
@@ -283,7 +283,7 @@ workspace/<slug>/
 3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json` 等。人間は見ないし触らない
 4. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
 5. **階層は2層まで**: `vol{N}/ch{N}/sc{N}.md`。`chapters/`, `scenes/` は廃止
-6. **プレフィックス2文字 + 数字で統一**: `vol1`, `ch1`, `sc1`。ゼロ埋めなし
+6. **プレフィックス2文字 + ゼロ埋め2桁で統一**: `vol01`, `ch01`, `sc01`
 
 ```
 workspace/
@@ -292,13 +292,13 @@ workspace/
 │   ├── exports/
 │   └── .novel-forge/
 │       ├── state.json       # シリーズ1 の状態
-│       └── volumes/vol1/...
+│       └── volumes/vol01/...
 └── fantasy-series/          # シリーズ2（並行処理可）
     ├── .novel-forge.yaml
     ├── exports/
     └── .novel-forge/
         ├── state.json       # シリーズ2 の状態
-        └── volumes/vol1/...
+        └── volumes/vol01/...
 ```
 
 **並行処理の仕組み**:
@@ -312,7 +312,7 @@ workspace/
 
 **state.json は `.` プレフィックス付き**: `.novel-forge/state.json`。ユーザーファイルと区別し、管理ファイルであることを明示。
 
-**state キーの衝突防止**: `.novel-forge/` はシリーズごとに完全分離されるため、`vol1_ch01_s01` のような key でもシリーズ間で衝突しない。
+**state キーの衝突防止**: `.novel-forge/` はシリーズごとに完全分離されるため、`vol01_ch01_sc01` のような key でもシリーズ間で衝突しない。
 
 ## 4. 主要コンポーネント
 
