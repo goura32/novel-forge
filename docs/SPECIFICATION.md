@@ -135,6 +135,11 @@ class SceneRecord(BaseModel):
     quality_gate: dict | None = None     # scene_quality_gate.json スキーマ
     summary: dict | None = None          # scene_summary.json スキーマ
 
+    @property
+    def scene_key(self) -> str:
+        """Blackboard やファイル名で使用する一意キー"""
+        return f"vol{self.volume:02d}_ch{self.chapter:02d}_sc{self.scene:02d}"
+
 # ── 進捗 ──
 class VolumeProgress(BaseModel):
     number: int; title: str
