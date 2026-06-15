@@ -297,6 +297,7 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 - ...
 - ch01 の全シーン完了 → designs/ch01/ch01_design.json（章設計）
 - ch01 の全シーン完了 → chapters/ch01.md（章 Markdown、全シーン結合）
+- ch01 の全シーン完了 → Bible 更新（§6.1 参照）
 ```
 
 **章設計** (`ch01_design.json`): 章のテーマ、全シーンの要約、章の感情アーク
@@ -362,15 +363,48 @@ class Resume:
 物語の事実を管理する。
 
 ```python
-class Blackboard:
-    facts: list[Fact]              # (subject, predicate, object, confidence)
+class Fact(BaseModel):
+    subject: str      # 主体（キャラクター名等）
+    predicate: str    # 述語（状態・動作）
+    object: str       # 対象（値・結果）
+    confidence: float # 確信度 (0.0〜1.0)
 
-    def add_fact(summary, details, characters)
-    def query_recent(limit) -> str   # プロンプト注入用
-    def check_consistency(new_fact) -> list[str] # 矛盾検出
-    def scene_summary(key) -> str
-    def to_prompt_context() -> str    # LLM 注入用フォーマット
+class Blackboard:
+    facts: list[Fact]
+    scene_summaries: dict[str, str]   # key "vol01_ch01_sc01" → summary
+    continuity_notes: list[str]       # 次シーンへの引き継ぎメモ
+
+    def add_fact(self, fact: Fact) -> None
+    def query_recent(self, limit: int) -> str    # プロンプト注入用（最近N件のfactsを文字列化）
+    def check_consistency(self, new_fact: Fact) -> list[str]  # 矛盾検出
+    def get_scene_summary(self, key: str) -> str
+    def to_prompt_context(self) -> str           # LLM 注入用フォーマット
 ```
+
+**更新タイミング**: シーン完了時（ScenePipeline §4.1 の Summarize ステップ）に WriterAgent が facts を追加。
+
+---
+
+## 6.1 Bible (bible.py)
+
+メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理する。
+
+```python
+class Bible:
+    characters: list[CharacterProfile]
+    glossary: list[Term]
+    foreshadowing: list[ForeshadowItem]
+    world_rules: list[str]
+
+    def update_from_scene(self, scene_record: SceneRecord) -> None
+    def to_prompt_context(self) -> str           # LLM 注入用フォーマット
+```
+
+**更新タイミング**: 章完了時（全シーン完了 → 章 Markdown 組立の直前）に、当該章の全シーンから抽出した情報を Bible に反映。
+- 新キャラクターの登場 → `characters` に追加
+- 新用語の使用 → `glossary` に追加
+- 伏線の設置/回収 → `foreshadowing` に追加・更新
+- 世界観ルールの明示 → `world_rules` に追加
 
 ---
 

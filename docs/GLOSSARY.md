@@ -12,6 +12,8 @@
 | 巻 | volume | シリーズの分割単位。KDP 提出の単位 |
 | 章 | chapter | 巻の分割単位。複数のシーンをまとめる |
 | シーン | scene | 章の分割単位。最小の執筆粒度 |
+| 章設計 | chapter design | 章のテーマ、全シーンの要約、章の感情アーク（`ch{NN}_design.json`） |
+| シーン設計 | scene design | MVME goal、POV、conflict、outcome、キャラクター（`vol{NN}_ch{NN}_sc{NN}_design.json`） |
 
 **補足**: 番号フォーマットは `vol01`, `ch01`, `sc01`（プレフィックス2文字 + ゼロ埋め2桁）。
 
@@ -105,6 +107,7 @@
 | 自己レビュー | LLM が自分で生成した内容を評価する工程 |
 | 自己修正 | 自己レビュー結果に基づき、LLM が自分で内容を修正する工程 |
 | 別プロンプト原則 | 生成・レビュー・改稿はそれぞれ別のプロンプトファイルを使用（自己評価バイアス防止） |
+| Fact | 物語の事実。`(subject, predicate, object, confidence)` の4要素で構成 |
 
 **プロンプト一覧**:
 

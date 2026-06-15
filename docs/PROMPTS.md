@@ -40,12 +40,23 @@ prompts/
 
 各プロンプトは `{variable}` プレースホルダーを使用する。`prompts.py` の `render_prompt()` で置換。
 
+**プレースホルダーとコンテキスト注入の対応**（ARCH §3.3 と対応）:
+
+| プレースホルダー | 内容 | ARCH §3.3 の対応 |
+|---|---|---|
+| `{series_plan}` | シリーズ企画の要約 | — |
+| `{outline}` | 巻アウトライン | — |
+| `{scene}` | アウトライン内の当該シーン定義 | — |
+| `{context}` | Blackboard facts + Bible 情報 | context 注入 |
+| `{continuity}` | 前シーン要約 + revision 履歴 | continuity 注入 |
+| `{lang}` | 出力言語 | system 指示 |
+
 必須プレースホルダー:
 
 | 工程 | 必須変数 |
 |---|---|
 | シリーズ企画 | `{keywords}`, `{lang}` |
-| 巻アウタライン | `{series_plan}`, `{volume_number}`, `{genre}`, `{lang}` |
+| 巻アウトライン | `{series_plan}`, `{volume_number}`, `{genre}`, `{lang}` |
 | シーン執筆 | `{series_plan}`, `{outline}`, `{scene}`, `{context}`, `{continuity}`, `{lang}` |
 | シーンレビュー | `{scene}`, `{outline}`, `{context}`, `{lang}` |
 | シーン改稿 | `{scene}`, `{review}`, `{lang}` |

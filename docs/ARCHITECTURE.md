@@ -8,123 +8,43 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 
 ### 設計パターンの採用
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│                    CLI Interface (typer)                  │
-├─────────────────────────────────────────────────────────┤
-│              Orchestration Layer (Engine)                 │
-│  ┌──────────┐  ┌──────────┐  ┌────────────────────┐    │
-│  │ Planning │  │ Writing  │  │ Quality / Review   │    │
-│  │ Engine   │  │ Engine   │  │ (LLM自律)          │    │
-│  └──────────┘  └──────────┘  └────────────────────┘    │
-├─────────────────────────────────────────────────────────┤
-│              Intelligence Layer (Agents)                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │ Planner  │  │ Writer   │  │ Critic   │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-├─────────────────────────────────────────────────────────┤
-│              State / Memory Layer                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │ State    │  │Blackboard│  │ Bible    │              │
-│  │ Machine  │  │ Facts    │  │ Meta     │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-├─────────────────────────────────────────────────────────┤
-│              Infrastructure Layer                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │ LLM      │  │ Storage  │  │ Logger   │              │
-│  │ Client   │  │ (atomic) │  │ (RAW)    │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-└─────────────────────────────────────────────────────────┘
-```
+5層アーキテクチャを採用します。各層の詳細な構成図とコンポーネント一覧は [PIPELINE.md](PIPELINE.md) を参照してください。
 
-**Layer 構成の考え方**:
-
-| Layer | 役割 |
-|---|---|
-| Orchestration | 状態遷移管理、パイプライン順序制御、リトライ |
-| Intelligence | LLM を使った生成・評価・改善（ロジックを持たない） |
-| State / Memory | 進捗管理、物語の事実、メタデータ台帳 |
-| Infrastructure | LLM 通信、永続化、ログ記録 |
+| Layer | 役割 | 主要コンポーネント |
+|---|---|---|
+| CLI Interface | ユーザーとの対話 | Typer |
+| Orchestration | 状態遷移、パイプライン制御、リトライ | NovelEngine, ScenePipeline, VolumeOutlinePipeline |
+| Intelligence | LLM による生成・評価・改善 | PlannerAgent, WriterAgent, CriticAgent |
+| State / Memory | 進捗管理、物語の事実、メタデータ | State Machine, Blackboard, Bible |
+| Infrastructure | LLM 通信、永続化、ログ | llm_client, storage, raw_logger |
 
 ---
 
 ## 2. データフロー
 
-### 2.1 制作パイプライン
+### 2.1 制作パイクライン
 
-```text
-Input: keywords (Japanese)
-  │
-  ▼
-[Planning Phase]
-  │ LLM: series_plan schema
-  │ LLM: 自己レビュー（キャラクター整合性・世界観的一貫性）
-  │ 不合格 → 自動修正 → 再評価 (最大3回)
-  ▼
-series_plan.json ──▶ Blackboard (facts)
-  │                  Bible (meta)
-  ▼
-  │ ★ 人間確認: LLM自己レビュー結果を人間が確認。問題なければ暗黙的に次工程へ
-  ▼
-[Outline Phase]
-  │ LLM: volume_outline schema
-  │ LLM: 自己レビュー（構造的妥当性・シーン間の論理一貫性）
-  │ 不合格 → 自動修正 → 再評価 (最大3回)
-  ▼
-volume_N/outline.json
-  │
-  ▼
-[Writing Phase] (per chapter per scene = LLM自律)
-  │
-  ├─▶ LLM: scene_draft → designs/ch01/vol01_ch01_sc01_design.json (JSON設計)
-  │          ↓ 設計をプロンプトに注入
-  │          scenes/ch01/vol01_ch01_sc01.md (Markdown原稿)
-  ├─▶ LLM: scene_review → review.json     ← 人間には見せない
-  ├─▶ LLM: scene_revision → revised.json   ← 人間には見せない
-  ├─▶ Quality Gate check → quality_reports/vol01_ch01_sc01_quality.json
-  │   └─▶ 不合格 → 自動改稿 → 再評価 (最大3回)
-  │       └─▶ 3回不合格 → force_exported フラグを立てて続行
-  └─▶ Blackboard.update(facts from scene)
-  │
-  ├─▶ 全シーン完了 → chapters/ch01.md 自動組立
-  └─▶ 全章完了 → vol01_draft.md 自動組立
-  ▼
-[Export Phase]
-  ├─▶ chapters/*.md から manuscript.md を自動組立
-  ├─▶ exports/vol01.md を生成（chapters/*.md の結合）
-  ├─▶ metadata.json
-  └─▶ 最終レビュー（LLM自律）
-      ├─ 入力: exports/vol01.md（巻単位の Markdown）
-      ├─ 評価基準: 巻全体の物語一貫性、キャラクターアークの完結、伏線の回収
-      ├─ 分割: 1巻が長い場合（>50K文字）は章単位に分割してレビュー
-      └─ 出力: kdp_readiness_report.md（章ごとの評価 + 巻全体の評価）
-  │
-  ▼
-  │ ★ 人間は kdp_readiness_report.md を確認してもよいが必須ではない
-  ▼
-[完了]
+各フェーズの詳細な処理フロー・評価基準・出力ファイルは [PIPELINE.md](PIPELINE.md) を参照してください。
+
+**概要**:
+
 ```
+キーワード → [plan] シリーズ企画 + 自己レビュー → 人間確認（暗黙承認）
+           → [outline] 巻アウトライン + 自己レビュー → 自己修正（最大3回）
+           → [write] シーン執筆（sequential）→ レビュー → 改稿 → 品質ゲート → Blackboard更新
+           → [export] 原稿組立 → 最終レビュー → kdp_readiness_report.md
+```
+
+- シーンは **sequential のみ**（前シーン要約を `{continuity}` として次シーンに注入）
+- アウトライン自己修正は **3段階切り分け**（全体/章/シーン）。部分修正時は前後コンテキストを注入
+- シーン品質ゲート不合格 → 自動改稿 → 再評価（最大3回）。3回不合格 → `force_exported` フラグで続行
 
 ### 2.2 状態遷移
 
-```text
-Volume status:
-  planned → outlined → drafting → drafted → exported → finalized
-                                                        → force_exported
+詳細な状態遷移図と Resume の判定ロジックは [PIPELINE.md §9](PIPELINE.md) を参照してください。
 
-Scene status:
-  planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised
-
-  ※ reviewed は最大3回まで自動改稿→再評価を繰り返す
-  ※ 3回不合格でも force_exported フラグで続行可能
-
-Resume (再開):
-  任意の状態から再開可能。状態は .state.json から読み込まれる。
-  planned → plan から再開
-  outlined → outline から再開
-  drafting → write から再開（未完了のシーンのみ再生成）
-  drafted → export から再開
-```
+**巻**: `planned → outlined → drafting → drafted → exported → finalized`（`force_exported` は例外パス）
+**シーン**: `planned → drafted → reviewed → revised`（最大3回の自動改稿→再評価を経て `revised` へ）
 
 ### 2.3 人間介入ポイント
 
@@ -136,28 +56,6 @@ Resume (再開):
 | 最終レビュー | export 直後 | kdp_readiness_report.md の確認 | 任意 |
 
 **それ以外の工程はすべて LLM 自律。人間には見せない。**
-
-**レビューワークフロー（原則: LLMが生成したものはLLMがレビューする）**:
-
-| 階層 | 設計 | レビュー | 無限ループ防止 |
-|---|---|---|---|
-| シリーズ企画 | LLM → `series_plan.json` | LLM → 自己レビュー結果を記録 | 最大3回。人間が内容を確認（暗黙承認） |
-| 巻アウトライン | LLM → `outline.json` | LLM → 自己レビュー結果を記録 | 最大3回 |
-| シーン本文 | LLM → 本文 | LLM → 改稿 → 品質ゲート | 最大3回（3回不合格→`force_exported`） |
-
-```text
-シリーズ企画(LLM設計) → LLMレビュー → [人間確認] → 巻アウトライン(LLM設計) → LLMレビュー → シーン本文(LLM設計) → LLMレビュー → 改稿 → 品質ゲート → export → [最終レビュー(任意)]
-    │                                            │
-    │                                    LLM自律レビュー
-    │                                    LLM自律改稿
-    │                                    品質ゲート (最大3回)
-    │                                            │
-    ▼                                            ▼
-  確認 ◀─────────────────────────────── 全シーン完了
-    │
-    ▼
-export ─▶ [最終レビュー(任意)] ─▶ 完了
-```
 
 ---
 
@@ -200,47 +98,32 @@ LLM Response
 
 ## 4. 記憶モデル (3層ハイブリッド)
 
+詳細なデータモデル定義は [SPECIFICATION.md §3](SPECIFICATION.md) を参照してください。
+
 ### 4.1 State Machine (進捗管理)
 
-Pydantic モデルの厳格な状態管理。Blackboard と Bible は `state.json` とは別ファイルとして永続化し、State はメタデータ参照のみ保持します。
-
-```python
-class NovelState(BaseModel):
-    id: str
-    keywords: str
-    series_plan: SeriesPlan | None
-    volume_outlines: dict[str, VolumeOutline]
-    scenes: dict[str, SceneRecord]       # key = "v01_c01_s01"
-```
-
-Blackboard と Bible は `state.json` とは別ファイル（`blackboard.json`, `bible.json`）として永続化します。State は制作進捗の最小限の情報のみ保持し、物語の事実とメタデータは各ファイルの責務とします。
+`ProjectState` が制作進捗を管理。**Blackboard と Bible は `state.json` とは別ファイル**として永続化し、State はメタデータ参照のみ保持します。
 
 ### 4.2 Blackboard (物語の事実)
 
 `blackboard.json` として独立ファイルで管理。
 
-```python
-class BlackboardState(BaseModel):
-    facts: list[Fact]                    # (subject, predicate, object, confidence)
-    scene_summaries: dict[str, str]      # key → summary
-    continuity_notes: list[str]          # 次シーンへの引き継ぎメモ
-```
+- **facts**: `(subject, predicate, object, confidence)` の事実リスト
+- **scene_summaries**: シーンごとの要約
+- **continuity_notes**: 次シーンへの引き継ぎメモ
 
-- **Write**: シーン完了時に WriterAgent が facts を追加
-- **Read**: WriterAgent 生成時に直近 facts をコンテキスト注入
-- **Verify**: ConsistencyEngine が新 facts と既存 facts の矛盾を検出
+**更新**: シーン完了時に WriterAgent が facts を追加。生成時に直近 facts をコンテキスト注入。
 
 ### 4.3 Bible (メタデータ台帳)
 
 `bible.json` として独立ファイルで管理。
 
-```python
-class BibleState(BaseModel):
-    characters: list[CharacterProfile]    # 名前、外見、性格、状態
-    glossary: list[Term]                 # 用語、定義
-    foreshadowing: list[ForeshadowItem]  # 伏線、回収状況
-    world_rules: list[str]               # 世界観ルール
-```
+- **characters**: キャラクタープロファイル（名前、外見、性格、状態）
+- **glossary**: 用語と定義
+- **foreshadowing**: 伏線と回収状況
+- **world_rules**: 世界観ルール
+
+**更新**: 章完了時に、当該章の全シーンから抽出した情報を Bible に反映。
 
 ---
 
@@ -275,107 +158,37 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 ### 6.1 API Endpoint
 
-`/api/generate` を採用。
+`/api/generate` を採用。`format: JSON Schema` + `think: false` で安定した構造化出力。
 
-- `format: JSON Schema` + `think: false` で安定した構造化出力を確認
+**`think: true` + `format:json` の排他性（Ollama 仕様）**: 同時に機能しない。JSON 出力指定時は GBNF 文法制御により思考タグを生成できない。**必ず `think: false` を使用すること**。
 
-**基本原則**: `format` には JSON Schema を直接指定し、`think: false` をセットする。
+### 6.2 プリウォーミング
 
-**`think: true` + `format:json` の排他性（Ollama 仕様）**:
-
-Ollama のアーキテクチャ上、`format: "json"` と `think: true` は排他的であり、同時に機能しない。JSON 出力が指定されると、Ollama は GBNF 文法でトークン生成の確率分布を制御し、文法的に無効なトークンの生成確率を実質ゼロ（-INFINITY）にする。これにより `<think>` のような JSON 外のタグを生成できなくなる。
-
-### 6.2 プリウォーミング（モデル事前ロード）
-
-Ollama はアイドル時にモデルをメモリから追い出す（デフォルト: 5分）。他システムと共用の場合、いつアンロードされるか不明。
-
-**対策**: ツール起動時に「空リクエスト + `keep_alive: -1`」を送信し、モデルをメモリに固定する。
-
-- `keep_alive: -1` は無期限メモリ保持
-- `keep_alive: 0` は即時アンロード（デフォルト挙動）
-- プリロードはツール起動時に1回だけ実行し、以降の全リクエストが高速になる
+ツール起動時に `keep_alive: -1` でモデルを GPU メモリに固定。Ollama はアイドル時にモデルを追い出す（デフォルト5分）ため、プリロードで防止。
 
 ### 6.3 リトライ戦略
 
 - 最大リトライ回数: 2回（合計3回まで試行）
-- リトライ時はエラーフィードバックをメッセージに追加し、LLM に自己修正を促す
-- 最終試行でも失敗した場合は `ValidationError` を発生させる
+- リトライ時はエラーフィードバックをメッセージに追加
+- 最終試行失敗時は `ValidationError` を発生
 
 ### 6.4 JSON抽出パイプライン
 
-`format: JSON Schema` + `think: false` の場合、Ollama はスキーマに適合する JSON を `message.content` に出力する。キー名も指定通りになるため、単純なパスで十分。
-
 1. **直接 parse** — `message.content` を JSON としてパース
-2. **Markdown fence フォールバック** — 万が一 `` ```json ``` `` で囲まれた場合は中身を抽出
+2. **Markdown fence フォールバック** — `` ```json ``` `` で囲まれた場合の中身を抽出
 
-パースに失敗した場合は `ParseError` を発生させ、リトライを促す。
+パース失敗時は `ParseError` を発生させ、リトライを促す。
 
 ---
 
 ## 7. セキュリティとデータ保全
 
-### 7.1 パストラバーサル防止
-- `safe_child_dir(parent, slug)`: `..` を含む slug を拒否
-- シーン本文パスがシリーズディレクトリ外を指す場合は拒否
-
-### 7.2 原子的書き込み
-- 一時ファイル作成 → `fsync` → `rename` (POSIX atomic)
-- 既存 JSON は `.bak` として退避
-
-### 7.3 RAW ログ
-
-全 LLM リクエスト/レスポンスを `raw_logs/` に保存し、動作確認・デバッグ時に確認できるようにする。
-
-**保存形式**: JSON ファイル、1リクエスト1ファイル。
-
-**ファイル名**: `{timestamp}_{phase}_{model}.json`
-- 例: `20260615_001_scene_draft_qwen3.6-35b.json`
-
-**記録内容**:
-
-```json
-{
-  "timestamp": "2026-06-15T00:00:00+09:00",
-  "phase": "scene_draft",
-  "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
-  "request": {
-    "prompt": "...(完全なプロンプト)",
-    "format": { "type": "object", "properties": {...} },
-    "think": false,
-    "options": { "num_tokens": 512 }
-  },
-  "response": {
-    "content": "...(LLM の生応答)",
-    "thinking": null,
-    "raw": "...(API レスポンス全体)"
-  },
-  "metrics": {
-    "total_duration_ms": 1500,
-    "load_duration_ms": 300,
-    "eval_count": 125,
-    "prompt_eval_count": 50
-  },
-  "status": "success"
-}
-```
-
-**エラー時も記録**:
-
-```json
-{
-  "status": "error",
-  "error_type": "TimeoutError",
-  "error_message": "LLM request timed out after 60s",
-  "request": { "prompt": "...", "phase": "..." },
-  "partial_response": null
-}
-```
-
-**保存先**: `{workdir}/raw_logs/`
-
-**注意**: 未公開原稿を含むため、`raw_logs/` を共有しないこと。
-
-**ローテーション**: デフォルトは全量保持。`--max-raw-logs N` で最新 N 件のみ保持（古いものは削除）。
+| 項目 | 内容 |
+|---|---|
+| パストラバーサル防止 | `..` を含む slug を拒否。シーン本文パスがシリーズ外を指す場合も拒否 |
+| 原子的書き込み | 一時ファイル作成 → `fsync` → `rename` (POSIX atomic)。既存 JSON は `.bak` 退避 |
+| RAW ログ | 全 LLM リクエスト/レスポンスを `raw_logs/` に保存。未公開原稿を含むため共有禁止 |
+| RAW ログローテーション | デフォルト全量保持。`--max-raw-logs N` で最新 N 件のみ |
 
 ---
 
