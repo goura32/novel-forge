@@ -72,23 +72,7 @@ class NovelEngine:
             {"keywords": keywords, "lang": self._lang},
         )
         schema = self._load_schema("series_plan")
-        # slug の maxLength を一時的に緩和（LLM が長い slug を生成するため）
-        import copy
-        schema = copy.deepcopy(schema)
-        schema["properties"]["slug"]["maxLength"] = 128
         result = self._llm.complete_json("series_plan", system, user, schema)
-
-        # slug の長さを補正して再バリデーション
-        slug_max = 40
-        if result.get("slug") and len(result["slug"]) > slug_max:
-            result["slug"] = result["slug"][:slug_max].rstrip("-")
-            from novel_forge.schemas import validate as _validate
-            from novel_forge.ollama_client import SchemaValidationError
-            errors = _validate("series_plan", result)
-            if errors:
-                raise SchemaValidationError(
-                    "series_plan validation failed after slug truncate:\n" + "\n".join(errors)
-                )
 
         # LLM自己レビュー
         review = self._review_series_plan(result)
