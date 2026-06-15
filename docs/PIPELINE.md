@@ -115,13 +115,7 @@ uv run novel-forge complete                      # plan から一括実行
 
 生成したアウトラインを LLM 自身で評価する。評価モデルは `volume_outline_review.json` スキーマに対応する。評価カテゴリの詳細は [GLOSSARY §6](GLOSSARY.md) を参照。
 
-**深刻度の定義:**
-
-| 深刻度 | 説明 | 対応 |
-|---|---|---|
-| `critical` | 物語の根幹に関わる（論理的破綻、致命的な矛盾） | 必ず修正 |
-| `major` | 品質に大きく影響する（ペースの崩れ、キャラクターの不自然な行動） | 可能な限り修正 |
-| `minor` | 改善点としては望ましいが必須ではない | 余力があれば修正 |
+**深刻度の定義:** 詳細は [GLOSSARY §6](GLOSSARY.md) を参照。
 
 ### 3.3 自己修正
 
@@ -131,20 +125,13 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 それ以外 → 不合格、自己修正を実行
 ```
 
-**修正範囲の切り分け:**
+**修正範囲の判定とコンテキスト注入:**
 
-| 修正範囲 | 条件 | 動作 |
+| 修正範囲 | 判定条件 | LLM に渡す情報 |
 |---|---|---|
-| 全体再生成 | overall_score < 5.0、または critical issue が2件以上 | アウトライン全体を再生成 |
-| 章再生成 | has_clear_arc == false、または chapter_roles_valid == false、または climax_placement_valid == false、または特定章に major issue が集中 | 該当章の全シーンを再生成 |
-| シーン再生成 | scene_transitions_valid == false、または state_continuity == false、または pace_analysis で特定シーンに問題 | 該当シーンのみ再生成 |
-
-**部分修正時のコンテキスト:**
-
-| 修正範囲 | LLM に渡す情報 |
-|---|---|
-| 章再生成 | アウトライン全文 + 再生成対象章の前後2章の要約 |
-| シーン再生成 | 所属章の全シーン定義 + 前後シーンの要約 |
+| 全体再生成 | overall_score < 5.0、または critical issue が2件以上 | シリーズ企画全文 + 現在のアウトライン全文 |
+| 章再生成 | has_clear_arc == false、または chapter_roles_valid == false、または climax_placement_valid == false、または特定章に major issue が集中 | アウトライン全文 + 再生成対象章の前後2章の要約 |
+| シーン再生成 | scene_transitions_valid == false、または state_continuity == false、または pace_analysis で特定シーンに問題 | 所属章の全シーン定義 + 前後シーンの要約 |
 
 **自己修正の手順:**
 1. 修正範囲を判定（上記テーブルに基づく）
@@ -226,9 +213,7 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 
 ### 4.3 レビューと改稿は別プロンプト
 
-- **scene_draft.md**: シーン執筆用（MVME goal 使用）
-- **scene_review.md**: レビュー用（評価基準に特化。本文生成指示は含めない）
-- **scene_revision.md**: 改稿用（レビュー結果を受けて改善。新規生成ではない）
+生成・レビュー・改稿はそれぞれ別のプロンプトファイルを使用する（自己評価バイアス防止）。詳細は [PROMPTS.md §32–41](PROMPTS.md) を参照。
 
 ### 4.4 章の自動組立
 
@@ -287,7 +272,7 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 
 ## 6. 事実記録（Blackboard）(blackboard.py)
 
-物語の事実を管理する。`Fact` モデルは `(subject, predicate, object, confidence)` の4-tuple。スキーマは `blackboard.json` を参照。
+物語の事実を管理する。`Fact` モデルは `(subject, predicate, object, confidence)` の4-tuple。スキーマは `blackboard.json` を参照。データ構造の詳細は [GLOSSARY §3.2](GLOSSARY.md) を参照。
 
 **更新タイミング**: シーン完了時（ScenePipeline §4.1 の Summarize ステップ）に WriterAgent が facts を追加。
 
@@ -320,11 +305,11 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 シーンの品質を評価し、合格/不合格を判定する。`QualityGate` はシーン単位と巻単位の両方でチェックを行う。
 
 - `check_scene`: シーン品質を判定 → `{"passed": bool, "score": float, "issues": [...]}`
-  - 評価カテゴリ: `opening_hook`, `character_distinction`, `foreshadowing_consistency`, `sensory_coverage`, `page_turner`
+  - 評価カテゴリ: [GLOSSARY §6](GLOSSARY.md) を参照
   - 合格判定: `score >= 7.0` かつ `critical` issue が0件
 
 - `check_volume`: 巻全体の品質を判定 → `{"passed": bool, "score": float, "issues": [...]}`
-  - 評価カテゴリ: `structural_validity`, `scene_coherence`, `pace_analysis`, `character_arc`
+  - 評価カテゴリ: [GLOSSARY §6](GLOSSARY.md) を参照
   - 全シーンの `check_scene` スコアの平均値と、巻レベルトポロジー（章の役割配置、物語の弧）を総合評価
   - `force_exported` シーンが1件以上存在する場合、スコア上限は 5.0 とする
 
@@ -373,7 +358,7 @@ Resume (再開):
   outlined → outline から再開
   drafting → write から再開（未完了のシーンのみ再生成）
   drafted → export から再開
-  force_exported → export から再開（force_exported シーンは再生成しない）
+  force_exported → export から再開（force_exported シーンは再生成しない。詳細は §5 を参照）
 ```
 
 ---

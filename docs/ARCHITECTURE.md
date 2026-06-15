@@ -47,12 +47,12 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 詳細な状態遷移図と Resume の判定ロジックは [PIPELINE.md §9](PIPELINE.md) を参照してください。
 
 **巻**: `planned → outlined → drafting → drafted → exported → finalized`
-      `drafted` から `force_exported` への分岐あり（export時にforce_exportedシーンが1件以上の場合）
+      `drafted` から `force_exported` への分岐あり
 
 **シーン**: `planned → drafted → reviewed → revised`
-            `reviewed` から `force_exported` への分岐あり（3回不合格時）
+            `reviewed` から `force_exported` への分岐あり
 
-詳細な遷移条件・トリガーは PIPELINE §10 を参照。
+詳細な遷移条件・トリガー・Resume時の判定ロジックは [PIPELINE §10](PIPELINE.md) を参照。
 
 ### 2.3 人間介入ポイント
 
@@ -113,6 +113,8 @@ LLM Response
 - **scene_summaries**: シーンごとの要約
 - **continuity_notes**: 次シーンへの引き継ぎメモ
 
+詳細は [GLOSSARY §3.2](GLOSSARY.md) を参照。
+
 **更新**: シーン完了時に WriterAgent が facts を追加。生成時に直近 facts をコンテキスト注入。
 
 ### 4.3 設定資料集（Bible）— メタデータ台帳
@@ -123,6 +125,8 @@ LLM Response
 - **glossary**: 用語と定義
 - **foreshadowing**: 伏線と回収状況
 - **world_rules**: 世界観ルール
+
+詳細は [GLOSSARY §3.2](GLOSSARY.md) を参照。
 
 **更新**: 章完了時（全シーン完了 → 章 Markdown 組立の直後）に、当該章の全シーンから抽出した情報を Bible に反映。詳細は [PIPELINE.md §4.4](PIPELINE.md) を参照。
 

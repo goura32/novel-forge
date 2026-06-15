@@ -53,9 +53,11 @@
 | 設定資料集（Bible） | メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理 |
 
 **事実記録のデータ構造**:
-- `facts`: 物語の事実リスト。各 fact は `(subject, predicate, object, confidence)` の形式
+- `facts`: 物語の事実リスト。各 fact は `(subject, predicate, object, confidence)` の4-tuple 形式（以下 Fact 参照）
 - `scene_summaries`: シーンごとの要約
 - `continuity_notes`: 次シーンへの引き継ぎメモ
+
+**Fact**: 物語の事実。`(subject, predicate, object, confidence)` の4要素で構成される。
 
 **Bible のデータ構造**:
 - `characters`: キャラクタープロファイル（名前、外見、性格、状態）
@@ -108,7 +110,6 @@
 | 自己レビュー | LLM が自分で生成した内容を評価する工程 |
 | 自己修正 | 自己レビュー結果に基づき、LLM が自分で内容を修正する工程 |
 | 別プロンプト原則 | 生成・レビュー・改稿はそれぞれ別のプロンプトファイルを使用（自己評価バイアス防止） |
-| Fact | 物語の事実。`(subject, predicate, object, confidence)` の4要素で構成 |
 
 **プロンプト一覧**:
 
