@@ -26,6 +26,8 @@ class Blackboard(BaseModel):
 
 class CharacterProfile(BaseModel):
     name: str
+    role: str = ""
+    arc: str = ""
     appearance: str = ""
     personality: str = ""
     state: str = ""
@@ -113,6 +115,12 @@ class VolumeOutline(BaseModel):
 
 # ── シリーズ企画 ───────────────────────────────────────────────────────
 
+class VolumePlanItem(BaseModel):
+    number: int = Field(ge=1)
+    title: str = Field(max_length=128, default="")
+    premise_str: str = Field(max_length=80, default="", alias="premise")
+
+
 class SeriesPlan(BaseModel):
     title: str = ""
     slug: str = Field(default="", max_length=64, pattern=r"^[a-z0-9-]+$")
@@ -121,10 +129,9 @@ class SeriesPlan(BaseModel):
     target_audience: str = Field(default="", max_length=50)
     themes: list[str] = Field(default_factory=list)
     selling_points: list[str] = Field(default_factory=list)
-    world_summary: str = Field(default="", max_length=500, alias="world_summary")
-    world_rules: list[str] = Field(default_factory=list)
+    world: dict[str, Any] = Field(default_factory=lambda: {"summary": "", "rules": []})
     main_characters: list[CharacterProfile] = Field(default_factory=list)
-    planned_volumes: list[dict[str, Any]] = Field(default_factory=list)
+    planned_volumes: list[VolumePlanItem] = Field(default_factory=list)
     premise: str = ""
     keywords: list[str] = Field(default_factory=list)
     catchphrase: str = ""
