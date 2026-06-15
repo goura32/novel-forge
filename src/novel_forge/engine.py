@@ -324,9 +324,9 @@ class NovelEngine:
         self._state.status = vol.status
         self._save()
         return {
-            "manuscript_path": str(self._workdir / "exports" / "manuscript.md"),
-            "metadata_path": str(self._workdir / "exports" / "metadata.json"),
-            "report_path": str(self._workdir / "exports" / "kdp_readiness_report.md"),
+            "manuscript_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_manuscript.md"),
+            "metadata_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_metadata.json"),
+            "report_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_kdp_readiness_report.md"),
         }
 
     # ── resume ────────────────────────────────────────────────────────
@@ -466,7 +466,7 @@ class NovelEngine:
         for ch_path in sorted(vol_dir.glob("chapters/ch*.md")):
             chapters.append(ch_path.read_text(encoding="utf-8"))
         manuscript = "\n\n---\n\n".join(chapters)
-        (export_dir / "manuscript.md").write_text(manuscript, encoding="utf-8")
+        (export_dir / f"vol{vol_num:02d}_manuscript.md").write_text(manuscript, encoding="utf-8")
         return manuscript
 
     def _generate_kdp_metadata(self, vol_num: int) -> dict[str, Any]:
@@ -482,7 +482,7 @@ class NovelEngine:
             "volume": vol_num,
             "language": self._lang,
         }
-        (export_dir / "metadata.json").write_text(
+        (export_dir / f"vol{vol_num:02d}_metadata.json").write_text(
             json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         return metadata
@@ -530,5 +530,5 @@ class NovelEngine:
         lines.append("- [ ] キーワード・カテゴリの確認")
 
         report = "\n".join(lines)
-        (export_dir / "kdp_readiness_report.md").write_text(report, encoding="utf-8")
+        (export_dir / f"vol{vol_num:02d}_kdp_readiness_report.md").write_text(report, encoding="utf-8")
         return report
