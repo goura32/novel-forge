@@ -48,6 +48,23 @@ def _parse_json_response(text: str) -> Any:
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 
+def _parse_ollama_options_env() -> dict[str, Any]:
+    """OLLAMA_OPTIONS 環境変数をパースして options dict を返す。
+    例: OLLAMA_OPTIONS='{"temperature": 0.7, "top_p": 0.9}'
+    """
+    import os, json
+    raw = os.environ.get("OLLAMA_OPTIONS", "")
+    if not raw:
+        return {}
+    try:
+        opts = json.loads(raw)
+        if isinstance(opts, dict):
+            return opts
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return {}
+
+
 class LLMClient:
     def __init__(
         self,
@@ -110,6 +127,7 @@ class LLMClient:
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
+                **_parse_ollama_options_env(),
             },
         }
         if schema:
@@ -147,6 +165,7 @@ class LLMClient:
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
+                **_parse_ollama_options_env(),
             },
         }
         raw = self._call_api(payload)
