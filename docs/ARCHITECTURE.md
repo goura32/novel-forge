@@ -355,8 +355,59 @@ curl -X POST http://ws1.local:11434/api/generate \
 - 既存JSONは `.bak` として退避
 
 ### 7.3 RAW ログ
-- 全LLM リクエスト/レスポンスを `raw_logs/` に保存
-- 未公開原稿を含むため、取り扱いに注意
+
+全 LLM リクエスト/レスポンスを `raw_logs/` に保存し、動作確認・デバッグ時に確認できるようにする。
+
+**保存形式**: JSON ファイル、1リクエスト1ファイル。
+
+**ファイル名**: `{timestamp}_{phase}_{model}.json`
+- 例: `20260615_001_scene_draft_qwen3.6-35b.json`
+
+**記録内容**:
+
+```json
+{
+  "timestamp": "2026-06-15T00:00:00+09:00",
+  "phase": "scene_draft",
+  "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+  "request": {
+    "prompt": "...(完全なプロンプト)",
+    "format": { "type": "object", "properties": {...} },
+    "think": false,
+    "options": { "num_tokens": 512 }
+  },
+  "response": {
+    "content": "...(LLM の生応答)",
+    "thinking": null,
+    "raw": "...(API レスポンス全体)"
+  },
+  "metrics": {
+    "total_duration_ms": 1500,
+    "load_duration_ms": 300,
+    "eval_count": 125,
+    "prompt_eval_count": 50
+  },
+  "status": "success"
+}
+```
+
+**エラー時も記録**:
+
+```json
+{
+  "status": "error",
+  "error_type": "TimeoutError",
+  "error_message": "LLM request timed out after 60s",
+  "request": { "prompt": "...", "phase": "..." },
+  "partial_response": null
+}
+```
+
+**保存先**: `{workdir}/raw_logs/`
+
+**注意**: 未公開原稿を含むため、`raw_logs/` を共有しないこと。
+
+**ローテーション**: デフォルトは全量保持。`--max-raw-logs N` で最新 N 件のみ保持（古いものは削除）。
 
 ---
 
