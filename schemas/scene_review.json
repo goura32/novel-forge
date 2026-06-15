@@ -25,7 +25,16 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "評価次元名"
+            "description": "評価次元名",
+            "enum": [
+              "opening_hook",
+              "character_distinction",
+              "foreshadowing_consistency",
+              "sensory_coverage",
+              "page_turner",
+              "dialogue_naturalness",
+              "tone_consistency"
+            ]
           },
           "score": {
             "type": "number",

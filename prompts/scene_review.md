@@ -18,6 +18,8 @@
 - `foreshadowing_consistency`: 伏線の整合性。仕込んだ伏線に矛盾はないか
 - `sensory_coverage`: 五感の網羅。シーンに3つ以上の感覚描写が含まれているか
 - `page_turner`: ページターナー。章末に次章を読みたくなる仕掛けがあるか
+- `dialogue_naturalness`: 台詞の自然さ。キャラクター口調が一貫し、不自然な表現がないか
+- `tone_consistency`: 文体統一。地の文の文体（ですます調）が一貫しているか
 
 ## 深刻度
 
@@ -29,11 +31,19 @@
 
 `scene_review.json` に適合する JSON を出力すること。
 
+**重要**: `score` は 0 から 100 の数値で評価すること（10 段階ではない）。
+
 ## 出力形式
 
 ```json
 {
   "score": 0.0,
+  "dimensions": [
+    {
+      "name": "string",
+      "score": 0.0
+    }
+  ],
   "issues": [
     {
       "severity": "critical|major|minor",
@@ -42,6 +52,7 @@
       "suggestion": "string"
     }
   ],
-  "strengths": ["string"]
+  "strengths": ["string"],
+  "revision_needed": true
 }
 ```
