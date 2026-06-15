@@ -5,7 +5,7 @@
 | 要件 | バージョン | 備考 |
 |---|---|---|
 | Python | 3.14+ | `uv` 推奨 |
-| Ollama | 0.14+ | OpenAI互換API有効化 |
+| Ollama | 0.14+ | |
 | RAM | 16GB+ | モデルによる |
 | GPU | 推奨 | qwen3.6:35b は VRAM 24GB+ |
 
@@ -34,14 +34,6 @@ ollama pull qwen3.6:35b-a3b-mtp-q4_K_M
 
 # 確認
 ollama list
-```
-
-GPU OOM の場合:
-
-```bash
-# 小さいモデルに切替
-ollama pull qwen3.6:27b
-# --model qwen3.6:27b を指定
 ```
 
 ## 3. 動作確認
@@ -88,30 +80,31 @@ uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解" \
 uv run novel-forge plan     --workdir ./work/series1 --keywords "近未来東京 記憶探偵"
 uv run novel-forge outline  --workdir ./work/series1 --volume 1
 uv run novel-forge write    --workdir ./work/series1 --volume 1
-uv run novel-forge review   --workdir ./work/series1 --volume 1
-uv run novel-forge revise   --workdir ./work/series1 --volume 1
 uv run novel-forge export   --workdir ./work/series1 --volume 1
 
 # 次巻へ進む
 uv run novel-forge next-volume --workdir ./work/series1
 
 # 破損状態からの復旧
-uv run novel-forge recover-state --workdir ./work/series1
+uv run novel-forge recover --workdir ./work/series1
 
 # 進捗確認
 uv run novel-forge status   --workdir ./work/series1
+
+# 中断・再開
+uv run novel-forge resume   --workdir ./work/series1
 ```
 
 ## 5. トラブルシューティング
 
 ### `probe failed: LLM did not return valid JSON`
 
-- モデルがJSON以外の文章を返した
+- モデルが JSON 以外の文章を返した
 - 対処: `probe_logs/` を確認。`/api/generate` + `format:"json"` + `think:false` を使用しているか確認
 
 ### `thinking` モデルが reasoning を返す
 
-- Qwen 3.6 などの thinking 対応モデルは、`/v1/chat/completions` の `think:false` を無視して reasoning を返す場合がある（2026-06-15 実測）
+- Qwen 3.6 などの thinking 対応モデルは、`/v1/chat/completions` の `think:false` を無視して reasoning を返す場合がある
 - **対処**: `/api/generate` エンドポイント + `think:false` + `format:"json"` を使用。`/v1/chat/completions` は使わない
 
 ### `LLM HTTP error 404`
@@ -122,38 +115,29 @@ uv run novel-forge status   --workdir ./work/series1
 ### `LLM request timed out after ...s`
 
 - モデルが遅い、入力が大きい
-- 対処: `--timeout` を増やす、`--max-scenes 1` でスモーク検証
-
-### `volume review has major final review issues`
-
-- 品質ゲートが正常に動作
-- 対処: `volume_revised.md` を確認、必要に応じて `--force` で強制出力
+- 対処: `--timeout` を増やす
 
 ### GPU OOM
 
 ```bash
 # Ollama 再起動
 systemctl restart ollama
-
-# 小さいモデルに切替
-uv run novel-forge complete "..." --model qwen3.6:27b
 ```
 
-## 6. 開発コマンド
+### 品質ゲートで不合格が続く
 
-```bash
-# テスト
-uv run pytest -q
+- 対処: `.novel-forge/volumes/vol{N}/quality_reports/` を確認。`force_exported` フラグが立ったシーンは `--force` で出力可能
 
-# Lint
-uv run ruff check .
+## 6. 設計書
 
-# ビルド
-uv build
+詳細な仕様・設計については以下のドキュメントを参照してください。
 
-# ロックファイル整合性
-uv lock --offline --check
-```
+| ファイル | 内容 |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | アーキテクチャ設計（レイヤー構成、データフロー、記憶モデル） |
+| [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、エラーハンドリング） |
+| [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、全コンポーネント） |
+| [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理 |
 
 ## 7. セキュリティ
 
@@ -162,8 +146,8 @@ uv lock --offline --check
 - `pickle` 不使用
 - パストラバーサル (`../`) 拒否
 - ハードコードされたシークレットなし
-- RAW ログには未公開原稿が含まれる → 取り扱い注意
+- RAW ログには未公開原稿が含まれる → 共有しないこと
 
 ---
 
-*Last updated: 2026-06-15*
+*Last updated: 2026-06-16*
