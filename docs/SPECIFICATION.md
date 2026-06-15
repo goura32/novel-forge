@@ -78,7 +78,21 @@ novel-forge/
     └── make_smoke_workspace.py
 ```
 
-## 2. CLI コマンド
+### 2.1 設定ファイル
+
+作業ディレクトリの直下に `.novel-forge.yaml` を置くことで、CLI オプションを省略できる。
+
+```yaml
+# .novel-forge.yaml
+workdir: ./work/series1      # 作業ディレクトリ
+model: qwen3.6:35b-a3b-mtp-q4_K_M  # LLM モデル
+lang: ja                      # 出力言語
+volume: 1                     # 現在処理中の巻番号
+```
+
+設定ファイルがある場合、`--workdir` と `--volume` を省略可能。コマンドライン指定が優先。
+
+### 2.2 CLI コマンド
 
 ```bash
 # セットアップ
@@ -88,27 +102,57 @@ uv run novel-forge --help
 uv run novel-forge probe-model
 
 # 一括実行 (v1 → 全工程)
-uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解" --workdir ./work/series1 --volume 1
+uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解"
 
 # 段階実行
-uv run novel-forge plan          --workdir ./work/series1 --keywords "..."
-uv run novel-forge outline       --workdir ./work/series1 --volume 1
-uv run novel-forge write         --workdir ./work/series1 --volume 1
-uv run novel-forge review        --workdir ./work/series1 --volume 1
-uv run novel-forge revise        --workdir ./work/series1 --volume 1
-uv run novel-forge quality       --workdir ./work/series1 --volume 1
-uv run novel-forge export        --workdir ./work/series1 --volume 1
-uv run novel-forge bible         --workdir ./work/series1 --action view
-uv run novel-forge status        --workdir ./work/series1
+uv run novel-forge plan          --keywords "..."
+uv run novel-forge outline       # --volume 1 はデフォルト
+uv run novel-forge write
+uv run novel-forge review
+uv run novel-forge revise
+uv run novel-forge quality
+uv run novel-forge export
+uv run novel-forge bible         --action view
+uv run novel-forge status
 
 # 次巻へ進む
-uv run novel-forge next-volume   --workdir ./work/series1
+uv run novel-forge next-volume
 
 # 破損状態からの復旧
-uv run novel-forge recover-state --workdir ./work/series1
+uv run novel-forge recover
 
 # 表紙画像生成
-uv run novel-forge illustrate --workdir ./work/series1 --volume 1
+uv run novel-forge illustrate
+```
+
+**グローバルオプション**:
+
+| オプション | 短縮 | デフォルト | 説明 |
+|---|---|---|---|
+| `--config` | `-c` | `./.novel-forge.yaml` | 設定ファイルパス |
+| `--workdir` | `-w` | 設定ファイル or カレント | 作業ディレクトリ |
+| `--volume` | `-V` | 設定ファイル or `1` | 処理対象の巻番号 |
+| `--model` | `-m` | 設定ファイル or デフォルト | LLM モデル名 |
+| `--timeout` | `-t` | 工程別デフォタイム | LLM タイムアウト (秒) |
+| `--daemon` | `-d` | なし | 次回起動時に `keep_alive:-1` を自動送信 |
+
+**実行例**:
+
+```bash
+# 初回: 設定ファイルを自動生成
+uv run novel-forge complete "近未来東京 記憶探偵" --workdir ./work/myseries
+# → .novel-forge.yaml が ./work/myseries に作成される
+
+# 2回目以降: 全オプション省略
+uv run novel-forge complete "..."
+# → .novel-forge.yaml から workdir, model, volume を読込
+
+# 巻2に切り替え
+uv run novel-forge next-volume  # state.json が volume=1 に更新
+uv run novel-forge outline -V 2 # 巻2のアウトライン
+
+# タイムアウトを長く
+uv run novel-forge write -t 120
 ```
 
 ## 3. データモデル
@@ -175,8 +219,8 @@ class ProjectState(BaseModel):
     series: SeriesPlan | None = None
     current_volume: int = 1
     volumes: list[VolumeProgress] = []
-    scenes: dict[str, SceneRecord] = {}    # key "v01_c01_s01"
-    volume_outlines: dict[str, VolumeOutline] = {}  # key "1", "2", ...
+    scenes: dict[str, SceneRecord] = {}    # key "vol1_ch01_s01"
+    volume_outlines: dict[str, VolumeOutline] = {}  # key "vol1", "vol2", ...
     blackboard: BlackboardState | None = None
     bible: BibleState | None = None
     volume_reviews: dict[str, dict] = {}
@@ -186,30 +230,93 @@ class ProjectState(BaseModel):
 
 ### 3.2 作業フォルダ構造
 
+**設計原則**:
+
+1. **人間が目にするのは `exports/` のマークダウンだけ**: `manuscript.md` が完成原稿。`metadata.json` と `cover_prompt.json` は提出用手続き用
+2. **原稿の実体は `volumes/` だが、マークダウンだけ**: `ch*.md`, `s*.md`。JSON は一切混在しない
+3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json`, `.blackboard.json`, `.bible.json` 等はすべて `.novel-forge/` 内。人間は見ないし触らない
+4. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
+5. **`exports/` の原稿だけが Git 管理対象**: 作品のバージョン管理は `exports/manuscript.md` に対して行う
+
 ```text
 workspace/<slug>/
-├── state.json                    # メイン状態ファイル
-├── state.json.bak                # 破損時退避
-├── series_plan.json
-├── blackboard.json
-├── bible.json
-├── raw_logs/                     # LLM リクエスト/レスポンス
-│   └── 20260615T120000.000Z_series_plan.json
-└── volume_001/
-    ├── outline.json
-    ├── volume_review.json
-    ├── volume_revision.json
-    ├── volume_revised.md
-    └── chapters/
-        ├── chapter_001/
-        │   ├── scene_001.md
-        │   ├── scene_001_draft.json
-        │   ├── scene_001_review.json
-        │   ├── scene_001_revision.json
-        │   └── scene_001_quality.json
-        ├── chapter_001.md
-        └── ...
+├── .novel-forge.yaml                 # CLI 設定（触ってもよい）
+├── exports/                          # ← 人間が目にする唯一の場所
+│   ├── manuscript.md                   # 完成原稿（全巻束ねたもの）
+│   ├── vol1.md                       # 巻1 原稿（個別提出用）
+│   ├── metadata.json                 # KDP メタデータ
+│   └── cover_prompt.json             # 表紙画像プロンプト
+└── .novel-forge/                     # ← 人間は見ない（.gitignore 推奨）
+    ├── state.json                    # メイン状態
+    ├── state.json.bak                # 破損時退避
+    ├── series_plan.json              # シリーズ企画
+    ├── blackboard.json               # 物語の事実
+    ├── bible.json                    # メタデータ台帳
+    ├── raw_logs/                     # LLM 生ログ
+    │   └── {timestamp}_{phase}.json
+    ├── volumes/                      # 中間生成データ
+    │   └── vol1/
+    │       ├── outline.json          # 巻アウトライン
+    │       ├── chapters/
+    │       │   └── ch01/
+    │       │       └── scenes/
+    │       │           └── s01_scene.md  # シーン本文（JSONなし）
+    │       ├── review.json           # 巻レビュー（中間）
+    │       ├── revision.json         # 巻改稿中間データ
+    │       └── quality_reports/
+    │           └── ch01_s01_quality.json
+    └── exports_src/                  # exports/ のソース（chapters からのコピー）
+        └── vol1_ch01_s01_scene.md
 ```
+
+**人間が見るものと見ないものの境界**:
+
+| 人間が目にする | 人間が目にしない |
+|---|---|
+| `exports/*.md`（原稿、メタデータ） | `.novel-forge/` 内の全ファイル |
+| `workspace/<slug>/.novel-forge.yaml`（設定） | `volumes/` 内の JSON |
+| | `raw_logs/` |
+
+**原稿の流れ**: `volumes/vol1/chapters/ch01/scenes/s_scene.md` → 完成判定 → `exports/vol1.md` → `exports/manuscript.md`
+
+**番号割り当て**:
+
+| 要素 | 番号付け | 例 |
+|---|---|---|
+| 巻 | `vol{N}` | `vol1`, `vol2` |
+| 章 | `ch{N}` ゼロ埋め2桁 | `ch01`, `ch02` |
+| シーン | `s{N}_scene.md` | `s01_scene.md`, `s02_scene.md` |
+
+**複数シリーズの並行処理**:
+
+```
+workspace/
+├── mystery-series/          # シリーズ1
+│   ├── .novel-forge.yaml    # workdir: ./, lang: ja, model: qwen3.6:35b
+│   ├── exports/
+│   └── .novel-forge/
+│       ├── state.json       # シリーズ1 の状態
+│       └── volumes/vol1/...
+└── fantasy-series/          # シリーズ2（並行処理可）
+    ├── .novel-forge.yaml
+    ├── exports/
+    └── .novel-forge/
+        ├── state.json       # シリーズ2 の状態
+        └── volumes/vol1/...
+```
+
+**並行処理の仕組み**:
+
+1. **作業ディレクトリが異なる**: 各シリーズは独立した `workdir` を持つ
+2. **`.novel-forge/` も分離**: シリーズごとに独立した状態管理
+3. **Ollama は共用**: LLM リクエストは Ollama 側で直列化されるため、シリーズ間で待ち時間が発生
+4. **モデルは1つ**: `keep_alive:-1` で最初の起動時に1回ロードすれば、両シリーズで使い回せる
+
+**Ollama 共用時の注意**: Ollama はリクエストを直列処理（memory で確認済み）。複数シリーズを同時に `complete` した場合、一方のリクエストが他方のレスポン待ちになる。これは許容範囲（ユーザーが待つだけ）であり、エラーにはならない。
+
+**state.json は `.` プレフィックス付き**: `.novel-forge/state.json`。ユーザーファイルと区別し、管理ファイルであることを明示。
+
+**state キーの衝突防止**: `.novel-forge/` はシリーズごとに完全分離されるため、`vol1_ch01_s01` のような key でもシリーズ間で衝突しない。
 
 ## 4. 主要コンポーネント
 
@@ -346,37 +453,37 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 
 ### 8.1 plan
 
-- キーワードから `series_plan.json` が生成されること
-- `series_plan.json` が `series_plan.json` スキーマに適合すること
-- `state.json` が作成され、`series_plan` フィールドが設定されていること
+- キーワードから `.series_plan.json` が生成されること
+- `.series_plan.json` が `series_plan.json` スキーマに適合すること
+- `.state.json` が作成され、`series_plan` フィールドが設定されていること
 
 ### 8.2 outline
 
-- `volume_N/outline.json` が生成されること
-- `volume_N/outline.json` が `volume_outline.json` スキーマに適合すること
+- `volumes/vol{N}/outline.json` が生成されること
+- `volumes/vol{N}/outline.json` が `volume_outline.json` スキーマに適合すること
 - 章が 1 件以上、各章にシーンが 1 件以上含まれること
 
 ### 8.3 write
 
-- アウトラインに記載された全シーンについて、`scene_NNN.md` が生成されること
-- 各シーンのレビュー結果（`scene_NNN_review.json`）が保存されていること
-- 各シーンの品質ゲート結果（`scene_NNN_quality.json`）が保存されていること
-- 章単位の Markdown（`chapter_NNN.md`）が全章分生成されていること
+- アウトラインに記載された全シーンについて、`volumes/vol{N}/chapters/ch{M}/scenes/s{K}.md` が生成されること
+- 各シーンのレビュー結果（`volumes/vol{N}/review.json`）が保存されていること
+- 各シーンの品質ゲート結果（`volumes/vol{N}/.novel-forge/quality_reports/`）が保存されていること
+- 章単位の Markdown（`volumes/vol{N}/chapters/ch{M}/ch{M}.md`）が全章分生成されていること
 
 ### 8.4 review
 
-- `volume_N/volume_review.json` が生成されること
+- `volumes/vol{N}/review.json` が生成されること
 - 評価点、問題点、改善提案が構造化されていること
 
 ### 8.5 revise
 
-- `volume_N/volume_revised.md` が生成されること
+- `volumes/vol{N}/volume_revised.md` が生成されること
 - 改稿後の章見出し数がアウトラインの章数と一致すること
 
 ### 8.6 quality
 
-- 全シーンの品質ゲート結果が `state.json` に記録されていること
-- 不合格シーンが存在する場合、その理由が `quality_gate.json` に記録されていること
+- 全シーンの品質ゲート結果が `.state.json` に記録されていること
+- 不合格シーンが存在する場合、その理由が quality_reports に記録されていること
 
 ### 8.7 export
 
@@ -387,22 +494,22 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 ### 8.8 complete
 
 - plan → outline → write → review の全工程がエラーなく完了すること
-- `state.json` のステータスが `reviewed` 以降に更新されていること
+- `.state.json` のステータスが `reviewed` 以降に更新されていること
 
 ### 8.9 next-volume
 
 - 現在巻が完了状態の場合のみ、次巻のアウトラインが生成されること
 - 計画巻数を超える場合、エラーで停止すること
 
-### 8.10 recover-state
+### 8.10 recover
 
-- 破損した `state.json` を検出できること
+- 破損した `.state.json` を検出できること
 - 有効なバックアップ（`.bak`）から復元できること
-- 復元後の `state.json` がパース可能なこと
+- 復元後の `.state.json` がパース可能なこと
 
 ### 8.11 bible
 
-- `bible.json` が生成・更新されること
+- `.bible.json` が生成・更新されること
 - キャラクター情報、用語、伏線が構造化されて保存されていること
 
 ### 8.12 status
