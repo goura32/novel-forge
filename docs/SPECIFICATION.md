@@ -124,11 +124,14 @@ uv run novel-forge plan "近未来東京 記憶探偵"
 # → ./20260615_近未来東京記憶探偵/ に作業フォルダ作成
 # → series_plan.json 生成
 # → .novel-forge.yaml 作成（workdir 自動設定）
+# → 人間が内容を確認
 
-# 以後は workdir 省略可
-uv run novel-forge complete "..."   # 一括実行
-uv run novel-forge write
-uv run novel-forge review
+# 承認後に次へ進む
+uv run novel-forge plan --approve
+# → シリーズ企画を承認。次の工程（outline）へ進める
+
+# 一括実行（承認を含む）
+uv run novel-forge complete "..."   # plan → approve → outline → write → export
 
 # カスタム作業ディレクトリ
 uv run novel-forge plan "..." --workdir ./my-custom-dir
@@ -136,7 +139,7 @@ uv run novel-forge plan "..." --workdir ./my-custom-dir
 
 # 既存シリーズで再開
 uv run novel-forge complete --workdir ./20260615_近未来東京記憶探偵
-# → plan をスキスクして既存データで一括実行
+# → plan をスキップして既存データで一括実行
 
 # 巻2に切り替え
 uv run novel-forge next-volume
@@ -146,21 +149,21 @@ uv run novel-forge outline -V 2
 **段階実行コマンド**:
 
 ```bash
-uv run novel-forge plan          --keywords "..."   # シリーズ企画
-uv run novel-forge outline                        # 巻アウトライン
-uv run novel-forge write                          # シーン執筆
-uv run novel-forge review                         # 巻レビュー
-uv run novel-forge revise                         # 巻改稿
-uv run novel-forge quality                        # シーン品質ゲート再評価
-uv run novel-forge export                         # KDP 向け出力
+uv run novel-forge plan          --keywords "..."   # シリーズ企画（人間承認必要）
+uv run novel-forge plan --approve                  # 企画承認
+uv run novel-forge outline                        # 巻アウトライン（LLM自律）
+uv run novel-forge write                          # シーン執筆（LLM自律）
+uv run novel-forge export                         # KDP 向け出力（LLM自律）
 uv run novel-forge bible         --action view    # メタデータ台帳
 uv run novel-forge status                         # 進捗確認
 uv run novel-forge resume                         # 中断した工程から再開
 uv run novel-forge next-volume                    # 次巻へ
 uv run novel-forge recover                        # 破損復旧
 uv run novel-forge illustrate                     # 表紙画像プロンプト
-uv run novel-forge complete                      # plan から一括実行
+uv run novel-forge complete                      # plan(承認含む) から一括実行
 ```
+
+**削除されたコマンド**: `review`, `revise`, `quality` — これらは LLM 自律処理のため CLI コマンドとして不要。
 
 ## 3. データモデル
 
@@ -210,17 +213,20 @@ class SceneRecord(BaseModel):
     title: str | None = None
     status: Literal["planned","drafted","reviewed","revised"] = "planned"
     content: str | None = None
+    quality_retries: int = 0          # 品質ゲート不合格からのリトライ回数 (最大3)
     draft_meta: dict | None = None      # LLM 出力メタ（scene.json スキーマ）
-    review: dict | None = None           # scene_review.json スキーマ
-    revision: dict | None = None         # scene_revision.json スキーマ
+    review: dict | None = None           # scene_review.json スキーマ（人間には見せない）
+    revision: dict | None = None         # scene_revision.json スキーマ（人間には見せない）
     quality_gate: dict | None = None     # scene_quality_gate.json スキーマ
     summary: dict | None = None          # scene_summary.json スキーマ
 
 # ── 進捗 ──
 class VolumeProgress(BaseModel):
     number: int; title: str
-    status: Literal["planned","outlined","drafting","drafted","reviewed",
-                     "revised","published","force_exported"] = "planned"
+    status: Literal["planned","approved","outlined","drafting","drafted",
+                     "exported","finalized","force_exported"] = "planned"
+    word_count: int = 0
+    target_word_count: int = 80000
 
 class ProjectState(BaseModel):
     series: SeriesPlan | None = None
@@ -345,40 +351,51 @@ workspace/
 
 | コマンド | 役割 |
 |---|---|
-| `plan` | キーワードからシリーズ企画を生成 |
-| `outline` | 巻アウトライン（章・シーン構成）を生成 |
-| `write` | シーン本文を生成し、レビュー・改稿・品質ゲートを実行 |
-| `review` | 巻全体をレビュー |
-| `revise` | レビュー結果に基づき巻全体を改稿 |
-| `quality` | シーン品質ゲートを再評価 |
-| `export` | KDP 向け出力を生成 |
+| `plan` | キーワードからシリーズ企画を生成。**人間が承認（`--approve`）承認後に次の工程へ** |
+| `outline` | 巻アウトライン（章・シーン構成）を生成（LLM自律） |
+| `write` | シーン本文を生成し、レビュー・改稿・品質ゲートを実行（**全工程LLM自律**） |
+| `export` | KDP 向け出力を生成。最終レビュー（LLM自律）結果を `kdp_readiness_report.md` に記録 |
 | `bible` | メタデータ台帳を更新・参照 |
-| `status` | 現在の進捗を表示 |
-| `complete` | 企画からレビューまでの全工程を一括実行 |
+| `status` | 現在の進捗と文字数を表示 |
+| `complete` | plan(承認含む) → outline → write → export を一括実行 |
 | `next-volume` | 次巻のアウトラインを生成 |
 | `recover` | 破損した状態ファイルを復旧 |
 | `resume` | 中断した工程から再開 |
-| `illustrate` | 表紙画像生成用のプロンプトとメタデータを出力 |
+| `illustrate` | 表紙画像プロンプト |
 
 ### 4.2 ScenePipeline (scene_pipeline.py)
 
-シーン単位の処理パイプライン。各シーンを以下の順序で処理します。
+シーン単位の処理パイプライン。**全工程が LLM 自律。人間は介入しない。**
 
-**通常モード（自動）**:
+各シーンを以下の順序で処理します。
+
 1. **Draft** — アウトラインとコンテキストから初稿を生成
-2. **Review** — 初稿を評価し、改善点を抽出
-3. **Quality Gate** — レビュー結果に基づき合格/不合格を判定。不合格の場合は自動改稿して再評価
-4. **Summarize** — 改稿済み本文から要約を生成し、Blackboard に事実を記録
+2. **Review** — 初稿を評価し、改善点を抽出（人間には見せない）
+3. **Quality Gate** — レビュー結果に基づき合格/不合格を判定
+4. **改稿** — 不合格の場合、レビュー結果に基づき自動改稿
+5. **再評価** — 改稿後に再度 Quality Gate 判定
+6. **Summarize** — 合格した本文から要約を生成し、Blackboard に事実を記録
 
-**レビュー確認モード（`--review-auto` 無効時）**:
-1. **Draft** — 初稿を生成
-2. **Review** — 初稿を評価し、改善点を抽出
-3. **人間確認** — レビュー結果を `vol{N}/.novel-forge/pending_reports/vol{N}_ch{NN}_sc{NN}_review.json` に出力。ユーザーが確認・編集する
-4. **改稿** — 人間が確認・承認したレビュー結果に基づき改稿を実行。手動修正があればそれも反映
-5. **Quality Gate** — 改稿後に品質判定
-6. **Summarize** — 要約を生成し、Blackboard に記録
+**無限ループ防止（最大試行回数）**:
 
-レビュー確認モードでは、LLM の提案をそのまま適用するのではなく、ユーザーが内容を確認してから次に進む。商用出版レベルの品質管理に必須。
+```
+Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再評価 → ...
+```
+
+このループは **最大3回** まで。3回不合格でも `force_exported` フラグを立てて続行する。
+
+| 試行 | 動作 |
+|---|---|
+| 1回目 | Draft → Review → Quality Gate |
+| 2回目 | 不合格 → 改稿 → Quality Gate |
+| 3回目 | 不合格 → 改稿 → Quality Gate |
+| 3回不合格 | `force_exported` フラグを立てて続行 |
+
+**レビューと改稿は別プロンプトを使用**: 執筆用プロンプトとレビュー用プロンプトは明確に分ける。同じプロンプトで書いて評価すると自己評価バイアスが増幅するため。
+
+- **scene_draft.md**: シーン執筆用（MVME goal 使用）
+- **scene_review.md**: レビュー用（評価基準に特化。本文生成指示は含めない）
+- **scene_revision.md**: 改稿用（レビュー結果を受けて改善。新規生成ではない）
 
 ### 4.3 Resume (resume.py)
 
@@ -507,6 +524,8 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 - `--workdir` 省略時、`yyyymmdd_{slugified_keywords}` のフォルダが自動生成されること
 - `--workdir` 指定時、指定されたフォルダを使用すること
 - `.novel-forge.yaml` が自動作成され、`workdir` が設定されていること
+- `--approve` 未実行時、VolumeProgress のステータスが `planned` であること
+- `--approve` 実行後、VolumeProgress のステータスが `approved` に更新されること
 
 ### 8.2 outline
 
@@ -517,37 +536,26 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 ### 8.3 write
 
 - アウトラインに記載された全シーンについて、`.novel-forge/volumes/vol01/ch01/vol01_ch01_sc01.md` のような形式で生成されること
-- 各シーンのレビュー結果（`.novel-forge/volumes/vol01/vol01_review.json`）が保存されていること
+- 各シーンのレビュー結果が `.novel-forge/` 内に保存されていること（人間には見せない）
 - 各シーンの品質ゲート結果（`.novel-forge/volumes/vol01/quality_reports/`）が保存されていること
+- 品質ゲート不合格のシーンは最大3回まで自動改稿→再評価されること
+- 3回不合格のシーンは `force_exported` フラグが立つこと
+- `SceneRecord.quality_retries` が実際のリトライ回数を記録すること
 - 章単位の Markdown は各章ディレクトリ直下に生成されること
 
-### 8.4 review
-
-- `.novel-forge/volumes/vol01/vol01_review.json` が生成されること
-- 評価点、問題点、改善提案が構造化されていること
-
-### 8.5 revise
-
-- `.novel-forge/volumes/vol01/vol01_revision.json` が生成されること
-- 改稿後の章見出し数がアウトラインの章数と一致すること
-
-### 8.6 quality
-
-- 全シーンの品質ゲート結果が `.state.json` に記録されていること
-- 不合格シーンが存在する場合、その理由が quality_reports に記録されていること
-
-### 8.7 export
+### 8.4 export
 
 - `exports/manuscript.md` が生成されること
 - `exports/metadata.json` が生成されること
-- 品質ゲート不合格が `--force` なしの場合、出力が停止すること
+- `exports/kdp_readiness_report.md` が生成されること（最終レビュー結果を含む）
+- 最終レビューは LLM 自律で実行されること
 
-### 8.8 complete
+### 8.5 complete
 
-- plan → outline → write → review の全工程がエラーなく完了すること
-- `.state.json` のステータスが `reviewed` 以降に更新されていること
+- plan(承認含む) → outline → write → export の全工程がエラーなく完了すること
+- `.state.json` のステータスが `finalized` または `exported` に更新されていること
 
-### 8.9 next-volume
+### 8.6 next-volume
 
 - 現在巻が完了状態の場合のみ、次巻のアウトラインが生成されること
 - 計画巻数を超える場合、エラーで停止すること
@@ -646,4 +654,4 @@ novel-forge = "novel_forge.cli:app"
 
 ---
 
-*Last updated: 2026-06-15*
+*Last updated: 2026-06-16*

@@ -62,55 +62,87 @@ Input: keywords (Japanese)
 series_plan.json ──▶ Blackboard (facts)
   │                  Bible (meta)
   ▼
+  │ ★ 人間承認: シリーズ企画の方向性を確認してゴーサイン
+  │   (plan --approve で承認。未承認なら再生成 or 修正)
+  ▼
 [Outline Phase]
   │ LLM: volume_outline schema
   ▼
 volume_N/outline.json
   │
   ▼
-[Writing Phase] (per chapter, per scene)
+[Writing Phase] (per chapter per scene = LLM自律)
   │
   ├─▶ LLM: scene_draft → draft.json
-  ├─▶ LLM: scene_review → review.json
-  ├─▶ LLM: scene_revision → revised.json
+  ├─▶ LLM: scene_review → review.json     ← 人間には見せない
+  ├─▶ LLM: scene_revision → revised.json   ← 人間には見せない
   ├─▶ Quality Gate check → quality_gate.json
+  │   └─▶ 不合格 → 自動改稿 → 再評価 (最大3回)
+  │       └─▶ 3回不合格 → force_exported フラグを立てて続行
   └─▶ Blackboard.update(facts from scene)
   ▼
 chapter_N/chapter.md (assembled scenes)
   │
   ▼
-[Volume Review Phase]
-  │ LLM: volume_review (chunked if long)
-  ├─▶ LLM: volume_revision (if needed)
-  ├─▶ Quality Gate: ready_for_publication + blocking issues
-  └─▶ Bible.update(volume_revised)
-  │
-  ▼
 [Export Phase]
   ├─▶ manuscript.md
   ├─▶ volumes/N/chapter_N.md
-  ├─▶ book.epub (draft)
   ├─▶ metadata.json
-  └─▶ kdp_readiness_report.md
+  └─▶ kdp_readiness_report.md (最終レビュー結果含む)
+  │
+  ▼
+  │ ★ 最終レビュー (1回だけ, LLM自律)
+  │   → kdp_readiness_report.md に全巻通読結果を記録
+  │   → 人間は確認してもよいが必須ではない
+  ▼
+[完了]
 ```
 
 ### 2.2 状態遷移
 
 ```text
 Volume status:
-  planned → outlined → drafting → drafted → reviewed → revised → published
+  planned → approved → outlined → drafting → drafted → exported → finalized
                                                               → force_exported
 
 Scene status:
-  planned → drafted → reviewed → revised
+  planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised
+
+  ※ reviewed は最大3回まで自動改稿→再評価を繰り返す
+  ※ 3回不合格でも force_exported フラグで続行可能
 
 Resume (再開):
   任意の状態から再開可能。状態は .state.json から読み込まれる。
   planned → plan から再開
+  approved → outline から再開
   outlined → outline から再開
   drafting → write から再開（未完了のシーンのみ再生成）
-  drafted → review から再開
-  reviewed → revise または export から再開
+  drafted → export から再開
+```
+
+### 2.3 人間介入ポイント
+
+**方針: 人間介入を最小限に。ツールが自律的にレビュー・改稿する。**
+
+| 介入ポイント | タイミング | 内容 | 必須/任意 |
+|---|---|---|---|
+| シリーズ企画の承認 | plan 直後 | 方向性のゴーサイン。`plan --approve` | **必須** |
+| 最終レビュー | export 直後 | kdp_readiness_report.md の確認 | 任意 |
+
+**それ以外の工程（シーン執筆、シーンレビュー、改稿、巻レビュー）はすべて LLM 自律。人間には見せない。**
+
+```text
+シリーズ企画 ─▶ [人間承認] ─▶ 巻アウトライン ─▶ シーン執筆
+    │                                            │
+    │                                    LLM自律レビュー
+    │                                    LLM自律改稿
+    │                                    品質ゲート (最大3回)
+    │                                            │
+    ▼                                            ▼
+  承認 ◀─────────────────────────────── 全シーン完了
+    │
+    ▼
+export ─▶ [最終レビュー(任意)] ─▶ 完了
 ```
 
 ---
