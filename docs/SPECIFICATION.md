@@ -358,7 +358,150 @@ workspace/
 | `resume` | 中断した工程から再開 |
 | `illustrate` | 表紙画像プロンプト |
 
-### 4.2 ScenePipeline (scene_pipeline.py)
+### 4.2 VolumeOutlinePipeline (volume_outline.py)
+
+巻アウトラインの生成から自己レビュー・自己修正までを担当する。
+
+**重要性**: 巻アウトラインは作品の品質を握る。シーン本文はすべてアウトラインの枠組み内で書かれるため、アウトラインが破綻すると連鎖的にシーン品质が低下する。
+
+#### 4.2.1 生成（設計）
+
+シリーズ企画をベースに、1巻の構造を以下の階層で設計する。
+
+**出力構造:**
+
+```python
+class VolumeOutline(BaseModel):
+    volume_number: int
+    title: str
+    premise: str                           # 巻の前提（1〜2文）
+    chapters: list[ChapterPlan]
+
+class ChapterPlan(BaseModel):
+    number: int
+    title: str
+    purpose: str                           # 章の役割（物語機能）
+    scenes: list[ScenePlan]
+
+class ScenePlan(BaseModel):
+    number: int
+    title: str
+    pov: str
+    goal: str                              # MVME: "(State > Action | Result)"
+    conflict: str
+    outcome: str
+    characters: list[str]
+```
+
+**章の役割（物語機能）:**
+
+各章は以下のいずれかの役割を持たなければならない。
+
+| 役割 | 説明 | 典型的な配置 |
+|---|---|---|
+| `introduction` | 導入。状況とキャラクターを提示 | 巻の最初の1〜2章 |
+| `rising_action` | 展開。緊張感を高める | 巻の中盤 |
+| `turning_point` | 転換。物語の方向性が変わる | 巻の中盤〜終盤の境 |
+| `climax` | クライマックス。最大の緊張 | 巻の終盤1〜2章 |
+| `resolution` | 収束。疑問の解決と次巻への伏線 | 巻の最後の1章 |
+
+**設計時の構造的制約:**
+
+1. **物語の弧（Story Arc）**: 導入→展開→転換→クライマックス→収収束の流れが明確であること
+2. **キャラクターアーク**: メインキャラクターに変化（成長・堕落・気づき）があること。変化は巻アウトライン内で完結せず、複数巻にわたる弧（Series Arc）として設計されていること
+3. **ペース配分**: 全シーンの約20%を導入、50%を展開・転換、30%をクライマックス・収束に割り当てる
+4. **連続性**: 各シーンの `outcome` が次のシーンの `goal`（State部分）に繋がっていること。シーン間で事実・状態・ロケーションが矛盾しないこと
+5. **サブプロット**: メイン物語に加えて1〜2つのサブプロットが存在し、少なくとも1つは巻内で解決すること
+6. **伏線**: 次巻への伏線が1箇所以上含まれること。伏線は Bible に記録される
+
+#### 4.2.2 LLM自己レビュー
+
+生成したアウトラインを LLM 自身で評価する。
+
+**レビュー評価基準（`volume_outline_review.json` スキーマで出力）:**
+
+```python
+class OutlineReview(BaseModel):
+    structural_validity: StructuralReview      # 構造的妥当性
+    scene_coherence: CoherenceReview            # シーン間の論理一貫性
+    pace_analysis: PaceReview                  # ペース配分
+    character_arc_review: CharacterArcReview   # キャラクターアーク
+    overall_score: float                       # 総合評価（0.0〜10.0）
+    issues: list[Issue]                        # 問題点
+    suggestions: list[str]                     # 改善提案
+
+class StructuralReview(BaseModel):
+    has_clear_arc: bool                        # 物語の弧が明確か
+    chapter_roles_valid: bool                 # 章の役割が適切か
+    climax_placement_valid: bool               # クライマックスの位置が適切か
+    score: float
+
+class CoherenceReview(BaseModel):
+    scene_transitions_valid: bool              # シーン間の繋がりが自然か
+    no_contradictions: bool                    # 矛盾がないか
+    state_continuity: bool                     # 状態（ロケーション・時間・心情）の連続性があるか
+    score: float
+
+class PaceReview(BaseModel):
+    introduction_ratio: float                  # 導入の割合
+    development_ratio: float                   # 展開の割合
+    climax_ratio: float                        # クライマックスの割合
+    pacing_comment: str                        # ペースに関するコメント
+    score: float
+
+class CharacterArcReview(BaseModel):
+    protagonist_has_arc: bool                   # 主人公に変化があるか
+    arc_believability: float                   # 変化の説得力（0.0〜1.0）
+    supporting_chars_used: bool                # 脇役が活用されているか
+    score: float
+
+class Issue(BaseModel):
+    severity: Literal["critical","major","minor"]  # 深刻度
+    category: str                                      # 問題の種類
+    description: str                                   # 問題の説明
+    affected_elements: list[str]                       # 影響を受ける要素（章番号・シーン番号 等）
+```
+
+**深刻度の定義:**
+
+| 深刻度 | 説明 | 対応 |
+|---|---|---|
+| `critical` | 物語の根幹に関わる（論理的破綻、致命的な矛盾） | 必ず修正 |
+| `major` | 品質に大きく影響する（ペースの崩れ、キャラクターの不自然な行動） | 可能な限り修正 |
+| `minor` | 改善点としては望ましいが必須ではない | 余力があれば修正 |
+
+#### 4.2.3 自己修正
+
+レビュー結果に基づく自己修正プロセス。
+
+**修正対象の判定:**
+
+```
+overall_score >= 7.0 かつ critical な issue が0件 → 合格
+それ以外 → 不合格、自己修正を実行
+```
+
+**自己修正の手順:**
+
+1. **critical な issue を修正**: 該当箇所を再生成して構造的破綻を解消
+2. **major な issue を修正**: 該当箇所を改善。ペース配転換、キャラクター行動の修正等
+3. **修正後の再レビュー**: 修正したアウトラインに対して再度 §4.2.2 のレビューを実行
+4. **最大3回まで繰り返す**: 3回しても不合格の場合は、最も問題の少ないバージョンを採用して次工程へ
+
+**修正時の注意:**
+- 部分的な修正（該当章・該当シーンのみ再生成）を基本とする
+- 全体的な構造に問題がある場合のみアウトライン全体を再生成する
+- 修正履歴を `vol01_outline_revision_log.json` に記録する
+
+#### 4.2.4 出力
+
+| ファイル | 内容 |
+|---|---|
+| `vol01_outline.json` | 巻アウトライン（章・シーン構成） |
+| `vol01_outline_review.json` | 自己レビュー結果 |
+| `vol01_outline_revision_log.json` | 修正履歴（修正箇所、修正理由、修正前後の差分要約） |
+
+### 4.3 ScenePipeline (scene_pipeline.py)
 
 シーン単位の処理パイプライン。**全工程が LLM 自律。人間は介入しない。**
 
@@ -537,6 +680,14 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 - `.novel-forge/volumes/vol01/vol01_outline.json` が生成されること
 - 上記が `volume_outline.json` スキーマに適合すること
 - 章が 1 件以上、各章にシーンが 1 件以上含まれること
+- 各章に `purpose`（章の役割）が設定されていること
+- 各シーンに MVME goal（`(State > Action | Result)`）が設定されていること
+- 物語の弧（introduction → rising_action → turning_point → climax → resolution）が明確であること
+- シーン間の連続性（前シーンの `outcome` が次シーンの `goal` に繋がる）が確保されていること
+- 自己レビュー結果（`vol01_outline_review.json`）が生成されていること
+- `overall_score` が 7.0 以上、または3回の自己修正内で最高スコアのバージョンが採用されていること
+- 修正履歴（`vol01_outline_revision_log.json`）が生成されていること（修正が行われた場合）
+- `vol01_outline_revision_log.json` には修正箇所・修正理由・修正前後の差分要約が記録されていること
 
 ### 8.3 write
 
