@@ -247,11 +247,10 @@ class ProjectState(BaseModel):
 5. **`exports/` の原稿だけが Git 管理対象**: 作品のバージョン管理は `exports/manuscript.md` に対して行う
 
 ```text
-workspace/<slug>/
-├── .novel-forge.yaml                 # CLI 設定（触ってもよい）
+workspace/<slug>├── .novel-forge.yaml                 # CLI 設定（触ってもよい）
 ├── exports/                          # ← 人間が目にする唯一の場所
 │   ├── manuscript.md                   # 完成原稿（全巻束ねたもの）
-│   ├── vol01.md                       # 巻1 原稿（個別提出用）
+│   ├── vol01.md                       # 巻1 原稿（KDP 個別提出用）
 │   ├── metadata.json                 # KDP メタデータ
 │   └── cover_prompt.json             # 表紙画像プロンプト
 └── .novel-forge/                     # ← 人間は見ない（.gitignore 推奨）
@@ -262,19 +261,49 @@ workspace/<slug>/
     ├── bible.json                    # メタデータ台帳
     ├── raw_logs/                     # LLM 生ログ
     │   └── {timestamp}_{phase}.json
-    └── volumes/                      # 中間生成データ
+    └── volumes/                      # 巻ごとの中間生成データ
         └── vol01/
-            ├── vol01_outline.json      # 巻アウトライン（vol01 プレフィックスでユニーク）
-            ├── ch01/                  # 章1
-            │   ├── vol01_ch01_sc01.md  # シーン1（シリーズ内ユニーク）
-            │   └── vol01_ch01_sc02.md  # シーン2
-            ├── ch02/                  # 章2
-            │   └── vol01_ch02_sc01.md
-            ├── vol01_review.json       # 巻レビュー（vol01 プレフィックスでユニーク）
-            ├── vol01_revision.json     # 巻改稿中間データ
-            └── quality_reports/
-                └── vol01_ch01_sc01_quality.json  # vol01 プレフィックスでユニーク
+            ├── vol01_outline.json      # 巻アウトライン
+            ├── vol01_outline_review.json  # アウトライン自己レビュー
+            ├── vol01_outline_revision_log.json  # アウトライン修正履歴
+            ├── vol01_draft.md           # 巻1 ドラフト（全章束ねた作業用）
+            ├── chapters/              # 章単位の Markdown
+            │   ├── ch01.md             # 章1 原稿
+            │   ├── ch02.md             # 章2 原稿
+            │   └── ch03.md             # 章3 原稿
+            ├── scenes/                # シーン単位の Markdown
+            │   ├── ch01/
+            │   │   ├── vol01_ch01_sc01.md
+            │   │   └── vol01_ch01_sc02.md
+            │   └── ch02/
+            │       └── vol01_ch02_sc01.md
+            └── quality_reports/       # シーン品質レポート
+                └── vol01_ch01_sc01_quality.json
 ```
+
+**階層構造の考え方**:
+
+```
+vol01/
+├── vol01_outline.json       # 設計: 章・シーン構成
+├── vol01_draft.md          # 作業用: 全章束ねたドラフト（write 工程中の一時的なまとめ）
+├── chapters/                # 出力: 章単位の Markdown（人間が確認・編集する単位）
+│   ├── ch01.md
+│   └── ch02.md
+├── scenes/                  # 出力: シーン単位の Markdown（最小粒度）
+│   └── ch01/
+│       ├── vol01_ch01_sc01.md
+│       └── vol01_ch01_sc02.md
+└── quality_reports/         # 管理: 品質ゲート結果
+```
+
+**3層構造の役割**:
+
+| 層 | ファイル | 役割 | 人間が触るか |
+|---|---|---|---|
+| 巻 | `vol01_draft.md` | write 工程中の作業用まとめ。export 時に chapters/ から自動生成 | いいえ |
+| 章 | `chapters/ch01.md` | 人間が確認・編集できる最小のまとまりです | はい（必要なら） |
+| シーン | `scenes/ch01/vol01_ch01_sc01.md` | LLM が生成する最小粒度です | いいえ |
 
 **ファイル名ユニークルール**: 全ファイル名は `{vol}_{container}_{type}` の形式。`vol01` を必ず含めることで、シリーズディレクトリ内で一意を保証。
 
@@ -283,9 +312,10 @@ workspace/<slug>/
 | ファイル | 再実行時の挙動 | 根拠 |
 |---|---|---|
 | `vol01_outline.json` | 上書き | 再企画時に最新に更新 |
-| `vol01_ch01_sc01.md` | 上書き | 再執筆時に最新に更新 |
-| `vol01_review.json` | 上書き | 再レビュー時に最新に更新 |
-| `vol01_revision.json` | 上書き | 再改稿時に最新に更新 |
+| `vol01_outline_review.json` | 上書き | 再レビュー時に最新に更新 |
+| `vol01_draft.md` | 上書き | 再執筆時に最新に更新 |
+| `chapters/ch01.md` | 上書き | 再執筆時に最新に更新 |
+| `scenes/ch01/vol01_ch01_sc01.md` | 上書き | 再執筆時に最新に更新 |
 | `vol01_ch01_sc01_quality.json` | 上書き | 再評価時に最新に更新 |
 | `raw_logs/*.json` | **上書きしない**（タイムスタンプ付き） | 全 LLM やり取りの履歴を保持 |
 
@@ -306,7 +336,7 @@ workspace/<slug>/
 2. **原稿の実体は `.novel-forge/volumes/` だが、マークダウンだけ**: `ch{N}/vol{NN}_ch{NN}_sc{NN}.md`。JSON は一切混在しない
 3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json`, `vol{NN}_outline.json`, `vol{NN}_review.json` 等。人間は見ないし触らない
 4. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
-5. **階層は2層まで**: `vol{N}/ch{N}/vol{NN}_ch{NN}_sc{NN}.md`。`chapters/`, `scenes/` は廃止
+5. **階層は3層まで**: `vol{N}/ch{N}/vol{NN}_ch{NN}_sc{NN}.md`。`chapters/`, `scenes/` は章・シーン単位の Markdown 出力先
 6. **プレフィックス2文字 + ゼロ埋め2桁で統一**: `vol01`, `ch01`, `sc01`
 
 ```

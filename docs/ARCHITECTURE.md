@@ -76,20 +76,23 @@ volume_N/outline.json
   ▼
 [Writing Phase] (per chapter per scene = LLM自律)
   │
-  ├─▶ LLM: scene_draft → draft.json
+  ├─▶ LLM: scene_draft → scenes/ch01/vol01_ch01_sc01.md
   ├─▶ LLM: scene_review → review.json     ← 人間には見せない
   ├─▶ LLM: scene_revision → revised.json   ← 人間には見せない
-  ├─▶ Quality Gate check → quality_gate.json
+  ├─▶ Quality Gate check → quality_reports/vol01_ch01_sc01_quality.json
   │   └─▶ 不合格 → 自動改稿 → 再評価 (最大3回)
   │       └─▶ 3回不合格 → force_exported フラグを立てて続行
   └─▶ Blackboard.update(facts from scene)
+  │
+  ├─▶ 全シーン完了 → chapters/ch01.md 自動組立
+  └─▶ 全章完了 → vol01_draft.md 自動組立
   ▼
 chapter_N/chapter.md (assembled scenes)
   │
   ▼
 [Export Phase]
-  ├─▶ manuscript.md
-  ├─▶ volumes/N/chapter_N.md
+  ├─▶ chapters/*.md から manuscript.md を自動組立
+  ├─▶ exports/vol01.md を生成（chapters/*.md の結合）
   ├─▶ metadata.json
   └─▶ kdp_readiness_report.md (最終レビュー結果含む)
   │
