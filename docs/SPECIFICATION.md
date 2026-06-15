@@ -219,7 +219,7 @@ class ProjectState(BaseModel):
     series: SeriesPlan | None = None
     current_volume: int = 1
     volumes: list[VolumeProgress] = []
-    scenes: dict[str, SceneRecord] = {}    # key "vol1_ch01_s01"
+    scenes: dict[str, SceneRecord] = {}    # key "vol1_ch1_sc1"
     volume_outlines: dict[str, VolumeOutline] = {}  # key "vol1", "vol2", ...
     blackboard: BlackboardState | None = None
     bible: BibleState | None = None
@@ -254,40 +254,36 @@ workspace/<slug>/
     ├── bible.json                    # メタデータ台帳
     ├── raw_logs/                     # LLM 生ログ
     │   └── {timestamp}_{phase}.json
-    ├── volumes/                      # 中間生成データ
-    │   └── vol1/
-    │       ├── outline.json          # 巻アウトライン
-    │       ├── chapters/
-    │       │   └── ch01/
-    │       │       └── scenes/
-    │       │           └── s01_scene.md  # シーン本文（JSONなし）
-    │       ├── review.json           # 巻レビュー（中間）
-    │       ├── revision.json         # 巻改稿中間データ
-    │       └── quality_reports/
-    │           └── ch01_s01_quality.json
-    └── exports_src/                  # exports/ のソース（chapters からのコピー）
-        └── vol1_ch01_s01_scene.md
+    └── volumes/                      # 中間生成データ
+        └── vol1/
+            ├── outline.json          # 巻アウトライン
+            ├── ch1/                  # 章1
+            │   ├── sc1.md           # シーン1
+            │   └── sc2.md           # シーン2
+            ├── ch2/                  # 章2
+            │   └── sc1.md
+            ├── review.json           # 巻レビュー（中間）
+            ├── revision.json         # 巻改稿中間データ
+            └── quality_reports/
+                └── ch1_sc1_quality.json
 ```
 
-**人間が見るものと見ないものの境界**:
+**番号割り当て（統一フォーマット: プレフィックス2文字 + 数字）**:
 
-| 人間が目にする | 人間が目にしない |
-|---|---|
-| `exports/*.md`（原稿、メタデータ） | `.novel-forge/` 内の全ファイル |
-| `workspace/<slug>/.novel-forge.yaml`（設定） | `volumes/` 内の JSON |
-| | `raw_logs/` |
-
-**原稿の流れ**: `volumes/vol1/chapters/ch01/scenes/s_scene.md` → 完成判定 → `exports/vol1.md` → `exports/manuscript.md`
-
-**番号割り当て**:
-
-| 要素 | 番号付け | 例 |
+| 要素 | フォーマット | 例 |
 |---|---|---|
 | 巻 | `vol{N}` | `vol1`, `vol2` |
-| 章 | `ch{N}` ゼロ埋め2桁 | `ch01`, `ch02` |
-| シーン | `s{N}_scene.md` | `s01_scene.md`, `s02_scene.md` |
+| 章 | `ch{N}` | `ch1`, `ch2` |
+| シーン | `sc{N}` | `sc1`, `sc2` |
 
-**複数シリーズの並行処理**:
+**設計原則**:
+
+1. **人間が目にするのは `exports/` のマークダウンだけ**: `manuscript.md` が完成原稿
+2. **原稿の実体は `.novel-forge/volumes/` だが、マークダウンだけ**: `ch{N}/sc{N}.md`。JSON は一切混在しない
+3. **JSON はすべて `.novel-forge/` に隔離**: `.state.json`, `.series_plan.json` 等。人間は見ないし触らない
+4. **RAWログ、レビュー、品質レポートも `.novel-forge/` 内**: 完全に機械用のデータ
+5. **階層は2層まで**: `vol{N}/ch{N}/sc{N}.md`。`chapters/`, `scenes/` は廃止
+6. **プレフィックス2文字 + 数字で統一**: `vol1`, `ch1`, `sc1`。ゼロ埋めなし
 
 ```
 workspace/
@@ -465,10 +461,10 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 
 ### 8.3 write
 
-- アウトラインに記載された全シーンについて、`volumes/vol{N}/chapters/ch{M}/scenes/s{K}.md` が生成されること
-- 各シーンのレビュー結果（`volumes/vol{N}/review.json`）が保存されていること
-- 各シーンの品質ゲート結果（`volumes/vol{N}/.novel-forge/quality_reports/`）が保存されていること
-- 章単位の Markdown（`volumes/vol{N}/chapters/ch{M}/ch{M}.md`）が全章分生成されていること
+- アウトラインに記載された全シーンについて、`.novel-forge/volumes/vol{N}/ch{M}/sc{K}.md` が生成されること
+- 各シーンのレビュー結果（`.novel-forge/volumes/vol{N}/review.json`）が保存されていること
+- 各シーンの品質ゲート結果（`.novel-forge/volumes/vol{N}/quality_reports/`）が保存されていること
+- 章単位の Markdown は各章ディレクトリ直下に生成されること
 
 ### 8.4 review
 
