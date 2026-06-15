@@ -14,7 +14,7 @@ from novel_forge.models import (
     ChapterDesign,
 )
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
-from novel_forge.ollama_client import LLMClient
+from novel_forge.ollama_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager, PromptLoader
 from novel_forge.schemas import validate_or_raise
 from novel_forge.quality import QualityGate
@@ -28,13 +28,35 @@ class NovelEngine:
         lang: str = "ja",
         llm_client: LLMClient | None = None,
         prompt_manager: PromptManager | None = None,
+        config: dict[str, Any] | None = None,
     ):
         self._workdir = workdir
         self._lang = lang
         self._storage = StateStorage(workdir)
         self._blackboard_storage = BlackboardStorage(workdir)
         self._bible_storage = BibleStorage(workdir)
-        self._llm = llm_client or LLMClient(model=model, raw_log_dir=workdir / ".novel-forge" / "raw_logs")
+        # config.yaml の読み込み（明示引数 > 自動検出）
+        cfg = config if config is not None else load_config()
+        if llm_client is None:
+            llm_cfg = cfg.get("llm", {})
+            model = llm_cfg.get("model", model)
+            timeout = llm_cfg.get("timeout_seconds", 600)
+            max_retries = llm_cfg.get("max_retries", 2)
+            num_predict = llm_cfg.get("num_predict", 65536)
+            num_ctx = llm_cfg.get("num_ctx", None)
+            host = llm_cfg.get("ollama_host", None)
+            if host:
+                import os
+                os.environ["OLLAMA_HOST"] = host
+            llm_client = LLMClient(
+                model=model,
+                raw_log_dir=workdir / ".novel-forge" / "raw_logs",
+                timeout_seconds=timeout,
+                max_retries=max_retries,
+                num_predict=num_predict,
+                num_ctx=num_ctx,
+            )
+        self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
         self._quality = QualityGate()
         self._state = self._storage.load()

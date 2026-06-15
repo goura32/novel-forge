@@ -65,6 +65,51 @@ def _parse_ollama_options_env() -> dict[str, Any]:
     return {}
 
 
+def load_config(config_path: Path | None = None) -> dict[str, Any]:
+    """config.yaml を読み込んで設定 dict を返す。
+    config_path が None の場合は親ディレクトリから探す。
+    見つからない場合は空 dict。
+    """
+    import os
+    yaml = _try_import_yaml()
+    if yaml is None:
+        return {}
+
+    paths_to_try = []
+    if config_path:
+        paths_to_try.append(config_path)
+    else:
+        # カレントディレクトリから親へ辿って config.yaml を探す
+        cwd = Path.cwd()
+        for p in [cwd, *cwd.parents]:
+            candidate = p / "config.yaml"
+            if candidate.exists():
+                paths_to_try.append(candidate)
+                break
+        # 環境変数で指定されたパス
+        env_path = os.environ.get("NOVEL_FORGE_CONFIG")
+        if env_path:
+            paths_to_try.append(Path(env_path))
+
+    for p in paths_to_try:
+        try:
+            with open(p, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {}
+
+
+def _try_import_yaml():
+    try:
+        import yaml
+        return yaml
+    except ImportError:
+        return None
+
+
 class LLMClient:
     def __init__(
         self,
