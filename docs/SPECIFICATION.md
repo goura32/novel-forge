@@ -284,8 +284,8 @@ workspace/<slug>/
 **番号割り当て**: プレフィックス2文字 + ゼロ埋め2桁（`vol01`, `ch01`, `sc01`）。
 
 
-```
-workspace/
+```text
+projects/
 ├── mystery-series/          # シリーズ1
 │   ├── .novel-forge.yaml    # workdir: ./, lang: ja, model: qwen3.6:35b
 │   ├── exports/
@@ -400,18 +400,18 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 - 現在巻が完了状態の場合のみ、次巻のアウトラインが生成されること
 - 計画巻数を超える場合、エラーで停止すること
 
-### 8.10 recover
+### 8.7 recover
 
 - 破損した `.state.json` を検出できること
 - 有効なバックアップ（`.bak`）から復元できること
 - 復元後の `.state.json` がパース可能なこと
 
-### 8.11 bible
+### 8.8 bible
 
 - `.bible.json` が生成・更新されること
 - キャラクター情報、用語、伏線が構造化されて保存されていること
 
-### 8.12 status
+### 8.9 status
 
 - `state.json` の内容を人間が読める形式で表示すること
 - 破損状態の場合はその旨と復旧手段を表示すること
