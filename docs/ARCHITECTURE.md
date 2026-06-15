@@ -18,11 +18,13 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 | State / Memory | 進捗管理、物語の事実、メタデータ | State Machine, 事実記録（Blackboard）, 設定資料集（Bible） |
 | Infrastructure | LLM 通信、永続化、ログ | llm_client, storage, raw_logger |
 
+**用語の定義**: [GLOSSARY.md](GLOSSARY.md)
+
 ---
 
 ## 2. データフロー
 
-### 2.1 制作パイクライン
+### 2.1 制作パイプライン
 
 各フェーズの詳細な処理フロー・評価基準・出力ファイルは [PIPELINE.md](PIPELINE.md) を参照してください。
 
@@ -33,6 +35,7 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
            → [outline] 巻アウトライン + 自己レビュー → 自己修正（最大3回）
            → [write] シーン執筆（sequential）→ レビュー → 改稿 → 品質ゲート → Blackboard更新
            → [export] 原稿組立 → 最終レビュー → kdp_readiness_report.md
+           → [next-volume] 次巻のアウトライン生成
 ```
 
 - シーンは **sequential のみ**（前シーン要約を `{continuity}` として次シーンに注入）
@@ -44,11 +47,12 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 詳細な状態遷移図と Resume の判定ロジックは [PIPELINE.md §9](PIPELINE.md) を参照してください。
 
 **巻**: `planned → outlined → drafting → drafted → exported → finalized`（`force_exported` は例外パス）
-**シーン**: `planned → drafted → reviewed → revised`（最大3回の自動改稿→再評価を経て `revised` へ）
+
+**シーン**: `planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised`
 
 ### 2.3 人間介入ポイント
 
-**方針: 人間介入を最小限に。ツールが自律的にレビュー・改稿する。**
+詳細は [PIPELINE.md §10](PIPELINE.md) を参照してください。
 
 | 介入ポイント | タイミング | 内容 | 必須/任意 |
 |---|---|---|---|
@@ -65,14 +69,7 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 
 MVME はシーン目標を因果関係で表す手法です。「どのような状態から、誰がどのような行動をとり、その結果どうなるか」を構造的に指定することで、LLM が物語の論理を飛ばすのを防ぎます。
 
-全シーン目標に `(State > Action | Result)` パターンを強制:
-
-```json
-{
-  "goal": "(State > Action | Result)",
-  "description": "街灯が揺れる > 主人公が駆け出す | 雨が全身を打つ"
-}
-```
+全シーン目標に `(State > Action | Result)` パターンを強制する。詳細は [PROMPTS.md](PROMPTS.md) を参照。
 
 ### 3.2 JSON Schema 検証パイプライン
 
@@ -98,7 +95,7 @@ LLM Response
 
 ## 4. 記憶モデル (3層ハイブリッド)
 
-詳細なデータモデル定義は [SPECIFICATION.md §3](SPECIFICATION.md) を参照してください。
+詳細なデータモデル定義は [SPECIFICATION.md §2](SPECIFICATION.md) を参照してください。
 
 ### 4.1 State Machine (進捗管理)
 
@@ -123,7 +120,7 @@ LLM Response
 - **foreshadowing**: 伏線と回収状況
 - **world_rules**: 世界観ルール
 
-**更新**: 章完了時に、当該章の全シーンから抽出した情報を Bible に反映。
+**更新**: 章完了時（全シーン完了 → 章 Markdown 組立の直前）に、当該章の全シーンから抽出した情報を Bible に反映。
 
 ---
 
@@ -159,6 +156,8 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 ### 6.1 API Endpoint
 
 `/api/generate` を採用。`format: JSON Schema` + `think: false` で安定した構造化出力。
+
+**選定理由**: `/v1/chat/completions` は Qwen 3.6 で `think: false` を無視して reasoning を返すケースがあるため不採用。`/api/generate` + `think: false` + `format: json_schema` の組み合わせで安定した JSON 出力が得られることを検証済み。
 
 **`think: true` + `format:json` の排他性（Ollama 仕様）**: 同時に機能しない。JSON 出力指定時は GBNF 文法制御により思考タグを生成できない。**必ず `think: false` を使用すること**。
 
@@ -202,4 +201,4 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 ---
 
-*Last updated: 2026-06-16*
+*Last updated: 2026-06-18*

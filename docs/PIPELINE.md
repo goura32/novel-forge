@@ -48,11 +48,14 @@ uv run novel-forge status                         # 進捗確認
 uv run novel-forge resume                         # 中断した工程から再開
 uv run novel-forge next-volume                    # 次巻へ
 uv run novel-forge recover                        # 破損復旧
+uv run novel-forge probe-model                    # モデル接続確認
 uv run novel-forge illustrate                     # 表紙画像プロンプト
 uv run novel-forge complete                      # plan から一括実行
 ```
 
 **削除されたコマンド**: `review`, `revise`, `quality` — LLM 自律処理のため CLI コマンドとして不要。
+
+**用語の定義**: [GLOSSARY.md](GLOSSARY.md)
 
 ---
 
@@ -60,7 +63,7 @@ uv run novel-forge complete                      # plan から一括実行
 
 中核となる状態機械。全コマンドはこのエンジンを通ります。
 
-**タイムアウト**: 各工程のデフォルト値は [SETUP_GUIDE §3.3](../SETUP_GUIDE.md) のテーブルに従う。`--timeout` フラグで上書き可能。
+**タイムアウト**: 各工程のデフォルト値は `--timeout` フラグで上書き可能。工程別デフォルト: plan=300s, outline=600s, write=1800s, export=300s。
 
 | コマンド | 役割 |
 |---|---|
@@ -74,6 +77,7 @@ uv run novel-forge complete                      # plan から一括実行
 | `next-volume` | 次巻のアウトラインを生成 |
 | `recover` | 破損した状態ファイルを復旧 |
 | `resume` | 中断した工程から再開 |
+| `probe-model` | モデル接続確認 |
 | `illustrate` | 表紙画像プロンプト |
 
 ---
