@@ -125,6 +125,7 @@ class NovelEngine:
 
     def outline(self, volume_number: int | None = None) -> dict[str, Any]:
         vol_num = volume_number or self._state.current_volume
+        self._state.current_volume = vol_num
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._get_series_plan_summary()
         genre = self._get_genre()
@@ -150,6 +151,7 @@ class NovelEngine:
 
     def write(self, volume_number: int | None = None) -> list[dict[str, Any]]:
         vol_num = volume_number or self._state.current_volume
+        self._state.current_volume = vol_num
         outline_data = self._load_path(vol_num, "outline.json")
         outline = VolumeOutline(**outline_data)
         vol = self._current_volume()
@@ -310,6 +312,7 @@ class NovelEngine:
 
     def export(self, volume_number: int | None = None) -> dict[str, Any]:
         vol_num = volume_number or self._state.current_volume
+        self._state.current_volume = vol_num
         vol = self._current_volume()
         self._finalize_bible()
         manuscript = self._assemble_manuscript(vol_num)
