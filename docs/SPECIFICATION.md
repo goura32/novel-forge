@@ -108,23 +108,6 @@ uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解"
 uv run novel-forge plan          --keywords "..."
 uv run novel-forge outline       # --volume 1 はデフォルト
 uv run novel-forge write
-uv run novel-forge review
-uv run novel-forge revise
-uv run novel-forge quality
-uv run novel-forge export
-uv run novel-forge bible         --action view
-uv run novel-forge status
-
-# 次巻へ進む
-uv run novel-forge next-volume
-
-# 破損状態からの復旧
-uv run novel-forge recover
-
-# 表紙画像生成
-uv run novel-forge illustrate
-```
-
 **グローバルオプション**:
 
 | オプション | 短縮 | デフォルト | 説明 |
@@ -133,26 +116,49 @@ uv run novel-forge illustrate
 | `--workdir` | `-w` | 設定ファイル or カレント | 作業ディレクトリ |
 | `--volume` | `-V` | 設定ファイル or `1` | 処理対象の巻番号 |
 | `--model` | `-m` | 設定ファイル or デフォルト | LLM モデル名 |
-| `--timeout` | `-t` | 工程別デフォタイム | LLM タイムアウト (秒) |
-| `--daemon` | `-d` | なし | 次回起動時に `keep_alive:-1` を自動送信 |
-
-**実行例**:
+| `--timeout` | `-t` | 工程別デフォルト | LLM タイムアウト (秒) |
 
 ```bash
-# 初回: 設定ファイルを自動生成
-uv run novel-forge complete "近未来東京 記憶探偵" --workdir ./work/myseries
-# → .novel-forge.yaml が ./work/myseries に作成される
+# 初回: plan で作業フォルダ自動作成
+uv run novel-forge plan "近未来東京 記憶探偵"
+# → ./20260615_近未来東京記憶探偵/ に作業フォルダ作成
+# → series_plan.json 生成
+# → .novel-forge.yaml 作成（workdir 自動設定）
 
-# 2回目以降: 全オプション省略
-uv run novel-forge complete "..."
-# → .novel-forge.yaml から workdir, model, volume を読込
+# 以後は workdir 省略可
+uv run novel-forge complete "..."   # 一括実行
+uv run novel-forge write
+uv run novel-forge review
+
+# カスタム作業ディレクトリ
+uv run novel-forge plan "..." --workdir ./my-custom-dir
+# → ./my-custom-dir/ に作業フォルダ作成
+
+# 既存シリーズで再開
+uv run novel-forge complete --workdir ./20260615_近未来東京記憶探偵
+# → plan をスキスクして既存データで一括実行
 
 # 巻2に切り替え
-uv run novel-forge next-volume  # state.json が volume=1 に更新
-uv run novel-forge outline -V 2 # 巻2のアウトライン
+uv run novel-forge next-volume
+uv run novel-forge outline -V 2
+```
 
-# タイムアウトを長く
-uv run novel-forge write -t 120
+**段階実行コマンド**:
+
+```bash
+uv run novel-forge plan          --keywords "..."   # シリーズ企画
+uv run novel-forge outline                        # 巻アウトライン
+uv run novel-forge write                          # シーン執筆
+uv run novel-forge review                         # 巻レビュー
+uv run novel-forge revise                         # 巻改稿
+uv run novel-forge quality                        # シーン品質ゲート再評価
+uv run novel-forge export                         # KDP 向け出力
+uv run novel-forge bible         --action view    # メタデータ台帳
+uv run novel-forge status                         # 進捗確認
+uv run novel-forge next-volume                    # 次巻へ
+uv run novel-forge recover                        # 破損復旧
+uv run novel-forge illustrate                     # 表紙画像プロンプト
+uv run novel-forge complete                      # plan から一括実行
 ```
 
 ## 3. データモデル
@@ -468,28 +474,31 @@ uv run novel-forge export --workdir /tmp/novel-forge-smoke --slug smoke-test
 - キーワードから `.series_plan.json` が生成されること
 - `.series_plan.json` が `series_plan.json` スキーマに適合すること
 - `.state.json` が作成され、`series_plan` フィールドが設定されていること
+- `--workdir` 省略時、`yyyymmdd_{slugified_keywords}` のフォルダが自動生成されること
+- `--workdir` 指定時、指定されたフォルダを使用すること
+- `.novel-forge.yaml` が自動作成され、`workdir` が設定されていること
 
 ### 8.2 outline
 
-- `volumes/vol{N}/outline.json` が生成されること
-- `volumes/vol{N}/outline.json` が `volume_outline.json` スキーマに適合すること
+- `.novel-forge/volumes/vol01/vol01_outline.json` が生成されること
+- 上記が `volume_outline.json` スキーマに適合すること
 - 章が 1 件以上、各章にシーンが 1 件以上含まれること
 
 ### 8.3 write
 
 - アウトラインに記載された全シーンについて、`.novel-forge/volumes/vol01/ch01/vol01_ch01_sc01.md` のような形式で生成されること
-- 各シーンのレビュー結果（`.novel-forge/volumes/vol01/review.json`）が保存されていること
+- 各シーンのレビュー結果（`.novel-forge/volumes/vol01/vol01_review.json`）が保存されていること
 - 各シーンの品質ゲート結果（`.novel-forge/volumes/vol01/quality_reports/`）が保存されていること
 - 章単位の Markdown は各章ディレクトリ直下に生成されること
 
 ### 8.4 review
 
-- `volumes/vol{N}/review.json` が生成されること
+- `.novel-forge/volumes/vol01/vol01_review.json` が生成されること
 - 評価点、問題点、改善提案が構造化されていること
 
 ### 8.5 revise
 
-- `volumes/vol{N}/volume_revised.md` が生成されること
+- `.novel-forge/volumes/vol01/vol01_revision.json` が生成されること
 - 改稿後の章見出し数がアウトラインの章数と一致すること
 
 ### 8.6 quality
