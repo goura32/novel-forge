@@ -12,7 +12,7 @@
 | 巻 | volume | シリーズの分割単位。KDP 提出の単位 |
 | 章 | chapter | 巻の分割単位。複数のシーンをまとめる |
 | シーン | scene | 章の分割単位。最小の執筆粒度 |
-| 章設計 | chapter design | 章のテーマ、全シーンの要約、章の感情アーク（`ch{NN}_design.json`） |
+| 章設計 | chapter design | 章のテーマ、全シーンの要約、章の感情アーク（`designs/ch{NN}_design.json`） |
 | シーン設計 | scene design | MVME goal、POV、conflict、outcome、キャラクター（`vol{NN}_ch{NN}_sc{NN}_design.json`） |
 | アウトライン修正履歴 | outline revision log | 自己修正の履歴。修正箇所、理由、前後のスコア（`vol{NN}_outline_revision_log.json`） |
 
@@ -136,7 +136,7 @@
 
 | 用語 | 説明 |
 |---|---|
-| 品質ゲート (Quality Gate) | シーンの品質を評価し、合格/不合格を判定する工程 |
+| 品質ゲート (Quality Gate) | シーン単位・巻単位の両方で品質を評価し、合格/不合格を判定する工程。シーン: `check_scene`、巻: `check_volume` |
 | 構造的妥当性 | 物語の弧（導入→展開→転換→クライマックス→収束）が明確であるか |
 | シーン間の一貫性 | シーン間の論理矛盾がないか、状態の連続性があるか |
 | ペース配分 | 導入20%、展開・転換50%、クライマックス・収束30%の目安 |
@@ -194,13 +194,17 @@
 
 ```
 planned → outlined → drafting → drafted → exported → finalized
-                                              → force_exported
+                                    │
+                                    └→ force_exported (export時に
+                                       force_exportedシーンが1件以上)
 ```
 
 ### 9.2 シーンの状態
 
 ```
-planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised
+planned → drafted → reviewed → revised
+                         │
+                         └→ force_exported (3回不合格時)
 ```
 
 ---

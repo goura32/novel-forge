@@ -46,10 +46,11 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 
 詳細な状態遷移図と Resume の判定ロジックは [PIPELINE.md §9](PIPELINE.md) を参照してください。
 
-**巻**: `planned → outlined → drafting → drafted → exported → finalized`（`force_exported` は例外パス）
+**巻**: `planned → outlined → drafting → drafted → exported → finalized`
+      `drafted` から `force_exported` への分岐あり（export時にforce_exportedシーンが1件以上の場合）
 
-**シーン**: `planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised`
-                                           → `force_exported`（3回不合格時）
+**シーン**: `planned → drafted → reviewed → revised`
+            `reviewed` から `force_exported` への分岐あり（3回不合格時）
 
 詳細な遷移条件・トリガーは PIPELINE §10 を参照。
 
@@ -178,6 +179,7 @@ GPU VRAM が 24GB に満たない場合は、`qwen3.6:27b` 等の小さいモデ
 
 1. **直接 parse** — `message.content` を JSON としてパース
 2. **Markdown fence フォールバック** — `` ```json ``` `` で囲まれた場合の中身を抽出
+3. **ラッパーオブジェクトフォールバック** — `{result: ...}` や `{data: ...}` 等のラッパーオブジェクトで囲まれた場合、最初の値オブジェクトを抽出してパース
 
 パース失敗時は `ParseError` を発生させ、リトライを促す。
 

@@ -155,7 +155,10 @@ overall_score >= 7.0 かつ critical な issue が0件 → 合格
 **修正時の注意:**
 - 部分修正を基本とする。全体再生成は最終手段
 - 修正前後の差分を `vol01_outline_revision_log.json` に記録する
-- 再生成された箇所は事実記録（Blackboard）の facts も更新する
+- 再生成された箇所の Blackboard 更新:
+  - 該当シーンに関連する facts（`subject` または `object` が該当シーンのキャラクター・イベントに紐づくもの）を削除
+  - 再生成後の内容から新規 facts を抽出して追加
+  - `confidence` は再生成後は `0.8` にリセット（再生成で確度が変わるため）
 
 ### 3.4 出力
 
@@ -317,8 +320,13 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 シーンの品質を評価し、合格/不合格を判定する。`QualityGate` はシーン単位と巻単位の両方でチェックを行う。
 
 - `check_scene`: シーン品質を判定 → `{"passed": bool, "score": float, "issues": [...]}`
+  - 評価カテゴリ: `opening_hook`, `character_distinction`, `foreshadowing_consistency`, `sensory_coverage`, `page_turner`
+  - 合格判定: `score >= 7.0` かつ `critical` issue が0件
 
----
+- `check_volume`: 巻全体の品質を判定 → `{"passed": bool, "score": float, "issues": [...]}`
+  - 評価カテゴリ: `structural_validity`, `scene_coherence`, `pace_analysis`, `character_arc`
+  - 全シーンの `check_scene` スコアの平均値と、巻レベルトポロジー（章の役割配置、物語の弧）を総合評価
+  - `force_exported` シーンが1件以上存在する場合、スコア上限は 5.0 とする
 
 ## 9. Export 処理フロー
 
@@ -341,23 +349,26 @@ Quality Gate 不合格 → 改稿 → 再評価 → 不合格 → 改稿 → 再
 ```
 Volume status:
   planned → outlined → drafting → drafted → exported → finalized
-                                                        → force_exported
+                                    │
+                                    └→ force_exported (export時に
+                                       force_exportedシーンが1件以上)
 
 Scene status:
-  planned → drafted → reviewed → reviewed_n (n=1,2,3) → revised
-                                              → force_exported (3回不合格時)
+  planned → drafted → reviewed → revised
+                         │
+                         └→ force_exported (3回不合格時)
 
 巻の drafted への遷移条件:
   全シーンが revised または force_exported になった時点で drafted に遷移。
   force_exported シーンが含まれていても巻は drafted に遷移可能。
 
-巻の force_exported:
-  全シーン完了時に force_exported シーンが1件以上存在する場合、
+巻の force_exported への遷移条件:
+  export 処理開始時に force_exported シーンが1件以上存在する場合、
   巻ステータスは exported ではなく force_exported に遷移する。
   force_exported 巻も export コマンドの対象となる（kdp_readiness_report.md に警告記載）。
 
 Resume (再開):
-  任意の状態から再開可能。状態は .state.json から読み込まれる。
+  任意の状態から再開可能。状態は state.json から読み込まれる。
   planned → plan から再開
   outlined → outline から再開
   drafting → write から再開（未完了のシーンのみ再生成）
