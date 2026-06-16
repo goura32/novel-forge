@@ -17,7 +17,7 @@ from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.ollama_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager, PromptLoader
 from novel_forge.schemas import validate_or_raise
-from novel_forge.quality import QualityGate
+from novel_forge.quality import QualityGate, _get_jis_kanji
 
 
 class NovelEngine:
@@ -232,16 +232,22 @@ class NovelEngine:
 
         # Review → Quality Gate → 改稿ループ（最大3回）
         for retry in range(QualityGate.MAX_RETRIES + 1):
+            # 簡体字チェック
+            non_jp_kanji = self._quality.check_kanji(draft_text)
+            # レビュー
             review = self._review_scene(draft_text, outline, scene)
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
 
-            if qg_result.passed:
+            if qg_result.passed and not non_jp_kanji:
                 record.status = "revised"
                 record.quality_gate = qg_result
                 break
 
             if retry < QualityGate.MAX_RETRIES:
+                # 簡体字があった場合、revision に修正指示を追加
+                if non_jp_kanji:
+                    review["kanji_issues"] = list(set(non_jp_kanji))
                 draft_text = self._revise_scene(draft_text, review)
                 self._save_scene_draft(vol_num, record.scene_number, draft_text)
             else:
@@ -482,6 +488,34 @@ class NovelEngine:
 
         self._bible_storage.save(bible)
 
+    def _check_bible_kanji(self, vol_num: int) -> list[str]:
+        """Bible 内のキャラクター名・用語・伏線テキストの簡体字をチェックする。"""
+        bible = self._bible_storage.load()
+        issues: list[str] = []
+        jis = _get_jis_kanji()
+
+        def _is_cjk(ch: str) -> bool:
+            cp = ord(ch)
+            return (
+                (0x3400 <= cp <= 0x4DBF)
+                or (0x4E00 <= cp <= 0x9FFF)
+                or (0x20000 <= cp <= 0x2A6DF)
+            )
+
+        def _scan(text: str, label: str) -> None:
+            bad = [ch for ch in text if _is_cjk(ch) and ch not in jis]
+            for ch in bad:
+                issues.append(f"  {label}: '{ch}' (U+{ord(ch):04X}) in 「{text[:40]}」")
+
+        for ch in bible.characters:
+            _scan(ch.name, f"キャラクター名({ch.name})")
+        for g in bible.glossary:
+            _scan(g.term, f"用語({g.term})")
+        for fh in bible.foreshadowing:
+            _scan(fh.description, "伏線")
+
+        return issues
+
     def _assemble_manuscript(self, vol_num: int) -> str:
         export_dir = self._workdir / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
@@ -547,6 +581,13 @@ class NovelEngine:
             lines.extend(["", "## ⚠️ 未回収伏線"])
             for fh in unresolved:
                 lines.append(f"- {fh.description}")
+
+        # 簡体字チェック（Bible）
+        kanji_issues = self._check_bible_kanji(vol_num)
+        if kanji_issues:
+            lines.extend(["", "## ⚠️ 簡体字混入の可能性"])
+            lines.append("以下の項目に JIS 漢字セット外の漢字が含まれています:")
+            lines.extend(kanji_issues)
 
         lines.extend(["", "## 提出前確認事項"])
         lines.append("- [ ] 表紙画像の準備")
