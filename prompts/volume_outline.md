@@ -25,17 +25,16 @@
 
 `volume_outline.json` に適合する JSON を出力すること。
 
-## 各シーンの目標（MVME）
+## 各シーンの目標
 
 各シーンには `goal` と `outcome` を分けて設定すること。
 
-- **goal**: シーン開始時の目標。`(State > Action | Result)` 形式。
+- **goal**: シーン開始時の目標。`State: ... | Action: ...` 形式。
   - State: シーン開始時の状況・状態
   - Action: 主人公が取る行動
-  - Result: シーン終了時の予想される結果
-- **outcome**: シーン終了時の実際の結果。次のシーンの `goal`（State部分）に繋がること。
+- **outcome**: シーン終了時の実際の結果。次のシーンの goal（State部分）に繋がること。
 
-**重要**: `goal` と `outcome` は別フィールド。`goal` に Result を含めず、`outcome` にシーン終了時の結果を書くこと。
+**重要**: `goal` と `outcome` は別フィールド。`goal` に予想結果を含めず、`outcome` に実際の結果を書くこと。
 
 例:
 - goal: `State: 主人公は王宮の厨房にいる。食材が足りない。 | Action: 主人公は隠し倉庫から特別な香辛料を持ち出す。`

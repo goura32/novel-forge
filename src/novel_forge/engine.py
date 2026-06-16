@@ -549,9 +549,15 @@ class NovelEngine:
 
     def _get_scene_summary(self, scene) -> str:
         """シーン情報を日本語テキストに変換する。"""
+        # goal は "State: ... | Action: ... | Result:" 形式。State 部分のみ抽出
+        goal_text = scene.goal or ""
+        if "|" in goal_text:
+            state_part = goal_text.split("|")[0].strip()
+            if state_part.startswith("State:"):
+                goal_text = state_part[6:].strip()
         lines = [
             f"タイトル: {scene.title}",
-            f"目標: {scene.goal}",
+            f"目標: {goal_text}",
             f"結果: {scene.outcome}",
             f"葛藤: {scene.conflict}",
             f"視点: {scene.pov}",
@@ -571,8 +577,14 @@ class NovelEngine:
             lines.append(f"第{ch.number}章: {ch.title}（{ch.purpose}）")
         lines.append("")
         for sc in outline.scenes:
+            # goal から State 部分のみ抽出
+            goal_text = sc.goal or ""
+            if "|" in goal_text:
+                state_part = goal_text.split("|")[0].strip()
+                if state_part.startswith("State:"):
+                    goal_text = state_part[6:].strip()
             lines.append(f"シーン{sc.number}（第{sc.chapter_number}章）: {sc.title}")
-            lines.append(f"  目標: {sc.goal}")
+            lines.append(f"  目標: {goal_text}")
             lines.append(f"  結果: {sc.outcome}")
             lines.append(f"  登場人物: {', '.join(sc.characters) if sc.characters else 'なし'}")
         return "\n".join(lines)
