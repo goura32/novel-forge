@@ -298,19 +298,37 @@ class NovelEngine:
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._ctx_builder.get_series_plan_summary()
         genre = self._ctx_builder.get_genre()
+        schema = get_schema("volume_outline")
+
+        result = self._generate_outline(series_plan, genre, vol_num, system, schema)
+        review = self._review_outline(result, series_plan)
+
+        # Review → Revise loop (max 3 retries)
+        for retry in range(3):
+            score = review.get("overall_score", 0)
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+            if score >= 7.0 and len(critical_issues) == 0:
+                break
+            print(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3", flush=True)
+            result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema)
+            review = self._review_outline(result, series_plan)
+
+        vol = self._current_volume()
+        vol.status = "アウトライン済"
+        self._state.status = "アウトライン済"
+        self._save_path(vol_num, "outline.json", result)
+        self._save()
+        return result
+
+    def _generate_outline(self, series_plan, genre, vol_num, system, schema):
         user = self._prompts.render(
             "volume_outline.md",
-            {
-                "series_plan": series_plan,
-                "volume_number": str(vol_num),
-                "genre": genre,
-                "lang": self._lang,
-            },
+            {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre, "lang": self._lang},
         )
-        schema = get_schema("volume_outline")
         result = self._llm.complete_json("volume_outline", system, user, schema)
+        return self._flatten_outline(result)
 
-        # Flatten nested chapters→scenes and assign sequential numbers
+    def _flatten_outline(self, result):
         flat_chapters = []
         flat_scenes = []
         scene_counter = 1
@@ -324,13 +342,49 @@ class NovelEngine:
                 scene_counter += 1
         result["chapters"] = flat_chapters
         result["scenes"] = flat_scenes
-
-        vol = self._current_volume()
-        vol.status = "アウトライン済"
-        self._state.status = "アウトライン済"
-        self._save_path(vol_num, "outline.json", result)
-        self._save()
         return result
+
+    def _review_outline(self, outline, series_plan):
+        system = self._prompts.render("system.md", {"lang": self._lang})
+        lines = [f"シリーズ企画: {series_plan}", "", f"巻タイトル: {outline.get('title', '')}", f"前提: {outline.get('premise', '')}", ""]
+        for ch in outline.get("chapters", []):
+            lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
+            for sc in outline.get("scenes", []):
+                if sc.get("chapter_number") == ch["number"]:
+                    lines.append(f"  シーン{sc['number']}: {sc['title']}")
+                    lines.append(f"    目標: {sc.get('goal', '')[:100]}")
+                    lines.append(f"    結果: {sc.get('outcome', '')[:100]}")
+        outline_text = "\n".join(lines)
+        user = self._prompts.render("volume_outline_review.md", {"outline": outline_text, "lang": self._lang})
+        schema = get_schema("volume_outline_review")
+        return self._llm.complete_json("volume_outline_review", system, user, schema)
+
+    def _revise_outline(self, outline, review, series_plan, genre, vol_num, system, schema):
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            sev = issue.get("severity", "")
+            cat = issue.get("category", "")
+            desc = issue.get("description", "")
+            sug = issue.get("suggestion", "")
+            lines.append(f"  [{sev}] {cat}: {desc}")
+            if sug:
+                lines.append(f"    提案: {sug}")
+        review_text = "\n".join(lines)
+
+        outline_lines = [f"巻タイトル: {outline.get('title', '')}", f"前提: {outline.get('premise', '')}", ""]
+        for ch in outline.get("chapters", []):
+            outline_lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
+            for sc in outline.get("scenes", []):
+                if sc.get("chapter_number") == ch["number"]:
+                    outline_lines.append(f"  シーン{sc['number']}: {sc['title']}")
+        outline_text = "\n".join(outline_lines)
+
+        user = self._prompts.render(
+            "volume_outline_revision.md",
+            {"current_outline": outline_text, "review": review_text, "series_plan": series_plan, "lang": self._lang},
+        )
+        result = self._llm.complete_json("volume_outline_revision", system, user, schema)
+        return self._flatten_outline(result)
 
     # ── write ─────────────────────────────────────────────────────────
 

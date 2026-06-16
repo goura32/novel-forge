@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VolumeOutlineRevision",
+  "type": "object",
+  "required": ["title", "premise", "chapters"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 128 },
+    "premise": { "type": "string", "maxLength": 200 },
+    "chapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "purpose", "scenes"],
+        "properties": {
+          "number": { "type": "integer" },
+          "title": { "type": "string", "maxLength": 128 },
+          "purpose": { "type": "string", "pattern": "^(導入|展開|転換|クライマックス|収束)$" },
+          "scenes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["title", "goal", "outcome"],
+              "properties": {
+                "number": { "type": "integer" },
+                "chapter_number": { "type": "integer" },
+                "title": { "type": "string", "maxLength": 128 },
+                "goal": { "type": "string" },
+                "outcome": { "type": "string", "maxLength": 200 },
+                "conflict": { "type": "string", "maxLength": 200 },
+                "pov": { "type": "string", "maxLength": 64 },
+                "characters": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
