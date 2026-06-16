@@ -248,11 +248,17 @@ class NovelEngine:
                 if retry < QualityGate.MAX_RETRIES:
                     review["kanji_issues"] = list(set(non_jp_kanji))
                     draft_text = self._revise_scene(draft_text, review)
+                    draft_text = self._post_process_text(draft_text)
                     self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
                     continue
 
             if retry < QualityGate.MAX_RETRIES:
+                # 言語制約違反の情報を revision に追加
+                lang_issues = self._extract_language_issues(review)
+                if lang_issues:
+                    review["language_issues"] = lang_issues
                 draft_text = self._revise_scene(draft_text, review)
+                draft_text = self._post_process_text(draft_text)
                 self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
             else:
                 record.status = "force_exported"
@@ -276,6 +282,17 @@ class NovelEngine:
         )
         schema = self._load_schema("scene_review")
         return self._llm.complete_json("scene_review", system, user, schema)
+
+    def _extract_language_issues(self, review: dict) -> list[str]:
+        """レビュー結果から言語制約違反の問題を抽出する。"""
+        issues = review.get("issues", [])
+        lang_issues = []
+        for issue in issues:
+            desc = issue.get("description", "")
+            # 言語関連のキーワードを含む issue を抽出
+            if any(kw in desc for kw in ["言語", "英語", "簡体字", "ハングル", "中国語", "language_purity", "langue"]):
+                lang_issues.append(desc)
+        return lang_issues
 
     def _post_process_text(self, text: str) -> str:
         """LLM出力の後処理: 英語・簡体字の自動置換。"""
