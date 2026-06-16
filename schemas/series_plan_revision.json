@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanRevision",
+  "type": "object",
+  "required": ["title", "logline", "genre", "target_audience", "themes", "selling_points", "world", "main_characters", "planned_volumes"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 128 },
+    "slug": { "type": "string", "maxLength": 256, "pattern": "^[a-z0-9-]+$" },
+    "logline": { "type": "string", "maxLength": 200 },
+    "genre": { "type": "string" },
+    "target_audience": { "type": "string", "maxLength": 50 },
+    "themes": { "type": "array", "items": { "type": "string" } },
+    "selling_points": { "type": "array", "items": { "type": "string" } },
+    "world": {
+      "type": "object",
+      "properties": {
+        "summary": { "type": "string", "maxLength": 200 },
+        "rules": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "main_characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "maxLength": 64 },
+          "role": { "type": "string", "maxLength": 64 },
+          "arc": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "planned_volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": { "type": "integer" },
+          "title": { "type": "string", "maxLength": 128 },
+          "premise": { "type": "string", "maxLength": 80 }
+        }
+      }
+    },
+    "premise": { "type": "string" },
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "catchphrase": { "type": "string" },
+    "differentiation": { "type": "string" }
+  }
+}
