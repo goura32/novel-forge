@@ -620,28 +620,35 @@ class NovelEngine:
         return "\n\n".join(parts)
 
     def _build_continuity(self, scene_number: int, vol_num: int = 0) -> str:
-        """前シーンの要約 + 末尾本文を continuity として返す。
+        """シーン執筆時の連続性情報を構築する。
 
-        要約だけでは具体的な描写・伏線・文体の情報が失われる。
-        前シーンの末尾 500 文字を追加で渡し、LLM が直前の流れを
-        直接参照できるようにする。
+        前シーン全文 + 前々シーンまでの要約 + 引き継ぎメモを渡し、
+        章全体の文脈と直前の流れの両方を LLM が参照できるようにする。
+        コンテキスト長 128K トークンに対し、前シーン 5000 文字 +
+        要約 N 件 2000 文字 + プロンプト全体 20000 文字 = 約 27000 文字で十分収まる。
         """
         bb = self._blackboard_storage.load()
-        prev_key = str(scene_number - 1)
-        summary = bb.scene_summaries.get(prev_key, "")
-        notes = "\n".join(bb.continuity_notes[-5:]) if bb.continuity_notes else ""
         parts = []
-        if summary:
-            parts.append(f"## 前シーン要約\n{summary}")
-        if notes:
-            parts.append(f"## 引き継ぎメモ\n{notes}")
 
-        # 前シーンの末尾本文を追加（最大 500 文字）
+        # 前シーン全文（最大 1 つ前）
         if scene_number > 1 and vol_num > 0:
             prev_draft = self._load_scene_draft(vol_num, scene_number - 1)
             if prev_draft:
-                tail = prev_draft[-500:].strip()
-                parts.append(f"## 前シーン末尾\n{tail}")
+                parts.append(f"## 前シーン全文\n{prev_draft}")
+
+        # 前々シーンまでの要約（直近 3 件）
+        summaries = []
+        for sn in range(max(1, scene_number - 3), scene_number - 1):
+            s = bb.scene_summaries.get(str(sn), "")
+            if s:
+                summaries.append(f"  シーン{sn}: {s}")
+        if summaries:
+            parts.append("## 直近シーン要約\n" + "\n".join(summaries))
+
+        # 引き継ぎメモ
+        notes = "\n".join(bb.continuity_notes[-5:]) if bb.continuity_notes else ""
+        if notes:
+            parts.append(f"## 引き継ぎメモ\n{notes}")
 
         return "\n\n".join(parts) if parts else "（最初のシーン）"
 
