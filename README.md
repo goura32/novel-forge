@@ -19,9 +19,10 @@ KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足を
 | ファイル | 内容 |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | アーキテクチャ設計（レイヤー構成、データフロー、記憶モデル） |
-| [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、エラーハンドリング） |
-| [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、全コンポーネント、状態遷移） |
+| [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、設定ファイル） |
+| [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、SceneWriter、状態遷移） |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理（一覧、レビュー/改稿の分離ルール） |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | 用語集 |
 
 ---
 
@@ -47,24 +48,20 @@ uv run novel-forge probe-model
 
 ```bash
 # 1巻を一括実行
-uv run novel-forge complete "近未来東京 記憶探偵 亲子の和解" \
-  --workdir ./work/series1 --volume 1
+uv run novel-forge complete "近未来東京 記憶探偵" --workdir ./work/series1
 
 # 段階的に進める
-uv run novel-forge plan     --workdir ./work/series1 --keywords "近未来東京 記憶探偵"
-uv run novel-forge outline  --workdir ./work/series1 --volume 1
-uv run novel-forge write    --workdir ./work/series1 --volume 1
-uv run novel-forge export   --workdir ./work/series1 --volume 1
+uv run novel-forge plan    --workdir ./work/series1 --keywords "近未来東京 記憶探偵"
+uv run novel-forge outline --workdir ./work/series1
+uv run novel-forge write   --workdir ./work/series1
+uv run novel-forge export  --workdir ./work/series1
 
 # 次巻へ進む
-uv run novel-forge next-volume --workdir ./work/series1
-
-# 破損状態からの復旧
-uv run novel-forge recover --workdir ./work/series1
+uv run novel-forge outline --workdir ./work/series1 --volume 2
 
 # 中断・再開
-uv run novel-forge status   --workdir ./work/series1
-uv run novel-forge resume   --workdir ./work/series1
+uv run novel-forge status  --workdir ./work/series1
+uv run novel-forge resume  --workdir ./work/series1
 ```
 
 ## 主要機能
@@ -75,16 +72,29 @@ uv run novel-forge resume   --workdir ./work/series1
 | 巻アウトライン | MVME `(S > A | R)` 構造的アンカーを適用したシーン構成 | なし（LLM自律） |
 | シーン執筆 | Blackboard + Bible による継続性維持 | なし（LLM自律） |
 | 自律レビュー | 全工程 LLM が自己レビュー・改稿・品質ゲート | なし（LLM自律） |
+| Bible 管理 | キャラクター、伏線、関係性、サブプロットの自動追跡 | なし（LLM自律） |
 | KDP メタデータ | タイトル案、内容紹介、カテゴリ、キーワード | なし（LLM自律） |
 | Markdown エクスポート | 完成原稿の KDP 確認用出力 | なし |
 | 最終レビュー | 全巻通読結果を kdp_readiness_report.md に記録 | 任意で確認 |
 
+## アーキテクチャ
+
+```
+cli.py → engine.py → scene_writer.py
+                    → context_builder.py
+                    → bible_manager.py
+```
+
+- **NovelEngine**: オーケストレーション層
+- **SceneWriter**: シーン執筆パイプライン（draft/review/revise/summarize）
+- **ContextBuilder**: コンテキスト構築（Bible + Blackboard）
+- **BibleManager**: Bible 管理（キャラクター、伏線、関係性、サブプロット）
+
 ## テスト
 
 ```bash
-uv run pytest -q        # 全テスト
-uv run ruff check .     # lint
-uv lock --offline --check  # ロックファイル整合性
+uv run pytest tests/ -x -q   # 全テスト
+uv run ruff check .          # lint
 ```
 
 ## ライセンス

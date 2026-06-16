@@ -208,3 +208,22 @@ class ProjectState(BaseModel):
         default="計画中",
         pattern="^(計画中|アウトライン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )
+
+
+# ── scene write context (parameter object) ──────────────────────────────
+
+class SceneWriteContext(BaseModel):
+    """Parameter object for SceneWriter.write_scene().
+
+    Groups all callback functions and configuration needed for scene writing,
+    avoiding a long parameter list.
+    """
+    lang: str = "ja"
+    vol_num: int = 1
+    build_context_fn: Any = None          # () -> str
+    build_continuity_fn: Any = None       # (scene_number: int, vol_num: int) -> str
+    get_series_plan_summary_fn: Any = None  # () -> str
+    get_outline_summary_fn: Any = None    # (outline: VolumeOutline) -> str
+    get_scene_summary_fn: Any = None      # (scene) -> str
+    get_bible_text_fn: Any = None         # () -> str
+    load_scene_draft_fn: Any = None       # (vol_num: int, scene_number: int, chapter_number: int = 1) -> str

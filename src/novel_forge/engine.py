@@ -14,6 +14,7 @@ from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
 from novel_forge.models import (
     ProjectState,
+    SceneWriteContext,
     VolumeProgress,
     SceneRecord,
     VolumeOutline,
@@ -282,25 +283,25 @@ class NovelEngine:
                     chapter=chapter,
                     scene=scene,
                     record=record,
-                    vol_num=vol_num,
-                    lang=self._lang,
-                    build_context_fn=self._ctx_builder.build_context,
-                    build_continuity_fn=self._ctx_builder.build_continuity,
-                    get_series_plan_summary_fn=self._ctx_builder.get_series_plan_summary,
-                    get_outline_summary_fn=self._ctx_builder.get_outline_summary,
-                    get_scene_summary_fn=self._ctx_builder.get_scene_summary,
-                    load_scene_draft_fn=self._scene_writer.load_scene_draft,
+                    ctx=SceneWriteContext(
+                        lang=self._lang,
+                        vol_num=vol_num,
+                        build_context_fn=self._ctx_builder.build_context,
+                        build_continuity_fn=self._ctx_builder.build_continuity,
+                        get_series_plan_summary_fn=self._ctx_builder.get_series_plan_summary,
+                        get_outline_summary_fn=self._ctx_builder.get_outline_summary,
+                        get_scene_summary_fn=self._ctx_builder.get_scene_summary,
+                        get_bible_text_fn=self._bible_mgr.to_text,
+                        load_scene_draft_fn=self._scene_writer.load_scene_draft,
+                    ),
                 )
                 results.append(result)
                 draft_text = self._scene_writer.load_scene_draft(
                     vol_num, scene.number, chapter.number
                 )
                 chapter_scenes.append(draft_text)
-                # Post-scene: summarize + bible update
-                self._scene_writer.summarize_scene(
-                    record.scene_number, draft_text, self._lang
-                )
-                self._scene_writer.update_bible_from_scene(
+                # Post-scene: summarize + bible update (1 LLM call)
+                self._scene_writer.summarize_and_update_bible(
                     record.scene_number,
                     draft_text,
                     self._lang,

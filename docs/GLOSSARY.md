@@ -12,9 +12,6 @@
 | 巻 | volume | シリーズの分割単位。KDP 提出の単位 |
 | 章 | chapter | 巻の分割単位。複数のシーンをまとめる |
 | シーン | scene | 章の分割単位。最小の執筆粒度 |
-| 章設計 | chapter design | 章のテーマ、全シーンの要約、章の感情アーク（`designs/ch{NN}_design.json`） |
-| シーン設計 | scene design | MVME goal、POV、conflict、outcome、キャラクター（`vol{NN}_ch{NN}_sc{NN}_design.json`） |
-| アウトライン修正履歴 | outline revision log | 自己修正の履歴。修正箇所、理由、前後のスコア（`vol{NN}_outline_revision_log.json`） |
 
 **補足**: 番号フォーマットは `vol01`, `ch01`, `sc01`（プレフィックス2文字 + ゼロ埋め2桁）。
 
@@ -28,8 +25,8 @@
 | アウトライン (outline) | 巻ごとの章・シーン構成を設計する工程 |
 | 執筆 (write) | シーン本文を生成し、レビュー・改稿・品質ゲートを実行する工程 |
 | エクスポート (export) | 完成原稿を KDP 向けに出力する工程 |
-| 一括実行 (complete) | plan → outline → write → export を連続実行するコマンド |
-| 次巻 (next-volume) | 現在の巻が完了した次に、次の巻のアウトラインを生成する工程 |
+| 一括実行 (complete) | plan → outline → write → export を連続実行 |
+| 再開 (resume) | 中断した工程から再開 |
 
 ---
 
@@ -41,29 +38,31 @@
 |---|---|
 | ProjectState | シリーズ全体の状態を保持する Pydantic モデル |
 | VolumeProgress | 巻ごとの進捗（ステータス、文字数）を管理 |
-| SceneRecord | シーンごとの生成状況（ステータス、リトライ回数、各工程の出力） |
-| 状態遷移 | 各要素（巻・シーン）のステータスが時間とともに変化する様子 |
+| SceneRecord | シーンごとの生成状況（ステータス、リトライ回数、品質ゲート結果） |
+| SceneWriteContext | SceneWriter.write_scene() への引数をまとめたパラメータオブジェクト |
 
 ### 3.2 記憶モデル（3層ハイブリッド）
 
 | 用語 | 説明 |
 |---|---|
 | State Machine | 制作進捗を管理する状態機械。`ProjectState` が担当 |
-| 事実記録（Blackboard） | 物語の事実を格納する共有知識ベース。キャラクターの位置、状態、イベントの記録 |
-| 設定資料集（Bible） | メタデータ台帳。キャラクター情報、用語、伏線、世界観ルールを管理 |
+| 事実記録（Blackboard） | 物語の事実を格納する共有知識ベース |
+| 設定資料集（Bible） | メタデータ台帳。キャラクター、伏線、関係性、サブプロット等を管理 |
 
 **事実記録のデータ構造**:
-- `facts`: 物語の事実リスト。各 fact は `(subject, predicate, object, confidence)` の4-tuple 形式（以下 Fact 参照）
+- `facts`: 物語の事実リスト。各 fact は `(subject, predicate, object, confidence)` の4-tuple
 - `scene_summaries`: シーンごとの要約
 - `continuity_notes`: 次シーンへの引き継ぎメモ
-
-**Fact**: 物語の事実。`(subject, predicate, object, confidence)` の4要素で構成される。
+- `subplots`: サブプロット進捗
+- `timeline`: 時系列イベント
 
 **Bible のデータ構造**:
-- `characters`: キャラクタープロファイル（名前、外見、性格、状態）
+- `characters`: キャラクタープロファイル（名前、役割、外見、性格、動機、状態）
 - `glossary`: 用語と定義
 - `foreshadowing`: 伏線と回収状況
 - `world_rules`: 世界観ルール
+- `relationships`: キャラクター関係性（関係種類、変化方向、トリガーイベント）
+- `subplots`: サブプロット（ID、名前、ステータス、進捗メモ）
 
 ---
 
@@ -74,30 +73,21 @@
 | 用語 | 説明 |
 |---|---|
 | CLI Interface | ユーザーとの対話層。Typer で実装 |
-| Orchestration Layer | 状態遷移管理、パイプライン順序制御、リトライを担当 |
-| Intelligence Layer | LLM を使った生成・評価・改善。ロジックを持たない |
-| State / Memory Layer | 進捗管理、物語の事実、メタデータ台帳 |
-| Infrastructure Layer | LLM 通信、永続化、ログ記録 |
+| Orchestration Layer | 状態遷移管理、パイプライン順序制御。`NovelEngine` が担当 |
+| Domain Logic | シーン執筆、コンテキスト構築、Bible管理。各専用モジュールが担当 |
+| Infrastructure Layer | LLM 通信、永続化、ログ記録、スキーマ検証 |
 
 ### 4.2 コンポーネント
 
 | 用語 | 説明 |
 |---|---|
-| NovelEngine | 中核となる状態機械。全コマンドがこのエンジンを通る |
-| VolumeOutlinePipeline | 巻アウトラインの生成から自己レビュー・自己修正までを担当 |
-| ScenePipeline | シーン単位の処理パイプライン。全工程が LLM 自律 |
-| Resume | 中断した制作を再開する機能 |
-| Blackboard (モジュール) | 物語の事実を管理するモジュール |
-| CoverPromptGenerator | 表紙画像を生成するためのプロンプトとメタデータを出力 |
+| NovelEngine | 中核となるオーケストレーション層。全コマンドがこのエンジンを通る |
+| SceneWriter | シーン単位の処理パイプライン。draft/review/revise/summarize/bible_update |
+| ContextBuilder | context/continuity 構築、各種要約生成 |
+| BibleManager | Bible の更新・照会・最終確定 |
+| LLMClient | LLM API クライアント。リトライ・ログ・タイムアウト対応 |
 | QualityGate | シーンの品質を評価し、合格/不合格を判定 |
-
-### 4.3 エージェント
-
-| 用語 | 説明 |
-|---|---|
-| Planner Agent | シリーズ企画・巻アウトラインを設計 |
-| Writer Agent | シーン本文を執筆 |
-| Critic Agent | 生成物を評価し、改善点を抽出 |
+| SceneWriteContext | write_scene() の引数をまとめたパラメータオブジェクト |
 
 ---
 
@@ -106,30 +96,24 @@
 | 用語 | 説明 |
 |---|---|
 | プロンプトテンプレート | `prompts/` の Markdown ファイル。`{variable}` プレースホルダーを使用 |
-| レンダリング | `prompts.py` の `render_prompt()` で変数を置換する処理 |
 | 自己レビュー | LLM が自分で生成した内容を評価する工程 |
-| 自己修正 | 自己レビュー結果に基づき、LLM が自分で内容を修正する工程 |
 | 別プロンプト原則 | 生成・レビュー・改稿はそれぞれ別のプロンプトファイルを使用（自己評価バイアス防止） |
+| summarize_and_update_bible | シーン要約とBible更新を1回のLLM呼び出しで実行する統合メソッド |
 
 **プロンプト一覧**:
 
 | ファイル | 用途 |
 |---|---|
-| `system.md` | 共通システムプロンプト（JSON 出力指示、ジャンル/ペルソナ） |
+| `system.md` | 共通システムプロンプト |
 | `series_plan.md` | シリーズ企画 |
 | `series_plan_review.md` | シリーズ企画の自己レビュー |
 | `volume_outline.md` | 巻アウトライン生成 |
-| `volume_outline_review.md` | 巻アウトラインの自己レビュー |
-| `volume_outline_revision.md` | 巻アウトラインの自己修正 |
-| `scene_draft.md` | シーン初稿（MVME goal 使用） |
+| `scene_draft.md` | シーン初稿 |
 | `scene_review.md` | シーンレビュー |
 | `scene_revision.md` | シーン改稿 |
 | `scene_summary.md` | シーン要約 |
-| `scene_quality_gate.md` | シーン品質ゲート |
-| `bible_update.md` | メタデータ台帳更新 |
-| `kdp_metadata.md` | KDP メタデータ |
-| `kdp_final_review.md` | 最終レビュー（全巻通読） |
-| `cover_prompt.md` | 表紙画像生成プロンプト |
+| `scene_summary_and_bible_update.md` | シーン要約 + Bible 更新（統合） |
+| `bible_update.md` | Bible 更新 |
 
 ---
 
@@ -137,26 +121,20 @@
 
 | 用語 | 説明 |
 |---|---|
-| 品質ゲート (Quality Gate) | シーン単位・巻単位の両方で品質を評価し、合格/不合格を判定する工程。シーン: `check_scene`、巻: `check_volume` |
-| 構造的妥当性 | 物語の弧（導入→展開→転換→クライマックス→収束）が明確であるか |
-| シーン間の一貫性 | シーン間の論理矛盾がないか、状態の連続性があるか |
-| ペース配分 | 導入20%、展開・転換50%、クライマックス・収束30%の目安 |
-| キャラクターアーク | メインキャラクターに変化（成長・堕落・気づき）があるか |
-| 深刻度 | 問題の重要度。`critical` / `major` / `minor` の3段階 |
+| 品質ゲート (Quality Gate) | シーン単位の品質を評価し、合格/不合格を判定する工程 |
 | force_exported | 品質ゲート3回不合格でも続行するためのフラグ |
+| 深刻度 | 問題の重要度。`critical` / `major` / `minor` の3段階 |
+| 簡体字チェック | JIS漢字セット外の漢字を検出する品質チェック |
 
-**評価カテゴリ（レビュー）**:
+**レビューカテゴリ（8次元）**:
 - `structural_validity`: 構造的妥当性
 - `scene_coherence`: シーン間の論理一貫性
-- `pace_analysis`: ペース配分
-- `character_arc_review`: キャラクターアーク
-
-**評価カテゴリ（品質ゲート）**:
-- `opening_hook`: 冒頭のフック。シーン1が読者を引き込む衝撃的な冒頭か
-- `character_distinction`: キャラ立ち。キャラクターが行動とセリフで個性を示しているか
-- `foreshadowing_consistency`: 伏線の整合性。仕込んだ伏線に矛盾はないか
-- `sensory_coverage`: 五感の網羅。シーンに3つ以上の感覚描写が含まれているか
-- `page_turner`: ページターナー。章末に次章を読みたくなる仕掛けがあるか
+- `character_distinction`: キャラ立ち
+- `foreshadowing_consistency`: 伏線の整合性
+- `sensory_coverage`: 五感の網羅
+- `page_turner`: ページターナー
+- `tone_consistency`: 文体の一貫性
+- `pov_consistency`: 視点の一貫性
 
 ---
 
@@ -165,9 +143,8 @@
 | 用語 | 説明 |
 |---|---|
 | MVME | Minimalist & Mathematical Edition。シーン目標を `(State > Action | Result)` で表す手法 |
-| JSON Schema 検証パイプライン | LLM 応答を4段階で検証（Raw parse → JSON Schema → Pydantic → 論理一貫性） |
-| プリウォーミング | ツール起動時に `keep_alive: -1` でモデルを GPU メモリに固定する処理 |
-| think: false | Ollama の思考モード無効化。`format: json` との同時使用が必須 |
+| JSON Schema 検証パイプライン | LLM 応答を4段階で検証 |
+| think: false | Ollama の思考モード無効化 |
 | コンテキスト注入 | シーン生成時に Blackboard、Bible、前シーン要約をプロンプトに含める処理 |
 | RAW ログ | 全 LLM リクエスト/レスポンスを `raw_logs/` に保存した記録 |
 
@@ -178,13 +155,11 @@
 | 用語 | 説明 |
 |---|---|
 | workdir | 作業ディレクトリ。1つのシリーズの全データが格納される |
-| slug | シリーズの識別子。URL 安全な文字列（`my-series` 等） |
-| `.novel-forge/` | 機械用データの隔離ディレクトリ。人間は見ない |
+| slug | シリーズの識別子。URL 安全な文字列 |
+| `.novel-forge/` | 機械用データの隔離ディレクトリ |
 | `exports/` | 人間が目にする唯一の出力ディレクトリ |
-| `designs/` | LLM 設計出力（JSON）の保存先 |
 | `chapters/` | 章単位の Markdown 原稿 |
 | `scenes/` | シーン単位の Markdown 原稿 |
-| `quality_reports/` | シーン品質レポート |
 | `raw_logs/` | LLM 生ログ |
 
 ---
@@ -196,8 +171,7 @@
 ```
 planned → outlined → drafting → drafted → exported → finalized
                                     │
-                                    └→ force_exported (export時に
-                                       force_exportedシーンが1件以上)
+                                    └→ force_exported
 ```
 
 ### 9.2 シーンの状態
@@ -214,9 +188,9 @@ planned → drafted → reviewed → revised
 
 | 用語 | 説明 |
 |---|---|
-| パストラバーサル防止 | `..` を含む slug を拒否し、ディレクトリ外へのアクセスを防ぐ |
+| パストラバーサル防止 | `..` を含む slug を拒否 |
 | 原子的書き込み | 一時ファイル作成 → `fsync` → `rename` による POSIX 原子書き込み |
-| .bak 退避 | 既存 JSON 更新時に `.bak` として退避し、破損時に復旧可能にする |
+| .bak 退避 | 既存 JSON 更新時に `.bak` として退避 |
 
 ---
 
@@ -225,10 +199,9 @@ planned → drafted → reviewed → revised
 | 用語 | 説明 |
 |---|---|
 | 暗黙承認 | 人間が明示的に承認しなくても、問題なければ次工程に進む方式 |
-| 人間介入ポイント | シリーズ企画の確認（暗黙承認）と最終レビューの確認（任意）の2箇所のみ |
-| スモーク検証 | LLM を使わずに、事前定義済みデータでパイプラインの動作を確認するテスト |
+| 人間介入ポイント | シリーズ企画の確認（暗黙承認）と最終レビュー（任意）の2箇所のみ |
 | タイムアウト | LLM リクエストの最大待機時間。工程別に設定（60s〜3600s） |
 
 ---
 
-*Last updated: 2026-06-18*
+*Last updated: 2026-06-25*

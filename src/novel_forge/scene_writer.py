@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from novel_forge.models import (
-    Bible,
     CharacterProfile,
     ForeshadowingItem,
     GlossaryItem,
     RelationshipItem,
     SceneRecord,
+    SceneWriteContext,
     SubplotItem,
     VolumeOutline,
 )
@@ -51,79 +51,72 @@ class SceneWriter:
         chapter,
         scene,
         record: SceneRecord,
-        vol_num: int,
-        lang: str,
-        build_context_fn,
-        build_continuity_fn,
-        get_series_plan_summary_fn,
-        get_outline_summary_fn,
-        get_scene_summary_fn,
-        load_scene_draft_fn=None,
+        ctx: "SceneWriteContext",
     ) -> dict[str, Any]:
-        system = self._prompts.render("system.md", {"lang": lang})
-        context = build_context_fn()
-        continuity = build_continuity_fn(record.scene_number, vol_num, load_scene_draft_fn)
+            system = self._prompts.render("system.md", {"lang": ctx.lang})
+            context = ctx.build_context_fn()
+            continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
 
-        # Draft
-        user = self._prompts.render(
-            "scene_draft.md",
-            {
-                "series_plan": get_series_plan_summary_fn(),
-                "outline": get_outline_summary_fn(outline),
-                "scene": get_scene_summary_fn(scene),
-                "context": context,
-                "continuity": continuity,
-                "lang": lang,
-            },
-        )
-        draft_text = self._llm.complete_text("scene_draft", system, user)
-        draft_text = self._post_process_text(draft_text)
-        record.status = "初稿済"
-        self.save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
-
-        # Review → Quality Gate → revise loop (max 3 retries)
-        kanji_retries = 0
-        for retry in range(QualityGate.MAX_RETRIES + 1):
-            review = self._review_scene(
-                draft_text, outline, scene, lang, build_context_fn,
-                get_outline_summary_fn,
+            # Draft
+            user = self._prompts.render(
+                "scene_draft.md",
+                {
+                    "series_plan": ctx.get_series_plan_summary_fn(),
+                    "outline": ctx.get_outline_summary_fn(outline),
+                    "scene": ctx.get_scene_summary_fn(scene),
+                    "context": context,
+                    "continuity": continuity,
+                    "lang": ctx.lang,
+                },
             )
-            qg_result = self._quality.check_scene(review)
-            record.quality_retries = retry + 1
+            draft_text = self._llm.complete_text("scene_draft", system, user)
+            draft_text = self._post_process_text(draft_text)
+            record.status = "初稿済"
+            self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
-            if qg_result.passed:
-                non_jp_kanji = self._quality.check_kanji(draft_text)
-                if not non_jp_kanji:
-                    record.status = "修正済"
-                    record.quality_gate = qg_result
-                    break
-                kanji_retries += 1
-                if kanji_retries <= 2:
-                    review["kanji_issues"] = list(set(non_jp_kanji))
-                    draft_text = self._revise_scene(draft_text, review, lang)
+            # Review → Quality Gate → revise loop (max 3 retries)
+            kanji_retries = 0
+            for retry in range(QualityGate.MAX_RETRIES + 1):
+                review = self._review_scene(
+                    draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
+                    ctx.get_outline_summary_fn,
+                )
+                qg_result = self._quality.check_scene(review)
+                record.quality_retries = retry + 1
+
+                if qg_result.passed:
+                    non_jp_kanji = self._quality.check_kanji(draft_text)
+                    if not non_jp_kanji:
+                        record.status = "修正済"
+                        record.quality_gate = qg_result
+                        break
+                    kanji_retries += 1
+                    if kanji_retries <= 2:
+                        review["kanji_issues"] = list(set(non_jp_kanji))
+                        draft_text = self._revise_scene(draft_text, review, ctx.lang)
+                        draft_text = self._post_process_text(draft_text)
+                        self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
+                        continue
+                    else:
+                        record.status = "強制出力済"
+                        record.quality_gate = qg_result
+                        break
+
+                if retry < QualityGate.MAX_RETRIES:
+                    lang_issues = self._extract_language_issues(review)
+                    if lang_issues:
+                        review["language_issues"] = lang_issues
+                    draft_text = self._revise_scene(draft_text, review, ctx.lang)
                     draft_text = self._post_process_text(draft_text)
-                    self.save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
-                    continue
+                    self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
                 else:
                     record.status = "強制出力済"
                     record.quality_gate = qg_result
-                    break
 
-            if retry < QualityGate.MAX_RETRIES:
-                lang_issues = self._extract_language_issues(review)
-                if lang_issues:
-                    review["language_issues"] = lang_issues
-                draft_text = self._revise_scene(draft_text, review, lang)
-                draft_text = self._post_process_text(draft_text)
-                self.save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
-            else:
+            if record.status == "初稿済":
                 record.status = "強制出力済"
-                record.quality_gate = qg_result
 
-        if record.status == "初稿済":
-            record.status = "強制出力済"
-
-        return {"scene_number": record.scene_number, "status": record.status}
+            return {"scene_number": record.scene_number, "status": record.status}
 
     # ── review ───────────────────────────────────────────────────────
 
@@ -234,29 +227,47 @@ class SceneWriter:
         bb.continuity_notes.extend(result.get("continuity_notes", []))
         self._bb_storage.save(bb)
 
-    # ── bible update ─────────────────────────────────────────────────
-
-    def update_bible_from_scene(
+    def summarize_and_update_bible(
         self,
         scene_number: int,
         draft_text: str,
         lang: str,
         get_bible_text_fn,
     ) -> None:
+        """Combined summarize + bible update in a single LLM call.
+
+        Uses scene_summary_and_bible_update.md prompt to extract both
+        scene summary and bible updates simultaneously, reducing
+        LLM calls from 2 to 1 per scene.
+        """
         system = self._prompts.render("system.md", {"lang": lang})
         current_bible_text = get_bible_text_fn()
 
         user = self._prompts.render(
-            "bible_update.md",
+            "scene_summary_and_bible_update.md",
             {
-                "scene_text": draft_text,
+                "scene": draft_text,
                 "current_bible": current_bible_text,
                 "lang": lang,
             },
         )
-        schema = get_schema("bible_update")
-        result = self._llm.complete_json("bible_update", system, user, schema)
+        schema = get_schema("scene_summary_and_bible_update")
+        result = self._llm.complete_json("scene_summary_and_bible_update", system, user, schema)
 
+        # Update blackboard (summary + facts + continuity)
+        bb = self._bb_storage.load()
+        bb.scene_summaries[str(scene_number)] = result.get("summary", "")
+        for fact_data in result.get("facts", []):
+            from novel_forge.models import Fact
+            bb.facts.append(Fact(**fact_data))
+        bb.continuity_notes.extend(result.get("continuity_notes", []))
+        self._bb_storage.save(bb)
+
+        # Update bible (same logic as update_bible_from_scene)
+        self._apply_bible_update(result, scene_number)
+
+    def _apply_bible_update(self, result: dict, scene_number: int) -> None:
+        """Apply bible update result to Bible and Blackboard."""
         bible = self._bible_storage.load()
 
         # Characters
@@ -393,6 +404,31 @@ class SceneWriter:
                         progress_note=sp_data.get("progress_note", ""),
                     ))
             self._bb_storage.save(bb)
+
+    # ── bible update ─────────────────────────────────────────────────
+
+    def update_bible_from_scene(
+        self,
+        scene_number: int,
+        draft_text: str,
+        lang: str,
+        get_bible_text_fn,
+    ) -> None:
+        system = self._prompts.render("system.md", {"lang": lang})
+        current_bible_text = get_bible_text_fn()
+
+        user = self._prompts.render(
+            "bible_update.md",
+            {
+                "scene_text": draft_text,
+                "current_bible": current_bible_text,
+                "lang": lang,
+            },
+        )
+        schema = get_schema("bible_update")
+        result = self._llm.complete_json("bible_update", system, user, schema)
+
+        self._apply_bible_update(result, scene_number)
 
     # ── scene draft I/O ──────────────────────────────────────────────
 
