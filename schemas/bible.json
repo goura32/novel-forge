@@ -24,6 +24,16 @@
             "maxLength": 64,
             "description": "キャラクター名"
           },
+          "role": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "役割"
+          },
+          "arc": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "成長軌跡"
+          },
           "appearance": {
             "type": "string",
             "maxLength": 200,
@@ -33,6 +43,11 @@
             "type": "string",
             "maxLength": 200,
             "description": "性格"
+          },
+          "motivation": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "動機・目的"
           },
           "state": {
             "type": "string",
