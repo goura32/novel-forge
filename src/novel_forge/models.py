@@ -76,11 +76,11 @@ class ChapterDesign(BaseModel):
     emotional_arc: str = Field(max_length=200, default="")
     purpose: str = Field(
         default="",
-        pattern="^(introduction|rising_action|turning_point|climax|resolution)$",
+        pattern="^(導入|展開|転換|クライマックス|収束)$",
     )
     act_role: str = Field(
         default="",
-        pattern="^(setup|confrontation|resolution)$",
+        pattern="^(設定|対立|解決)$",
     )
     characters: list[str] = Field(default_factory=list)
 
@@ -150,8 +150,8 @@ class QualityGateResult(BaseModel):
 class SceneRecord(BaseModel):
     scene_number: int = Field(ge=1)
     status: str = Field(
-        default="planned",
-        pattern="^(planned|drafted|reviewed|revised|force_exported|error)$",
+        default="計画中",
+        pattern="^(計画中|初稿済|レビュー済|修正済|強制出力済|エラー)$",
     )
     quality_retries: int = Field(ge=0, default=0)
     quality_gate: QualityGateResult = Field(default_factory=QualityGateResult)
@@ -165,8 +165,8 @@ class SceneRecord(BaseModel):
 class VolumeProgress(BaseModel):
     volume_number: int = Field(ge=1)
     status: str = Field(
-        default="planned",
-        pattern="^(planned|outlined|drafting|drafted|exported|finalized|force_exported)$",
+        default="計画中",
+        pattern="^(計画中|アウトライン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )
     word_count: int = Field(ge=0, default=0)
     target_word_count: int = Field(ge=0, default=80000)
@@ -181,6 +181,6 @@ class ProjectState(BaseModel):
     current_volume: int = Field(ge=1, default=1)
     volumes: list[VolumeProgress] = Field(default_factory=list)
     status: str = Field(
-        default="planned",
-        pattern="^(planned|outlined|drafting|drafted|exported|finalized|force_exported)$",
+        default="計画中",
+        pattern="^(計画中|アウトライン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )

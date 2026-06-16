@@ -109,7 +109,7 @@ class NovelEngine:
         review = self._review_series_plan(result)
 
         self._state.series_title = result.get("title", "")
-        self._state.status = "planned"
+        self._state.status = "計画中"
         self._save_path(0, "series_plan.json", result)
         self._save_path(0, "series_plan_review.json", review)
         self._save()
@@ -159,8 +159,8 @@ class NovelEngine:
         result["chapters"] = flat_chapters
         result["scenes"] = flat_scenes
         vol = self._current_volume()
-        vol.status = "outlined"
-        self._state.status = "outlined"
+        vol.status = "アウトライン済"
+        self._state.status = "アウトライン済"
         self._save_path(vol_num, "outline.json", result)
         self._save()
         return result
@@ -179,7 +179,7 @@ class NovelEngine:
                 seen_chapters[ch.number] = ch
         outline.chapters = sorted(seen_chapters.values(), key=lambda c: c.number)
         vol = self._current_volume()
-        vol.status = "drafting"
+        vol.status = "執筆中"
         results = []
 
         for chapter in outline.chapters:
@@ -187,7 +187,7 @@ class NovelEngine:
             ch_scenes = [s for s in outline.scenes if s.chapter_number == chapter.number]
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
-                if record.status in ("revised", "force_exported"):
+                if record.status in ("修正済", "強制出力済"):
                     chapter_scenes.append(self._load_scene_draft(vol_num, scene.number, chapter.number))
                     continue
                 result = self._write_scene(outline, chapter, scene, record, vol_num)
@@ -197,8 +197,8 @@ class NovelEngine:
             # 章自動組立
             self._assemble_chapter(vol_num, chapter, chapter_scenes)
 
-        vol.status = "drafted"
-        self._state.status = "drafted"
+        vol.status = "初稿済"
+        self._state.status = "初稿済"
         self._save()
         return results
 
@@ -228,7 +228,7 @@ class NovelEngine:
         )
         draft_text = self._llm.complete_text("scene_draft", system, user)
         draft_text = self._post_process_text(draft_text)
-        record.status = "drafted"
+        record.status = "初稿済"
         self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
 
         # Review → Quality Gate → 改稿ループ（最大3回）
@@ -242,7 +242,7 @@ class NovelEngine:
                 # 品質ゲート通過後、簡体字チェック
                 non_jp_kanji = self._quality.check_kanji(draft_text)
                 if not non_jp_kanji:
-                    record.status = "revised"
+                    record.status = "修正済"
                     record.quality_gate = qg_result
                     break
                 # 簡体字あり → revision で修正（最大2回まで）
@@ -254,7 +254,7 @@ class NovelEngine:
                     self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
                     continue
                 else:
-                    record.status = "force_exported"
+                    record.status = "強制出力済"
                     record.quality_gate = qg_result
                     break
 
@@ -267,12 +267,12 @@ class NovelEngine:
                 draft_text = self._post_process_text(draft_text)
                 self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
             else:
-                record.status = "force_exported"
+                record.status = "強制出力済"
                 record.quality_gate = qg_result
 
         # ループ終了時に status が drafted のままなら force_exported
-        if record.status == "drafted":
-            record.status = "force_exported"
+        if record.status == "初稿済":
+            record.status = "強制出力済"
 
         # Summarize → Blackboard更新
         self._summarize_scene(record.scene_number, draft_text)
@@ -408,9 +408,9 @@ class NovelEngine:
         manuscript = self._assemble_manuscript(vol_num)
         metadata = self._generate_kdp_metadata(vol_num)
         report = self._generate_readiness_report(vol_num)
-        vol.status = "exported"
-        if any(s.status == "force_exported" for s in vol.scenes):
-            vol.status = "force_exported"
+        vol.status = "出力済"
+        if any(s.status == "強制出力済" for s in vol.scenes):
+            vol.status = "強制出力済"
         self._state.status = vol.status
         self._save()
         return {
@@ -422,13 +422,13 @@ class NovelEngine:
     # ── resume ────────────────────────────────────────────────────────
 
     def resume(self) -> dict[str, Any]:
-        if self._state.status == "planned":
+        if self._state.status == "計画中":
             return {"action": "plan", "status": self._state.status}
-        elif self._state.status == "outlined":
+        elif self._state.status == "アウトライン済":
             return {"action": "outline", "status": self._state.status}
-        elif self._state.status in ("drafting", "drafted"):
+        elif self._state.status in ("執筆中", "初稿済"):
             return {"action": "write", "status": self._state.status}
-        elif self._state.status in ("exported", "force_exported"):
+        elif self._state.status in ("出力済", "強制出力済"):
             return {"action": "export", "status": self._state.status}
         return {"action": "plan", "status": self._state.status}
 
@@ -444,9 +444,9 @@ class NovelEngine:
             "word_count": vol.word_count,
             "target_word_count": vol.target_word_count,
             "scenes_total": len(vol.scenes),
-            "scenes_revised": sum(1 for s in vol.scenes if s.status == "revised"),
+            "scenes_revised": sum(1 for s in vol.scenes if s.status == "修正済"),
             "scenes_force_exported": sum(
-                1 for s in vol.scenes if s.status == "force_exported"
+                1 for s in vol.scenes if s.status == "強制出力済"
             ),
         }
 
@@ -640,8 +640,8 @@ class NovelEngine:
         export_dir = self._workdir / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
         vol = self._current_volume()
-        force_count = sum(1 for s in vol.scenes if s.status == "force_exported")
-        revised_count = sum(1 for s in vol.scenes if s.status == "revised")
+        force_count = sum(1 for s in vol.scenes if s.status == "強制出力済")
+        revised_count = sum(1 for s in vol.scenes if s.status == "修正済")
         lines = [
             "# KDP 準備完了レポート",
             "",
@@ -662,7 +662,7 @@ class NovelEngine:
                 ]
             )
             for s in vol.scenes:
-                if s.status == "force_exported":
+                if s.status == "強制出力済":
                     lines.append(f"- シーン {s.scene_number}")
 
         # 未回収伏線

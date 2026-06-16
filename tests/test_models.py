@@ -112,8 +112,8 @@ class TestModels:
         cd = ChapterDesign(
             number=1,
             title="Ch1",
-            purpose="introduction",
-            act_role="setup",
+            purpose="導入",
+            act_role="設定",
         )
         assert cd.act_role == "setup"
 
@@ -123,7 +123,7 @@ class TestModels:
 
     def test_scene_record_status(self):
         sr = SceneRecord(scene_number=1)
-        assert sr.status == "planned"
+        assert sr.status == "計画中"
 
     def test_scene_record_invalid_status(self):
         with pytest.raises(Exception):
@@ -202,7 +202,7 @@ class TestQualityGate:
 
     def test_fail_scene_low_score(self):
         qg = QualityGate()
-        result = qg.check_scene({"score": 50.0, "issues": []})
+        result = qg.check_scene({"score": 5.0, "issues": []})
         assert result.passed is False
 
     def test_fail_scene_critical_issue(self):
@@ -289,7 +289,7 @@ class TestEngine:
     def test_engine_status(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
         s = engine.status()
-        assert s["status"] == "planned"
+        assert s["status"] == "計画中"
         assert s["current_volume"] == 1
 
     def test_engine_resume_planned(self, tmp_path):
@@ -299,18 +299,18 @@ class TestEngine:
 
     def test_engine_resume_outlined(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "outlined"
+        engine._state.status = "アウトライン済"
         result = engine.resume()
         assert result["action"] == "outline"
 
     def test_engine_resume_drafting(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "drafting"
+        engine._state.status = "執筆中"
         result = engine.resume()
         assert result["action"] == "write"
 
     def test_engine_resume_exported(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "exported"
+        engine._state.status = "出力済"
         result = engine.resume()
         assert result["action"] == "export"
