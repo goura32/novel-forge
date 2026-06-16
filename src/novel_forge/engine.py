@@ -1,23 +1,29 @@
+"""NovelForge engine — orchestration layer.
+
+Coordinates plan → outline → write → export pipeline.
+Delegates scene writing to SceneWriter, context building to ContextBuilder,
+and Bible management to BibleManager.
+"""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
 
+from novel_forge.bible_manager import BibleManager
+from novel_forge.context_builder import ContextBuilder
 from novel_forge.models import (
     ProjectState,
     VolumeProgress,
     SceneRecord,
     VolumeOutline,
-    SeriesPlan,
-    SceneDesign,
-    ChapterDesign,
 )
-from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.ollama_client import LLMClient, load_config
-from novel_forge.prompts import PromptManager, PromptLoader
-from novel_forge.schemas import validate_or_raise
-from novel_forge.quality import QualityGate, find_non_japanese_kanji
+from novel_forge.prompts import PromptManager
+from novel_forge.quality import QualityGate
+from novel_forge.schemas import get_schema
+from novel_forge.scene_writer import SceneWriter
+from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 
 
 class NovelEngine:
@@ -33,9 +39,9 @@ class NovelEngine:
         self._workdir = workdir
         self._lang = lang
         self._storage = StateStorage(workdir)
-        self._blackboard_storage = BlackboardStorage(workdir)
+        self._bb_storage = BlackboardStorage(workdir)
         self._bible_storage = BibleStorage(workdir)
-        # config.yaml の読み込み（明示引数 > 自動検出）
+
         cfg = config if config is not None else load_config()
         if llm_client is None:
             llm_cfg = cfg.get("llm", {})
@@ -62,6 +68,14 @@ class NovelEngine:
         self._quality = QualityGate()
         self._state = self._storage.load()
 
+        # Sub-components
+        self._ctx_builder = ContextBuilder(workdir, self._bb_storage, self._bible_storage)
+        self._bible_mgr = BibleManager(self._bible_storage)
+        self._scene_writer = SceneWriter(
+            workdir, self._llm, self._prompts, self._quality,
+            self._bb_storage, self._bible_storage,
+        )
+
     @property
     def state(self) -> ProjectState:
         return self._state
@@ -69,6 +83,8 @@ class NovelEngine:
     @property
     def workdir(self) -> Path:
         return self._workdir
+
+    # ── helpers ───────────────────────────────────────────────────────
 
     def _save(self) -> None:
         self._storage.save(self._state)
@@ -82,9 +98,32 @@ class NovelEngine:
         self._state.volumes.append(vol)
         return vol
 
-    def _load_schema(self, name: str) -> dict[str, Any]:
-        from novel_forge.schemas import get_schema
-        return get_schema(name)
+    def _save_path(self, vol_num: int, filename: str, data: Any) -> None:
+        if vol_num == 0:
+            path = self._workdir / ".novel-forge" / filename
+        else:
+            path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        content = (
+            json.dumps(data, ensure_ascii=False, indent=2)
+            if isinstance(data, dict)
+            else str(data)
+        )
+        path.write_text(content, encoding="utf-8")
+
+    def _load_path(self, vol_num: int, filename: str) -> dict:
+        path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def _get_or_create_scene_record(
+        self, vol: VolumeProgress, scene_number: int
+    ) -> SceneRecord:
+        for s in vol.scenes:
+            if s.scene_number == scene_number:
+                return s
+        record = SceneRecord(scene_number=scene_number)
+        vol.scenes.append(record)
+        return record
 
     # ── plan ──────────────────────────────────────────────────────────
 
@@ -94,18 +133,15 @@ class NovelEngine:
             "series_plan.md",
             {"keywords": keywords, "lang": self._lang},
         )
-        schema = self._load_schema("series_plan")
+        schema = get_schema("series_plan")
         result = self._llm.complete_json("series_plan", system, user, schema)
 
-        # slug が 256 文字を超える場合は機械的に切り捨て
         if result.get("slug") and len(result["slug"]) > 256:
             result["slug"] = result["slug"][:256].rstrip("-")
 
-        # planned_volumes に機械採番（LLMは title と premise のみ生成）
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
 
-        # LLM自己レビュー
         review = self._review_series_plan(result)
 
         self._state.series_title = result.get("title", "")
@@ -117,8 +153,6 @@ class NovelEngine:
 
     def _review_series_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
         system = self._prompts.render("system.md", {"lang": self._lang})
-        import json as _json
-        # レビュー対象の値のみを抽出（JSONキー名・enum値を除外）
         filtered = {
             "title": plan.get("title", ""),
             "logline": plan.get("logline", ""),
@@ -137,7 +171,6 @@ class NovelEngine:
                 for v in plan.get("planned_volumes", [])
             ],
         }
-        # テキスト形式で整形（JSONキー名は含めない）
         lines = [
             f"タイトル: {filtered['title']}",
             f"あらすじ: {filtered['logline']}",
@@ -159,7 +192,7 @@ class NovelEngine:
             "series_plan_review.md",
             {"series_plan": plan_text, "lang": self._lang},
         )
-        schema = self._load_schema("series_plan_review")
+        schema = get_schema("series_plan_review")
         return self._llm.complete_json("series_plan_review", system, user, schema)
 
     # ── outline ───────────────────────────────────────────────────────
@@ -168,8 +201,8 @@ class NovelEngine:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         system = self._prompts.render("system.md", {"lang": self._lang})
-        series_plan = self._get_series_plan_summary()
-        genre = self._get_genre()
+        series_plan = self._ctx_builder.get_series_plan_summary()
+        genre = self._ctx_builder.get_genre()
         user = self._prompts.render(
             "volume_outline.md",
             {
@@ -179,9 +212,10 @@ class NovelEngine:
                 "lang": self._lang,
             },
         )
-        schema = self._load_schema("volume_outline")
+        schema = get_schema("volume_outline")
         result = self._llm.complete_json("volume_outline", system, user, schema)
-        # Flatten nested chapters→scenes structure and assign sequential numbers
+
+        # Flatten nested chapters→scenes and assign sequential numbers
         flat_chapters = []
         flat_scenes = []
         scene_counter = 1
@@ -195,6 +229,7 @@ class NovelEngine:
                 scene_counter += 1
         result["chapters"] = flat_chapters
         result["scenes"] = flat_scenes
+
         vol = self._current_volume()
         vol.status = "アウトライン済"
         self._state.status = "アウトライン済"
@@ -209,18 +244,22 @@ class NovelEngine:
         self._state.current_volume = vol_num
         outline_data = self._load_path(vol_num, "outline.json")
         outline = VolumeOutline(**outline_data)
-        # Deduplicate chapters by number (keep first occurrence)
+
+        # Deduplicate chapters
         seen_chapters = {}
         for ch in outline.chapters:
             if ch.number not in seen_chapters:
                 seen_chapters[ch.number] = ch
         outline.chapters = sorted(seen_chapters.values(), key=lambda c: c.number)
+
         vol = self._current_volume()
         vol.status = "執筆中"
         results = []
 
-        # 再開時に古い chapters をクリア（シーン数の不整合防止）
-        chapters_dir = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / "chapters"
+        # Clear stale chapters on resume
+        chapters_dir = (
+            self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / "chapters"
+        )
         if chapters_dir.exists():
             for ch_file in chapters_dir.glob("ch*.md"):
                 ch_file.unlink()
@@ -231,416 +270,54 @@ class NovelEngine:
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("修正済", "強制出力済"):
-                    chapter_scenes.append(self._load_scene_draft(vol_num, scene.number, chapter.number))
+                    chapter_scenes.append(
+                        self._scene_writer.load_scene_draft(
+                            vol_num, scene.number, chapter.number
+                        )
+                    )
                     continue
-                result = self._write_scene(outline, chapter, scene, record, vol_num)
+                result = self._scene_writer.write_scene(
+                    outline=outline,
+                    chapter=chapter,
+                    scene=scene,
+                    record=record,
+                    vol_num=vol_num,
+                    lang=self._lang,
+                    build_context_fn=self._ctx_builder.build_context,
+                    build_continuity_fn=lambda sn, vn: self._ctx_builder.build_continuity(
+                        sn, vn, self._scene_writer.load_scene_draft
+                    ),
+                    get_series_plan_summary_fn=self._ctx_builder.get_series_plan_summary,
+                    get_outline_summary_fn=self._ctx_builder.get_outline_summary,
+                    get_scene_summary_fn=self._ctx_builder.get_scene_summary,
+                )
                 results.append(result)
-                chapter_scenes.append(self._load_scene_draft(vol_num, scene.number, chapter.number))
+                chapter_scenes.append(
+                    self._scene_writer.load_scene_draft(
+                        vol_num, scene.number, chapter.number
+                    )
+                )
+                # Post-scene: summarize + bible update
+                draft_text = self._scene_writer.load_scene_draft(
+                    vol_num, scene.number, chapter.number
+                )
+                self._scene_writer.summarize_scene(
+                    record.scene_number, draft_text, self._lang
+                )
+                self._scene_writer.update_bible_from_scene(
+                    record.scene_number,
+                    draft_text,
+                    self._lang,
+                    self._bible_mgr.to_text,
+                )
+                self._save()
 
-            # 章自動組立
-            self._assemble_chapter(vol_num, chapter, chapter_scenes)
+            self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes)
 
         vol.status = "初稿済"
         self._state.status = "初稿済"
         self._save()
         return results
-
-    def _write_scene(
-        self,
-        outline: VolumeOutline,
-        chapter,
-        scene,
-        record: SceneRecord,
-        vol_num: int,
-    ) -> dict[str, Any]:
-        system = self._prompts.render("system.md", {"lang": self._lang})
-        context = self._build_context()
-        continuity = self._build_continuity(record.scene_number, vol_num)
-
-        # Draft
-        user = self._prompts.render(
-            "scene_draft.md",
-            {
-                "series_plan": self._get_series_plan_summary(),
-                "outline": self._get_outline_summary(outline),
-                "scene": self._get_scene_summary(scene),
-                "context": context,
-                "continuity": continuity,
-                "lang": self._lang,
-            },
-        )
-        draft_text = self._llm.complete_text("scene_draft", system, user)
-        draft_text = self._post_process_text(draft_text)
-        record.status = "初稿済"
-        self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
-
-        # Review → Quality Gate → 改稿ループ（最大3回）
-        kanji_retries = 0
-        for retry in range(QualityGate.MAX_RETRIES + 1):
-            review = self._review_scene(draft_text, outline, scene)
-            qg_result = self._quality.check_scene(review)
-            record.quality_retries = retry + 1
-
-            if qg_result.passed:
-                # 品質ゲート通過後、簡体字チェック
-                non_jp_kanji = self._quality.check_kanji(draft_text)
-                if not non_jp_kanji:
-                    record.status = "修正済"
-                    record.quality_gate = qg_result
-                    break
-                # 簡体字あり → revision で修正（最大2回まで）
-                kanji_retries += 1
-                if kanji_retries <= 2:
-                    review["kanji_issues"] = list(set(non_jp_kanji))
-                    draft_text = self._revise_scene(draft_text, review)
-                    draft_text = self._post_process_text(draft_text)
-                    self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
-                    continue
-                else:
-                    record.status = "強制出力済"
-                    record.quality_gate = qg_result
-                    break
-
-            if retry < QualityGate.MAX_RETRIES:
-                # 言語制約違反の情報を revision に追加
-                lang_issues = self._extract_language_issues(review)
-                if lang_issues:
-                    review["language_issues"] = lang_issues
-                draft_text = self._revise_scene(draft_text, review)
-                draft_text = self._post_process_text(draft_text)
-                self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
-            else:
-                record.status = "強制出力済"
-                record.quality_gate = qg_result
-
-        # ループ終了時に status が drafted のままなら force_exported
-        if record.status == "初稿済":
-            record.status = "強制出力済"
-
-        # Summarize → Blackboard更新
-        self._summarize_scene(record.scene_number, draft_text)
-        # Bible 更新（キャラクター・伏線・関係性・サブプロット・用語・世界観）
-        self._update_bible_from_scene(record.scene_number, draft_text)
-        self._save()
-        return {"scene_number": record.scene_number, "status": record.status}
-
-    def _review_scene(self, draft_text: str, outline: VolumeOutline, scene) -> dict:
-        system = self._prompts.render("system.md", {"lang": self._lang})
-        user = self._prompts.render(
-            "scene_review.md",
-            {
-                "scene": draft_text,
-                "outline": self._get_outline_summary(outline),
-                "context": self._build_context(),
-                "lang": self._lang,
-            },
-        )
-        schema = self._load_schema("scene_review")
-        return self._llm.complete_json("scene_review", system, user, schema)
-
-    def _extract_language_issues(self, review: dict) -> list[str]:
-        """レビュー結果から言語制約違反の問題を抽出する。"""
-        issues = review.get("issues", [])
-        lang_issues = []
-        for issue in issues:
-            desc = issue.get("description", "")
-            # 言語関連のキーワードを含む issue を抽出
-            if any(kw in desc for kw in ["言語", "英語", "簡体字", "ハングル", "中国語", "language_purity", "langue"]):
-                lang_issues.append(desc)
-        return lang_issues
-
-    def _post_process_text(self, text: str) -> str:
-        """LLM出力の後処理: 簡体字の自動置換のみ。
-
-        英語の置換は LLM レビュー・リビジョンに委ねる。
-        簡体字は JIS漢字セット外の一般的な簡体字のみ置換。
-        """
-        # 簡体字→日本語漢字置換
-        # JIS漢字セットに含まれないCJK漢字を対象とする
-        # 注意: 一般的な簡体字のみ。作品固有の固有名詞には影響しない
-        kanji_replacements = [
-            ('标记', '標識'),
-            ('诊所', '診療所'),
-            ('搜索', '捜索'),
-            ('调查', '調査'),
-            ('转', '転'),
-            ('间', '間'),
-            ('门', '門'),
-            ('东', '東'),
-            ('车', '車'),
-            ('马', '馬'),
-            ('鱼', '魚'),
-            ('鸟', '鳥'),
-            ('龙', '龍'),
-        ]
-        for simp, jpn in kanji_replacements:
-            text = text.replace(simp, jpn)
-
-        return text
-
-    def _revise_scene(self, draft_text: str, review: dict) -> str:
-        system = self._prompts.render("system.md", {"lang": self._lang})
-        # レビュー結果をテキスト形式で整形（JSONキー名は含めない）
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            sev = issue.get("severity", "")
-            cat = issue.get("category", "")
-            desc = issue.get("description", "")
-            sug = issue.get("suggestion", "")
-            lines.append(f"  [{sev}] {cat}: {desc}")
-            if sug:
-                lines.append(f"    提案: {sug}")
-        for s in review.get("strengths", []):
-            lines.append(f"  強み: {s}")
-        for r in review.get("recommendations", []):
-            lines.append(f"  推奨: {r}")
-        if review.get("kanji_issues"):
-            lines.append(f"  簡体字問題: {', '.join(review['kanji_issues'])}")
-        if review.get("language_issues"):
-            lines.append(f"  言語問題: {'; '.join(review['language_issues'])}")
-        review_text = "\n".join(lines)
-        user = self._prompts.render(
-            "scene_revision.md",
-            {
-                "scene": draft_text,
-                "review": review_text,
-                "lang": self._lang,
-            },
-        )
-        return self._llm.complete_text("scene_revision", system, user)
-
-    def _summarize_scene(self, scene_number: int, draft_text: str) -> None:
-        system = self._prompts.render("system.md", {"lang": self._lang})
-        user = self._prompts.render(
-            "scene_summary.md",
-            {
-                "scene": draft_text,
-                "lang": self._lang,
-            },
-        )
-        schema = self._load_schema("scene_summary")
-        result = self._llm.complete_json("scene_summary", system, user, schema)
-        bb = self._blackboard_storage.load()
-        bb.scene_summaries[str(scene_number)] = result.get("summary", "")
-        for fact_data in result.get("facts", []):
-            from novel_forge.models import Fact
-            bb.facts.append(Fact(**fact_data))
-        bb.continuity_notes.extend(result.get("continuity_notes", []))
-        self._blackboard_storage.save(bb)
-
-    def _update_bible_from_scene(self, scene_number: int, draft_text: str) -> None:
-        """シーン本文から Bible を更新する（キャラクター・伏線・関係性・サブプロット・用語・世界観）。
-
-        bible_update.md プロンプトを使用して LLM に抽出させ、
-        Bible モデルに反映する。
-        """
-        system = self._prompts.render("system.md", {"lang": self._lang})
-
-        # 現在の Bible 情報をテキスト化（JSONキー名は含めない）
-        bible = self._bible_storage.load()
-        bible_lines = []
-        if bible.characters:
-            bible_lines.append("キャラクター:")
-            for c in bible.characters:
-                bible_lines.append(f"  - {c.name}（{c.role or '役割未設定'}）: {c.personality or '性格未設定'} / 動機: {c.motivation or '未設定'} / 外見: {c.appearance or '未設定'}")
-        if bible.foreshadowing:
-            bible_lines.append("伏線:")
-            for fh in bible.foreshadowing:
-                status_str = "回収済" if fh.resolved else "未回収"
-                bible_lines.append(f"  - [{status_str}] {fh.description}")
-        if bible.relationships:
-            bible_lines.append("キャラクター関係性:")
-            for r in bible.relationships:
-                bible_lines.append(f"  - {r.character_a} ↔ {r.character_b}: {r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}")
-        if bible.subplots:
-            bible_lines.append("サブプロット:")
-            for sp in bible.subplots:
-                bible_lines.append(f"  - [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
-        if bible.glossary:
-            bible_lines.append("用語:")
-            for g in bible.glossary[-10:]:
-                bible_lines.append(f"  - {g.term}: {g.definition}")
-        if bible.world_rules:
-            bible_lines.append("世界観ルール:")
-            for r in bible.world_rules:
-                bible_lines.append(f"  - {r}")
-        current_bible_text = "\n".join(bible_lines) if bible_lines else "（Bible は空です）"
-
-        user = self._prompts.render(
-            "bible_update.md",
-            {
-                "scene_text": draft_text,
-                "current_bible": current_bible_text,
-                "lang": self._lang,
-            },
-        )
-        schema = self._load_schema("bible_update")
-        result = self._llm.complete_json("bible_update", system, user, schema)
-
-        # Bible に反映
-        from novel_forge.models import (
-            CharacterProfile, GlossaryItem, ForeshadowingItem,
-            RelationshipItem, SubplotItem,
-        )
-
-        # キャラクター更新
-        for ch_data in result.get("characters", []):
-            existing = next((c for c in bible.characters if c.name == ch_data.get("name", "")), None)
-            if existing:
-                if ch_data.get("personality"):
-                    existing.personality = ch_data["personality"]
-                if ch_data.get("appearance"):
-                    existing.appearance = ch_data["appearance"]
-                if ch_data.get("motivation"):
-                    existing.motivation = ch_data["motivation"]
-                if ch_data.get("arc"):
-                    existing.arc = ch_data["arc"]
-                if ch_data.get("state"):
-                    existing.state = ch_data["state"]
-            elif ch_data.get("is_new", False) or ch_data.get("name"):
-                bible.characters.append(CharacterProfile(
-                    name=ch_data.get("name", ""),
-                    role=ch_data.get("role", ""),
-                    personality=ch_data.get("personality", ""),
-                    appearance=ch_data.get("appearance", ""),
-                    motivation=ch_data.get("motivation", ""),
-                    arc=ch_data.get("arc", ""),
-                ))
-
-        # 伏線更新
-        for fh_data in result.get("foreshadowing", []):
-            fh_type = fh_data.get("type", "setup")
-            if fh_type == "resolution":
-                # 既存伏線の回収
-                for fh in bible.foreshadowing:
-                    if not fh.resolved and fh.description == fh_data.get("description", ""):
-                        fh.resolved = True
-                        break
-            else:
-                # 新規伏線
-                desc = fh_data.get("description", "")
-                if desc and not any(f.description == desc for f in bible.foreshadowing):
-                    bible.foreshadowing.append(ForeshadowingItem(
-                        description=desc,
-                        resolved=False,
-                    ))
-
-        # キャラクター関係性更新
-        for rel_data in result.get("relationships", []):
-            existing = next(
-                (r for r in bible.relationships
-                 if {r.character_a, r.character_b} == {rel_data.get("character_a", ""), rel_data.get("character_b", "")}),
-                None
-            )
-            if existing:
-                if rel_data.get("type"):
-                    existing.relationship_type = rel_data["type"]
-                if rel_data.get("change_direction"):
-                    existing.change_direction = rel_data["change_direction"]
-                if rel_data.get("trigger_event"):
-                    existing.trigger_event = rel_data["trigger_event"]
-                existing.scene_number = scene_number
-            else:
-                bible.relationships.append(RelationshipItem(
-                    character_a=rel_data.get("character_a", ""),
-                    character_b=rel_data.get("character_b", ""),
-                    relationship_type=rel_data.get("type", ""),
-                    change_direction=rel_data.get("change_direction", ""),
-                    trigger_event=rel_data.get("trigger_event", ""),
-                    scene_number=scene_number,
-                ))
-
-        # サブプロット更新
-        for sp_data in result.get("subplots", []):
-            existing = next((s for s in bible.subplots if s.id == sp_data.get("id", "")), None)
-            if existing:
-                if sp_data.get("status"):
-                    existing.status = sp_data["status"]
-                if sp_data.get("progress_note"):
-                    existing.progress_note = sp_data["progress_note"]
-            else:
-                bible.subplots.append(SubplotItem(
-                    id=sp_data.get("id", f"sp_{scene_number}"),
-                    name=sp_data.get("name", ""),
-                    status=sp_data.get("status", "in_progress"),
-                    progress_note=sp_data.get("progress_note", ""),
-                    related_characters=sp_data.get("related_characters", []),
-                    related_foreshadowing_ids=sp_data.get("related_foreshadowing_ids", []),
-                ))
-
-        # 用語更新
-        for g_data in result.get("glossary", []):
-            term = g_data.get("term", "")
-            if term:
-                existing = next((g for g in bible.glossary if g.term == term), None)
-                if existing:
-                    existing.definition = g_data.get("definition", existing.definition)
-                else:
-                    bible.glossary.append(GlossaryItem(
-                        term=term,
-                        definition=g_data.get("definition", ""),
-                    ))
-
-        # 世界観ルール更新
-        for r_data in result.get("world_rules", []):
-            rule = r_data.get("rule", "")
-            if rule and rule not in bible.world_rules:
-                bible.world_rules.append(rule)
-
-        self._bible_storage.save(bible)
-
-        # Blackboard のサブプロットも同期
-        bb = self._blackboard_storage.load()
-        if result.get("subplots"):
-            for sp_data in result["subplots"]:
-                existing = next((s for s in bb.subplots if s.id == sp_data.get("id", "")), None)
-                if existing:
-                    if sp_data.get("status"):
-                        existing.status = sp_data["status"]
-                    if sp_data.get("progress_note"):
-                        existing.progress_note = sp_data["progress_note"]
-                else:
-                    bb.subplots.append(SubplotItem(
-                        id=sp_data.get("id", f"sp_{scene_number}"),
-                        name=sp_data.get("name", ""),
-                        status=sp_data.get("status", "in_progress"),
-                        progress_note=sp_data.get("progress_note", ""),
-                    ))
-            self._blackboard_storage.save(bb)
-
-    def _save_scene_draft(self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1) -> None:
-        path = (
-            self._workdir
-            / ".novel-forge"
-            / "volumes"
-            / f"vol{vol_num:02d}"
-            / "scenes"
-            / f"ch{chapter_number:02d}"
-            / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
-        )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-
-    def _load_scene_draft(self, vol_num: int, scene_number: int, chapter_number: int = 1) -> str:
-        path = (
-            self._workdir
-            / ".novel-forge"
-            / "volumes"
-            / f"vol{vol_num:02d}"
-            / "scenes"
-            / f"ch{chapter_number:02d}"
-            / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
-        )
-        if path.exists():
-            return path.read_text(encoding="utf-8")
-        return ""
-
-    def _assemble_chapter(self, vol_num: int, chapter, scene_texts: list[str]) -> None:
-        vol_dir = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}"
-        ch_path = vol_dir / "chapters" / f"ch{chapter.number:02d}.md"
-        ch_path.parent.mkdir(parents=True, exist_ok=True)
-        content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(scene_texts)
-        ch_path.write_text(content, encoding="utf-8")
 
     # ── export ────────────────────────────────────────────────────────
 
@@ -648,10 +325,14 @@ class NovelEngine:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         vol = self._current_volume()
-        self._finalize_bible()
+
+        bb = self._bb_storage.load()
+        self._bible_mgr.finalize(bb.continuity_notes)
+
         manuscript = self._assemble_manuscript(vol_num)
         metadata = self._generate_kdp_metadata(vol_num)
         report = self._generate_readiness_report(vol_num)
+
         vol.status = "出力済"
         if any(s.status == "強制出力済" for s in vol.scenes):
             vol.status = "強制出力済"
@@ -667,7 +348,6 @@ class NovelEngine:
 
     def resume(self) -> dict[str, Any]:
         vol = self._current_volume()
-        # vol.status が執筆中/初稿済 なら write から再開
         if vol.status in ("執筆中", "初稿済"):
             return {"action": "write", "status": vol.status}
         if self._state.status == "計画中":
@@ -696,226 +376,7 @@ class NovelEngine:
             ),
         }
 
-    # ── helpers ───────────────────────────────────────────────────────
-
-    def _get_series_plan_summary(self) -> str:
-        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
-        if not plan_path.exists():
-            return ""
-        data = json.loads(plan_path.read_text(encoding="utf-8"))
-        # テキスト形式で整形（JSONキー名は含めない）
-        lines = [
-            f"タイトル: {data.get('title', '')}",
-            f"あらすじ: {data.get('logline', '')}",
-            f"ジャンル: {data.get('genre', '')}",
-            f"ターゲット読者: {data.get('target_audience', '')}",
-            f"テーマ: {', '.join(data.get('themes', []))}",
-        ]
-        world = data.get("world", {})
-        if world:
-            lines.append(f"世界観: {world.get('summary', '')}")
-            for rule in world.get("rules", []):
-                lines.append(f"  ルール: {rule}")
-        chars = data.get("main_characters", [])
-        if chars:
-            lines.append("メインキャラクター:")
-            for c in chars:
-                lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
-        volumes = data.get("planned_volumes", [])
-        if volumes:
-            lines.append("各巻:")
-            for v in volumes:
-                lines.append(f"  - {v.get('title', '')}: {v.get('premise', '')}")
-        return "\n".join(lines)
-
-    def _get_genre(self) -> str:
-        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
-        if plan_path.exists():
-            data = json.loads(plan_path.read_text(encoding="utf-8"))
-            return data.get("genre", "fantasy")
-        return "fantasy"
-
-    def _get_scene_summary(self, scene) -> str:
-        """シーン情報を日本語テキストに変換する。"""
-        # goal は "State: ... | Action: ... | Result:" 形式。State 部分のみ抽出
-        goal_text = scene.goal or ""
-        if "|" in goal_text:
-            state_part = goal_text.split("|")[0].strip()
-            if state_part.startswith("State:"):
-                goal_text = state_part[6:].strip()
-        lines = [
-            f"タイトル: {scene.title}",
-            f"目標: {goal_text}",
-            f"結果: {scene.outcome}",
-            f"葛藤: {scene.conflict}",
-            f"視点: {scene.pov}",
-            f"登場人物: {', '.join(scene.characters) if scene.characters else 'なし'}",
-        ]
-        return "\n".join(lines)
-
-    def _get_outline_summary(self, outline: VolumeOutline) -> str:
-        """outline を日本語テキストサマリーに変換する。
-
-        JSON 丸ごとプロンプトに埋め込むと、LLM が JSON キー名や
-        enum 値（英語）を本文に混入させる原因になる。
-        必要な情報のみを自然言語で抽出する。
-        """
-        lines = [f"タイトル: {outline.title}", f"前提: {outline.premise}", ""]
-        for ch in outline.chapters:
-            lines.append(f"第{ch.number}章: {ch.title}（{ch.purpose}）")
-        lines.append("")
-        for sc in outline.scenes:
-            # goal から State 部分のみ抽出
-            goal_text = sc.goal or ""
-            if "|" in goal_text:
-                state_part = goal_text.split("|")[0].strip()
-                if state_part.startswith("State:"):
-                    goal_text = state_part[6:].strip()
-            lines.append(f"シーン{sc.number}（第{sc.chapter_number}章）: {sc.title}")
-            lines.append(f"  目標: {goal_text}")
-            lines.append(f"  結果: {sc.outcome}")
-            lines.append(f"  登場人物: {', '.join(sc.characters) if sc.characters else 'なし'}")
-        return "\n".join(lines)
-
-    def _build_context(self) -> str:
-        bb = self._blackboard_storage.load()
-        bible = self._bible_storage.load()
-        parts = []
-        if bb.facts:
-            parts.append(
-                "## 事実記録\n"
-                + "\n".join(
-                    f"- {f.subject} {f.predicate} {f.object}"
-                    for f in bb.facts[-20:]
-                )
-            )
-        if bible.characters:
-            parts.append(
-                "## キャラクター\n"
-                + "\n".join(
-                    f"- {c.name}（{c.role or ''}）: {c.personality or ''} / 動機: {c.motivation or ''}"
-                    for c in bible.characters
-                )
-            )
-        if bible.relationships:
-            parts.append(
-                "## キャラクター関係性\n"
-                + "\n".join(
-                    f"- {r.character_a} ↔ {r.character_b}: {r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
-                    for r in bible.relationships
-                )
-            )
-        if bible.subplots:
-            parts.append(
-                "## サブプロット\n"
-                + "\n".join(
-                    f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}"
-                    for sp in bible.subplots
-                )
-            )
-        if bible.glossary:
-            parts.append(
-                "## 用語\n"
-                + "\n".join(f"- {g.term}: {g.definition}" for g in bible.glossary[-10:])
-            )
-        if bible.world_rules:
-            parts.append(
-                "## 世界観ルール\n" + "\n".join(f"- {r}" for r in bible.world_rules)
-            )
-        return "\n\n".join(parts)
-
-    def _build_continuity(self, scene_number: int, vol_num: int = 0) -> str:
-        """シーン執筆時の連続性情報を構築する。
-
-        前シーン全文 + 前々シーンまでの要約 + 引き継ぎメモを渡し、
-        章全体の文脈と直前の流れの両方を LLM が参照できるようにする。
-        コンテキスト長 128K トークンに対し、前シーン 5000 文字 +
-        要約 N 件 2000 文字 + プロンプト全体 20000 文字 = 約 27000 文字で十分収まる。
-        """
-        bb = self._blackboard_storage.load()
-        parts = []
-
-        # 前シーン全文（最大 1 つ前）
-        if scene_number > 1 and vol_num > 0:
-            prev_draft = self._load_scene_draft(vol_num, scene_number - 1)
-            if prev_draft:
-                parts.append(f"## 前シーン全文\n{prev_draft}")
-
-        # 前々シーンまでの要約（直近 3 件）
-        summaries = []
-        for sn in range(max(1, scene_number - 3), scene_number - 1):
-            s = bb.scene_summaries.get(str(sn), "")
-            if s:
-                summaries.append(f"  シーン{sn}: {s}")
-        if summaries:
-            parts.append("## 直近シーン要約\n" + "\n".join(summaries))
-
-        # 引き継ぎメモ
-        notes = "\n".join(bb.continuity_notes[-5:]) if bb.continuity_notes else ""
-        if notes:
-            parts.append(f"## 引き継ぎメモ\n{notes}")
-
-        return "\n\n".join(parts) if parts else "（最初のシーン）"
-
-    def _get_or_create_scene_record(
-        self, vol: VolumeProgress, scene_number: int
-    ) -> SceneRecord:
-        for s in vol.scenes:
-            if s.scene_number == scene_number:
-                return s
-        record = SceneRecord(scene_number=scene_number)
-        vol.scenes.append(record)
-        return record
-
-    def _save_path(self, vol_num: int, filename: str, data: Any) -> None:
-        if vol_num == 0:
-            path = self._workdir / ".novel-forge" / filename
-        else:
-            path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
-        path.parent.mkdir(parents=True, exist_ok=True)
-        content = (
-            json.dumps(data, ensure_ascii=False, indent=2)
-            if isinstance(data, dict)
-            else str(data)
-        )
-        path.write_text(content, encoding="utf-8")
-
-    def _load_path(self, vol_num: int, filename: str) -> dict:
-        path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
-        return json.loads(path.read_text(encoding="utf-8"))
-
-    def _finalize_bible(self) -> None:
-        """巻レベルの Bible 整合性を確認し、未反映の事実を更新する。"""
-        bible = self._bible_storage.load()
-        bb = self._blackboard_storage.load()
-
-        # Blackboard の continuity_notes から伏線回収を検出
-        for note in bb.continuity_notes:
-            for fh in bible.foreshadowing:
-                if not fh.resolved and fh.description in note:
-                    fh.resolved = True
-
-        self._bible_storage.save(bible)
-
-    def _check_bible_kanji(self, vol_num: int) -> list[str]:
-        """Bible 内のキャラクター名・用語・伏線テキストの簡体字をチェックする。"""
-        bible = self._bible_storage.load()
-        issues: list[str] = []
-
-        def _scan(text: str, label: str) -> None:
-            bad = find_non_japanese_kanji(text)
-            if bad:
-                unique = list(dict.fromkeys(bad))
-                issues.append(f"  {label}: {', '.join(f'{c}(U+{ord(c):04X})' for c in unique)} in 「{text[:40]}」")
-
-        for ch in bible.characters:
-            _scan(ch.name, f"キャラクター名({ch.name})")
-        for g in bible.glossary:
-            _scan(g.term, f"用語({g.term})")
-        for fh in bible.foreshadowing:
-            _scan(fh.description, "伏線")
-
-        return issues
+    # ── export helpers ────────────────────────────────────────────────
 
     def _assemble_manuscript(self, vol_num: int) -> str:
         export_dir = self._workdir / "exports"
@@ -925,7 +386,9 @@ class NovelEngine:
         for ch_path in sorted(vol_dir.glob("chapters/ch*.md")):
             chapters.append(ch_path.read_text(encoding="utf-8"))
         manuscript = "\n\n---\n\n".join(chapters)
-        (export_dir / f"vol{vol_num:02d}_manuscript.md").write_text(manuscript, encoding="utf-8")
+        (export_dir / f"vol{vol_num:02d}_manuscript.md").write_text(
+            manuscript, encoding="utf-8"
+        )
         return manuscript
 
     def _generate_kdp_metadata(self, vol_num: int) -> dict[str, Any]:
@@ -964,34 +427,31 @@ class NovelEngine:
             f"- force_exported シーン: {force_count}",
         ]
         if force_count > 0:
-            lines.extend(
-                [
-                    "",
-                    "## ⚠️ 警告",
-                    "以下のシーンは品質ゲート3回不合格のまま出力されています:",
-                ]
-            )
+            lines.extend([
+                "",
+                "## ⚠️ 警告",
+                "以下のシーンは品質ゲート3回不合格のまま出力されています:",
+            ])
             for s in vol.scenes:
                 if s.status == "強制出力済":
                     lines.append(f"- シーン {s.scene_number}")
 
-        # 未回収伏線
-        bible = self._bible_storage.load()
-        unresolved = [fh for fh in bible.foreshadowing if not fh.resolved]
+        # Unresolved foreshadowing
+        unresolved = self._bible_mgr.get_unresolved_foreshadowing()
         if unresolved:
             lines.extend(["", "## ⚠️ 未回収伏線"])
             for fh in unresolved:
                 lines.append(f"- {fh.description}")
 
-        # 未完了サブプロット
-        incomplete_sp = [sp for sp in bible.subplots if sp.status != "completed"]
+        # Incomplete subplots
+        incomplete_sp = self._bible_mgr.get_incomplete_subplots()
         if incomplete_sp:
             lines.extend(["", "## ⚠️ 未完了サブプロット"])
             for sp in incomplete_sp:
                 lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
 
-        # 簡体字チェック（Bible）
-        kanji_issues = self._check_bible_kanji(vol_num)
+        # Kanji check
+        kanji_issues = self._bible_mgr.check_kanji()
         if kanji_issues:
             lines.extend(["", "## ⚠️ 簡体字混入の可能性"])
             lines.append("以下の項目に JIS 漢字セット外の漢字が含まれています:")
@@ -1003,5 +463,7 @@ class NovelEngine:
         lines.append("- [ ] キーワード・カテゴリの確認")
 
         report = "\n".join(lines)
-        (export_dir / f"vol{vol_num:02d}_kdp_readiness_report.md").write_text(report, encoding="utf-8")
+        (export_dir / f"vol{vol_num:02d}_kdp_readiness_report.md").write_text(
+            report, encoding="utf-8"
+        )
         return report
