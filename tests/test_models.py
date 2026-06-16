@@ -270,7 +270,7 @@ class TestSchemas:
 
     def test_volume_outline_goal_has_description(self):
         schema = get_schema("volume_outline")
-        goal = schema["properties"]["scenes"]["items"]["properties"]["goal"]
+        goal = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"]["properties"]["goal"]
         assert "description" in goal
 
     def test_chapter_outline_purpose_is_enum(self):

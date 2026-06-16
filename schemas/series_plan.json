@@ -95,9 +95,8 @@
       "maxItems": 3,
       "items": {
         "type": "object",
-        "required": ["number", "title", "premise"],
+        "required": ["title", "premise"],
         "properties": {
-          "number": { "type": "integer", "minimum": 1 },
           "title": {
             "type": "string",
             "maxLength": 128,

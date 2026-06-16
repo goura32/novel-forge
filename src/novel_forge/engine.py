@@ -101,6 +101,10 @@ class NovelEngine:
         if result.get("slug") and len(result["slug"]) > 256:
             result["slug"] = result["slug"][:256].rstrip("-")
 
+        # planned_volumes に機械採番（LLMは title と premise のみ生成）
+        for i, vol in enumerate(result.get("planned_volumes", []), 1):
+            vol["number"] = i
+
         # LLM自己レビュー
         review = self._review_series_plan(result)
 
@@ -140,6 +144,20 @@ class NovelEngine:
         )
         schema = self._load_schema("volume_outline")
         result = self._llm.complete_json("volume_outline", system, user, schema)
+        # Flatten nested chapters→scenes structure and assign sequential numbers
+        flat_chapters = []
+        flat_scenes = []
+        scene_counter = 1
+        for ch_idx, ch in enumerate(result.get("chapters", []), 1):
+            ch["number"] = ch_idx
+            flat_chapters.append(ch)
+            for sc in ch.get("scenes", []):
+                sc["number"] = scene_counter
+                sc["chapter_number"] = ch_idx
+                flat_scenes.append(sc)
+                scene_counter += 1
+        result["chapters"] = flat_chapters
+        result["scenes"] = flat_scenes
         vol = self._current_volume()
         vol.status = "outlined"
         self._state.status = "outlined"
