@@ -16,7 +16,8 @@
           "title": { "type": "string", "maxLength": 128 },
           "purpose": {
             "type": "string",
-            "enum": ["introduction", "rising_action", "turning_point", "climax", "resolution"]
+            "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
+            "description": "章の役割。日本語で指定: 導入/展開/転換/クライマックス/収束"
           },
           "scenes": {
             "type": "array",

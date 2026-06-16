@@ -30,12 +30,13 @@
     },
     "purpose": {
       "type": "string",
-      "enum": ["introduction", "rising_action", "turning_point", "climax", "resolution"]
+      "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
+      "description": "章の役割。日本語で指定"
     },
     "act_role": {
       "type": "string",
-      "enum": ["setup", "confrontation", "resolution"],
-      "description": "三幕構成の役割"
+      "enum": ["序盤", "中盤", "終盤"],
+      "description": "三幕構成の役割。日本語で指定"
     },
     "characters": {
       "type": "array",

@@ -295,39 +295,20 @@ class NovelEngine:
         return lang_issues
 
     def _post_process_text(self, text: str) -> str:
-        """LLM出力の後処理: 英語・簡体字の自動置換。"""
-        # 英語→日本語置換（技術用語以外）
-        replacements = [
-            ("weapon", "兵器"),
-            ("/weapon/", "/兵器/"),
-            ("buzzing", "低い唸り"),
-            ("holographic", "全息投影"),
-            ("magnifying glass", "拡大鏡"),
-            ("data stream", "データ流"),
-            ("data stream", "情報流"),
-            ("backdoor", "裏口"),
-            ("back door", "裏口"),
-            ("flashback", "回想"),
-            ("flash back", "回想"),
-            ("weapon", "武器"),
-            ("scanner", "走査器"),
-            ("sensor", "感知器"),
-            ("interface", "接続端子"),
-            ("terminal", "端末"),
-        ]
-        for eng, jpn in replacements:
-            text = text.replace(eng, jpn)
-            text = text.replace(eng.capitalize(), jpn)
-            text = text.replace(eng.upper(), jpn)
-        
+        """LLM出力の後処理: 簡体字の自動置換のみ。
+
+        英語の置換は LLM レビュー・リビジョンに委ねる。
+        簡体字は JIS漢字セット外の一般的な簡体字のみ置換。
+        """
         # 簡体字→日本語漢字置換
+        # JIS漢字セットに含まれないCJK漢字を対象とする
+        # 注意: 一般的な簡体字のみ。作品固有の固有名詞には影響しない
         kanji_replacements = [
             ('标记', '標識'),
             ('诊所', '診療所'),
             ('搜索', '捜索'),
             ('调查', '調査'),
             ('转', '転'),
-            ('湾', '湾'),
             ('间', '間'),
             ('门', '門'),
             ('东', '東'),
@@ -339,7 +320,7 @@ class NovelEngine:
         ]
         for simp, jpn in kanji_replacements:
             text = text.replace(simp, jpn)
-        
+
         return text
 
     def _revise_scene(self, draft_text: str, review: dict) -> str:
@@ -463,10 +444,19 @@ class NovelEngine:
 
     def _get_series_plan_summary(self) -> str:
         plan_path = self._workdir / ".novel-forge" / "series_plan.json"
-        if plan_path.exists():
-            data = json.loads(plan_path.read_text(encoding="utf-8"))
-            return json.dumps(data, ensure_ascii=False)
-        return "{}"
+        if not plan_path.exists():
+            return "{}"
+        data = json.loads(plan_path.read_text(encoding="utf-8"))
+        # LLM に提示するのは必要な情報のみ。slug・enum値・schema関連フィールドは含めない（LLM混入の原因になる）
+        filtered = {
+            "title": data.get("title", ""),
+            "logline": data.get("logline", ""),
+            "genre": data.get("genre", ""),
+            "target_audience": data.get("target_audience", ""),
+            "main_characters": data.get("main_characters", []),
+            "themes": data.get("themes", []),
+        }
+        return json.dumps(filtered, ensure_ascii=False)
 
     def _get_genre(self) -> str:
         plan_path = self._workdir / ".novel-forge" / "series_plan.json"
