@@ -21,6 +21,8 @@
 - `dialogue_naturalness`: 台詞の自然さ。キャラクター口調が一貫し、不自然な表現がないか
 - `tone_consistency`: 文体統一。地の文の文体（ですます調）が一貫しているか
 - `scene_completeness`: シーン完結。本文が途中で切断されておらず、最後の文が完全な文であるか
+- `language_purity`: 言語純度。英語・簡体字・ハングルが混入していないか。混入がある場合は severity=blocker とすること
+- `pov_consistency`: POV 一貫性。視点人物がシーン内で切り替わっていないか。他キャラクターの内面描写に立ち入っていないか。切り替わりがある場合は severity=critical とすること
 
 ## 深刻度
 

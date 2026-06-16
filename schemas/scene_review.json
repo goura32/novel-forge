@@ -34,7 +34,9 @@
               "page_turner",
               "dialogue_naturalness",
               "tone_consistency",
-              "scene_completeness"
+              "scene_completeness",
+              "language_purity",
+              "pov_consistency"
             ]
           },
           "score": {

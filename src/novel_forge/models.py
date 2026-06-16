@@ -151,7 +151,7 @@ class SceneRecord(BaseModel):
     scene_number: int = Field(ge=1)
     status: str = Field(
         default="planned",
-        pattern="^(planned|drafted|reviewed|revised|force_exported)$",
+        pattern="^(planned|drafted|reviewed|revised|force_exported|error)$",
     )
     quality_retries: int = Field(ge=0, default=0)
     quality_gate: QualityGateResult = Field(default_factory=QualityGateResult)
