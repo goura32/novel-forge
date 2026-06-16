@@ -232,6 +232,7 @@ class NovelEngine:
         self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
 
         # Review → Quality Gate → 改稿ループ（最大3回）
+        kanji_retries = 0
         for retry in range(QualityGate.MAX_RETRIES + 1):
             review = self._review_scene(draft_text, outline, scene)
             qg_result = self._quality.check_scene(review)
@@ -244,13 +245,18 @@ class NovelEngine:
                     record.status = "revised"
                     record.quality_gate = qg_result
                     break
-                # 簡体字あり → revision で修正
-                if retry < QualityGate.MAX_RETRIES:
+                # 簡体字あり → revision で修正（最大2回まで）
+                kanji_retries += 1
+                if kanji_retries <= 2:
                     review["kanji_issues"] = list(set(non_jp_kanji))
                     draft_text = self._revise_scene(draft_text, review)
                     draft_text = self._post_process_text(draft_text)
                     self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
                     continue
+                else:
+                    record.status = "force_exported"
+                    record.quality_gate = qg_result
+                    break
 
             if retry < QualityGate.MAX_RETRIES:
                 # 言語制約違反の情報を revision に追加
@@ -263,6 +269,10 @@ class NovelEngine:
             else:
                 record.status = "force_exported"
                 record.quality_gate = qg_result
+
+        # ループ終了時に status が drafted のままなら force_exported
+        if record.status == "drafted":
+            record.status = "force_exported"
 
         # Summarize → Blackboard更新
         self._summarize_scene(record.scene_number, draft_text)
