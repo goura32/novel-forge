@@ -17,7 +17,7 @@ from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.ollama_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager, PromptLoader
 from novel_forge.schemas import validate_or_raise
-from novel_forge.quality import QualityGate, _get_jis_kanji
+from novel_forge.quality import QualityGate, find_non_japanese_kanji
 
 
 class NovelEngine:
@@ -188,11 +188,11 @@ class NovelEngine:
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("revised", "force_exported"):
-                    chapter_scenes.append(self._load_scene_draft(vol_num, scene.number))
+                    chapter_scenes.append(self._load_scene_draft(vol_num, scene.number, chapter.number))
                     continue
                 result = self._write_scene(outline, chapter, scene, record, vol_num)
                 results.append(result)
-                chapter_scenes.append(self._load_scene_draft(vol_num, scene.number))
+                chapter_scenes.append(self._load_scene_draft(vol_num, scene.number, chapter.number))
 
             # 章自動組立
             self._assemble_chapter(vol_num, chapter, chapter_scenes)
@@ -228,28 +228,31 @@ class NovelEngine:
         )
         draft_text = self._llm.complete_text("scene_draft", system, user)
         record.status = "drafted"
-        self._save_scene_draft(vol_num, record.scene_number, draft_text)
+        self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
 
         # Review → Quality Gate → 改稿ループ（最大3回）
         for retry in range(QualityGate.MAX_RETRIES + 1):
-            # 簡体字チェック
-            non_jp_kanji = self._quality.check_kanji(draft_text)
-            # レビュー
             review = self._review_scene(draft_text, outline, scene)
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
 
-            if qg_result.passed and not non_jp_kanji:
-                record.status = "revised"
-                record.quality_gate = qg_result
-                break
+            if qg_result.passed:
+                # 品質ゲート通過後、簡体字チェック
+                non_jp_kanji = self._quality.check_kanji(draft_text)
+                if not non_jp_kanji:
+                    record.status = "revised"
+                    record.quality_gate = qg_result
+                    break
+                # 簡体字あり → revision で修正
+                if retry < QualityGate.MAX_RETRIES:
+                    review["kanji_issues"] = list(set(non_jp_kanji))
+                    draft_text = self._revise_scene(draft_text, review)
+                    self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
+                    continue
 
             if retry < QualityGate.MAX_RETRIES:
-                # 簡体字があった場合、revision に修正指示を追加
-                if non_jp_kanji:
-                    review["kanji_issues"] = list(set(non_jp_kanji))
                 draft_text = self._revise_scene(draft_text, review)
-                self._save_scene_draft(vol_num, record.scene_number, draft_text)
+                self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
             else:
                 record.status = "force_exported"
                 record.quality_gate = qg_result
@@ -304,28 +307,28 @@ class NovelEngine:
         bb.continuity_notes.extend(result.get("continuity_notes", []))
         self._blackboard_storage.save(bb)
 
-    def _save_scene_draft(self, vol_num: int, scene_number: int, text: str) -> None:
+    def _save_scene_draft(self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1) -> None:
         path = (
             self._workdir
             / ".novel-forge"
             / "volumes"
             / f"vol{vol_num:02d}"
             / "scenes"
-            / f"ch01"
-            / f"vol{vol_num:02d}_ch01_sc{scene_number:02d}.md"
+            / f"ch{chapter_number:02d}"
+            / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
         )
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def _load_scene_draft(self, vol_num: int, scene_number: int) -> str:
+    def _load_scene_draft(self, vol_num: int, scene_number: int, chapter_number: int = 1) -> str:
         path = (
             self._workdir
             / ".novel-forge"
             / "volumes"
             / f"vol{vol_num:02d}"
             / "scenes"
-            / f"ch01"
-            / f"vol{vol_num:02d}_ch01_sc{scene_number:02d}.md"
+            / f"ch{chapter_number:02d}"
+            / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
         )
         if path.exists():
             return path.read_text(encoding="utf-8")
@@ -492,20 +495,12 @@ class NovelEngine:
         """Bible 内のキャラクター名・用語・伏線テキストの簡体字をチェックする。"""
         bible = self._bible_storage.load()
         issues: list[str] = []
-        jis = _get_jis_kanji()
-
-        def _is_cjk(ch: str) -> bool:
-            cp = ord(ch)
-            return (
-                (0x3400 <= cp <= 0x4DBF)
-                or (0x4E00 <= cp <= 0x9FFF)
-                or (0x20000 <= cp <= 0x2A6DF)
-            )
 
         def _scan(text: str, label: str) -> None:
-            bad = [ch for ch in text if _is_cjk(ch) and ch not in jis]
-            for ch in bad:
-                issues.append(f"  {label}: '{ch}' (U+{ord(ch):04X}) in 「{text[:40]}」")
+            bad = find_non_japanese_kanji(text)
+            if bad:
+                unique = list(dict.fromkeys(bad))
+                issues.append(f"  {label}: {', '.join(f'{c}(U+{ord(c):04X})' for c in unique)} in 「{text[:40]}」")
 
         for ch in bible.characters:
             _scan(ch.name, f"キャラクター名({ch.name})")

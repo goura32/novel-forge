@@ -90,7 +90,9 @@ class QualityGate:
         """レビュー結果に基づきシーン品質を判定する。"""
         score = review_result.get("score", 0.0)
         issues = review_result.get("issues", [])
-        critical_count = sum(1 for i in issues if i.get("severity") == "critical")
+        critical_count = sum(
+            1 for i in issues if i.get("severity") in ("critical", "blocker")
+        )
         passed = score >= self.PASS_THRESHOLD and critical_count == 0
         return QualityGateResult(
             passed=passed,
