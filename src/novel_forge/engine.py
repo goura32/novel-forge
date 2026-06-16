@@ -227,6 +227,7 @@ class NovelEngine:
             },
         )
         draft_text = self._llm.complete_text("scene_draft", system, user)
+        draft_text = self._post_process_text(draft_text)
         record.status = "drafted"
         self._save_scene_draft(vol_num, record.scene_number, draft_text, chapter.number)
 
@@ -275,6 +276,54 @@ class NovelEngine:
         )
         schema = self._load_schema("scene_review")
         return self._llm.complete_json("scene_review", system, user, schema)
+
+    def _post_process_text(self, text: str) -> str:
+        """LLM出力の後処理: 英語・簡体字の自動置換。"""
+        # 英語→日本語置換（技術用語以外）
+        replacements = [
+            ("weapon", "兵器"),
+            ("/weapon/", "/兵器/"),
+            ("buzzing", "低い唸り"),
+            ("holographic", "全息投影"),
+            ("magnifying glass", "拡大鏡"),
+            ("data stream", "データ流"),
+            ("data stream", "情報流"),
+            ("backdoor", "裏口"),
+            ("back door", "裏口"),
+            ("flashback", "回想"),
+            ("flash back", "回想"),
+            ("weapon", "武器"),
+            ("scanner", "走査器"),
+            ("sensor", "感知器"),
+            ("interface", "接続端子"),
+            ("terminal", "端末"),
+        ]
+        for eng, jpn in replacements:
+            text = text.replace(eng, jpn)
+            text = text.replace(eng.capitalize(), jpn)
+            text = text.replace(eng.upper(), jpn)
+        
+        # 簡体字→日本語漢字置換
+        kanji_replacements = [
+            ('标记', '標識'),
+            ('诊所', '診療所'),
+            ('搜索', '捜索'),
+            ('调查', '調査'),
+            ('转', '転'),
+            ('湾', '湾'),
+            ('间', '間'),
+            ('门', '門'),
+            ('东', '東'),
+            ('车', '車'),
+            ('马', '馬'),
+            ('鱼', '魚'),
+            ('鸟', '鳥'),
+            ('龙', '龍'),
+        ]
+        for simp, jpn in kanji_replacements:
+            text = text.replace(simp, jpn)
+        
+        return text
 
     def _revise_scene(self, draft_text: str, review: dict) -> str:
         system = self._prompts.render("system.md", {"lang": self._lang})
