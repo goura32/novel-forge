@@ -54,7 +54,7 @@
   "issues": [
     {
       "severity": "critical|major|minor|blocker",
-      "category": "string",
+      "category": "上記の評価カテゴリから選択 (opening_hook, character_distinction, foreshadowing_consistency, sensory_coverage, page_turner, dialogue_naturalness, tone_consistency, scene_completeness, language_purity, pov_consistency)",
       "description": "string",
       "suggestion": "具体的な修正指示を日本語で記述すること。修正箇所の該当テキストを引用し、どう変えるべきかを明示すること。"
     }
