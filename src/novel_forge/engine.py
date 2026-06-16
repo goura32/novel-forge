@@ -51,10 +51,11 @@ class NovelEngine:
             num_predict = llm_cfg.get("num_predict", 65536)
             num_ctx = llm_cfg.get("num_ctx", None)
             host = llm_cfg.get("ollama_host", None)
+            api_url = None
             if host:
-                import os
-                os.environ["OLLAMA_HOST"] = host
+                api_url = f"http://{host}/api/generate"
             llm_client = LLMClient(
+                api_url=api_url,
                 model=model,
                 raw_log_dir=workdir / ".novel-forge" / "raw_logs",
                 timeout_seconds=timeout,
@@ -284,23 +285,18 @@ class NovelEngine:
                     vol_num=vol_num,
                     lang=self._lang,
                     build_context_fn=self._ctx_builder.build_context,
-                    build_continuity_fn=lambda sn, vn: self._ctx_builder.build_continuity(
-                        sn, vn, self._scene_writer.load_scene_draft
-                    ),
+                    build_continuity_fn=self._ctx_builder.build_continuity,
                     get_series_plan_summary_fn=self._ctx_builder.get_series_plan_summary,
                     get_outline_summary_fn=self._ctx_builder.get_outline_summary,
                     get_scene_summary_fn=self._ctx_builder.get_scene_summary,
+                    load_scene_draft_fn=self._scene_writer.load_scene_draft,
                 )
                 results.append(result)
-                chapter_scenes.append(
-                    self._scene_writer.load_scene_draft(
-                        vol_num, scene.number, chapter.number
-                    )
-                )
-                # Post-scene: summarize + bible update
                 draft_text = self._scene_writer.load_scene_draft(
                     vol_num, scene.number, chapter.number
                 )
+                chapter_scenes.append(draft_text)
+                # Post-scene: summarize + bible update
                 self._scene_writer.summarize_scene(
                     record.scene_number, draft_text, self._lang
                 )

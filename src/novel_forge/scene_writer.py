@@ -58,10 +58,11 @@ class SceneWriter:
         get_series_plan_summary_fn,
         get_outline_summary_fn,
         get_scene_summary_fn,
+        load_scene_draft_fn=None,
     ) -> dict[str, Any]:
         system = self._prompts.render("system.md", {"lang": lang})
         context = build_context_fn()
-        continuity = build_continuity_fn(record.scene_number, vol_num)
+        continuity = build_continuity_fn(record.scene_number, vol_num, load_scene_draft_fn)
 
         # Draft
         user = self._prompts.render(
@@ -83,7 +84,10 @@ class SceneWriter:
         # Review → Quality Gate → revise loop (max 3 retries)
         kanji_retries = 0
         for retry in range(QualityGate.MAX_RETRIES + 1):
-            review = self._review_scene(draft_text, outline, scene, lang, build_context_fn)
+            review = self._review_scene(
+                draft_text, outline, scene, lang, build_context_fn,
+                get_outline_summary_fn,
+            )
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
 
@@ -130,36 +134,20 @@ class SceneWriter:
         scene,
         lang: str,
         build_context_fn,
+        get_outline_summary_fn,
     ) -> dict:
         system = self._prompts.render("system.md", {"lang": lang})
         user = self._prompts.render(
             "scene_review.md",
             {
                 "scene": draft_text,
-                "outline": self._get_outline_summary_for_review(outline),
+                "outline": get_outline_summary_fn(outline),
                 "context": build_context_fn(),
                 "lang": lang,
             },
         )
         schema = get_schema("scene_review")
         return self._llm.complete_json("scene_review", system, user, schema)
-
-    def _get_outline_summary_for_review(self, outline: VolumeOutline) -> str:
-        lines = [f"タイトル: {outline.title}", f"前提: {outline.premise}", ""]
-        for ch in outline.chapters:
-            lines.append(f"第{ch.number}章: {ch.title}（{ch.purpose}）")
-        lines.append("")
-        for sc in outline.scenes:
-            goal_text = sc.goal or ""
-            if "|" in goal_text:
-                state_part = goal_text.split("|")[0].strip()
-                if state_part.startswith("State:"):
-                    goal_text = state_part[6:].strip()
-            lines.append(f"シーン{sc.number}（第{sc.chapter_number}章）: {sc.title}")
-            lines.append(f"  目標: {goal_text}")
-            lines.append(f"  結果: {sc.outcome}")
-            lines.append(f"  登場人物: {', '.join(sc.characters) if sc.characters else 'なし'}")
-        return "\n".join(lines)
 
     # ── language issue extraction ────────────────────────────────────
 
@@ -178,22 +166,21 @@ class SceneWriter:
     # ── post-process ─────────────────────────────────────────────────
 
     def _post_process_text(self, text: str) -> str:
-        kanji_replacements = [
-            ('标记', '標識'),
-            ('诊所', '診療所'),
-            ('搜索', '捜索'),
-            ('调查', '調査'),
-            ('转', '転'),
-            ('间', '間'),
-            ('门', '門'),
-            ('东', '東'),
-            ('车', '車'),
-            ('马', '馬'),
-            ('鱼', '魚'),
-            ('鸟', '鳥'),
-            ('龙', '龍'),
-        ]
-        for simp, jpn in kanji_replacements:
+        # Build translation table once (class-level would be better but
+        # keeps it simple for now)
+        if not hasattr(self, "_kanji_table"):
+            replacements = [
+                ('标记', '標識'), ('诊所', '診療所'), ('搜索', '捜索'),
+                ('调查', '調査'), ('转', '転'), ('间', '間'),
+                ('门', '門'), ('东', '東'), ('车', '車'),
+                ('马', '馬'), ('鱼', '魚'), ('鸟', '鳥'), ('龙', '龍'),
+            ]
+            self._kanji_table = str.maketrans(
+                {k[0]: v[0] for k, v in replacements if len(k) == 1 and len(v) == 1}
+            )
+            self._kanji_multi = [(k, v) for k, v in replacements if len(k) > 1]
+        text = text.translate(self._kanji_table)
+        for simp, jpn in self._kanji_multi:
             text = text.replace(simp, jpn)
         return text
 
@@ -289,7 +276,7 @@ class SceneWriter:
                     existing.arc = ch_data["arc"]
                 if ch_data.get("state"):
                     existing.state = ch_data["state"]
-            elif ch_data.get("is_new", False) or ch_data.get("name"):
+            elif ch_data.get("is_new", False) or (ch_data.get("name") and ch_data["name"].strip()):
                 bible.characters.append(CharacterProfile(
                     name=ch_data.get("name", ""),
                     role=ch_data.get("role", ""),
@@ -308,8 +295,8 @@ class SceneWriter:
                         fh.resolved = True
                         break
             else:
-                desc = fh_data.get("description", "")
-                if desc and not any(f.description == desc for f in bible.foreshadowing):
+                desc = fh_data.get("description", "").strip()
+                if desc and desc not in {f.description.strip() for f in bible.foreshadowing}:
                     bible.foreshadowing.append(ForeshadowingItem(
                         description=desc,
                         resolved=False,
