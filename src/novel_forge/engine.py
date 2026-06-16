@@ -316,6 +316,7 @@ class NovelEngine:
         vol = self._current_volume()
         vol.status = "アウトライン済"
         self._state.status = "アウトライン済"
+        result["volume_number"] = vol_num
         self._save_path(vol_num, "outline.json", result)
         self._save()
         return result
@@ -434,7 +435,9 @@ class NovelEngine:
                         lang=self._lang,
                         vol_num=vol_num,
                         build_context_fn=self._ctx_builder.build_context,
-                        build_continuity_fn=self._ctx_builder.build_continuity,
+                        build_continuity_fn=lambda sn, vn: self._ctx_builder.build_continuity(
+                            sn, vn, self._scene_writer.load_scene_draft
+                        ),
                         get_series_plan_summary_fn=self._ctx_builder.get_series_plan_summary,
                         get_outline_summary_fn=self._ctx_builder.get_outline_summary,
                         get_scene_summary_fn=self._ctx_builder.get_scene_summary,
