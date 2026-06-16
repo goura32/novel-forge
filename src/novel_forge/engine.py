@@ -372,11 +372,30 @@ class NovelEngine:
 
     def _revise_scene(self, draft_text: str, review: dict) -> str:
         system = self._prompts.render("system.md", {"lang": self._lang})
+        # レビュー結果をテキスト形式で整形（JSONキー名は含めない）
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            sev = issue.get("severity", "")
+            cat = issue.get("category", "")
+            desc = issue.get("description", "")
+            sug = issue.get("suggestion", "")
+            lines.append(f"  [{sev}] {cat}: {desc}")
+            if sug:
+                lines.append(f"    提案: {sug}")
+        for s in review.get("strengths", []):
+            lines.append(f"  強み: {s}")
+        for r in review.get("recommendations", []):
+            lines.append(f"  推奨: {r}")
+        if review.get("kanji_issues"):
+            lines.append(f"  簡体字問題: {', '.join(review['kanji_issues'])}")
+        if review.get("language_issues"):
+            lines.append(f"  言語問題: {'; '.join(review['language_issues'])}")
+        review_text = "\n".join(lines)
         user = self._prompts.render(
             "scene_revision.md",
             {
                 "scene": draft_text,
-                "review": json.dumps(review, ensure_ascii=False),
+                "review": review_text,
                 "lang": self._lang,
             },
         )
@@ -494,18 +513,32 @@ class NovelEngine:
     def _get_series_plan_summary(self) -> str:
         plan_path = self._workdir / ".novel-forge" / "series_plan.json"
         if not plan_path.exists():
-            return "{}"
+            return ""
         data = json.loads(plan_path.read_text(encoding="utf-8"))
-        # LLM に提示するのは必要な情報のみ。slug・enum値・schema関連フィールドは含めない（LLM混入の原因になる）
-        filtered = {
-            "title": data.get("title", ""),
-            "logline": data.get("logline", ""),
-            "genre": data.get("genre", ""),
-            "target_audience": data.get("target_audience", ""),
-            "main_characters": data.get("main_characters", []),
-            "themes": data.get("themes", []),
-        }
-        return json.dumps(filtered, ensure_ascii=False)
+        # テキスト形式で整形（JSONキー名は含めない）
+        lines = [
+            f"タイトル: {data.get('title', '')}",
+            f"あらすじ: {data.get('logline', '')}",
+            f"ジャンル: {data.get('genre', '')}",
+            f"ターゲット読者: {data.get('target_audience', '')}",
+            f"テーマ: {', '.join(data.get('themes', []))}",
+        ]
+        world = data.get("world", {})
+        if world:
+            lines.append(f"世界観: {world.get('summary', '')}")
+            for rule in world.get("rules", []):
+                lines.append(f"  ルール: {rule}")
+        chars = data.get("main_characters", [])
+        if chars:
+            lines.append("メインキャラクター:")
+            for c in chars:
+                lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
+        volumes = data.get("planned_volumes", [])
+        if volumes:
+            lines.append("各巻:")
+            for v in volumes:
+                lines.append(f"  - {v.get('title', '')}: {v.get('premise', '')}")
+        return "\n".join(lines)
 
     def _get_genre(self) -> str:
         plan_path = self._workdir / ".novel-forge" / "series_plan.json"
