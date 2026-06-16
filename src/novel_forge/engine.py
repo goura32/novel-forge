@@ -219,8 +219,8 @@ class NovelEngine:
             "scene_draft.md",
             {
                 "series_plan": self._get_series_plan_summary(),
-                "outline": outline.model_dump_json(),
-                "scene": scene.model_dump_json(),
+                "outline": self._get_outline_summary(outline),
+                "scene": self._get_scene_summary(scene),
                 "context": context,
                 "continuity": continuity,
                 "lang": self._lang,
@@ -275,7 +275,7 @@ class NovelEngine:
             "scene_review.md",
             {
                 "scene": draft_text,
-                "outline": outline.model_dump_json(),
+                "outline": self._get_outline_summary(outline),
                 "context": self._build_context(),
                 "lang": self._lang,
             },
@@ -464,6 +464,36 @@ class NovelEngine:
             data = json.loads(plan_path.read_text(encoding="utf-8"))
             return data.get("genre", "fantasy")
         return "fantasy"
+
+    def _get_scene_summary(self, scene) -> str:
+        """シーン情報を日本語テキストに変換する。"""
+        lines = [
+            f"タイトル: {scene.title}",
+            f"目標: {scene.goal}",
+            f"結果: {scene.outcome}",
+            f"葛藤: {scene.conflict}",
+            f"視点: {scene.pov}",
+            f"登場人物: {', '.join(scene.characters) if scene.characters else 'なし'}",
+        ]
+        return "\n".join(lines)
+
+    def _get_outline_summary(self, outline: VolumeOutline) -> str:
+        """outline を日本語テキストサマリーに変換する。
+
+        JSON 丸ごとプロンプトに埋め込むと、LLM が JSON キー名や
+        enum 値（英語）を本文に混入させる原因になる。
+        必要な情報のみを自然言語で抽出する。
+        """
+        lines = [f"タイトル: {outline.title}", f"前提: {outline.premise}", ""]
+        for ch in outline.chapters:
+            lines.append(f"第{ch.number}章: {ch.title}（{ch.purpose}）")
+        lines.append("")
+        for sc in outline.scenes:
+            lines.append(f"シーン{sc.number}（第{sc.chapter_number}章）: {sc.title}")
+            lines.append(f"  目標: {sc.goal}")
+            lines.append(f"  結果: {sc.outcome}")
+            lines.append(f"  登場人物: {', '.join(sc.characters) if sc.characters else 'なし'}")
+        return "\n".join(lines)
 
     def _build_context(self) -> str:
         bb = self._blackboard_storage.load()

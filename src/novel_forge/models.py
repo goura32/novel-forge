@@ -102,7 +102,7 @@ class ChapterOutline(BaseModel):
     number: int = Field(ge=1)
     title: str = Field(max_length=128)
     purpose: str = Field(
-        pattern="^(introduction|rising_action|turning_point|climax|resolution)$",
+        pattern="^(導入|展開|転換|クライマックス|収束)$",
     )
 
 
