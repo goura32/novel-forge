@@ -6,7 +6,9 @@
     "characters",
     "glossary",
     "foreshadowing",
-    "world_rules"
+    "world_rules",
+    "relationships",
+    "subplots"
   ],
   "properties": {
     "characters": {
@@ -87,6 +89,35 @@
         "type": "string",
         "maxLength": 200,
         "description": "世界のルール"
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "character_a": { "type": "string", "maxLength": 64 },
+          "character_b": { "type": "string", "maxLength": 64 },
+          "relationship_type": { "type": "string", "maxLength": 64 },
+          "status": { "type": "string", "maxLength": 64 },
+          "change_direction": { "type": "string" },
+          "trigger_event": { "type": "string", "maxLength": 200 },
+          "scene_number": { "type": "integer" }
+        }
+      }
+    },
+    "subplots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string", "maxLength": 128 },
+          "status": { "type": "string" },
+          "progress_note": { "type": "string", "maxLength": 200 },
+          "related_characters": { "type": "array", "items": { "type": "string" } },
+          "related_foreshadowing_ids": { "type": "array", "items": { "type": "string" } }
+        }
       }
     }
   }

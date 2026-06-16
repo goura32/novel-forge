@@ -20,6 +20,8 @@ class Blackboard(BaseModel):
     facts: list[Fact] = Field(default_factory=list)
     scene_summaries: dict[str, str] = Field(default_factory=dict)
     continuity_notes: list[str] = Field(default_factory=list)
+    subplots: list[SubplotItem] = Field(default_factory=list)
+    timeline: list[dict[str, Any]] = Field(default_factory=list)  # [{"event": str, "scene_number": int, "timestamp": str}]
 
 
 # ── 設定資料集（Bible）────────────────────────────────────────────────
@@ -30,6 +32,7 @@ class CharacterProfile(BaseModel):
     arc: str = ""
     appearance: str = ""
     personality: str = ""
+    motivation: str = ""
     state: str = ""
 
 
@@ -43,11 +46,32 @@ class ForeshadowingItem(BaseModel):
     resolved: bool = False
 
 
+class RelationshipItem(BaseModel):
+    character_a: str
+    character_b: str
+    relationship_type: str = ""  # 敵対・協力・恋愛・師弟・家族・ライバル etc
+    status: str = ""  # 良好・緊張・悪化・修復・変化中
+    change_direction: str = ""  # improved | worsened | changed | unchanged
+    trigger_event: str = ""
+    scene_number: int = 0  # 変化が起きたシーン番号
+
+
+class SubplotItem(BaseModel):
+    id: str
+    name: str
+    status: str = Field(default="not_started", pattern="^(not_started|in_progress|completed)$")
+    progress_note: str = ""
+    related_characters: list[str] = Field(default_factory=list)
+    related_foreshadowing_ids: list[str] = Field(default_factory=list)
+
+
 class Bible(BaseModel):
     characters: list[CharacterProfile] = Field(default_factory=list)
     glossary: list[GlossaryItem] = Field(default_factory=list)
     foreshadowing: list[ForeshadowingItem] = Field(default_factory=list)
     world_rules: list[str] = Field(default_factory=list)
+    relationships: list[RelationshipItem] = Field(default_factory=list)
+    subplots: list[SubplotItem] = Field(default_factory=list)
 
 
 # ── シーン設計 ─────────────────────────────────────────────────────────

@@ -313,6 +313,8 @@ class NovelEngine:
 
         # Summarize → Blackboard更新
         self._summarize_scene(record.scene_number, draft_text)
+        # Bible 更新（キャラクター・伏線・関係性・サブプロット・用語・世界観）
+        self._update_bible_from_scene(record.scene_number, draft_text)
         self._save()
         return {"scene_number": record.scene_number, "status": record.status}
 
@@ -419,6 +421,184 @@ class NovelEngine:
             bb.facts.append(Fact(**fact_data))
         bb.continuity_notes.extend(result.get("continuity_notes", []))
         self._blackboard_storage.save(bb)
+
+    def _update_bible_from_scene(self, scene_number: int, draft_text: str) -> None:
+        """シーン本文から Bible を更新する（キャラクター・伏線・関係性・サブプロット・用語・世界観）。
+
+        bible_update.md プロンプトを使用して LLM に抽出させ、
+        Bible モデルに反映する。
+        """
+        system = self._prompts.render("system.md", {"lang": self._lang})
+
+        # 現在の Bible 情報をテキスト化（JSONキー名は含めない）
+        bible = self._bible_storage.load()
+        bible_lines = []
+        if bible.characters:
+            bible_lines.append("キャラクター:")
+            for c in bible.characters:
+                bible_lines.append(f"  - {c.name}（{c.role or '役割未設定'}）: {c.personality or '性格未設定'} / 動機: {c.motivation or '未設定'} / 外見: {c.appearance or '未設定'}")
+        if bible.foreshadowing:
+            bible_lines.append("伏線:")
+            for fh in bible.foreshadowing:
+                status_str = "回収済" if fh.resolved else "未回収"
+                bible_lines.append(f"  - [{status_str}] {fh.description}")
+        if bible.relationships:
+            bible_lines.append("キャラクター関係性:")
+            for r in bible.relationships:
+                bible_lines.append(f"  - {r.character_a} ↔ {r.character_b}: {r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}")
+        if bible.subplots:
+            bible_lines.append("サブプロット:")
+            for sp in bible.subplots:
+                bible_lines.append(f"  - [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
+        if bible.glossary:
+            bible_lines.append("用語:")
+            for g in bible.glossary[-10:]:
+                bible_lines.append(f"  - {g.term}: {g.definition}")
+        if bible.world_rules:
+            bible_lines.append("世界観ルール:")
+            for r in bible.world_rules:
+                bible_lines.append(f"  - {r}")
+        current_bible_text = "\n".join(bible_lines) if bible_lines else "（Bible は空です）"
+
+        user = self._prompts.render(
+            "bible_update.md",
+            {
+                "scene_text": draft_text,
+                "current_bible": current_bible_text,
+                "lang": self._lang,
+            },
+        )
+        schema = self._load_schema("bible_update")
+        result = self._llm.complete_json("bible_update", system, user, schema)
+
+        # Bible に反映
+        from novel_forge.models import (
+            CharacterProfile, GlossaryItem, ForeshadowingItem,
+            RelationshipItem, SubplotItem,
+        )
+
+        # キャラクター更新
+        for ch_data in result.get("characters", []):
+            existing = next((c for c in bible.characters if c.name == ch_data.get("name", "")), None)
+            if existing:
+                if ch_data.get("personality"):
+                    existing.personality = ch_data["personality"]
+                if ch_data.get("appearance"):
+                    existing.appearance = ch_data["appearance"]
+                if ch_data.get("motivation"):
+                    existing.motivation = ch_data["motivation"]
+                if ch_data.get("arc"):
+                    existing.arc = ch_data["arc"]
+                if ch_data.get("state"):
+                    existing.state = ch_data["state"]
+            elif ch_data.get("is_new", False) or ch_data.get("name"):
+                bible.characters.append(CharacterProfile(
+                    name=ch_data.get("name", ""),
+                    role=ch_data.get("role", ""),
+                    personality=ch_data.get("personality", ""),
+                    appearance=ch_data.get("appearance", ""),
+                    motivation=ch_data.get("motivation", ""),
+                    arc=ch_data.get("arc", ""),
+                ))
+
+        # 伏線更新
+        for fh_data in result.get("foreshadowing", []):
+            fh_type = fh_data.get("type", "setup")
+            if fh_type == "resolution":
+                # 既存伏線の回収
+                for fh in bible.foreshadowing:
+                    if not fh.resolved and fh.description == fh_data.get("description", ""):
+                        fh.resolved = True
+                        break
+            else:
+                # 新規伏線
+                desc = fh_data.get("description", "")
+                if desc and not any(f.description == desc for f in bible.foreshadowing):
+                    bible.foreshadowing.append(ForeshadowingItem(
+                        description=desc,
+                        resolved=False,
+                    ))
+
+        # キャラクター関係性更新
+        for rel_data in result.get("relationships", []):
+            existing = next(
+                (r for r in bible.relationships
+                 if {r.character_a, r.character_b} == {rel_data.get("character_a", ""), rel_data.get("character_b", "")}),
+                None
+            )
+            if existing:
+                if rel_data.get("type"):
+                    existing.relationship_type = rel_data["type"]
+                if rel_data.get("change_direction"):
+                    existing.change_direction = rel_data["change_direction"]
+                if rel_data.get("trigger_event"):
+                    existing.trigger_event = rel_data["trigger_event"]
+                existing.scene_number = scene_number
+            else:
+                bible.relationships.append(RelationshipItem(
+                    character_a=rel_data.get("character_a", ""),
+                    character_b=rel_data.get("character_b", ""),
+                    relationship_type=rel_data.get("type", ""),
+                    change_direction=rel_data.get("change_direction", ""),
+                    trigger_event=rel_data.get("trigger_event", ""),
+                    scene_number=scene_number,
+                ))
+
+        # サブプロット更新
+        for sp_data in result.get("subplots", []):
+            existing = next((s for s in bible.subplots if s.id == sp_data.get("id", "")), None)
+            if existing:
+                if sp_data.get("status"):
+                    existing.status = sp_data["status"]
+                if sp_data.get("progress_note"):
+                    existing.progress_note = sp_data["progress_note"]
+            else:
+                bible.subplots.append(SubplotItem(
+                    id=sp_data.get("id", f"sp_{scene_number}"),
+                    name=sp_data.get("name", ""),
+                    status=sp_data.get("status", "in_progress"),
+                    progress_note=sp_data.get("progress_note", ""),
+                ))
+
+        # 用語更新
+        for g_data in result.get("glossary", []):
+            term = g_data.get("term", "")
+            if term:
+                existing = next((g for g in bible.glossary if g.term == term), None)
+                if existing:
+                    existing.definition = g_data.get("definition", existing.definition)
+                else:
+                    bible.glossary.append(GlossaryItem(
+                        term=term,
+                        definition=g_data.get("definition", ""),
+                    ))
+
+        # 世界観ルール更新
+        for r_data in result.get("world_rules", []):
+            rule = r_data.get("rule", "")
+            if rule and rule not in bible.world_rules:
+                bible.world_rules.append(rule)
+
+        self._bible_storage.save(bible)
+
+        # Blackboard のサブプロットも同期
+        bb = self._blackboard_storage.load()
+        if result.get("subplots"):
+            for sp_data in result["subplots"]:
+                existing = next((s for s in bb.subplots if s.id == sp_data.get("id", "")), None)
+                if existing:
+                    if sp_data.get("status"):
+                        existing.status = sp_data["status"]
+                    if sp_data.get("progress_note"):
+                        existing.progress_note = sp_data["progress_note"]
+                else:
+                    bb.subplots.append(SubplotItem(
+                        id=sp_data.get("id", f"sp_{scene_number}"),
+                        name=sp_data.get("name", ""),
+                        status=sp_data.get("status", "in_progress"),
+                        progress_note=sp_data.get("progress_note", ""),
+                    ))
+            self._blackboard_storage.save(bb)
 
     def _save_scene_draft(self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1) -> None:
         path = (
@@ -605,7 +785,24 @@ class NovelEngine:
             parts.append(
                 "## キャラクター\n"
                 + "\n".join(
-                    f"- {c.name}: {c.personality}" for c in bible.characters
+                    f"- {c.name}（{c.role or ''}）: {c.personality or ''} / 動機: {c.motivation or ''}"
+                    for c in bible.characters
+                )
+            )
+        if bible.relationships:
+            parts.append(
+                "## キャラクター関係性\n"
+                + "\n".join(
+                    f"- {r.character_a} ↔ {r.character_b}: {r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
+                    for r in bible.relationships
+                )
+            )
+        if bible.subplots:
+            parts.append(
+                "## サブプロット\n"
+                + "\n".join(
+                    f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}"
+                    for sp in bible.subplots
                 )
             )
         if bible.glossary:
@@ -777,6 +974,13 @@ class NovelEngine:
             lines.extend(["", "## ⚠️ 未回収伏線"])
             for fh in unresolved:
                 lines.append(f"- {fh.description}")
+
+        # 未完了サブプロット
+        incomplete_sp = [sp for sp in bible.subplots if sp.status != "completed"]
+        if incomplete_sp:
+            lines.extend(["", "## ⚠️ 未完了サブプロット"])
+            for sp in incomplete_sp:
+                lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
 
         # 簡体字チェック（Bible）
         kanji_issues = self._check_bible_kanji(vol_num)
