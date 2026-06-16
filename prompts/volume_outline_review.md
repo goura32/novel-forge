@@ -23,6 +23,15 @@
 - `major`: 品質に大きく影響する（ペースの崩れ、キャラクターの不自然な行動）
 - `minor`: 改善点としては望ましいが必須ではない
 
+## スコア制約
+
+`overall_score` は **0.0 以上 10.0 以下** の小数点以下1桁の数値とすること。
+
+**スコア計算ルール:**
+- `overall_score` = (`structural_validity.score` + `scene_coherence.score` + `pace_analysis.score` + `character_arc_review.score`) / 4
+- 各サブスコアも 0.0〜10.0 の小数点以下1桁
+- 言語制約違反（英語・簡体字混入）がある場合: `overall_score` 最大 5.0
+
 ## 出力スキーマ
 
 `volume_outline_review.json` に適合する JSON を出力すること。
