@@ -154,6 +154,12 @@ class NovelEngine:
         self._state.current_volume = vol_num
         outline_data = self._load_path(vol_num, "outline.json")
         outline = VolumeOutline(**outline_data)
+        # Deduplicate chapters by number (keep first occurrence)
+        seen_chapters = {}
+        for ch in outline.chapters:
+            if ch.number not in seen_chapters:
+                seen_chapters[ch.number] = ch
+        outline.chapters = sorted(seen_chapters.values(), key=lambda c: c.number)
         vol = self._current_volume()
         vol.status = "drafting"
         results = []
