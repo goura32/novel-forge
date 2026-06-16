@@ -43,6 +43,38 @@ class SceneWriter:
         self._bb_storage = blackboard_storage
         self._bible_storage = bible_storage
 
+    def _get_subplots_text(self) -> str:
+        """Get current subplots as formatted text."""
+        bible = self._bible_storage.load()
+        if not bible.subplots:
+            return "（なし）"
+        lines = []
+        for sp in bible.subplots:
+            if sp.status != "completed":
+                lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
+        return "\n".join(lines) if lines else "（進行中のサブプロットなし）"
+
+    def _get_relationships_text(self) -> str:
+        """Get current character relationships as formatted text."""
+        bible = self._bible_storage.load()
+        if not bible.relationships:
+            return "（なし）"
+        lines = []
+        for r in bible.relationships:
+            lines.append(
+                f"- {r.character_a} ↔ {r.character_b}: "
+                f"{r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
+            )
+        return "\n".join(lines)
+
+    def _get_foreshadowing_to_resolve_text(self) -> str:
+        """Get unresolved foreshadowing as formatted text."""
+        bible = self._bible_storage.load()
+        unresolved = [fh for fh in bible.foreshadowing if not fh.resolved]
+        if not unresolved:
+            return "（なし）"
+        return "\n".join(f"- {fh.description}" for fh in unresolved)
+
     # ── main write pipeline ──────────────────────────────────────────
 
     def write_scene(
@@ -66,6 +98,9 @@ class SceneWriter:
                     "scene": ctx.get_scene_summary_fn(scene),
                     "context": context,
                     "continuity": continuity,
+                    "subplots": self._get_subplots_text(),
+                    "relationships": self._get_relationships_text(),
+                    "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
                     "lang": ctx.lang,
                 },
             )
@@ -136,6 +171,8 @@ class SceneWriter:
                 "scene": draft_text,
                 "outline": get_outline_summary_fn(outline),
                 "context": build_context_fn(),
+                "subplots": self._get_subplots_text(),
+                "relationships": self._get_relationships_text(),
                 "lang": lang,
             },
         )

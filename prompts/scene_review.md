@@ -9,6 +9,8 @@
 - シーン本文: `{scene}`
 - 巻アウトライン: `{outline}`
 - コンテキスト: `{context}`
+- 進行中のサブプロット: `{subplots}`
+- キャラクター関係性: `{relationships}`
 - 出力言語: `{lang}`
 
 ## 評価カテゴリ
