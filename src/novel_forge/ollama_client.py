@@ -139,7 +139,7 @@ class LLMClient:
         except Exception as e:
             import sys
             print(f"[LLMClient] Warning: could not detect max context length: {e}", file=sys.stderr)
-        return 8192  # フォールバック
+        return 262144  # フォールバック（qwen3.6:35b ネイティブコンテキスト長）
 
     def complete_json(
         self,
