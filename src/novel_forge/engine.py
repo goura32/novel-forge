@@ -240,7 +240,7 @@ class NovelEngine:
         user = self._prompts.render(
             "scene_review.md",
             {
-                "scene": draft_text[:3000],
+                "scene": draft_text,
                 "outline": outline.model_dump_json(),
                 "context": self._build_context(),
                 "lang": self._lang,
@@ -254,7 +254,7 @@ class NovelEngine:
         user = self._prompts.render(
             "scene_revision.md",
             {
-                "scene": draft_text[:3000],
+                "scene": draft_text,
                 "review": json.dumps(review, ensure_ascii=False),
                 "lang": self._lang,
             },
@@ -266,7 +266,7 @@ class NovelEngine:
         user = self._prompts.render(
             "scene_summary.md",
             {
-                "scene": draft_text[:3000],
+                "scene": draft_text,
                 "lang": self._lang,
             },
         )
