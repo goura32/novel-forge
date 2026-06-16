@@ -304,8 +304,10 @@ class TestEngine:
         assert result["action"] == "outline"
 
     def test_engine_resume_drafting(self, tmp_path):
+        from novel_forge.models import VolumeProgress
         engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "執筆中"
+        vol = VolumeProgress(volume_number=1, status="執筆中", current_chapter=0)
+        engine._state.volumes.append(vol)
         result = engine.resume()
         assert result["action"] == "write"
 

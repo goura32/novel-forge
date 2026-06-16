@@ -99,7 +99,14 @@ def resume(
     """Resume from the last interrupted phase."""
     engine = _engine(workdir, model, lang)
     result = engine.resume()
-    console.print(f"[yellow]▶[/yellow] Resume: {result['action']} (status: {result['status']})")
+    action = result["action"]
+    console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
+    if action == "write":
+        engine.write()
+    elif action == "outline":
+        engine.outline()
+    elif action == "export":
+        engine.export()
 
 
 @app.command()

@@ -249,7 +249,7 @@ class NovelEngine:
     ) -> dict[str, Any]:
         system = self._prompts.render("system.md", {"lang": self._lang})
         context = self._build_context()
-        continuity = self._build_continuity(record.scene_number)
+        continuity = self._build_continuity(record.scene_number, vol_num)
 
         # Draft
         user = self._prompts.render(
@@ -619,7 +619,13 @@ class NovelEngine:
             )
         return "\n\n".join(parts)
 
-    def _build_continuity(self, scene_number: int) -> str:
+    def _build_continuity(self, scene_number: int, vol_num: int = 0) -> str:
+        """前シーンの要約 + 末尾本文を continuity として返す。
+
+        要約だけでは具体的な描写・伏線・文体の情報が失われる。
+        前シーンの末尾 500 文字を追加で渡し、LLM が直前の流れを
+        直接参照できるようにする。
+        """
         bb = self._blackboard_storage.load()
         prev_key = str(scene_number - 1)
         summary = bb.scene_summaries.get(prev_key, "")
@@ -629,6 +635,14 @@ class NovelEngine:
             parts.append(f"## 前シーン要約\n{summary}")
         if notes:
             parts.append(f"## 引き継ぎメモ\n{notes}")
+
+        # 前シーンの末尾本文を追加（最大 500 文字）
+        if scene_number > 1 and vol_num > 0:
+            prev_draft = self._load_scene_draft(vol_num, scene_number - 1)
+            if prev_draft:
+                tail = prev_draft[-500:].strip()
+                parts.append(f"## 前シーン末尾\n{tail}")
+
         return "\n\n".join(parts) if parts else "（最初のシーン）"
 
     def _get_or_create_scene_record(
