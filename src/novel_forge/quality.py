@@ -83,7 +83,7 @@ def find_non_japanese_kanji(text: str) -> list[str]:
 class QualityGate:
     """シーン・巻の品質を評価し、合格/不合格を判定する。"""
 
-    PASS_THRESHOLD = 7.0
+    PASS_THRESHOLD = 70.0
     MAX_RETRIES = 3
 
     def check_scene(self, review_result: dict) -> QualityGateResult:
