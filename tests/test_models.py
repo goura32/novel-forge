@@ -115,7 +115,7 @@ class TestModels:
             purpose="導入",
             act_role="設定",
         )
-        assert cd.act_role == "setup"
+        assert cd.act_role == "設定"
 
     def test_chapter_design_invalid_act_role(self):
         with pytest.raises(Exception):
