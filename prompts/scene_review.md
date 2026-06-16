@@ -49,13 +49,17 @@
   ],
   "issues": [
     {
-      "severity": "critical|major|minor",
+      "severity": "critical|major|minor|blocker",
       "category": "string",
       "description": "string",
-      "suggestion": "string"
+      "suggestion": "具体的な修正指示を日本語で記述すること。修正箇所の該当テキストを引用し、どう変えるべきかを明示すること。"
     }
   ],
   "strengths": ["string"],
   "revision_needed": true
 }
 ```
+
+**重要**: `issue.suggestion` は具体的な記述にすること。「修正が必要」という曖昧な記述ではなく、**該当テキストを引用して「この部分を○○に変えよ」と明示すること**。例:
+- ❌ 「英語表現を日本語に直してください」
+- ✅ 「3行目の「weapon」を「兵器」に置換してください。15行目の「backdoor」を「裏口」に置換してください」
