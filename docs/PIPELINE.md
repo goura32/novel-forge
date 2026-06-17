@@ -162,9 +162,9 @@ Volume status:
                                     └→ force_exported
 
 Scene status:
-  planned → drafted → reviewed → revised
-                         │
-                         └→ force_exported (3回不合格時)
+  planned → 初稿済 → 修正済
+                  │
+                  └→ 強制出力済 (3回不合格時)
 ```
 
 ### Resume (再開)

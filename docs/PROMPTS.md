@@ -13,13 +13,19 @@ prompts/
 ├── system.md                              # 共通システムプロンプト
 ├── series_plan.md                         # シリーズ企画
 ├── series_plan_review.md                  # シリーズ企画の自己レビュー
+├── series_plan_revision.md                # シリーズ企画の改訂
 ├── volume_outline.md                      # 巻アウトライン生成
+├── volume_outline_review.md               # 巻アウトラインの自己レビュー
+├── volume_outline_revision.md             # 巻アウトラインの改訂
 ├── scene_draft.md                         # シーン初稿
 ├── scene_review.md                        # シーンレビュー
 ├── scene_revision.md                      # シーン改稿
 ├── scene_summary.md                       # シーン要約
 ├── scene_summary_and_bible_update.md      # シーン要約 + Bible 更新（統合）
+├── scene_quality_gate.md                  # シーン品質ゲート
 ├── bible_update.md                        # Bible 更新
+├── kdp_metadata.md                        # KDP メタデータ生成
+├── kdp_final_review.md                    # KDP 最終レビュー
 └── cover_prompt.md                        # 表紙画像生成プロンプト
 ```
 
@@ -29,9 +35,12 @@ prompts/
 
 | 工程 | 生成 | レビュー | 改稿 |
 |---|---|---|---|
-| シリーズ企画 | `series_plan.md` | `series_plan_review.md` | 該当なし（人間が確認） |
+| シリーズ企画 | `series_plan.md` | `series_plan_review.md` | `series_plan_revision.md` |
+| 巻アウトライン | `volume_outline.md` | `volume_outline_review.md` | `volume_outline_revision.md` |
 | シーン本文 | `scene_draft.md` | `scene_review.md` | `scene_revision.md` |
 | 設定資料集 | `bible_update.md` | 該当なし | 該当なし |
+| KDP メタデータ | `kdp_metadata.md` | 該当なし | 該当なし |
+| KDP 最終レビュー | `kdp_final_review.md` | 該当なし | 該当なし |
 
 ## プロンプトの構造
 

@@ -92,7 +92,7 @@ class MockLLMClient:
                 ],
             },
             "series_plan_review": {
-                "overall_score": 8.0,
+                "score": 80.0,
                 "issues": [],
                 "strengths": ["良い"],
                 "recommendations": [],
@@ -134,7 +134,7 @@ class MockLLMClient:
                 ],
             },
             "volume_outline_review": {
-                "overall_score": 8.0,
+                "score": 80.0,
                 "issues": [],
                 "strengths": ["良い構成"],
                 "recommendations": [],
@@ -270,9 +270,9 @@ def _make_plan_response(**overrides) -> dict:
     return base
 
 
-def _make_review_response(score: float = 8.0, issues: list | None = None) -> dict:
+def _make_review_response(score: float = 80.0, issues: list | None = None) -> dict:
     return {
-        "overall_score": score,
+        "score": score,
         "issues": issues or [],
         "strengths": ["良い"],
         "recommendations": [],

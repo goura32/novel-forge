@@ -2,14 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SeriesPlanReview",
   "type": "object",
-  "required": ["overall_score", "issues", "strengths", "recommendations"],
+  "required": ["score", "issues", "strengths", "recommendations"],
   "properties": {
-    "overall_score": {
+    "score": {
       "type": "number",
       "minimum": 0,
-      "maximum": 10,
-      "multipleOf": 0.1,
-      "description": "総合評価スコア。0.0〜10.0。評価ルール: (1) 値に日本語以外の文字が含まれる場合: 最大5.0。(2) 値に英語混在がある場合: 混在1件につき-1.0（最低0.0）。(3) 値に簡体字・ハングルが含まれる場合: 最大3.0。(4) 言語純度100%で企画内容が優秀: 8.0〜9.0。(5) 言語純度100%で平凡: 6.0〜7.0。(6) 言語純度100%だが致命的欠陥: 5.0〜6.0。JSONキー名（title, slug, logline等）は評価対象外。値（value）の文字列のみを評価すること。slugフィールドのローマ字は言語制約違反としない。"
+      "maximum": 100,
+      "description": "総合評価スコア。0〜100。評価ルール: (1) 値に日本語以外の文字が含まれる場合: 最大50。(2) 値に英語混在がある場合: 混在1件につき-10（最低0）。(3) 値に簡体字・ハングルが含まれる場合: 最大30。(4) 言語純度100%で企画内容が優秀: 80〜90。(5) 言語純度100%で平凡: 60〜70。(6) 言語純度100%だが致命的欠陥: 50〜60。JSONキー名（title, slug, logline等）は評価対象外。値（value）の文字列のみを評価すること。slugフィールドのローマ字は言語制約違反としない。"
     },
     "issues": {
       "type": "array",

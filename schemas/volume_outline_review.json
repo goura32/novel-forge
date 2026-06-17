@@ -3,7 +3,7 @@
   "title": "OutlineReview",
   "description": "巻アウトラインの自己レビュー結果（VolumeOutlinePipeline §3.2）",
   "type": "object",
-  "required": ["structural_validity", "scene_coherence", "pace_analysis", "character_arc_review", "overall_score", "issues", "suggestions"],
+  "required": ["structural_validity", "scene_coherence", "pace_analysis", "character_arc_review", "score", "issues", "suggestions"],
   "properties": {
     "structural_validity": {
       "type": "object",
@@ -12,7 +12,7 @@
         "has_clear_arc": { "type": "boolean" },
         "chapter_roles_valid": { "type": "boolean" },
         "climax_placement_valid": { "type": "boolean" },
-        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
     "scene_coherence": {
@@ -22,7 +22,7 @@
         "scene_transitions_valid": { "type": "boolean" },
         "no_contradictions": { "type": "boolean" },
         "state_continuity": { "type": "boolean" },
-        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
     "pace_analysis": {
@@ -33,7 +33,7 @@
         "development_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
         "climax_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
         "pacing_comment": { "type": "string", "maxLength": 500, "description": "ペースのコメント" },
-        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
     "character_arc_review": {
@@ -43,10 +43,10 @@
         "protagonist_has_arc": { "type": "boolean" },
         "arc_believability": { "type": "number", "minimum": 0, "maximum": 1 },
         "supporting_chars_used": { "type": "boolean" },
-        "score": { "type": "number", "minimum": 0, "maximum": 10 }
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
-    "overall_score": { "type": "number", "minimum": 0, "maximum": 10 },
+    "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "総合評価スコア。0〜100。" },
     "issues": {
       "type": "array",
       "items": {

@@ -121,7 +121,7 @@
 
 | 用語 | 説明 |
 |---|---|
-| 品質ゲート (Quality Gate) | シーン単位の品質を評価し、合格/不合格を判定する工程 |
+| 品質ゲート (Quality Gate) | シーン単位の品質を評価し、合格/不合格を判定する工程。全レビュー共通で `score >= 70.0`（0-100スケール）かつ `critical`/`blocker` issue が0件で合格 |
 | force_exported | 品質ゲート3回不合格でも続行するためのフラグ |
 | 深刻度 | 問題の重要度。`critical` / `major` / `minor` の3段階 |
 | 簡体字チェック | JIS漢字セット外の漢字を検出する品質チェック |
@@ -177,9 +177,9 @@ planned → outlined → drafting → drafted → exported → finalized
 ### 9.2 シーンの状態
 
 ```
-planned → drafted → reviewed → revised
-                         │
-                         └→ force_exported (3回不合格時)
+planned → 初稿済 → 修正済
+                │
+                └→ 強制出力済 (3回不合格時)
 ```
 
 ---

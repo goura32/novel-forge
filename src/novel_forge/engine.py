@@ -167,7 +167,7 @@ class NovelEngine:
 
         # Review → Revise loop (max 3 retries)
         for retry in range(3):
-            score = review.get("overall_score", 0)
+            score = review.get("score", 0)
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
             if score >= 7.0 and len(critical_issues) == 0:
                 break
@@ -305,7 +305,7 @@ class NovelEngine:
 
         # Review → Revise loop (max 3 retries)
         for retry in range(3):
-            score = review.get("overall_score", 0)
+            score = review.get("score", 0)
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
             if score >= 7.0 and len(critical_issues) == 0:
                 break
