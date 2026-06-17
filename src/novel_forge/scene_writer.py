@@ -169,7 +169,18 @@ class SceneWriter:
             },
         )
         schema = get_schema("scene_review")
-        return self._llm.complete_json("scene_review", system, user, schema)
+        # Retry up to 3 times on failure (timeout, parse error, etc.)
+        for attempt in range(3):
+            try:
+                result = self._llm.complete_json("scene_review", system, user, schema)
+                if "score" in result:
+                    return result
+            except Exception as e:
+                if attempt < 2:
+                    print(f"  [REVIEW RETRY] attempt {attempt+1}/3: {e}", flush=True)
+                    continue
+                raise
+        return {"score": 0, "issues": [], "dimensions": [], "revision_needed": True}
 
     # ── language issue extraction ────────────────────────────────────
 

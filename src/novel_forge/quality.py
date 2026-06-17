@@ -84,7 +84,7 @@ class QualityGate:
     """シーン・巻の品質を評価し、合格/不合格を判定する。"""
 
     PASS_THRESHOLD = 70.0
-    DEFAULT_MAX_RETRIES = 1
+    DEFAULT_MAX_RETRIES = 2
 
     def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES):
         self.max_retries = max_retries
@@ -96,7 +96,9 @@ class QualityGate:
         critical_count = sum(
             1 for i in issues if i.get("severity") in ("critical", "blocker")
         )
-        passed = score >= self.PASS_THRESHOLD and critical_count == 0
+        # revision_needed がある場合は、score >= 85 でないとパスしない
+        threshold = 85.0 if review_result.get("revision_needed") else self.PASS_THRESHOLD
+        passed = score >= threshold and critical_count == 0
         return QualityGateResult(
             passed=passed,
             score=score,

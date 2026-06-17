@@ -54,7 +54,7 @@ def write(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
-    max_retries: int = typer.Option(1, "--max-retries", help="Max review retries per scene"),
+    max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
 ):
     """Write scene drafts."""
     engine = _engine(workdir, model, lang, max_review_retries=max_retries)
@@ -117,7 +117,7 @@ def complete(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
-    max_retries: int = typer.Option(1, "--max-retries", help="Max review retries per scene"),
+    max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
 ):
     """Run the full pipeline: plan → outline → write → export."""
     engine = _engine(workdir, model, lang, max_review_retries=max_retries)
