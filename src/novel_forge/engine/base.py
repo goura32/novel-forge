@@ -95,16 +95,30 @@ class NovelEngineBase:
     def _series_dir(self) -> Path:
         """Series output directory.
         During plan(): uses temp dir /tmp/novel-forge-{pid}/
-        After plan(): uses {workdir}/{timestamp}_{slug}/"""
+        After plan(): uses {workdir}/{timestamp}_{slug}/
+        If slug is not set, tries to find existing series dir in workdir."""
         if not self._slug:
+            # Check if there's an existing series directory (from previous plan)
+            existing = self._find_existing_series_dir()
+            if existing:
+                return existing
             # Before plan(): use temp directory
             if not hasattr(self, "_tmp_dir"):
-                import os
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
             return self._tmp_dir
         # After plan(): use final directory
         folder_name = self._slug.replace("-", "_")
         return self._workdir / f"{self._timestamp}_{folder_name}"
+
+    def _find_existing_series_dir(self) -> Path | None:
+        """Find existing series directory in workdir (for commands after plan)."""
+        # Look for {timestamp}_{slug} pattern directories
+        for d in sorted(self._workdir.iterdir(), reverse=True):
+            if d.is_dir() and "_" in d.name and not d.name.startswith("."):
+                # Check if it contains series_plan.json
+                if (d / "series_plan.json").exists():
+                    return d
+        return None
 
     @property
     def _timestamp(self) -> str:
@@ -156,6 +170,17 @@ class NovelEngineBase:
 
     def _load_path(self, vol_num: int, filename: str) -> dict:
         path = self._series_dir / f"vol{vol_num:02d}" / filename
+        if not path.exists():
+            # Try to find existing series directory
+            existing = self._find_existing_series_dir()
+            if existing:
+                path = existing / f"vol{vol_num:02d}" / filename
+        if not path.exists():
+            raise FileNotFoundError(
+                f"File not found: {path}\n"
+                f"series_dir: {self._series_dir}\n"
+                f"workdir: {self._workdir}"
+            )
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _get_or_create_scene_record(

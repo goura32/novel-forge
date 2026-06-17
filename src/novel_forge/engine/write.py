@@ -11,6 +11,7 @@ class WriteMixin:
     """Scene writing methods for NovelEngine."""
 
     def write(self, volume_number: int | None = None) -> list[dict[str, Any]]:
+        import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         outline_data = self._load_path(vol_num, "outline.json")
@@ -26,6 +27,32 @@ class WriteMixin:
         vol = self._current_volume()
         vol.status = "執筆中"
         results = []
+
+        # Count total scenes
+        total_scenes = len(outline.scenes)
+        done_scenes = 0
+        start_time = _time.time()
+
+        def _progress(scene_num: int, status: str):
+            nonlocal done_scenes
+            done_scenes += 1
+            elapsed = _time.time() - start_time
+            avg = elapsed / done_scenes if done_scenes > 0 else 0
+            remaining = avg * (total_scenes - done_scenes)
+            elapsed_str = f"{int(elapsed // 60)}m {int(elapsed % 60)}s"
+            remaining_str = f"{int(remaining // 60)}m {int(remaining % 60)}s"
+            pct = done_scenes / total_scenes * 100 if total_scenes > 0 else 0
+            bar_len = 20
+            filled = int(bar_len * done_scenes / total_scenes) if total_scenes > 0 else 0
+            bar = "█" * filled + "░" * (bar_len - filled)
+            print(
+                f"  [{bar}] {pct:5.1f}% "
+                f"({done_scenes}/{total_scenes}) "
+                f"{status} "
+                f"経過: {elapsed_str} "
+                f"残り推定: {remaining_str}",
+                flush=True,
+            )
 
         # Clear stale chapters on resume
         chapters_dir = (
@@ -46,6 +73,7 @@ class WriteMixin:
                             vol_num, scene.number, chapter.number
                         )
                     )
+                    _progress(scene.number, f"スキップ(済)")
                     continue
                 result = self._scene_writer.write_scene(
                     outline=outline,
@@ -78,6 +106,7 @@ class WriteMixin:
                     self._lang,
                     self._bible_mgr.to_text,
                 )
+                _progress(scene.number, f"シーン{scene.number} 完了")
                 self._save()
 
             self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes)

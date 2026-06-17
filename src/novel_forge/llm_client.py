@@ -161,7 +161,8 @@ class LLMClient:
             },
         }
         if schema:
-            payload["format"] = schema
+            # Do not use Ollama format parameter — rely on prompt instructions
+            pass
 
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
