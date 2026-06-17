@@ -116,7 +116,7 @@ class SceneWriter:
             self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
             # Review → Quality Gate → revise loop (max 3 retries)
-            for retry in range(QualityGate.MAX_RETRIES + 1):
+            for retry in range(self._quality.max_retries + 1):
                 review = self._review_scene(
                     draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
                     ctx.get_outline_summary_fn,
@@ -129,7 +129,7 @@ class SceneWriter:
                     record.quality_gate = qg_result
                     break
 
-                if retry < QualityGate.MAX_RETRIES:
+                if retry < self._quality.max_retries:
                     lang_issues = self._extract_language_issues(review)
                     if lang_issues:
                         review["language_issues"] = lang_issues

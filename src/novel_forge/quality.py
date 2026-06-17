@@ -84,7 +84,10 @@ class QualityGate:
     """シーン・巻の品質を評価し、合格/不合格を判定する。"""
 
     PASS_THRESHOLD = 70.0
-    MAX_RETRIES = 3
+    DEFAULT_MAX_RETRIES = 3
+
+    def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES):
+        self.max_retries = max_retries
 
     def check_scene(self, review_result: dict) -> QualityGateResult:
         """レビュー結果に基づきシーン品質を判定する。"""

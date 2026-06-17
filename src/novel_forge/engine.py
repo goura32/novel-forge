@@ -36,6 +36,7 @@ class NovelEngine:
         llm_client: LLMClient | None = None,
         prompt_manager: PromptManager | None = None,
         config: dict[str, Any] | None = None,
+        max_review_retries: int | None = None,
     ):
         self._workdir = workdir
         self._lang = lang
@@ -67,7 +68,8 @@ class NovelEngine:
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
-        self._quality = QualityGate()
+        quality_retries = max_review_retries if max_review_retries is not None else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
+        self._quality = QualityGate(max_retries=quality_retries)
         self._state = self._storage.load()
 
         # Sub-components
@@ -151,6 +153,8 @@ class NovelEngine:
                 "    top_p: 0.95\n"
                 "    repeat_penalty: 1.0\n"
                 "    presence_penalty: 1.5\n"
+                "quality:\n"
+                "  max_review_retries: 3\n"
             )
             config_path.write_text(default, encoding="utf-8")
 

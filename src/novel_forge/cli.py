@@ -17,8 +17,9 @@ def _engine(
     workdir: Path = Path("."),
     model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
     lang: str = "ja",
+    max_review_retries: int | None = None,
 ) -> NovelEngine:
-    return NovelEngine(workdir=workdir, model=model, lang=lang)
+    return NovelEngine(workdir=workdir, model=model, lang=lang, max_review_retries=max_review_retries)
 
 
 @app.command()
@@ -53,9 +54,10 @@ def write(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    max_retries: int = typer.Option(3, "--max-retries", help="Max review retries per scene"),
 ):
     """Write scene drafts."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, max_review_retries=max_retries)
     results = engine.write(volume)
     console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -115,9 +117,10 @@ def complete(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    max_retries: int = typer.Option(3, "--max-retries", help="Max review retries per scene"),
 ):
     """Run the full pipeline: plan → outline → write → export."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, max_review_retries=max_retries)
     console.print("[bold]Step 1/4: Plan[/bold]")
     engine.plan(keywords)
     console.print("[bold]Step 2/4: Outline[/bold]")
