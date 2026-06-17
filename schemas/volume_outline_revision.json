@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeOutlineRevision",
   "type": "object",
-  "required": ["title", "premise", "chapters"],
+  "required": ["chapters"],
   "properties": {
     "title": { "type": "string", "maxLength": 128 },
     "premise": { "type": "string", "maxLength": 200 },

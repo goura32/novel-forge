@@ -116,7 +116,6 @@ class SceneWriter:
             self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
             # Review → Quality Gate → revise loop (max 3 retries)
-            kanji_retries = 0
             for retry in range(QualityGate.MAX_RETRIES + 1):
                 review = self._review_scene(
                     draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
@@ -126,21 +125,9 @@ class SceneWriter:
                 record.quality_retries = retry + 1
 
                 if qg_result.passed:
-                    non_jp_kanji = self._quality.check_kanji(draft_text)
-                    if not non_jp_kanji:
-                        record.status = "修正済"
-                        record.quality_gate = qg_result
-                        break
-                    kanji_retries += 1
-                    if kanji_retries <= 2:
-                        review["kanji_issues"] = list(set(non_jp_kanji))
-                        draft_text = self._revise_scene(draft_text, review, ctx.lang)
-                        self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
-                        continue
-                    else:
-                        record.status = "強制出力済"
-                        record.quality_gate = qg_result
-                        break
+                    record.status = "修正済"
+                    record.quality_gate = qg_result
+                    break
 
                 if retry < QualityGate.MAX_RETRIES:
                     lang_issues = self._extract_language_issues(review)

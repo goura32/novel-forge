@@ -100,13 +100,6 @@ class QualityGate:
             issues=issues,
         )
 
-    def check_kanji(self, draft_text: str) -> list[str]:
-        """
-        ドラフトテキスト中の非日本語漢字（簡体字等）を検出する。
-        Returns: 検出された文字のリスト（空なら問題なし）
-        """
-        return find_non_japanese_kanji(draft_text)
-
     def check_volume(
         self,
         scene_scores: list[float],

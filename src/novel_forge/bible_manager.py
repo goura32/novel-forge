@@ -13,7 +13,6 @@ from novel_forge.models import (
     RelationshipItem,
     SubplotItem,
 )
-from novel_forge.quality import find_non_japanese_kanji
 from novel_forge.storage import BibleStorage
 
 
@@ -40,29 +39,6 @@ class BibleManager:
                 if not fh.resolved and fh.description in note:
                     fh.resolved = True
         self.save(bible)
-
-    # ── kanji check ──────────────────────────────────────────────────
-
-    def check_kanji(self) -> list[str]:
-        bible = self.bible
-        issues: list[str] = []
-
-        def _scan(text: str, label: str) -> None:
-            bad = find_non_japanese_kanji(text)
-            if bad:
-                unique = list(dict.fromkeys(bad))
-                issues.append(
-                    f"  {label}: {', '.join(f'{c}(U+{ord(c):04X})' for c in unique)} in 「{text[:40]}」"
-                )
-
-        for ch in bible.characters:
-            _scan(ch.name, f"キャラクター名({ch.name})")
-        for g in bible.glossary:
-            _scan(g.term, f"用語({g.term})")
-        for fh in bible.foreshadowing:
-            _scan(fh.description, "伏線")
-
-        return issues
 
     # ── unresolved items ────────────────────────────────────────────
 

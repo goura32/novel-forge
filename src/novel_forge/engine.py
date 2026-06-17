@@ -760,13 +760,6 @@ class NovelEngine:
             for sp in incomplete_sp:
                 lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
 
-        # Kanji check
-        kanji_issues = self._bible_mgr.check_kanji()
-        if kanji_issues:
-            lines.extend(["", "## ⚠️ 簡体字混入の可能性"])
-            lines.append("以下の項目に JIS 漢字セット外の漢字が含まれています:")
-            lines.extend(kanji_issues)
-
         lines.extend(["", "## 提出前確認事項"])
         lines.append("- [ ] 表紙画像の準備")
         lines.append("- [ ] 商品説明文の最終確認")
