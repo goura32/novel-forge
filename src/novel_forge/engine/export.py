@@ -67,8 +67,12 @@ class ExportMixin:
         export_dir = self._workdir / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
         chapters = []
-        vol_dir = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}"
-        for ch_path in sorted(vol_dir.glob("chapters/ch*.md")):
+        vol_dir = self._workdir / "_novel_forge" / f"vol{vol_num:02d}"
+        # Collect chapter files from volXX_chXX/ subdirectories
+        chapter_files = sorted(
+            p for p in vol_dir.glob("vol*_ch*/*.md") if "_sc" not in p.name
+        )
+        for ch_path in chapter_files:
             chapters.append(ch_path.read_text(encoding="utf-8"))
         manuscript = "\n\n---\n\n".join(chapters)
         (export_dir / f"vol{vol_num:02d}_manuscript.md").write_text(
@@ -79,7 +83,7 @@ class ExportMixin:
     def _generate_kdp_metadata(self, vol_num: int) -> dict[str, Any]:
         export_dir = self._workdir / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
-        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
+        plan_path = self._workdir / "_novel_forge" / "series_plan.json"
         title = self._state.series_title
         if plan_path.exists():
             plan = json.loads(plan_path.read_text(encoding="utf-8"))

@@ -22,9 +22,9 @@ from novel_forge.models import (
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.prompts import PromptManager, PromptLoader, render_prompt
 from novel_forge.schemas import validate, validate_or_raise, list_schemas, get_schema
-from novel_forge.quality import QualityGate
+from novel_forge.quality_gate import QualityGate
 from novel_forge.engine import NovelEngine
-from novel_forge.ollama_client import LLMClient, _extract_json_text, _parse_json_response, JsonParseError
+from novel_forge.llm_client import LLMClient, _extract_json_text, _parse_json_response, JsonParseError
 
 
 # ── LLM Client ──────────────────────────────────────────────────────────
@@ -291,7 +291,7 @@ class TestSchemas:
 class TestEngine:
     def test_engine_creates_state(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
-        assert engine.state.workdir == str(tmp_path)
+        assert engine.state.workdir == str(tmp_path / "_default")
 
     def test_engine_status(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")

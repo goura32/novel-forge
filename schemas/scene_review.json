@@ -53,7 +53,9 @@
         "type": "object",
         "required": [
           "severity",
-          "description"
+          "category",
+          "description",
+          "suggestion"
         ],
         "properties": {
           "severity": {
@@ -65,10 +67,30 @@
               "blocker"
             ]
           },
+          "category": {
+            "type": "string",
+            "enum": [
+              "opening_hook",
+              "character_distinction",
+              "foreshadowing_consistency",
+              "sensory_coverage",
+              "page_turner",
+              "dialogue_naturalness",
+              "tone_consistency",
+              "scene_completeness",
+              "language_purity",
+              "pov_consistency"
+            ]
+          },
           "description": {
             "type": "string",
             "maxLength": 500,
             "description": "問題の説明"
+          },
+          "suggestion": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "具体的な修正指示"
           }
         }
       }

@@ -23,7 +23,7 @@ from novel_forge.models import (
     SubplotItem,
     VolumeOutline,
 )
-from novel_forge.quality import QualityGate
+from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BlackboardStorage, BibleStorage
 
@@ -39,8 +39,10 @@ class SceneWriter:
         quality: QualityGate,
         blackboard_storage: BlackboardStorage,
         bible_storage: BibleStorage,
+        series_dir: Path | None = None,
     ):
         self._workdir = workdir
+        self._series_dir = series_dir or workdir
         self._llm = llm_client
         self._prompts = prompt_manager
         self._quality = quality
@@ -111,7 +113,9 @@ class SceneWriter:
                     "lang": ctx.lang,
                 },
             )
-            draft_text = self._llm.complete_text("scene_draft", system, user)
+            draft_schema = get_schema("scene_draft")
+            draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
+            draft_text = draft_result.get("content", "")
             record.status = "初稿済"
             self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
@@ -226,7 +230,9 @@ class SceneWriter:
                 "lang": lang,
             },
         )
-        return self._llm.complete_text("scene_revision", system, user)
+        schema = get_schema("scene_revision")
+        result = self._llm.complete_json("scene_revision", system, user, schema)
+        return result.get("content", draft_text)
 
     # ── summarize → blackboard update ───────────────────────────────
 
@@ -314,12 +320,9 @@ class SceneWriter:
         self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1
     ) -> None:
         path = (
-            self._workdir
-            / ".novel-forge"
-            / "volumes"
+            self._series_dir
             / f"vol{vol_num:02d}"
-            / "scenes"
-            / f"ch{chapter_number:02d}"
+            / f"vol{vol_num:02d}_ch{chapter_number:02d}"
             / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
         )
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -329,12 +332,9 @@ class SceneWriter:
         self, vol_num: int, scene_number: int, chapter_number: int = 1
     ) -> str:
         path = (
-            self._workdir
-            / ".novel-forge"
-            / "volumes"
+            self._series_dir
             / f"vol{vol_num:02d}"
-            / "scenes"
-            / f"ch{chapter_number:02d}"
+            / f"vol{vol_num:02d}_ch{chapter_number:02d}"
             / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
         )
         if path.exists():
@@ -346,8 +346,8 @@ class SceneWriter:
     def assemble_chapter(
         self, vol_num: int, chapter, scene_texts: list[str]
     ) -> None:
-        vol_dir = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}"
-        ch_path = vol_dir / "chapters" / f"ch{chapter.number:02d}.md"
+        vol_dir = self._series_dir / f"vol{vol_num:02d}"
+        ch_path = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}" / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
         ch_path.parent.mkdir(parents=True, exist_ok=True)
         content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(scene_texts)
         ch_path.write_text(content, encoding="utf-8")

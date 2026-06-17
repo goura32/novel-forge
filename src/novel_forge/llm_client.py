@@ -180,28 +180,6 @@ class LLMClient:
                     continue
         raise last_error or LLMError("LLM request failed")
 
-    def complete_text(
-        self,
-        kind: str,
-        system_prompt: str,
-        user_prompt: str,
-    ) -> str:
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "system": system_prompt,
-            "prompt": user_prompt,
-            "stream": False,
-            "think": False,
-            "options": {
-                "num_ctx": self.num_ctx,
-                "num_predict": self.num_predict,
-                **self._ollama_options,
-            },
-        }
-        raw = self._call_api(payload)
-        self._write_log(kind, payload, raw, {"text": raw[:200]})
-        return raw
-
     def _call_api(self, payload: dict[str, Any]) -> str:
         try:
             resp = httpx.post(
@@ -226,7 +204,14 @@ class LLMClient:
             return
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        log_path = self.raw_log_dir / f"{timestamp}_{kind}.json"
+        # Find unique filename with index
+        idx = 0
+        while True:
+            suffix = f"_{idx:03d}" if idx > 0 else ""
+            log_path = self.raw_log_dir / f"{timestamp}_{kind}{suffix}.json"
+            if not log_path.exists():
+                break
+            idx += 1
         log_data = {
             "kind": kind,
             "timestamp": timestamp,

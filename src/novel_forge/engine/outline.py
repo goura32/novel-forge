@@ -32,7 +32,7 @@ class OutlineMixin:
                 break
             print(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3", flush=True)
             result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema, previous_outline)
-            review = self._review_outline(result, series_plan)
+            review = self._review_outline(result, series_plan, previous_outline)
 
         vol = self._current_volume()
         vol.status = "アウトライン済"
@@ -46,7 +46,7 @@ class OutlineMixin:
         """Get the outline summary of the previous volume, if it exists."""
         if vol_num <= 1:
             return ""
-        prev_path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num - 1:02d}" / "outline.json"
+        prev_path = self._workdir / "_novel_forge" / f"vol{vol_num - 1:02d}" / "outline.json"
         if not prev_path.exists():
             raise RuntimeError(
                 f"前巻（第{vol_num - 1}巻）のアウトラインが存在しません: {prev_path}\n"
@@ -75,7 +75,7 @@ class OutlineMixin:
         # Phase 1: Generate chapter structure
         chapter_schema = get_schema("chapter_outline")
         user = self._prompts.render(
-            "volume_outline.md",
+            "chapter_outline.md",
             {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
              "lang": self._lang, "previous_outline": previous_outline},
         )

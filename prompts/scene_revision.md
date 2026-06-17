@@ -25,4 +25,8 @@
 
 ## 出力形式
 
-Markdown 形式の改稿本文を出力すること。JSON ではない。
+`scene_revision.json` に適合する JSON を出力すること。JSON Schema の各フィールド定義・required・maxLength に従うこと。
+
+- `title`: シーンタイトル
+- `content`: 改稿後のシーン本文
+- `changes`: 変更内容のリスト（各要素は変更の要約）

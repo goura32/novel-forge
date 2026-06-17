@@ -139,6 +139,6 @@ class PlanMixin:
         plan_text = "\n".join(lines)
         user = self._prompts.render(
             "series_plan_review.md",
-            {"plan": plan_text, "lang": self._lang},
+            {"series_plan": plan_text, "lang": self._lang},
         )
         return self._llm.complete_json("series_plan_review", system, user, get_schema("series_plan_review"))

@@ -29,7 +29,7 @@ class ContextBuilder:
     # ── series plan ──────────────────────────────────────────────────
 
     def get_series_plan_summary(self) -> str:
-        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
+        plan_path = self._workdir / "series_plan.json"
         if not plan_path.exists():
             return ""
         data = json.loads(plan_path.read_text(encoding="utf-8"))
@@ -58,7 +58,7 @@ class ContextBuilder:
         return "\n".join(lines)
 
     def get_genre(self) -> str:
-        plan_path = self._workdir / ".novel-forge" / "series_plan.json"
+        plan_path = self._workdir / "series_plan.json"
         if plan_path.exists():
             data = json.loads(plan_path.read_text(encoding="utf-8"))
             return data.get("genre", "fantasy")

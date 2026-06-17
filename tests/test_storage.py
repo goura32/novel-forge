@@ -13,14 +13,14 @@ class TestStateStorageAtomicSave:
         storage = StateStorage(tmp_path)
         state = ProjectState(series_title="Test", workdir=str(tmp_path))
         storage.save(state)
-        assert (tmp_path / ".novel-forge" / "state.json").exists()
+        assert (tmp_path / "state.json").exists()
 
     def test_save_creates_backup(self, tmp_path):
         storage = StateStorage(tmp_path)
         state = ProjectState(series_title="Test", workdir=str(tmp_path))
         storage.save(state)
         storage.save(state)  # Second save creates backup
-        assert (tmp_path / ".novel-forge" / "state.json.bak").exists()
+        assert (tmp_path / "state.json.bak").exists()
 
     def test_corrupt_state_loads_backup(self, tmp_path):
         storage = StateStorage(tmp_path)
@@ -28,7 +28,7 @@ class TestStateStorageAtomicSave:
         storage.save(state)
         storage.save(state)  # Create backup
         # Corrupt main file
-        (tmp_path / ".novel-forge" / "state.json").write_text("not json", encoding="utf-8")
+        (tmp_path / "state.json").write_text("not json", encoding="utf-8")
         loaded = storage.load()
         assert loaded.series_title == "Backup"
 
@@ -38,8 +38,8 @@ class TestStateStorageAtomicSave:
         storage.save(state)
         storage.save(state)
         # Corrupt both
-        (tmp_path / ".novel-forge" / "state.json").write_text("bad", encoding="utf-8")
-        (tmp_path / ".novel-forge" / "state.json.bak").write_text("bad", encoding="utf-8")
+        (tmp_path / "state.json").write_text("bad", encoding="utf-8")
+        (tmp_path / "state.json.bak").write_text("bad", encoding="utf-8")
         loaded = storage.load()
         assert loaded.series_title == ""
 

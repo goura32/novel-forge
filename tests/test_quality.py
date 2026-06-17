@@ -1,6 +1,6 @@
 """Tests for quality gate and kanji detection."""
 
-from novel_forge.quality import QualityGate, find_non_japanese_kanji
+from novel_forge.quality_gate import QualityGate, find_non_japanese_kanji
 
 
 class TestFindNonJapaneseKanji:

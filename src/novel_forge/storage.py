@@ -12,8 +12,8 @@ from novel_forge.models import ProjectState, Blackboard, Bible
 class StateStorage:
     def __init__(self, workdir: Path):
         self._workdir = workdir
-        self._state_path = workdir / ".novel-forge" / "state.json"
-        self._backup_path = workdir / ".novel-forge" / "state.json.bak"
+        self._state_path = workdir / "state.json"
+        self._backup_path = workdir / "state.json.bak"
 
     def load(self) -> ProjectState:
         if not self._state_path.exists():
@@ -57,7 +57,7 @@ class StateStorage:
 
 class BlackboardStorage:
     def __init__(self, workdir: Path):
-        self._path = workdir / ".novel-forge" / "blackboard.json"
+        self._path = workdir / "blackboard.json"
 
     def load(self) -> Blackboard:
         if not self._path.exists():
@@ -85,7 +85,7 @@ class BlackboardStorage:
 
 class BibleStorage:
     def __init__(self, workdir: Path):
-        self._path = workdir / ".novel-forge" / "bible.json"
+        self._path = workdir / "bible.json"
 
     def load(self) -> Bible:
         if not self._path.exists():

@@ -14,9 +14,9 @@ from novel_forge.models import (
     VolumeProgress,
     SceneRecord,
 )
-from novel_forge.ollama_client import LLMClient, load_config
+from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager
-from novel_forge.quality import QualityGate
+from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
@@ -37,9 +37,10 @@ class NovelEngineBase:
     ):
         self._workdir = workdir
         self._lang = lang
-        self._storage = StateStorage(workdir)
-        self._bb_storage = BlackboardStorage(workdir)
-        self._bible_storage = BibleStorage(workdir)
+        self._slug: str = ""
+        self._storage = StateStorage(self._series_dir)
+        self._bb_storage = BlackboardStorage(self._series_dir)
+        self._bible_storage = BibleStorage(self._series_dir)
 
         cfg = config if config is not None else load_config()
         if llm_client is None:
@@ -56,7 +57,7 @@ class NovelEngineBase:
             llm_client = LLMClient(
                 api_url=api_url,
                 model=model,
-                raw_log_dir=workdir / ".novel-forge" / "raw_logs",
+                raw_log_dir=self._series_dir / "raw_logs",
                 timeout_seconds=timeout,
                 max_retries=max_retries,
                 num_predict=num_predict,
@@ -70,11 +71,12 @@ class NovelEngineBase:
         self._state = self._storage.load()
 
         # Sub-components
-        self._ctx_builder = ContextBuilder(workdir, self._bb_storage, self._bible_storage)
+        self._ctx_builder = ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
         self._bible_mgr = BibleManager(self._bible_storage)
         self._scene_writer = SceneWriter(
             workdir, self._llm, self._prompts, self._quality,
             self._bb_storage, self._bible_storage,
+            series_dir=self._series_dir,
         )
 
     @property
@@ -84,6 +86,12 @@ class NovelEngineBase:
     @property
     def workdir(self) -> Path:
         return self._workdir
+
+    @property
+    def _series_dir(self) -> Path:
+        """Series output directory: {workdir}/{timestamp}_{slug}/"""
+        slug = self._slug if self._slug else "_default"
+        return self._workdir / slug
 
     # ── helpers ───────────────────────────────────────────────────────
 
@@ -101,9 +109,9 @@ class NovelEngineBase:
 
     def _save_path(self, vol_num: int, filename: str, data: Any) -> None:
         if vol_num == 0:
-            path = self._workdir / ".novel-forge" / filename
+            path = self._series_dir / filename
         else:
-            path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+            path = self._series_dir / f"vol{vol_num:02d}" / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         content = (
             json.dumps(data, ensure_ascii=False, indent=2)
@@ -113,7 +121,7 @@ class NovelEngineBase:
         path.write_text(content, encoding="utf-8")
 
     def _load_path(self, vol_num: int, filename: str) -> dict:
-        path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+        path = self._series_dir / f"vol{vol_num:02d}" / filename
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _get_or_create_scene_record(
