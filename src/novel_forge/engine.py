@@ -169,7 +169,7 @@ class NovelEngine:
         for retry in range(3):
             score = review.get("score", 0)
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-            if score >= 7.0 and len(critical_issues) == 0:
+            if score >= 70 and len(critical_issues) == 0:
                 break
             print(f"  [REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3", flush=True)
             result = self._revise_plan(result, review, system, schema)
@@ -308,7 +308,7 @@ class NovelEngine:
         for retry in range(3):
             score = review.get("score", 0)
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-            if score >= 7.0 and len(critical_issues) == 0:
+            if score >= 70 and len(critical_issues) == 0:
                 break
             print(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3", flush=True)
             result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema, previous_outline)

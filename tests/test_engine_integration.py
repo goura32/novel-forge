@@ -357,9 +357,9 @@ class TestPlanReviewLoop:
         """Plan should be revised when review score < 7.0."""
         # First review returns low score, second returns high
         mock_llm.add_sequence("series_plan", _make_plan_response())
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=5.0))
+        mock_llm.add_sequence("series_plan_review", _make_review_response(score=50))
         mock_llm.add_sequence("series_plan_revision", _make_plan_response(title="改訂版"))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=8.0))
+        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
 
         result = engine.plan("テスト")
 
@@ -371,11 +371,11 @@ class TestPlanReviewLoop:
         """Plan should be revised when there are critical issues."""
         mock_llm.add_sequence("series_plan", _make_plan_response())
         mock_llm.add_sequence("series_plan_review", _make_review_response(
-            score=8.0,
+            score=80,
             issues=[{"severity": "critical", "category": "test", "description": "問題"}]
         ))
         mock_llm.add_sequence("series_plan_revision", _make_plan_response(title="修正版"))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=8.0))
+        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
 
         result = engine.plan("テスト")
 
@@ -387,7 +387,7 @@ class TestPlanReviewLoop:
         """Plan revision should stop after 3 retries even if still failing."""
         mock_llm.add_sequence("series_plan", _make_plan_response())
         for _ in range(4):  # 1 initial + 3 retries
-            mock_llm.add_sequence("series_plan_review", _make_review_response(score=3.0))
+            mock_llm.add_sequence("series_plan_review", _make_review_response(score=30))
             mock_llm.add_sequence("series_plan_revision", _make_plan_response())
 
         result = engine.plan("テスト")
@@ -399,7 +399,7 @@ class TestPlanReviewLoop:
     def test_plan_no_revision_when_passing(self, engine, mock_llm):
         """Plan should not be revised when score >= 7.0 and no critical issues."""
         mock_llm.add_sequence("series_plan", _make_plan_response())
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=8.0))
+        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
 
         result = engine.plan("テスト")
 
@@ -466,7 +466,7 @@ class TestOutlineReviewLoop:
             "pov": "主人公",
             "characters": ["主人公"],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=5.0)
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=50)
         mock_llm._responses["volume_outline_revision"] = _make_outline_response(title="改訂")
         mock_llm._call_log.clear()
 
@@ -491,7 +491,7 @@ class TestOutlineReviewLoop:
             "pov": "主人公",
             "characters": ["主人公"],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=3.0)
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=30)
         mock_llm._responses["volume_outline_revision"] = _make_outline_response()
         mock_llm._call_log.clear()
 
@@ -1315,7 +1315,7 @@ class TestPromptInputCompleteness:
         mock_llm.add_sequence("series_plan", _make_plan_response(
             world={"summary": "魔法世界", "rules": ["魔法が存在する", "魔力には限りがある"]}
         ))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=8.0))
+        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
 
         engine.plan("テスト")
 
@@ -1330,7 +1330,7 @@ class TestPromptInputCompleteness:
         mock_llm.add_sequence("series_plan", _make_plan_response(
             main_characters=[{"name": "主人公", "role": "主人公", "arc": "成長から覚醒へ"}]
         ))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=8.0))
+        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
 
         engine.plan("テスト")
 
@@ -1354,7 +1354,7 @@ class TestPromptInputCompleteness:
             "pov": "主人公",
             "characters": ["主人公"],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=8.0)
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=80)
         mock_llm._call_log.clear()
 
         engine.outline(volume_number=1)
@@ -1380,7 +1380,7 @@ class TestPromptInputCompleteness:
             "pov": "主人公",
             "characters": ["主人公"],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=8.0)
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=80)
         mock_llm._call_log.clear()
 
         engine.outline(volume_number=1)
