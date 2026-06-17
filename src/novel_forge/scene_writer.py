@@ -6,6 +6,7 @@ Also manages scene summarization and Bible updates after each scene.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -152,6 +153,7 @@ class SceneWriter:
                     record.quality_gate = qg_result
 
             if record.status == "初稿済":
+                print(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", file=sys.stderr, flush=True)
                 record.status = "強制出力済"
 
             return {"scene_number": record.scene_number, "status": record.status}

@@ -342,8 +342,10 @@ class NovelEngine:
                         lines.append(f"      目標: {sc.get('goal', '')[:80]}")
                         lines.append(f"      結果: {sc.get('outcome', '')[:80]}")
             return "\n".join(lines)
-        except Exception:
-            return ""
+        except (json.JSONDecodeError, KeyError) as e:
+            raise RuntimeError(
+                f"前巻（第{vol_num - 1}巻）のアウトライン読み込みに失敗しました: {e}"
+            ) from e
 
     def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
         """Three-phase outline generation: chapter structure, chapter design, then scene-by-scene."""
@@ -362,7 +364,9 @@ class NovelEngine:
         elif isinstance(chapters_result, list):
             chapters_list = chapters_result
         else:
-            chapters_list = []
+            raise RuntimeError(
+                f"章構成の生成に失敗しました: 予期しない型 {type(chapters_result).__name__}"
+            )
 
         # Phase 2: Generate detailed chapter design for each chapter
         chapter_designs = []
