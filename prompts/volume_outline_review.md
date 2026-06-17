@@ -25,12 +25,22 @@
 
 ## スコア制約
 
-`overall_score` は **0 以上 100 以下** の整数とすること。
+`score` は **0 以上 100 以下** の整数とすること。
 
 **スコア計算ルール:**
-- `overall_score` = (`structural_validity.score` + `scene_coherence.score` + `pace_analysis.score` + `character_arc_review.score`) / 4
+- `score` = (`structural_validity.score` + `scene_coherence.score` + `pace_analysis.score` + `character_arc_review.score`) / 4
 - 各サブスコアも 0〜100 の整数
-- 言語制約違反（英語・簡体字混入）がある場合: `overall_score` 最大 50
+- `critical` issue がある場合: `score` 最大 50
+- `major` issue が 3 つ以上ある場合: `score` 最大 65
+- `minor` issue のみの場合: `score` 最低 70
+
+**スコアリングガイド:**
+- **90-100**: 商業出版レベル。ほぼ問題なし
+- **80-89**: 良好。軽微な改善点があるが、そのまま出版可能
+- **70-79**: 合格ライン。いくつかの改善点があるが、全体的に読者を引き込む品質
+- **60-69**: 改善が必要。複数の major issue がある
+- **50-59**: 大幅な改善が必要
+- **0-49**: 書き直しが必要
 
 ## 出力スキーマ
 

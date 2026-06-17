@@ -96,7 +96,7 @@
   "issues": [
     {
       "severity": "critical|major|minor|blocker",
-      "category": "上記の評価カテゴリから選択 (opening_hook, character_distinction, foreshadowing_consistency, sensory_coverage, page_turner, dialogue_naturalness, tone_consistency, scene_completeness, language_purity, pov_consistency)",
+      "category": "opening_hook|character_distinction|foreshadowing_consistency|sensory_coverage|page_turner|dialogue_naturalness|tone_consistency|scene_completeness|language_purity|pov_consistency",
       "description": "string",
       "suggestion": "具体的な修正指示を日本語で記述すること。修正箇所の該当テキストを引用し、どう変えるべきかを明示すること。"
     }
@@ -105,6 +105,10 @@
   "revision_needed": true
 }
 ```
+
+**重要**: `issue.category` は上記の評価カテゴリから必ず選択すること。各 issue に対して適切なカテゴリを明示的に指定すること。例:
+- ❌ `category: "問題があります"`
+- ✅ `category: "pov_consistency"`
 
 **重要**: `issue.suggestion` は具体的な記述にすること。「修正が必要」という曖昧な記述ではなく、**該当テキストを引用して「この部分を○○に変えよ」と明示すること**。例:
 - ❌ 「英語表現を日本語に直してください」
