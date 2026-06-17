@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from novel_forge.bible_manager import BibleManager
 from novel_forge.schemas import get_schema
+from novel_forge.storage import BibleStorage, BlackboardStorage
 
 
 class PlanMixin:
@@ -31,6 +33,18 @@ class PlanMixin:
 
         self._state.series_title = result.get("title", "")
         self._state.status = "計画中"
+        slug = result.get("slug", "")
+        if len(slug) > 255:
+            slug = slug[:255].rstrip("-")
+        self._slug = slug
+        self._scene_writer._series_dir = self._series_dir
+        self._ctx_builder._workdir = self._series_dir
+        self._bb_storage = BlackboardStorage(self._series_dir)
+        self._bible_storage = BibleStorage(self._series_dir)
+        self._bible_mgr = BibleManager(self._bible_storage)
+        self._scene_writer._bb_storage = self._bb_storage
+        self._scene_writer._bible_storage = self._bible_storage
+        self._scene_writer._bible_mgr = self._bible_mgr
         self._save_path(0, "series_plan.json", result)
         self._save_path(0, "series_plan_review.json", review)
         self._save()
@@ -42,8 +56,8 @@ class PlanMixin:
             {"keywords": keywords, "lang": self._lang},
         )
         result = self._llm.complete_json("series_plan", system, user, schema)
-        if result.get("slug") and len(result["slug"]) > 256:
-            result["slug"] = result["slug"][:256].rstrip("-")
+        if result.get("slug") and len(result["slug"]) > 255:
+            result["slug"] = result["slug"][:255].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
         return result
@@ -94,8 +108,8 @@ class PlanMixin:
             },
         )
         result = self._llm.complete_json("series_plan_revision", system, user, schema)
-        if result.get("slug") and len(result["slug"]) > 256:
-            result["slug"] = result["slug"][:256].rstrip("-")
+        if result.get("slug") and len(result["slug"]) > 255:
+            result["slug"] = result["slug"][:255].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
         return result
