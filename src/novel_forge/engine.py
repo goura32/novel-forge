@@ -154,7 +154,7 @@ class NovelEngine:
                 "    repeat_penalty: 1.0\n"
                 "    presence_penalty: 1.5\n"
                 "quality:\n"
-                "  max_review_retries: 3\n"
+                "  max_review_retries: 1\n"
             )
             config_path.write_text(default, encoding="utf-8")
 

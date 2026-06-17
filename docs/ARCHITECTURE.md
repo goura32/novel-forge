@@ -79,15 +79,16 @@ class SceneWriteContext:
 
 - シーンは **sequential のみ**（前シーン要約を `{continuity}` として次シーンに注入）
 - アウトライン自己修正は **最大3回**
-- シーン品質ゲート不合格 → 自動改稿 → 再評価（最大3回）。3回不合格 → `force_exported` フラグで続行
+- シーン品質ゲート不合格 → 自動改稿 → 再評価（最大1回、設定可能）。不合格 → `強制出力済`
 
 ### 3.2 状態遷移
 
-**巻**: `planned → outlined → drafting → drafted → exported → finalized`
-      `drafted` から `force_exported` への分岐あり
+**シリーズ**: `計画中 → アウトライン済 → 執筆中 → 初稿済 → 強制出力済 → 出力済`
 
-**シーン**: `planned → drafted → reviewed → revised`
-            `reviewed` から `force_exported` への分岐あり
+**巻**: `計画中 → アウトライン済 → 執筆中 → 初稿済 → 強制出力済 → 出力済`
+
+**シーン**: `計画中 → 初稿済 → 修正済`
+                  └→ `強制出力済`
 
 ### 3.3 人間介入ポイント
 
@@ -96,7 +97,7 @@ class SceneWriteContext:
 | シリーズ企画の確認 | plan 直後 | LLM自己レビュー結果を人間が確認。問題なければ暗黙的に次工程へ | **必須（暗黙承認）** |
 | 最終レビュー | export 直後 | kdp_readiness_report.md の確認 | 任意 |
 
-**それ以外の工程はすべて LLM 自律。人間には見せない。**
+**それ以外の工程はすべて LLM 自律。**
 
 ---
 
@@ -127,6 +128,14 @@ LLM Response
 2. **context**: シリーズ企画 + 巻アウトライン + Blackboard.facts + Bible
 3. **scene**: アウトライン内の当該シーン定義 (MVME goal 含む)
 4. **continuity**: 前シーン要約 + revision履歴 (from Blackboard)
+
+### 4.4 スキーマ設計原則
+
+- **LLM呼び出し時と保存時でスキーマを分ける**
+  - 章構成生成時: `chapter_outline.json`（`{chapters: [{title, purpose}]}`）
+  - シーン設計生成時: `scene_outline.json`（`{title, goal, outcome, ...}`）
+  - 保存時: `volume_outline.json`（`{chapters: [{title, purpose, scenes: [...]}]}`）
+- **engine.py で機械採番するフィールド（number, chapter_number, volume_number）は LLM スキーマに含めない**
 
 ---
 
@@ -229,6 +238,9 @@ LLM Response
 │   ├── series_plan_review.json # シリーズ企画レビュー
 │   ├── blackboard.json         # 事実記録
 │   ├── bible.json              # 設定資料集
+│   ├── raw_logs/               # LLM リクエスト/レスポンスログ
+│   │   ├── 20260617_161613_series_plan.json
+│   │   └── ...
 │   └── volumes/
 │       └── vol01/
 │           ├── outline.json    # 巻アウトライン
@@ -249,4 +261,27 @@ LLM Response
 
 ---
 
-*Last updated: 2026-06-25*
+## 11. 品質ゲート
+
+### 11.1 合格基準
+
+- `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
+- 不合格時は自動改稿 → 再評価（最大1回、`--max-retries` で設定可能）
+
+### 11.2 レビュー指摘修正回数
+
+| 工程 | デフォルト | 最大 | 設定方法 |
+|---|---|---|---|
+| シーン | 1回 | 3回 | `quality.max_review_retries` / `--max-retries` |
+| アウトライン | 3回 | - | ハードコード |
+| シリーズ企画 | 3回 | - | ハードコード |
+
+### 11.3 簡体字チェック
+
+- ツールによる検出は行わない（JIS 漢字セットベースの検出は誤検出が多いため）
+- プロンプトでの防止が主
+- LLM が簡体字を出力した場合、レビューで指摘する
+
+---
+
+*Last updated: 2026-06-28*
