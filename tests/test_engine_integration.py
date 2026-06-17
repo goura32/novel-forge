@@ -133,6 +133,14 @@ class MockLLMClient:
                     },
                 ],
             },
+            "chapter_outline": {
+                "chapters": [
+                    {"title": "プロローグ", "purpose": "導入"},
+                    {"title": "転換", "purpose": "転換"},
+                    {"title": "クライマックス", "purpose": "クライマックス"},
+                    {"title": "収束", "purpose": "収束"},
+                ],
+            },
             "scene_outline": {
                 "title": "出会い",
                 "goal": "主人公を紹介する",

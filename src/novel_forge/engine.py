@@ -359,7 +359,7 @@ class NovelEngine:
             {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
              "lang": self._lang, "previous_outline": previous_outline},
         )
-        chapters_result = self._llm.complete_json("volume_outline", system, user, chapter_schema)
+        chapters_result = self._llm.complete_json("chapter_outline", system, user, chapter_schema)
 
         # Normalize chapters_result to list of chapter dicts
         if isinstance(chapters_result, dict):

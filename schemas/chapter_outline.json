@@ -4,6 +4,8 @@
   "type": "object",
   "required": ["chapters"],
   "properties": {
+    "title": { "type": "string", "maxLength": 128, "description": "巻タイトル" },
+    "premise": { "type": "string", "maxLength": 200, "description": "巻の前提" },
     "chapters": {
       "type": "array",
       "items": {

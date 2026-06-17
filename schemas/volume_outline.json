@@ -2,16 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeOutline",
   "type": "object",
-  "required": ["volume_number", "chapters"],
+  "required": ["chapters"],
   "properties": {
-    "volume_number": { "type": "integer", "minimum": 1 },
+    "volume_number": { "type": "integer", "minimum": 1, "description": "engine.py で機械採番されるため、LLMは含めない" },
     "title": { "type": "string", "maxLength": 128 },
     "premise": { "type": "string", "maxLength": 200 },
     "chapters": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["title", "purpose", "scenes"],
+        "required": ["title", "purpose"],
         "properties": {
           "title": { "type": "string", "maxLength": 128 },
           "purpose": {

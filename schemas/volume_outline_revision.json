@@ -10,7 +10,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["title", "purpose", "scenes"],
+        "required": ["title", "purpose"],
         "properties": {
           "number": { "type": "integer" },
           "title": { "type": "string", "maxLength": 128 },
