@@ -115,3 +115,127 @@ class BibleManager:
             for r in bible.world_rules:
                 lines.append(f"  - {r}")
         return "\n".join(lines) if lines else "（Bible は空です）"
+
+    # ── apply update (from scene_summary_and_bible_update / bible_update) ──
+
+    def apply_update(self, result: dict, scene_number: int) -> None:
+        """Apply a bible update result to Bible.
+
+        Args:
+            result: Parsed JSON response from the LLM bible update prompt.
+            scene_number: Current scene number for tracking relationship changes.
+        """
+        bible = self.bible
+
+        # Characters
+        for ch_data in result.get("characters", []):
+            existing = next(
+                (c for c in bible.characters if c.name == ch_data.get("name", "")),
+                None,
+            )
+            if existing:
+                if ch_data.get("personality"):
+                    existing.personality = ch_data["personality"]
+                if ch_data.get("appearance"):
+                    existing.appearance = ch_data["appearance"]
+                if ch_data.get("motivation"):
+                    existing.motivation = ch_data["motivation"]
+                if ch_data.get("arc"):
+                    existing.arc = ch_data["arc"]
+                if ch_data.get("state"):
+                    existing.state = ch_data["state"]
+            elif ch_data.get("is_new", False) or (ch_data.get("name") and ch_data["name"].strip()):
+                bible.characters.append(CharacterProfile(
+                    name=ch_data.get("name", ""),
+                    role=ch_data.get("role", ""),
+                    personality=ch_data.get("personality", ""),
+                    appearance=ch_data.get("appearance", ""),
+                    motivation=ch_data.get("motivation", ""),
+                    arc=ch_data.get("arc") or "",
+                ))
+
+        # Foreshadowing
+        for fh_data in result.get("foreshadowing", []):
+            fh_type = fh_data.get("type", "setup")
+            if fh_type == "resolution":
+                for fh in bible.foreshadowing:
+                    if not fh.resolved and fh.description == fh_data.get("description", ""):
+                        fh.resolved = True
+                        break
+            else:
+                desc = fh_data.get("description", "").strip()
+                if desc and desc not in {f.description.strip() for f in bible.foreshadowing}:
+                    bible.foreshadowing.append(ForeshadowingItem(
+                        description=desc,
+                        resolved=False,
+                    ))
+
+        # Relationships
+        for rel_data in result.get("relationships", []):
+            existing = next(
+                (r for r in bible.relationships
+                 if {r.character_a, r.character_b} == {
+                     rel_data.get("character_a", ""),
+                     rel_data.get("character_b", ""),
+                 }),
+                None,
+            )
+            if existing:
+                if rel_data.get("type"):
+                    existing.relationship_type = rel_data["type"]
+                if rel_data.get("change_direction"):
+                    existing.change_direction = rel_data["change_direction"]
+                if rel_data.get("trigger_event"):
+                    existing.trigger_event = rel_data["trigger_event"]
+                existing.scene_number = scene_number
+            else:
+                bible.relationships.append(RelationshipItem(
+                    character_a=rel_data.get("character_a", ""),
+                    character_b=rel_data.get("character_b", ""),
+                    relationship_type=rel_data.get("type", ""),
+                    change_direction=rel_data.get("change_direction", ""),
+                    trigger_event=rel_data.get("trigger_event", ""),
+                    scene_number=scene_number,
+                ))
+
+        # Subplots
+        for sp_data in result.get("subplots", []):
+            existing = next(
+                (s for s in bible.subplots if s.id == sp_data.get("id", "")),
+                None,
+            )
+            if existing:
+                if sp_data.get("status"):
+                    existing.status = sp_data["status"]
+                if sp_data.get("progress_note"):
+                    existing.progress_note = sp_data["progress_note"]
+            else:
+                bible.subplots.append(SubplotItem(
+                    id=sp_data.get("id", f"sp_{scene_number}"),
+                    name=sp_data.get("name", ""),
+                    status=sp_data.get("status", "in_progress"),
+                    progress_note=sp_data.get("progress_note", ""),
+                    related_characters=sp_data.get("related_characters", []),
+                    related_foreshadowing_ids=sp_data.get("related_foreshadowing_ids", []),
+                ))
+
+        # Glossary
+        for g_data in result.get("glossary", []):
+            term = g_data.get("term", "")
+            if term:
+                existing = next((g for g in bible.glossary if g.term == term), None)
+                if existing:
+                    existing.definition = g_data.get("definition", existing.definition)
+                else:
+                    bible.glossary.append(GlossaryItem(
+                        term=term,
+                        definition=g_data.get("definition", ""),
+                    ))
+
+        # World rules
+        for r_data in result.get("world_rules", []):
+            rule = r_data.get("rule", "")
+            if rule and rule not in bible.world_rules:
+                bible.world_rules.append(rule)
+
+        self.save(bible)

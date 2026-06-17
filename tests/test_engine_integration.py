@@ -948,6 +948,192 @@ class TestBibleManager:
         updated = storage.load()
         assert updated.foreshadowing[0].resolved is False
 
+    def test_apply_bible_update_new_character(self, tmp_workdir):
+        """_apply_bible_update should add new characters."""
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        mgr = BibleManager(storage)
+
+        result = {
+            "characters": [
+                {"name": "新キャラ", "role": "仲間", "is_new": True,
+                 "personality": "明るい", "appearance": "赤い髪"},
+            ],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=1)
+
+        bible = storage.load()
+        assert len(bible.characters) == 1
+        assert bible.characters[0].name == "新キャラ"
+        assert bible.characters[0].personality == "明るい"
+
+    def test_apply_bible_update_existing_character(self, tmp_workdir):
+        """_apply_bible_update should update existing characters."""
+        from novel_forge.models import CharacterProfile
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        bible = Bible(characters=[CharacterProfile(name="主人公", personality="無口")])
+        storage.save(bible)
+
+        mgr = BibleManager(storage)
+        result = {
+            "characters": [
+                {"name": "主人公", "personality": "元気", "state": "成長済"},
+            ],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=2)
+
+        updated = storage.load()
+        assert updated.characters[0].personality == "元気"
+        assert updated.characters[0].state == "成長済"
+
+    def test_apply_bible_update_foreshadowing_setup(self, tmp_workdir):
+        """_apply_bible_update should add new foreshadowing."""
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        mgr = BibleManager(storage)
+
+        result = {
+            "characters": [],
+            "foreshadowing": [
+                {"type": "setup", "description": "剣の秘密"},
+            ],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=1)
+
+        bible = storage.load()
+        assert len(bible.foreshadowing) == 1
+        assert bible.foreshadowing[0].description == "剣の秘密"
+        assert bible.foreshadowing[0].resolved is False
+
+    def test_apply_bible_update_foreshadowing_resolution(self, tmp_workdir):
+        """_apply_bible_update should resolve existing foreshadowing."""
+        from novel_forge.models import ForeshadowingItem
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        bible = Bible(foreshadowing=[ForeshadowingItem(description="剣の秘密", resolved=False)])
+        storage.save(bible)
+
+        mgr = BibleManager(storage)
+        result = {
+            "characters": [],
+            "foreshadowing": [
+                {"type": "resolution", "description": "剣の秘密"},
+            ],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=2)
+
+        updated = storage.load()
+        assert updated.foreshadowing[0].resolved is True
+
+    def test_apply_bible_update_relationship(self, tmp_workdir):
+        """_apply_bible_update should add new relationships."""
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        mgr = BibleManager(storage)
+
+        result = {
+            "characters": [],
+            "foreshadowing": [],
+            "relationships": [
+                {"character_a": "A", "character_b": "B", "type": "友人",
+                 "change_direction": "improved", "trigger_event": "共闘"},
+            ],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=1)
+
+        bible = storage.load()
+        assert len(bible.relationships) == 1
+        assert bible.relationships[0].character_a == "A"
+        assert bible.relationships[0].relationship_type == "友人"
+
+    def test_apply_bible_update_subplot(self, tmp_workdir):
+        """_apply_bible_update should add new subplots."""
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        mgr = BibleManager(storage)
+
+        result = {
+            "characters": [],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [
+                {"id": "sp1", "name": "陰謀", "status": "in_progress", "progress_note": "進行中"},
+            ],
+            "glossary": [],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=1)
+
+        bible = storage.load()
+        assert len(bible.subplots) == 1
+        assert bible.subplots[0].name == "陰謀"
+
+    def test_apply_bible_update_glossary(self, tmp_workdir):
+        """_apply_bible_update should add new glossary items."""
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        mgr = BibleManager(storage)
+
+        result = {
+            "characters": [],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [
+                {"term": "魔力", "definition": "魔法の源"},
+            ],
+            "world_rules": [],
+        }
+        mgr.apply_update(result, scene_number=1)
+
+        bible = storage.load()
+        assert len(bible.glossary) == 1
+        assert bible.glossary[0].term == "魔力"
+
+    def test_apply_bible_update_world_rules(self, tmp_workdir):
+        """_apply_bible_update should add new world rules."""
+        from novel_forge.bible_manager import BibleManager
+        storage = BibleStorage(tmp_workdir)
+        mgr = BibleManager(storage)
+
+        result = {
+            "characters": [],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [
+                {"rule": "魔法には代償が必要"},
+            ],
+        }
+        mgr.apply_update(result, scene_number=1)
+
+        bible = storage.load()
+        assert len(bible.world_rules) == 1
+        assert bible.world_rules[0] == "魔法には代償が必要"
+
 
 # ── SceneWriter tests ─────────────────────────────────────────────────
 

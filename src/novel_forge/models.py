@@ -143,7 +143,7 @@ class VolumeOutline(BaseModel):
 class VolumePlanItem(BaseModel):
     number: int = Field(ge=1)
     title: str = Field(max_length=128, default="")
-    premise_str: str = Field(max_length=80, default="", alias="premise")
+    premise_str: str = Field(max_length=200, default="", alias="premise")
 
 
 class SeriesPlan(BaseModel):
@@ -151,7 +151,7 @@ class SeriesPlan(BaseModel):
     slug: str = Field(default="", max_length=256, pattern=r"^[a-z0-9-]+$")
     logline: str = Field(default="", max_length=200)
     genre: str = ""
-    target_audience: str = Field(default="", max_length=50)
+    target_audience: str = Field(default="", max_length=200)
     themes: list[str] = Field(default_factory=list)
     selling_points: list[str] = Field(default_factory=list)
     world: dict[str, Any] = Field(default_factory=lambda: {"summary": "", "rules": []})
