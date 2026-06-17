@@ -45,6 +45,10 @@ def _parse_json_response(text: str) -> Any:
             return json.loads(text[start : end + 1])
         except json.JSONDecodeError:
             pass
+    # Fallback: if the text looks like a scene draft (long text with no JSON),
+    # wrap it in a JSON object with "content" key
+    if len(text) > 100 and "\n" in text:
+        return {"content": text, "title": ""}
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 

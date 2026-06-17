@@ -46,7 +46,7 @@ class OutlineMixin:
         """Get the outline summary of the previous volume, if it exists."""
         if vol_num <= 1:
             return ""
-        prev_path = self._workdir / "_novel_forge" / f"vol{vol_num - 1:02d}" / "outline.json"
+        prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / "outline.json"
         if not prev_path.exists():
             raise RuntimeError(
                 f"前巻（第{vol_num - 1}巻）のアウトラインが存在しません: {prev_path}\n"
