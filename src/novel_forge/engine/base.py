@@ -1,0 +1,154 @@
+"""NovelEngine base — __init__, helpers, state management."""
+
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+from typing import Any
+
+from novel_forge.bible_manager import BibleManager
+from novel_forge.context_builder import ContextBuilder
+from novel_forge.models import (
+    ProjectState,
+    VolumeProgress,
+    SceneRecord,
+)
+from novel_forge.ollama_client import LLMClient, load_config
+from novel_forge.prompts import PromptManager
+from novel_forge.quality import QualityGate
+from novel_forge.schemas import get_schema
+from novel_forge.scene_writer import SceneWriter
+from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
+
+
+class NovelEngineBase:
+    """Base class for NovelEngine — __init__, helpers, state management."""
+
+    def __init__(
+        self,
+        workdir: Path,
+        model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
+        lang: str = "ja",
+        llm_client: LLMClient | None = None,
+        prompt_manager: PromptManager | None = None,
+        config: dict[str, Any] | None = None,
+        max_review_retries: int | None = None,
+    ):
+        self._workdir = workdir
+        self._lang = lang
+        self._storage = StateStorage(workdir)
+        self._bb_storage = BlackboardStorage(workdir)
+        self._bible_storage = BibleStorage(workdir)
+
+        cfg = config if config is not None else load_config()
+        if llm_client is None:
+            llm_cfg = cfg.get("llm", {})
+            model = llm_cfg.get("model", model)
+            timeout = llm_cfg.get("timeout_seconds", 600)
+            max_retries = llm_cfg.get("max_retries", 2)
+            num_predict = llm_cfg.get("num_predict", 65536)
+            num_ctx = llm_cfg.get("num_ctx", None)
+            host = llm_cfg.get("ollama_host", None)
+            api_url = None
+            if host:
+                api_url = f"http://{host}/api/generate"
+            llm_client = LLMClient(
+                api_url=api_url,
+                model=model,
+                raw_log_dir=workdir / ".novel-forge" / "raw_logs",
+                timeout_seconds=timeout,
+                max_retries=max_retries,
+                num_predict=num_predict,
+                num_ctx=num_ctx,
+                ollama_options=llm_cfg.get("ollama_options"),
+            )
+        self._llm = llm_client
+        self._prompts = prompt_manager or PromptManager()
+        quality_retries = max_review_retries if max_review_retries is not None else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
+        self._quality = QualityGate(max_retries=quality_retries)
+        self._state = self._storage.load()
+
+        # Sub-components
+        self._ctx_builder = ContextBuilder(workdir, self._bb_storage, self._bible_storage)
+        self._bible_mgr = BibleManager(self._bible_storage)
+        self._scene_writer = SceneWriter(
+            workdir, self._llm, self._prompts, self._quality,
+            self._bb_storage, self._bible_storage,
+        )
+
+    @property
+    def state(self) -> ProjectState:
+        return self._state
+
+    @property
+    def workdir(self) -> Path:
+        return self._workdir
+
+    # ── helpers ───────────────────────────────────────────────────────
+
+    def _save(self) -> None:
+        self._storage.save(self._state)
+
+    def _current_volume(self) -> VolumeProgress:
+        vol_num = self._state.current_volume
+        for v in self._state.volumes:
+            if v.volume_number == vol_num:
+                return v
+        vol = VolumeProgress(volume_number=vol_num)
+        self._state.volumes.append(vol)
+        return vol
+
+    def _save_path(self, vol_num: int, filename: str, data: Any) -> None:
+        if vol_num == 0:
+            path = self._workdir / ".novel-forge" / filename
+        else:
+            path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        content = (
+            json.dumps(data, ensure_ascii=False, indent=2)
+            if isinstance(data, dict)
+            else str(data)
+        )
+        path.write_text(content, encoding="utf-8")
+
+    def _load_path(self, vol_num: int, filename: str) -> dict:
+        path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / filename
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def _get_or_create_scene_record(
+        self, vol: VolumeProgress, scene_number: int
+    ) -> SceneRecord:
+        for s in vol.scenes:
+            if s.scene_number == scene_number:
+                return s
+        record = SceneRecord(scene_number=scene_number)
+        vol.scenes.append(record)
+        return record
+
+    def _ensure_config(self) -> None:
+        """Generate config.yaml from template if it doesn't exist in workdir."""
+        config_path = self._workdir / "config.yaml"
+        if config_path.exists():
+            return
+        template = Path(__file__).resolve().parent.parent / "config.yaml"
+        if template.exists():
+            shutil.copy2(template, config_path)
+        else:
+            default = (
+                "llm:\n"
+                '  model: "qwen3.6:35b-a3b-mtp-q4_K_M"\n'
+                "  num_predict: 8192\n"
+                "  num_ctx: null\n"
+                "  timeout_seconds: 3600\n"
+                "  max_retries: 2\n"
+                "  ollama_options:\n"
+                "    temperature: 1.0\n"
+                "    top_k: 20\n"
+                "    top_p: 0.95\n"
+                "    repeat_penalty: 1.0\n"
+                "    presence_penalty: 1.5\n"
+                "quality:\n"
+                "  max_review_retries: 1\n"
+            )
+            config_path.write_text(default, encoding="utf-8")
