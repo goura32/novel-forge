@@ -8,6 +8,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["subject", "predicate", "object"],
         "properties": {
           "subject": { "type": "string" },
           "predicate": { "type": "string" },

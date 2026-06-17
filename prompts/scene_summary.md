@@ -18,19 +18,19 @@
 
 ## 出力スキーマ
 
-`scene_summary.json` に適合する JSON を出力すること。
+`scene_summary.json` に適合する JSON を出力すること。JSON Schema の各フィールド定義・required・maxLength に従うこと。
 
 ## 出力形式
 
 ```json
 {
   "summary": "string",
+  "characters": ["string"],
   "facts": [
     {
       "subject": "string",
       "predicate": "string",
-      "object": "string",
-      "confidence": 0.0
+      "object": "string"
     }
   ],
   "continuity_notes": ["string"],
