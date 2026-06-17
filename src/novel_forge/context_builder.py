@@ -80,6 +80,10 @@ class ContextBuilder:
             f"視点: {scene.pov}",
             f"登場人物: {', '.join(scene.characters) if scene.characters else 'なし'}",
         ]
+        if scene.key_events:
+            lines.append(f"主要イベント: {'; '.join(scene.key_events)}")
+        if scene.setting:
+            lines.append(f"舞台設定: {scene.setting}")
         return "\n".join(lines)
 
     def get_outline_summary(self, outline: VolumeOutline) -> str:

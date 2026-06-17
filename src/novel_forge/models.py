@@ -120,6 +120,8 @@ class SceneOutline(BaseModel):
     conflict: str = Field(max_length=200, default="")
     outcome: str = Field(max_length=200, default="")
     characters: list[str] = Field(default_factory=list)
+    key_events: list[str] = Field(default_factory=list)
+    setting: str = Field(max_length=200, default="")
 
 
 class ChapterOutline(BaseModel):

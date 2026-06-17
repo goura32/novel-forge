@@ -100,6 +100,8 @@ class SceneWriter:
                     "series_plan": ctx.get_series_plan_summary_fn(),
                     "outline": ctx.get_outline_summary_fn(outline),
                     "scene": ctx.get_scene_summary_fn(scene),
+                    "chapter_title": chapter.title,
+                    "chapter_purpose": chapter.purpose,
                     "context": context,
                     "continuity": continuity,
                     "subplots": self._get_subplots_text(),
