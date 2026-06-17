@@ -29,9 +29,9 @@
       "type": "object",
       "required": ["introduction_ratio", "development_ratio", "climax_ratio", "pacing_comment", "score"],
       "properties": {
-        "introduction_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-        "development_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-        "climax_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "introduction_ratio": { "type": "number", "minimum": 0, "maximum": 100 },
+        "development_ratio": { "type": "number", "minimum": 0, "maximum": 100 },
+        "climax_ratio": { "type": "number", "minimum": 0, "maximum": 100 },
         "pacing_comment": { "type": "string", "maxLength": 500, "description": "ペースのコメント" },
         "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }
