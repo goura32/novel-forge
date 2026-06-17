@@ -275,10 +275,10 @@ class TestSchemas:
         assert "foreshadowing_notes" in schema["properties"]
         assert "subplot_notes" in schema["properties"]
 
-    def test_volume_outline_goal_has_description(self):
+    def test_volume_outline_goal_has_maxlength(self):
         schema = get_schema("volume_outline")
         goal = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"]["properties"]["goal"]
-        assert "description" in goal
+        assert "maxLength" in goal
 
     def test_chapter_outline_purpose_is_enum(self):
         schema = get_schema("volume_outline")

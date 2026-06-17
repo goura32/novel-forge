@@ -457,17 +457,24 @@ class NovelEngine:
                 previous_outcome = scene_result.get("outcome", "")
                 scene_counter += 1
 
-        # Build final result
+        # Build final result with scenes nested under chapters
+        chapters_with_scenes = []
+        for i, ch in enumerate(chapters_list):
+            ch_scenes = [s for s in all_scenes if s.get("chapter_number") == i + 1]
+            chapters_with_scenes.append({
+                "number": i + 1,
+                "title": ch.get("title", ""),
+                "purpose": ch.get("purpose", ""),
+                "scenes": ch_scenes,
+            })
+
         result = {
             "title": chapters_result.get("title", f"第{vol_num}巻") if isinstance(chapters_result, dict) else f"第{vol_num}巻",
             "premise": chapters_result.get("premise", "") if isinstance(chapters_result, dict) else "",
-            "chapters": [
-                {"number": i + 1, "title": ch.get("title", ""), "purpose": ch.get("purpose", "")}
-                for i, ch in enumerate(chapters_list)
-            ],
+            "chapters": chapters_with_scenes,
             "scenes": all_scenes,
         }
-        return result
+        return self._flatten_outline(result)
 
     def _estimate_scene_count(self, purpose: str) -> int:
         """Estimate number of scenes per chapter based on its role."""

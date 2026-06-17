@@ -27,16 +27,9 @@
               "properties": {
                 "title": { "type": "string", "maxLength": 128 },
                 "pov": { "type": "string", "maxLength": 64 },
-                "goal": {
-                  "type": "string",
-                  "description": "シーン開始時の目標。(State > Action) 形式。State: 開始時の状況、Action: 主人公の行動。結果は outcome に書くため、goal には含めない。"
-                },
+                "goal": { "type": "string", "maxLength": 200 },
                 "conflict": { "type": "string", "maxLength": 200 },
-                "outcome": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "シーン終了時の実際の結果。次のシーンの goal（State部分）に繋がること。必ず記述すること。空文字列は許可しない。"
-                },
+                "outcome": { "type": "string", "maxLength": 200 },
                 "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
               }
             }
