@@ -114,24 +114,32 @@ class MockLLMClient:
                 ],
             },
             "volume_outline": {
-                "title": "第1巻",
-                "premise": "始まりの物語",
                 "chapters": [
                     {
                         "title": "プロローグ",
                         "purpose": "導入",
-                        "scenes": [
-                            {
-                                "title": "出会い",
-                                "goal": "主人公を紹介する",
-                                "outcome": "主人公が旅立つ",
-                                "conflict": "葛藤なし",
-                                "pov": "主人公",
-                                "characters": ["主人公"],
-                            }
-                        ],
-                    }
+                    },
+                    {
+                        "title": "転換",
+                        "purpose": "転換",
+                    },
+                    {
+                        "title": "クライマックス",
+                        "purpose": "クライマックス",
+                    },
+                    {
+                        "title": "収束",
+                        "purpose": "収束",
+                    },
                 ],
+            },
+            "scene_outline": {
+                "title": "出会い",
+                "goal": "主人公を紹介する",
+                "outcome": "主人公が旅立つ",
+                "conflict": "葛藤なし",
+                "pov": "主人公",
+                "characters": ["主人公"],
             },
             "volume_outline_review": {
                 "score": 80.0,
@@ -140,23 +148,23 @@ class MockLLMClient:
                 "recommendations": [],
             },
             "volume_outline_revision": {
-                "title": "第1巻改訂",
-                "premise": "始まりの物語改訂",
                 "chapters": [
                     {
                         "title": "プロローグ改訂",
                         "purpose": "導入",
-                        "scenes": [
-                            {
-                                "title": "出会い改訂",
-                                "goal": "主人公を紹介する改訂",
-                                "outcome": "主人公が旅立つ改訂",
-                                "conflict": "葛藤あり",
-                                "pov": "主人公",
-                                "characters": ["主人公"],
-                            }
-                        ],
-                    }
+                    },
+                    {
+                        "title": "転換改訂",
+                        "purpose": "転換",
+                    },
+                    {
+                        "title": "クライマックス改訂",
+                        "purpose": "クライマックス",
+                    },
+                    {
+                        "title": "収束改訂",
+                        "purpose": "収束",
+                    },
                 ],
             },
             "scene_review": {
@@ -284,20 +292,10 @@ def _make_outline_response(**overrides) -> dict:
         "title": "第1巻",
         "premise": "始まりの物語",
         "chapters": [
-            {
-                "title": "プロローグ",
-                "purpose": "導入",
-                "scenes": [
-                    {
-                        "title": "出会い",
-                        "goal": "主人公を紹介する",
-                        "outcome": "主人公が旅立つ",
-                        "conflict": "葛藤なし",
-                        "pov": "主人公",
-                        "characters": ["主人公"],
-                    }
-                ],
-            }
+            {"title": "プロローグ", "purpose": "導入"},
+            {"title": "転換", "purpose": "転換"},
+            {"title": "クライマックス", "purpose": "クライマックス"},
+            {"title": "収束", "purpose": "収束"},
         ],
     }
     base.update(overrides)
@@ -458,10 +456,19 @@ class TestOutlineReviewLoop:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        mock_llm.add_sequence("volume_outline", _make_outline_response())
-        mock_llm.add_sequence("volume_outline_review", _make_review_response(score=5.0))
-        mock_llm.add_sequence("volume_outline_revision", _make_outline_response(title="改訂"))
-        mock_llm.add_sequence("volume_outline_review", _make_review_response(score=8.0))
+        # Set default responses (outline generates multiple LLM calls)
+        mock_llm._responses["volume_outline"] = _make_outline_response()
+        mock_llm._responses["scene_outline"] = {
+            "title": "出会い",
+            "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ",
+            "conflict": "葛藤なし",
+            "pov": "主人公",
+            "characters": ["主人公"],
+        }
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=5.0)
+        mock_llm._responses["volume_outline_revision"] = _make_outline_response(title="改訂")
+        mock_llm._call_log.clear()
 
         result = engine.outline(volume_number=1)
 
@@ -474,10 +481,19 @@ class TestOutlineReviewLoop:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        mock_llm.add_sequence("volume_outline", _make_outline_response())
-        for _ in range(4):
-            mock_llm.add_sequence("volume_outline_review", _make_review_response(score=3.0))
-            mock_llm.add_sequence("volume_outline_revision", _make_outline_response())
+        # Set default responses (outline generates multiple LLM calls)
+        mock_llm._responses["volume_outline"] = _make_outline_response()
+        mock_llm._responses["scene_outline"] = {
+            "title": "出会い",
+            "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ",
+            "conflict": "葛藤なし",
+            "pov": "主人公",
+            "characters": ["主人公"],
+        }
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=3.0)
+        mock_llm._responses["volume_outline_revision"] = _make_outline_response()
+        mock_llm._call_log.clear()
 
         result = engine.outline(volume_number=1)
 
@@ -531,16 +547,21 @@ class TestWrite:
         engine.plan("テスト")
         engine.outline(volume_number=1)
 
-        # Mark scene as completed via SceneRecord
+        # Mark ALL scenes as completed
         vol = engine._current_volume()
         from novel_forge.models import SceneRecord
-        record = SceneRecord(scene_number=1, status="修正済")
-        vol.scenes.append(record)
+        outline_path = tmp_workdir / ".novel-forge" / "volumes" / "vol01" / "outline.json"
+        outline_dict = json.loads(outline_path.read_text(encoding="utf-8"))
+        for sc in outline_dict.get("scenes", []):
+            vol.scenes.append(SceneRecord(scene_number=sc["number"], status="修正済"))
 
-        # Create a dummy draft file
-        scene_dir = tmp_workdir / ".novel-forge" / "volumes" / "vol01" / "scenes" / "ch01"
-        scene_dir.mkdir(parents=True, exist_ok=True)
-        (scene_dir / "vol01_ch01_sc01.md").write_text("既存のドラフト", encoding="utf-8")
+        # Create dummy draft files for all scenes
+        for sc in outline_dict.get("scenes", []):
+            ch_num = sc.get("chapter_number", 1)
+            sc_num = sc["number"]
+            scene_dir = tmp_workdir / ".novel-forge" / "volumes" / "vol01" / "scenes" / f"ch{ch_num:02d}"
+            scene_dir.mkdir(parents=True, exist_ok=True)
+            (scene_dir / f"vol01_ch{ch_num:02d}_sc{sc_num:02d}.md").write_text("既存のドラフト", encoding="utf-8")
 
         mock_llm._call_log.clear()
         results = engine.write(volume_number=1)
@@ -1323,8 +1344,18 @@ class TestPromptInputCompleteness:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        mock_llm.add_sequence("volume_outline", _make_outline_response())
-        mock_llm.add_sequence("volume_outline_review", _make_review_response(score=8.0))
+        # Set default responses (outline generates multiple LLM calls)
+        mock_llm._responses["volume_outline"] = _make_outline_response()
+        mock_llm._responses["scene_outline"] = {
+            "title": "出会い",
+            "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ",
+            "conflict": "葛藤なし",
+            "pov": "主人公",
+            "characters": ["主人公"],
+        }
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=8.0)
+        mock_llm._call_log.clear()
 
         engine.outline(volume_number=1)
 
@@ -1339,8 +1370,18 @@ class TestPromptInputCompleteness:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        mock_llm.add_sequence("volume_outline", _make_outline_response())
-        mock_llm.add_sequence("volume_outline_review", _make_review_response(score=8.0))
+        # Set default responses (outline generates multiple LLM calls)
+        mock_llm._responses["volume_outline"] = _make_outline_response()
+        mock_llm._responses["scene_outline"] = {
+            "title": "出会い",
+            "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ",
+            "conflict": "葛藤なし",
+            "pov": "主人公",
+            "characters": ["主人公"],
+        }
+        mock_llm._responses["volume_outline_review"] = _make_review_response(score=8.0)
+        mock_llm._call_log.clear()
 
         engine.outline(volume_number=1)
 

@@ -132,7 +132,7 @@ class ChapterOutline(BaseModel):
 
 class VolumeOutline(BaseModel):
     volume_number: int = Field(ge=1)
-    title: str = Field(max_length=128)
+    title: str = Field(default="", max_length=128)
     premise: str = Field(max_length=200, default="")
     chapters: list[ChapterOutline] = Field(default_factory=list)
     scenes: list[SceneOutline] = Field(default_factory=list)

@@ -346,13 +346,96 @@ class NovelEngine:
             return ""
 
     def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
+        """Two-phase outline generation: chapter structure first, then scene-by-scene."""
+        # Phase 1: Generate chapter structure
+        chapter_schema = get_schema("chapter_outline")
         user = self._prompts.render(
             "volume_outline.md",
             {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
              "lang": self._lang, "previous_outline": previous_outline},
         )
-        result = self._llm.complete_json("volume_outline", system, user, schema)
-        return self._flatten_outline(result)
+        chapters_result = self._llm.complete_json("volume_outline", system, user, chapter_schema)
+
+        # Normalize chapters_result to list of chapter dicts
+        if isinstance(chapters_result, dict):
+            chapters_list = chapters_result.get("chapters", [chapters_result])
+        elif isinstance(chapters_result, list):
+            chapters_list = chapters_result
+        else:
+            chapters_list = []
+
+        # Phase 2: Generate scenes for each chapter, one at a time
+        all_scenes = []
+        scene_counter = 1
+        previous_outcome = ""
+
+        # Build previous volume summary for context
+        prev_summary = ""
+        if previous_outline:
+            prev_summary = previous_outline[:500]  # Truncate for context length
+
+        for ch_idx, ch in enumerate(chapters_list, 1):
+            ch_title = ch.get("title", f"第{ch_idx}章")
+            ch_purpose = ch.get("purpose", "展開")
+
+            # Determine number of scenes for this chapter (2-4)
+            ch_scene_count = self._estimate_scene_count(ch_purpose)
+
+            for sc_idx in range(ch_scene_count):
+                scene_number = scene_counter
+                total_scenes = len(all_scenes) + ch_scene_count  # Estimate
+
+                user = self._prompts.render(
+                    "scene_outline.md",
+                    {
+                        "series_plan": series_plan,
+                        "volume_number": str(vol_num),
+                        "volume_title": "",  # Will be filled from outline
+                        "volume_premise": "",
+                        "chapter_number": str(ch_idx),
+                        "chapter_title": ch_title,
+                        "chapter_purpose": ch_purpose,
+                        "scene_number": str(scene_number),
+                        "scene_count": str(total_scenes),
+                        "chapter_scene_number": str(sc_idx + 1),
+                        "chapter_scene_count": str(ch_scene_count),
+                        "previous_outcome": previous_outcome,
+                        "previous_volume_summary": prev_summary,
+                        "lang": self._lang,
+                    },
+                )
+                scene_schema = get_schema("scene_outline")
+                scene_result = self._llm.complete_json("scene_outline", system, user, scene_schema)
+
+                scene_result["chapter_number"] = ch_idx
+                scene_result["number"] = scene_number
+                all_scenes.append(scene_result)
+
+                previous_outcome = scene_result.get("outcome", "")
+                scene_counter += 1
+
+        # Build final result
+        result = {
+            "title": chapters_result.get("title", f"第{vol_num}巻") if isinstance(chapters_result, dict) else f"第{vol_num}巻",
+            "premise": chapters_result.get("premise", "") if isinstance(chapters_result, dict) else "",
+            "chapters": [
+                {"number": i + 1, "title": ch.get("title", ""), "purpose": ch.get("purpose", "")}
+                for i, ch in enumerate(chapters_list)
+            ],
+            "scenes": all_scenes,
+        }
+        return result
+
+    def _estimate_scene_count(self, purpose: str) -> int:
+        """Estimate number of scenes per chapter based on its role."""
+        if purpose == "導入":
+            return 2
+        elif purpose == "クライマックス":
+            return 4
+        elif purpose == "収束":
+            return 2
+        else:  # 展開, 転換
+            return 3
 
     def _flatten_outline(self, result):
         flat_chapters = []
@@ -376,7 +459,7 @@ class NovelEngine:
         if previous_outline:
             lines.append(previous_outline)
             lines.append("")
-        lines.extend([f"巻タイトル: {outline.get('title', '')}", f"前提: {outline.get('premise', '')}", ""])
+        lines.extend([f"巻タイトル: {outline.get('title', '未設定')}", f"前提: {outline.get('premise', '未設定')}", ""])
         for ch in outline.get("chapters", []):
             lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
             for sc in outline.get("scenes", []):

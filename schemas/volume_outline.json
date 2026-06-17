@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeOutline",
   "type": "object",
-  "required": ["volume_number", "title", "premise", "chapters"],
+  "required": ["volume_number", "chapters"],
   "properties": {
     "volume_number": { "type": "integer", "minimum": 1 },
     "title": { "type": "string", "maxLength": 128 },
