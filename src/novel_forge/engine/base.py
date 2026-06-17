@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -91,7 +92,28 @@ class NovelEngineBase:
     def _series_dir(self) -> Path:
         """Series output directory: {workdir}/{timestamp}_{slug}/"""
         slug = self._slug if self._slug else "_default"
-        return self._workdir / slug
+        return self._workdir / f"{self._timestamp}_{slug}"
+
+    @property
+    def _timestamp(self) -> str:
+        """Timestamp for this engine instance (set once at init)."""
+        if not hasattr(self, "_ts"):
+            self._ts = time.strftime("%Y%m%d_%H%M%S")
+        return self._ts
+
+    def _move_to_final_dir(self) -> None:
+        """Move _default directory contents to final {timestamp}_{slug}/ directory."""
+        default_dir = self._workdir / f"{self._timestamp}_default"
+        final_dir = self._series_dir
+        if default_dir.exists() and not final_dir.exists():
+            shutil.move(str(default_dir), str(final_dir))
+        elif default_dir.exists() and final_dir.exists():
+            # Merge: move files from default to final
+            for item in default_dir.iterdir():
+                dest = final_dir / item.name
+                if not dest.exists():
+                    shutil.move(str(item), str(dest))
+            default_dir.rmdir()
 
     # ── helpers ───────────────────────────────────────────────────────
 

@@ -37,6 +37,8 @@ class PlanMixin:
         if len(slug) > 255:
             slug = slug[:255].rstrip("-")
         self._slug = slug
+        # Move _default data to final series directory
+        self._move_to_final_dir()
         self._scene_writer._series_dir = self._series_dir
         self._ctx_builder._workdir = self._series_dir
         self._bb_storage = BlackboardStorage(self._series_dir)
