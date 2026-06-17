@@ -15,6 +15,10 @@
 - 章番号: {chapter_number}
 - 章タイトル: {chapter_title}
 - 章の役割: {chapter_purpose}
+- 章のテーマ: {chapter_theme}
+- 章の感情の弧: {chapter_emotional_arc}
+- 章の伏線メモ: {chapter_foreshadowing_notes}
+- 章のサブプロットメモ: {chapter_subplot_notes}
 
 ## このシーンの位置
 - シーン番号: {scene_number}（全{scene_count}シーン中）

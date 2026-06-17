@@ -108,18 +108,27 @@ class TestModels:
         sd = SceneDesign(number=1, title="Prologue", goal="Introduce world")
         assert sd.number == 1
 
-    def test_chapter_design_act_role(self):
+    def test_chapter_design_theme(self):
         cd = ChapterDesign(
             number=1,
             title="Ch1",
             purpose="導入",
-            act_role="設定",
+            theme="信頼の崩壊",
+            emotional_arc="不安→緊張→絶望",
         )
-        assert cd.act_role == "設定"
+        assert cd.theme == "信頼の崩壊"
+        assert cd.emotional_arc == "不安→緊張→絶望"
 
-    def test_chapter_design_invalid_act_role(self):
-        with pytest.raises(Exception):
-            ChapterDesign(number=1, title="Ch1", act_role="invalid")
+    def test_chapter_design_foreshadowing_notes(self):
+        cd = ChapterDesign(
+            number=1,
+            title="Ch1",
+            purpose="導入",
+            foreshadowing_notes="剣の秘密を設置する",
+            subplot_notes="サブプロットAを進展させる",
+        )
+        assert cd.foreshadowing_notes == "剣の秘密を設置する"
+        assert cd.subplot_notes == "サブプロットAを進展させる"
 
     def test_scene_record_status(self):
         sr = SceneRecord(scene_number=1)
@@ -259,10 +268,12 @@ class TestSchemas:
         }
         validate_or_raise("series_plan", data)  # Should not raise
 
-    def test_chapter_design_schema_has_act_role(self):
+    def test_chapter_design_schema_has_new_fields(self):
         schema = get_schema("chapter_design")
-        assert "act_role" in schema["required"]
-        assert "act_role" in schema["properties"]
+        assert "theme" in schema["required"]
+        assert "emotional_arc" in schema["required"]
+        assert "foreshadowing_notes" in schema["properties"]
+        assert "subplot_notes" in schema["properties"]
 
     def test_volume_outline_goal_has_description(self):
         schema = get_schema("volume_outline")

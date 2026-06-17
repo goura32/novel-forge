@@ -2,45 +2,38 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ChapterDesign",
   "type": "object",
-  "required": ["number", "title", "theme", "scene_summaries", "emotional_arc", "purpose", "act_role", "characters"],
+  "required": ["title", "purpose", "theme", "emotional_arc"],
   "properties": {
-    "number": { "type": "integer", "minimum": 1 },
     "title": {
       "type": "string",
       "maxLength": 128,
       "description": "章タイトル"
     },
+    "purpose": {
+      "type": "string",
+      "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
+      "description": "章の役割。物語全体におけるこの章の機能。"
+    },
     "theme": {
       "type": "string",
       "maxLength": 200,
-      "description": "章のテーマ"
-    },
-    "scene_summaries": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "maxLength": 500,
-        "description": "シーン要約"
-      }
+      "description": "章のテーマ。この章が描く核心的なテーマや問い。例: 「信頼の崩壊」「選択の代償」「自己犠牲」"
     },
     "emotional_arc": {
       "type": "string",
       "maxLength": 200,
-      "description": "感情の弧"
+      "description": "章の感情の弧。読者がこの章で辿る感情的な変化。例: 「不安→緊張→絶望→希望」"
     },
-    "purpose": {
+    "foreshadowing_notes": {
       "type": "string",
-      "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
-      "description": "章の役割。日本語で指定"
+      "maxLength": 300,
+      "description": "章内の伏線に関するメモ。設置する伏線、回収する伏線、次章への引き継ぎ事項。"
     },
-    "act_role": {
+    "subplot_notes": {
       "type": "string",
-      "enum": ["序盤", "中盤", "終盤"],
-      "description": "三幕構成の役割。日本語で指定"
-    },
-    "characters": {
-      "type": "array",
-      "items": { "type": "string", "maxLength": 64 }
+      "maxLength": 300,
+      "description": "章内のサブプロットに関するメモ。どのサブプロットを進展させるか、どのキャラクターが関わるか。"
     }
-  }
+  },
+  "description": "章の詳細設計。章の役割、テーマ、感情アーク、伏線・サブプロットの扱いを定義する。"
 }

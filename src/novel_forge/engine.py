@@ -346,7 +346,7 @@ class NovelEngine:
             return ""
 
     def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
-        """Two-phase outline generation: chapter structure first, then scene-by-scene."""
+        """Three-phase outline generation: chapter structure, chapter design, then scene-by-scene."""
         # Phase 1: Generate chapter structure
         chapter_schema = get_schema("chapter_outline")
         user = self._prompts.render(
@@ -364,7 +364,38 @@ class NovelEngine:
         else:
             chapters_list = []
 
-        # Phase 2: Generate scenes for each chapter, one at a time
+        # Phase 2: Generate detailed chapter design for each chapter
+        chapter_designs = []
+        previous_chapter_outcome = ""
+        prev_summary = previous_outline[:500] if previous_outline else ""
+
+        for ch_idx, ch in enumerate(chapters_list, 1):
+            ch_title = ch.get("title", f"第{ch_idx}章")
+            ch_purpose = ch.get("purpose", "展開")
+
+            user = self._prompts.render(
+                "chapter_design.md",
+                {
+                    "series_plan": series_plan,
+                    "volume_number": str(vol_num),
+                    "volume_title": "",
+                    "volume_premise": "",
+                    "chapter_number": str(ch_idx),
+                    "chapter_title": ch_title,
+                    "chapter_purpose": ch_purpose,
+                    "previous_chapter_outcome": previous_chapter_outcome,
+                    "previous_volume_summary": prev_summary,
+                    "lang": self._lang,
+                },
+            )
+            design_schema = get_schema("chapter_design")
+            design_result = self._llm.complete_json("chapter_design", system, user, design_schema)
+            design_result["number"] = ch_idx
+            design_result["title"] = ch_title
+            chapter_designs.append(design_result)
+            previous_chapter_outcome = design_result.get("emotional_arc", "")
+
+        # Phase 3: Generate scenes for each chapter, one at a time
         all_scenes = []
         scene_counter = 1
         previous_outcome = ""
@@ -377,6 +408,7 @@ class NovelEngine:
         for ch_idx, ch in enumerate(chapters_list, 1):
             ch_title = ch.get("title", f"第{ch_idx}章")
             ch_purpose = ch.get("purpose", "展開")
+            ch_design = chapter_designs[ch_idx - 1] if ch_idx <= len(chapter_designs) else {}
 
             # Determine number of scenes for this chapter (2-4)
             ch_scene_count = self._estimate_scene_count(ch_purpose)
@@ -390,11 +422,15 @@ class NovelEngine:
                     {
                         "series_plan": series_plan,
                         "volume_number": str(vol_num),
-                        "volume_title": "",  # Will be filled from outline
+                        "volume_title": "",
                         "volume_premise": "",
                         "chapter_number": str(ch_idx),
                         "chapter_title": ch_title,
                         "chapter_purpose": ch_purpose,
+                        "chapter_theme": ch_design.get("theme", ""),
+                        "chapter_emotional_arc": ch_design.get("emotional_arc", ""),
+                        "chapter_foreshadowing_notes": ch_design.get("foreshadowing_notes", ""),
+                        "chapter_subplot_notes": ch_design.get("subplot_notes", ""),
                         "scene_number": str(scene_number),
                         "scene_count": str(total_scenes),
                         "chapter_scene_number": str(sc_idx + 1),

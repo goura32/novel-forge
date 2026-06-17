@@ -95,17 +95,15 @@ class SceneDesign(BaseModel):
 class ChapterDesign(BaseModel):
     number: int = Field(ge=1)
     title: str = Field(max_length=128)
-    theme: str = Field(max_length=200, default="")
-    scene_summaries: list[str] = Field(default_factory=list)
-    emotional_arc: str = Field(max_length=200, default="")
     purpose: str = Field(
         default="",
         pattern="^(導入|展開|転換|クライマックス|収束)$",
     )
-    act_role: str = Field(
-        default="",
-        pattern="^(設定|対立|解決)$",
-    )
+    theme: str = Field(max_length=200, default="")
+    emotional_arc: str = Field(max_length=200, default="")
+    foreshadowing_notes: str = Field(max_length=300, default="")
+    subplot_notes: str = Field(max_length=300, default="")
+    scene_summaries: list[str] = Field(default_factory=list)
     characters: list[str] = Field(default_factory=list)
 
 
