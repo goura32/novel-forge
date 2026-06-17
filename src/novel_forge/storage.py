@@ -23,8 +23,11 @@ class StateStorage:
             return ProjectState(**data)
         except (json.JSONDecodeError, Exception):
             if self._backup_path.exists():
-                data = json.loads(self._backup_path.read_text(encoding="utf-8"))
-                return ProjectState(**data)
+                try:
+                    data = json.loads(self._backup_path.read_text(encoding="utf-8"))
+                    return ProjectState(**data)
+                except (json.JSONDecodeError, Exception):
+                    pass
             return ProjectState(workdir=str(self._workdir))
 
     def save(self, state: ProjectState) -> None:
@@ -42,9 +45,11 @@ class StateStorage:
         try:
             os.write(fd, content.encode("utf-8"))
             os.close(fd)
+            fd = -1
             os.rename(tmp_path, self._state_path)
         except Exception:
-            os.close(fd)
+            if fd >= 0:
+                os.close(fd)
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise
@@ -68,9 +73,11 @@ class BlackboardStorage:
         try:
             os.write(fd, content.encode("utf-8"))
             os.close(fd)
+            fd = -1
             os.rename(tmp_path, self._path)
         except Exception:
-            os.close(fd)
+            if fd >= 0:
+                os.close(fd)
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise
@@ -94,9 +101,11 @@ class BibleStorage:
         try:
             os.write(fd, content.encode("utf-8"))
             os.close(fd)
+            fd = -1
             os.rename(tmp_path, self._path)
         except Exception:
-            os.close(fd)
+            if fd >= 0:
+                os.close(fd)
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise

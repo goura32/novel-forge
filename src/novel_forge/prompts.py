@@ -17,14 +17,14 @@ class PromptLoader:
 
 
 def render_prompt(template: str, variables: dict[str, str]) -> str:
+    """Render a template by replacing {key} placeholders with values.
+
+    Placeholders use single-brace format: {key}
+    Keys are sorted by length (longest first) to avoid partial matches.
+    """
     result = template
-    for key, value in variables.items():
-        result = result.replace(f"{{{key}}}", str(value))
-    # Check for unresolved placeholders ({{var}} format)
-    import re
-    unresolved = re.findall(r"\{\{(\w+)\}\}", result)
-    if unresolved:
-        raise KeyError(f"Missing template variables: {unresolved}")
+    for key in sorted(variables, key=len, reverse=True):
+        result = result.replace(f"{{{key}}}", str(variables[key]))
     return result
 
 

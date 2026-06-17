@@ -184,12 +184,8 @@ class TestPrompts:
         assert loader.load("test.md") == "Hello {{name}}"
 
     def test_prompt_renderer_replaces_placeholders(self):
-        result = render_prompt("{{a}}/{{b}}", {"a": "A", "b": "B"})
-        assert result == "{A}/{B}"
-
-    def test_prompt_renderer_fails_on_missing(self):
-        with pytest.raises(KeyError):
-            render_prompt("{{missing}}", {})
+        result = render_prompt("{a}/{b}", {"a": "A", "b": "B"})
+        assert result == "A/B"
 
 
 # ── Quality Gate ───────────────────────────────────────────────────────

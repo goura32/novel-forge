@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Any
 
 from novel_forge.models import (
+    Bible,
     CharacterProfile,
+    Fact,
     ForeshadowingItem,
     GlossaryItem,
     RelationshipItem,
@@ -105,7 +107,6 @@ class SceneWriter:
                 },
             )
             draft_text = self._llm.complete_text("scene_draft", system, user)
-            draft_text = self._post_process_text(draft_text)
             record.status = "初稿済"
             self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
@@ -129,7 +130,6 @@ class SceneWriter:
                     if kanji_retries <= 2:
                         review["kanji_issues"] = list(set(non_jp_kanji))
                         draft_text = self._revise_scene(draft_text, review, ctx.lang)
-                        draft_text = self._post_process_text(draft_text)
                         self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
                         continue
                     else:
@@ -142,7 +142,6 @@ class SceneWriter:
                     if lang_issues:
                         review["language_issues"] = lang_issues
                     draft_text = self._revise_scene(draft_text, review, ctx.lang)
-                    draft_text = self._post_process_text(draft_text)
                     self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
                 else:
                     record.status = "強制出力済"
@@ -193,27 +192,6 @@ class SceneWriter:
                 lang_issues.append(desc)
         return lang_issues
 
-    # ── post-process ─────────────────────────────────────────────────
-
-    def _post_process_text(self, text: str) -> str:
-        # Build translation table once (class-level would be better but
-        # keeps it simple for now)
-        if not hasattr(self, "_kanji_table"):
-            replacements = [
-                ('标记', '標識'), ('诊所', '診療所'), ('搜索', '捜索'),
-                ('调查', '調査'), ('转', '転'), ('间', '間'),
-                ('门', '門'), ('东', '東'), ('车', '車'),
-                ('马', '馬'), ('鱼', '魚'), ('鸟', '鳥'), ('龙', '龍'),
-            ]
-            self._kanji_table = str.maketrans(
-                {k[0]: v[0] for k, v in replacements if len(k) == 1 and len(v) == 1}
-            )
-            self._kanji_multi = [(k, v) for k, v in replacements if len(k) > 1]
-        text = text.translate(self._kanji_table)
-        for simp, jpn in self._kanji_multi:
-            text = text.replace(simp, jpn)
-        return text
-
     # ── revise ───────────────────────────────────────────────────────
 
     def _revise_scene(self, draft_text: str, review: dict, lang: str) -> str:
@@ -259,7 +237,6 @@ class SceneWriter:
         bb = self._bb_storage.load()
         bb.scene_summaries[str(scene_number)] = result.get("summary", "")
         for fact_data in result.get("facts", []):
-            from novel_forge.models import Fact
             bb.facts.append(Fact(**fact_data))
         bb.continuity_notes.extend(result.get("continuity_notes", []))
         self._bb_storage.save(bb)
@@ -295,7 +272,6 @@ class SceneWriter:
         bb = self._bb_storage.load()
         bb.scene_summaries[str(scene_number)] = result.get("summary", "")
         for fact_data in result.get("facts", []):
-            from novel_forge.models import Fact
             bb.facts.append(Fact(**fact_data))
         bb.continuity_notes.extend(result.get("continuity_notes", []))
         self._bb_storage.save(bb)

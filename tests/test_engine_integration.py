@@ -1013,41 +1013,6 @@ class TestSceneWriter:
         result = writer.load_scene_draft(99, 99, chapter_number=1)
         assert result == ""
 
-    def test_post_process_text(self, tmp_workdir):
-        """_post_process_text should replace simplified Chinese chars."""
-        bb_storage = BlackboardStorage(tmp_workdir)
-        bible_storage = BibleStorage(tmp_workdir)
-        llm = MockLLMClient()
-        prompts = MagicMock()
-        prompts.render = MagicMock(return_value="prompt")
-        quality = QualityGate()
-
-        writer = SceneWriter(
-            tmp_workdir, llm, prompts, quality, bb_storage, bible_storage,
-        )
-
-        # 转 is in the replacement table (标记→標識)
-        result = writer._post_process_text("标记这个转")
-        assert "标" not in result or "標" in result  # 标记→標識
-        assert "转" not in result or "転" in result  # 转→転
-
-    def test_post_process_text_multi_char(self, tmp_workdir):
-        """_post_process_text should handle multi-char replacements."""
-        bb_storage = BlackboardStorage(tmp_workdir)
-        bible_storage = BibleStorage(tmp_workdir)
-        llm = MockLLMClient()
-        prompts = MagicMock()
-        prompts.render = MagicMock(return_value="prompt")
-        quality = QualityGate()
-
-        writer = SceneWriter(
-            tmp_workdir, llm, prompts, quality, bb_storage, bible_storage,
-        )
-
-        # 诊所→診療所 (multi-char)
-        result = writer._post_process_text("去诊所看病")
-        assert "诊所" not in result
-        assert "診療所" in result
 
 
 # ── Quality Gate boundary tests ───────────────────────────────────────

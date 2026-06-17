@@ -499,9 +499,9 @@ class NovelEngine:
             return {"action": "write", "status": vol.status}
         if self._state.status == "計画中":
             return {"action": "plan", "status": self._state.status}
-        elif self._state.status == "アウトライン済":
+        if self._state.status == "アウトライン済":
             return {"action": "outline", "status": self._state.status}
-        elif self._state.status in ("出力済", "強制出力済"):
+        if self._state.status in ("出力済", "強制出力済"):
             return {"action": "export", "status": self._state.status}
         return {"action": "plan", "status": self._state.status}
 
