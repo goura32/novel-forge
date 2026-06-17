@@ -299,9 +299,10 @@ class NovelEngine:
         series_plan = self._ctx_builder.get_series_plan_summary()
         genre = self._ctx_builder.get_genre()
         schema = get_schema("volume_outline")
+        previous_outline = self._get_previous_volume_outline(vol_num)
 
-        result = self._generate_outline(series_plan, genre, vol_num, system, schema)
-        review = self._review_outline(result, series_plan)
+        result = self._generate_outline(series_plan, genre, vol_num, system, schema, previous_outline)
+        review = self._review_outline(result, series_plan, previous_outline)
 
         # Review → Revise loop (max 3 retries)
         for retry in range(3):
@@ -310,7 +311,7 @@ class NovelEngine:
             if score >= 7.0 and len(critical_issues) == 0:
                 break
             print(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3", flush=True)
-            result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema)
+            result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema, previous_outline)
             review = self._review_outline(result, series_plan)
 
         vol = self._current_volume()
@@ -321,10 +322,34 @@ class NovelEngine:
         self._save()
         return result
 
-    def _generate_outline(self, series_plan, genre, vol_num, system, schema):
+    def _get_previous_volume_outline(self, vol_num: int) -> str:
+        """Get the outline summary of the previous volume, if it exists."""
+        if vol_num <= 1:
+            return ""
+        prev_path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num - 1:02d}" / "outline.json"
+        if not prev_path.exists():
+            return ""
+        try:
+            data = json.loads(prev_path.read_text(encoding="utf-8"))
+            lines = [f"前巻（第{vol_num - 1}巻）アウトライン:",
+                     f"  タイトル: {data.get('title', '')}",
+                     f"  前提: {data.get('premise', '')}", ""]
+            for ch in data.get("chapters", []):
+                lines.append(f"  第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
+                for sc in data.get("scenes", []):
+                    if sc.get("chapter_number") == ch["number"]:
+                        lines.append(f"    シーン{sc['number']}: {sc['title']}")
+                        lines.append(f"      目標: {sc.get('goal', '')[:80]}")
+                        lines.append(f"      結果: {sc.get('outcome', '')[:80]}")
+            return "\n".join(lines)
+        except Exception:
+            return ""
+
+    def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
         user = self._prompts.render(
             "volume_outline.md",
-            {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre, "lang": self._lang},
+            {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
+             "lang": self._lang, "previous_outline": previous_outline},
         )
         result = self._llm.complete_json("volume_outline", system, user, schema)
         return self._flatten_outline(result)
@@ -345,9 +370,13 @@ class NovelEngine:
         result["scenes"] = flat_scenes
         return result
 
-    def _review_outline(self, outline, series_plan):
+    def _review_outline(self, outline, series_plan, previous_outline=""):
         system = self._prompts.render("system.md", {"lang": self._lang})
-        lines = [f"シリーズ企画: {series_plan}", "", f"巻タイトル: {outline.get('title', '')}", f"前提: {outline.get('premise', '')}", ""]
+        lines = [f"シリーズ企画: {series_plan}", ""]
+        if previous_outline:
+            lines.append(previous_outline)
+            lines.append("")
+        lines.extend([f"巻タイトル: {outline.get('title', '')}", f"前提: {outline.get('premise', '')}", ""])
         for ch in outline.get("chapters", []):
             lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
             for sc in outline.get("scenes", []):
@@ -360,7 +389,7 @@ class NovelEngine:
         schema = get_schema("volume_outline_review")
         return self._llm.complete_json("volume_outline_review", system, user, schema)
 
-    def _revise_outline(self, outline, review, series_plan, genre, vol_num, system, schema):
+    def _revise_outline(self, outline, review, series_plan, genre, vol_num, system, schema, previous_outline=""):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -382,7 +411,8 @@ class NovelEngine:
 
         user = self._prompts.render(
             "volume_outline_revision.md",
-            {"current_outline": outline_text, "review": review_text, "series_plan": series_plan, "lang": self._lang},
+            {"current_outline": outline_text, "review": review_text, "series_plan": series_plan,
+             "lang": self._lang, "previous_outline": previous_outline},
         )
         result = self._llm.complete_json("volume_outline_revision", system, user, schema)
         return self._flatten_outline(result)
