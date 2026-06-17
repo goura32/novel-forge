@@ -328,7 +328,10 @@ class NovelEngine:
             return ""
         prev_path = self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num - 1:02d}" / "outline.json"
         if not prev_path.exists():
-            return ""
+            raise RuntimeError(
+                f"前巻（第{vol_num - 1}巻）のアウトラインが存在しません: {prev_path}\n"
+                f"第{vol_num}巻のアウトラインを生成するには、先に第{vol_num - 1}巻のアウトラインを生成してください。"
+            )
         try:
             data = json.loads(prev_path.read_text(encoding="utf-8"))
             lines = [f"前巻（第{vol_num - 1}巻）アウトライン:",

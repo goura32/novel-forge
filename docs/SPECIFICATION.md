@@ -17,13 +17,20 @@ novel-forge/
 │   ├── system.md
 │   ├── series_plan.md
 │   ├── series_plan_review.md
+│   ├── series_plan_revision.md
 │   ├── volume_outline.md
+│   ├── volume_outline_review.md
+│   ├── volume_outline_revision.md
+│   ├── chapter_design.md
+│   ├── scene_outline.md
 │   ├── scene_draft.md
 │   ├── scene_review.md
 │   ├── scene_revision.md
 │   ├── scene_summary.md
 │   ├── scene_summary_and_bible_update.md
 │   ├── bible_update.md
+│   ├── kdp_metadata.md
+│   ├── kdp_final_review.md
 │   └── cover_prompt.md
 ├── schemas/                      # JSON Schema 定義
 │   ├── series_plan.json
@@ -80,9 +87,11 @@ novel-forge/
 
 ### 2.2 ステータス値
 
-**巻のステータス**: `planned` / `outlined` / `drafting` / `drafted` / `exported` / `finalized` / `force_exported`
+**シリーズのステータス**: `計画中` / `アウトライン済` / `執筆中` / `初稿済` / `強制出力済` / `出力済`
 
-**シーンのステータス**: `planned` / `drafted` / `reviewed` / `revised` / `force_exported` / `エラー`
+**巻のステータス**: `計画中` / `アウトライン済` / `執筆中` / `初稿済` / `強制出力済` / `出力済`
+
+**シーンのステータス**: `計画中` / `初稿済` / `修正済` / `強制出力済`
 
 ## 3. 設定ファイル (config.yaml)
 
@@ -137,7 +146,7 @@ llm:
 
 ## 6. 品質ゲート
 
-### 6.1 評価カテゴリ（8次元）
+### 6.1 評価カテゴリ（10次元）
 
 | カテゴリ | 説明 |
 |---|---|
@@ -146,33 +155,64 @@ llm:
 | `foreshadowing_consistency` | 伏線の整合性 |
 | `sensory_coverage` | 五感の網羅 |
 | `page_turner` | ページターナー |
+| `dialogue_naturalness` | 台詞の自然さ |
 | `tone_consistency` | 文体の一貫性 |
+| `scene_completeness` | シーン完結 |
+| `language_purity` | 言語純度 |
 | `pov_consistency` | 視点の一貫性 |
-| `structural_validity` | 構造的妥当性 |
 
 ### 6.2 合格基準
 
-- **全レビュー共通**: `score >= 70.0`（0-100スケール）かつ `critical` / `blocker` issue が0件
-- 不合格時は自動改稿 → 再評価（最大3回）。3回不合格 → `force_exported`
+- **全レビュー共通**: `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
+- 不合格時は自動改稿 → 再評価（最大3回）。3回不合格 → `強制出力済`
 
-### 6.3 簡体字チェック
+### 6.3 スコアリングガイド
+
+- **90-100**: 商業出版レベル。ほぼ問題なし
+- **80-89**: 良好。軽微な改善点があるが、そのまま出版可能
+- **70-79**: 合格ライン。いくつかの改善点があるが、全体的に読者を引き込む品質
+- **60-69**: 改善が必要。複数の major issue がある
+- **50-59**: 大幅な改善が必要
+- **0-49**: 書き直しが必要
+
+### 6.4 簡体字チェック
 
 JIS X 0208+0212+0213 セット（5976文字）で検出。
 
 ## 7. 言語制約
 
-### 7.1 中国語禁止
+### 7.1 禁止事項
 
-簡体字の混入は「かなり重要」品質扱い。プロンプトで中国語禁止を明示。
+1. **英語**: 日本語として定着した語以外は日本語に翻訳
+2. **中国語**: 簡体字・繁体字の混入禁止
+3. **韓国語**: ハングル禁止
 
-### 7.2 検出方法
+### 7.2 例外
 
-- プロンプトによる防止が主
-- ツールによる検出は補助的（JIS 漢字セット外の漢字を検出）
+- `slug` フィールドのみローマ字許可
+- 技術用語（CPU, GPU, SSD, USB, URL, 等）は英語のまま許可
+- 医療・科学分野の英語略語（ICU, DNA, RNA 等）は許可
 
-## 8. テスト
+## 8. 依存要件
 
-### 8.1 テストファイル
+### 8.1 前巻必須
+
+**次巻のアウトライン生成には、前巻の `outline.json` が必須。**
+
+- `outline -V N`（N >= 2）実行時、`volumes/vol{N-1:02d}/outline.json` が存在しない場合は `RuntimeError`
+- エラーメッセージに「先に前巻のアウトラインを生成してください」と表示
+
+### 8.2 アウトライン再生成時の再執筆
+
+**アウトライン再生成後、既に本文執筆済みの章・シーンは再執筆が必要。**
+
+- `outline` 再実行時、既存の `chapters/` ディレクトリを削除
+- `write` 実行時、`修正済` または `強制出力済` のシーンは既存の原稿を再利用
+- アウトライン変更によりシーン構成が変わった場合、該当シーンは `計画中` にリセット
+
+## 9. テスト
+
+### 9.1 テストファイル
 
 | ファイル | 内容 |
 |---|---|
@@ -181,23 +221,25 @@ JIS X 0208+0212+0213 セット（5976文字）で検出。
 | `test_engine.py` | エンジンテスト |
 | `test_quality.py` | 品質ゲートテスト |
 | `test_schemas.py` | スキーマ検証テスト |
+| `test_engine_integration.py` | エンジン統合テスト（モックLLM） |
 
-### 8.2 実行
+### 9.2 実行
 
 ```bash
 uv run pytest tests/ -x -q
 ```
 
-### 8.3 テストファイル
+### 9.3 テスト数
 
-| ファイル | 内容 | テスト数 |
-|---|---|---|
-| `test_models.py` | データモデル、ストレージ、プロンプト、品質ゲート、スキーマ、エンジン基本 | 47 |
-| `test_quality.py` | 簡体字検出、品質ゲート | 9 |
-| `test_engine_integration.py` | エンジン統合テスト（モックLLM） | 70 |
+| ファイル | テスト数 |
+|---|---|
+| `test_models.py` | 47 |
+| `test_quality.py` | 9 |
+| `test_engine_integration.py` | 70 |
+| `test_engine.py` | 11 |
 
-**合計: 117 テスト**
+**合計: 137 テスト**
 
 ---
 
-*Last updated: 2026-06-25*
+*Last updated: 2026-06-28*
