@@ -301,7 +301,7 @@ class TestPlan:
         assert engine.state.series_title == "テストシリーズ"
         assert engine.state.status == "計画中"
 
-        plan_path = tmp_workdir / "test-series" / "series_plan.json"
+        plan_path = engine._series_dir / "series_plan.json"
         assert plan_path.exists()
         saved = json.loads(plan_path.read_text(encoding="utf-8"))
         assert saved["title"] == "テストシリーズ"
@@ -310,7 +310,7 @@ class TestPlan:
         """plan() should save the review result."""
         engine.plan("テスト")
 
-        review_path = tmp_workdir / "test-series" / "series_plan_review.json"
+        review_path = engine._series_dir / "series_plan_review.json"
         assert review_path.exists()
 
     def test_plan_calls_llm_for_generation_and_review(self, engine, mock_llm):
@@ -409,7 +409,7 @@ class TestOutline:
         assert result["title"] == "第1巻"
         assert engine.state.status == "アウトライン済"
 
-        outline_path = tmp_workdir / "test-series" / "vol01" / "outline.json"
+        outline_path = engine._series_dir / "vol01" / "outline.json"
         assert outline_path.exists()
 
     def test_outline_flattens_scenes(self, engine, mock_llm):
@@ -513,7 +513,7 @@ class TestWrite:
 
         engine.write(volume_number=1)
 
-        vol01_dir = tmp_workdir / "test-series" / "vol01"
+        vol01_dir = engine._series_dir / "vol01"
         assert vol01_dir.exists()
         # Chapter files are in vol01_chXX/ subdirectories
         ch_files = list(vol01_dir.glob("vol01_ch*/*.md"))
@@ -541,7 +541,7 @@ class TestWrite:
         # Mark ALL scenes as completed
         vol = engine._current_volume()
         from novel_forge.models import SceneRecord
-        outline_path = tmp_workdir / "test-series" / "vol01" / "outline.json"
+        outline_path = engine._series_dir / "vol01" / "outline.json"
         outline_dict = json.loads(outline_path.read_text(encoding="utf-8"))
         for sc in outline_dict.get("scenes", []):
             vol.scenes.append(SceneRecord(scene_number=sc["number"], status="修正済"))
@@ -550,7 +550,7 @@ class TestWrite:
         for sc in outline_dict.get("scenes", []):
             ch_num = sc.get("chapter_number", 1)
             sc_num = sc["number"]
-            scene_dir = tmp_workdir / "test-series" / "vol01" / f"vol01_ch{ch_num:02d}"
+            scene_dir = engine._series_dir / "vol01" / f"vol01_ch{ch_num:02d}"
             scene_dir.mkdir(parents=True, exist_ok=True)
             (scene_dir / f"vol01_ch{ch_num:02d}_sc{sc_num:02d}.md").write_text("既存のドラフト", encoding="utf-8")
 
@@ -698,13 +698,13 @@ class TestContextBuilder:
                 {"title": "第1巻", "premise": "始まり"}
             ],
         }
-        plan_path = tmp_workdir / "test-series" / "series_plan.json"
-        plan_path.parent.mkdir(parents=True)
+        plan_path = tmp_workdir / "series_plan.json"
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
         plan_path.write_text(json.dumps(plan_data, ensure_ascii=False), encoding="utf-8")
 
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         summary = ctx.get_series_plan_summary()
         assert "テスト" in summary
@@ -714,53 +714,53 @@ class TestContextBuilder:
 
     def test_get_series_plan_summary_missing_file(self, tmp_workdir):
         """get_series_plan_summary should return empty string if no plan file."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         assert ctx.get_series_plan_summary() == ""
 
     def test_get_genre(self, tmp_workdir):
         """get_genre should return genre from series_plan.json."""
         plan_data = {"title": "T", "genre": "sf"}
-        plan_path = tmp_workdir / "test-series" / "series_plan.json"
-        plan_path.parent.mkdir(parents=True)
+        plan_path = tmp_workdir / "series_plan.json"
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
         plan_path.write_text(json.dumps(plan_data), encoding="utf-8")
 
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         assert ctx.get_genre() == "sf"
 
     def test_get_genre_default(self, tmp_workdir):
         """get_genre should return 'fantasy' if no plan file."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         assert ctx.get_genre() == "fantasy"
 
     def test_build_context_empty(self, tmp_workdir):
         """build_context should return empty string for empty bible/blackboard."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         result = ctx.build_context()
         assert result == ""
 
     def test_build_context_with_bible(self, tmp_workdir):
         """build_context should include bible data."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
         bible = Bible(
             characters=[CharacterProfile(name="主人公", role="主人公", personality="勇敢")],
             world_rules=["魔法が存在する"],
         )
         bible_storage.save(bible)
 
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
         result = ctx.build_context()
         assert "主人公" in result
         assert "勇敢" in result
@@ -768,18 +768,18 @@ class TestContextBuilder:
 
     def test_build_continuity_first_scene(self, tmp_workdir):
         """build_continuity should return placeholder for first scene."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         result = ctx.build_continuity(scene_number=1, vol_num=1, load_scene_draft_fn=lambda v, s: "")
         assert "最初のシーン" in result
 
     def test_build_continuity_with_previous_scene(self, tmp_workdir):
         """build_continuity should include previous scene text."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         def load_draft(vol_num, scene_num):
             if scene_num == 1:
@@ -791,22 +791,22 @@ class TestContextBuilder:
 
     def test_build_continuity_with_summaries(self, tmp_workdir):
         """build_continuity should include recent scene summaries."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
+        bb_storage = BlackboardStorage(tmp_workdir)
         bb = Blackboard()
         bb.scene_summaries["1"] = "シーン1の要約"
         bb_storage.save(bb)
 
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         result = ctx.build_continuity(scene_number=3, vol_num=1, load_scene_draft_fn=lambda v, s: "")
         assert "シーン1の要約" in result
 
     def test_get_scene_summary(self, tmp_workdir):
         """get_scene_summary should format scene data."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         scene = MagicMock()
         scene.title = "出会い"
@@ -823,9 +823,9 @@ class TestContextBuilder:
 
     def test_get_outline_summary(self, tmp_workdir):
         """get_outline_summary should format outline data."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        ctx = ContextBuilder(tmp_workdir / "test-series", bb_storage, bible_storage)
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
+        ctx = ContextBuilder(tmp_workdir, bb_storage, bible_storage)
 
         from novel_forge.models import ChapterOutline, SceneOutline
         outline = VolumeOutline(
@@ -1153,8 +1153,8 @@ class TestSceneWriter:
     def test_assemble_chapter(self, tmp_workdir):
         """assemble_chapter should create chapter file from scene texts."""
         from novel_forge.bible_manager import BibleManager
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
         llm = MockLLMClient()
         prompts = MagicMock()
         prompts.render = MagicMock(return_value="prompt")
@@ -1162,7 +1162,7 @@ class TestSceneWriter:
 
         writer = SceneWriter(
             tmp_workdir, llm, prompts, quality, bb_storage, bible_storage,
-            series_dir=tmp_workdir / "test-series",
+            series_dir=tmp_workdir,
         )
 
         chapter = MagicMock()
@@ -1171,7 +1171,7 @@ class TestSceneWriter:
 
         writer.assemble_chapter(1, chapter, ["シーン1の本文", "シーン2の本文"])
 
-        ch_path = tmp_workdir / "test-series" / "vol01" / "vol01_ch01" / "vol01_ch01.md"
+        ch_path = tmp_workdir / "vol01" / "vol01_ch01" / "vol01_ch01.md"
         assert ch_path.exists()
         content = ch_path.read_text(encoding="utf-8")
         assert "プロローグ" in content
@@ -1181,8 +1181,8 @@ class TestSceneWriter:
     def test_save_and_load_scene_draft(self, tmp_workdir):
         """save_scene_draft and load_scene_draft should roundtrip."""
         from novel_forge.bible_manager import BibleManager
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
         llm = MockLLMClient()
         prompts = MagicMock()
         prompts.render = MagicMock(return_value="prompt")
@@ -1190,7 +1190,7 @@ class TestSceneWriter:
 
         writer = SceneWriter(
             tmp_workdir, llm, prompts, quality, bb_storage, bible_storage,
-            series_dir=tmp_workdir / "test-series",
+            series_dir=tmp_workdir,
         )
 
         writer.save_scene_draft(1, 1, "テスト本文", chapter_number=1)
@@ -1199,8 +1199,8 @@ class TestSceneWriter:
 
     def test_load_scene_draft_missing(self, tmp_workdir):
         """load_scene_draft should return empty string for missing file."""
-        bb_storage = BlackboardStorage(tmp_workdir / "test-series")
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
+        bb_storage = BlackboardStorage(tmp_workdir)
+        bible_storage = BibleStorage(tmp_workdir)
         llm = MockLLMClient()
         prompts = MagicMock()
         prompts.render = MagicMock(return_value="prompt")
@@ -1208,7 +1208,7 @@ class TestSceneWriter:
 
         writer = SceneWriter(
             tmp_workdir, llm, prompts, quality, bb_storage, bible_storage,
-            series_dir=tmp_workdir / "test-series",
+            series_dir=tmp_workdir,
         )
 
         result = writer.load_scene_draft(99, 99, chapter_number=1)
@@ -1392,12 +1392,11 @@ class TestPromptInputCompleteness:
         engine.outline(volume_number=1)
 
         # Add a subplot to bible
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        bible = bible_storage.load()
+        bible = engine._bible_storage.load()
         bible.subplots.append(SubplotItem(
             id="sp1", name="陰謀", status="in_progress", progress_note="進行中"
         ))
-        bible_storage.save(bible)
+        engine._bible_storage.save(bible)
 
         mock_llm._call_log.clear()
         engine.write(volume_number=1)
@@ -1415,13 +1414,12 @@ class TestPromptInputCompleteness:
         engine.outline(volume_number=1)
 
         # Add a relationship to bible
-        bible_storage = BibleStorage(tmp_workdir / "test-series")
-        bible = bible_storage.load()
+        bible = engine._bible_storage.load()
         bible.relationships.append(RelationshipItem(
             character_a="主人公", character_b="仲間",
             relationship_type="友人", status="良好"
         ))
-        bible_storage.save(bible)
+        engine._bible_storage.save(bible)
 
         mock_llm._call_log.clear()
         engine.write(volume_number=1)

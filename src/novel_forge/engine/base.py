@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -35,9 +36,11 @@ class NovelEngineBase:
         prompt_manager: PromptManager | None = None,
         config: dict[str, Any] | None = None,
         max_review_retries: int | None = None,
+        verbose: bool = False,
     ):
         self._workdir = workdir
         self._lang = lang
+        self._verbose = verbose
         self._slug: str = ""
         self._storage = StateStorage(self._series_dir)
         self._bb_storage = BlackboardStorage(self._series_dir)
@@ -90,9 +93,18 @@ class NovelEngineBase:
 
     @property
     def _series_dir(self) -> Path:
-        """Series output directory: {workdir}/{timestamp}_{slug}/"""
-        slug = self._slug if self._slug else "_default"
-        return self._workdir / f"{self._timestamp}_{slug}"
+        """Series output directory.
+        During plan(): uses temp dir /tmp/novel-forge-{pid}/
+        After plan(): uses {workdir}/{timestamp}_{slug}/"""
+        if not self._slug:
+            # Before plan(): use temp directory
+            if not hasattr(self, "_tmp_dir"):
+                import os
+                self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
+            return self._tmp_dir
+        # After plan(): use final directory
+        folder_name = self._slug.replace("-", "_")
+        return self._workdir / f"{self._timestamp}_{folder_name}"
 
     @property
     def _timestamp(self) -> str:
@@ -102,18 +114,18 @@ class NovelEngineBase:
         return self._ts
 
     def _move_to_final_dir(self) -> None:
-        """Move _default directory contents to final {timestamp}_{slug}/ directory."""
-        default_dir = self._workdir / f"{self._timestamp}_default"
-        final_dir = self._series_dir
-        if default_dir.exists() and not final_dir.exists():
-            shutil.move(str(default_dir), str(final_dir))
-        elif default_dir.exists() and final_dir.exists():
-            # Merge: move files from default to final
-            for item in default_dir.iterdir():
-                dest = final_dir / item.name
-                if not dest.exists():
-                    shutil.move(str(item), str(dest))
-            default_dir.rmdir()
+        """Move temp directory contents to final {timestamp}_{slug}/ directory."""
+        if hasattr(self, "_tmp_dir") and self._tmp_dir.exists():
+            final_dir = self._series_dir
+            if not final_dir.exists():
+                shutil.move(str(self._tmp_dir), str(final_dir))
+            else:
+                # Merge: move files from temp to final
+                for item in self._tmp_dir.iterdir():
+                    dest = final_dir / item.name
+                    if not dest.exists():
+                        shutil.move(str(item), str(dest))
+                self._tmp_dir.rmdir()
 
     # ── helpers ───────────────────────────────────────────────────────
 

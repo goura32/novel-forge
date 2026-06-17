@@ -34,8 +34,8 @@ class PlanMixin:
         self._state.series_title = result.get("title", "")
         self._state.status = "計画中"
         slug = result.get("slug", "")
-        if len(slug) > 255:
-            slug = slug[:255].rstrip("-")
+        if len(slug) > 200:
+            slug = slug[:200].rstrip("-")
         self._slug = slug
         # Move _default data to final series directory
         self._move_to_final_dir()
@@ -58,8 +58,8 @@ class PlanMixin:
             {"keywords": keywords, "lang": self._lang},
         )
         result = self._llm.complete_json("series_plan", system, user, schema)
-        if result.get("slug") and len(result["slug"]) > 255:
-            result["slug"] = result["slug"][:255].rstrip("-")
+        if result.get("slug") and len(result["slug"]) > 200:
+            result["slug"] = result["slug"][:200].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
         return result
@@ -110,8 +110,8 @@ class PlanMixin:
             },
         )
         result = self._llm.complete_json("series_plan_revision", system, user, schema)
-        if result.get("slug") and len(result["slug"]) > 255:
-            result["slug"] = result["slug"][:255].rstrip("-")
+        if result.get("slug") and len(result["slug"]) > 200:
+            result["slug"] = result["slug"][:200].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
         return result

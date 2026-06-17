@@ -291,7 +291,7 @@ class TestSchemas:
 class TestEngine:
     def test_engine_creates_state(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
-        assert engine.state.workdir == str(tmp_path / "_default")
+        assert engine.state.workdir.startswith("/tmp/novel-forge-")
 
     def test_engine_status(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")

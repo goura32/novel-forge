@@ -18,8 +18,9 @@ def _engine(
     model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
     lang: str = "ja",
     max_review_retries: int | None = None,
+    verbose: bool = False,
 ) -> NovelEngine:
-    return NovelEngine(workdir=workdir, model=model, lang=lang, max_review_retries=max_review_retries)
+    return NovelEngine(workdir=workdir, model=model, lang=lang, max_review_retries=max_review_retries, verbose=verbose)
 
 
 @app.command()
@@ -28,11 +29,13 @@ def plan(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Generate a series plan from keywords."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, verbose=verbose)
     result = engine.plan(keywords)
     console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
+    console.print(f"  [dim]Output: {engine._series_dir}[/dim]")
 
 
 @app.command()
@@ -41,9 +44,10 @@ def outline(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Generate a volume outline."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, verbose=verbose)
     result = engine.outline(volume)
     console.print(f"[green]✓[/green] Volume {volume} outline generated")
 
@@ -55,9 +59,10 @@ def write(
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Write scene drafts."""
-    engine = _engine(workdir, model, lang, max_review_retries=max_retries)
+    engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose)
     results = engine.write(volume)
     console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -68,9 +73,10 @@ def export(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Export manuscript for KDP."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, verbose=verbose)
     result = engine.export(volume)
     console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
 
@@ -82,7 +88,7 @@ def status(
     lang: str = typer.Option("ja", "--lang", help="Output language"),
 ):
     """Show current project status."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, verbose=verbose)
     s = engine.status()
     table = Table(title="NovelForge Status")
     table.add_column("Key", style="bold")
@@ -99,7 +105,7 @@ def resume(
     lang: str = typer.Option("ja", "--lang", help="Output language"),
 ):
     """Resume from the last interrupted phase."""
-    engine = _engine(workdir, model, lang)
+    engine = _engine(workdir, model, lang, verbose=verbose)
     result = engine.resume()
     action = result["action"]
     console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
@@ -118,9 +124,10 @@ def complete(
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Run the full pipeline: plan → outline → write → export."""
-    engine = _engine(workdir, model, lang, max_review_retries=max_retries)
+    engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose)
     console.print("[bold]Step 1/4: Plan[/bold]")
     engine.plan(keywords)
     console.print("[bold]Step 2/4: Outline[/bold]")
