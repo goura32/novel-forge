@@ -41,7 +41,7 @@
       "required": ["protagonist_has_arc", "arc_believability", "supporting_chars_used", "score"],
       "properties": {
         "protagonist_has_arc": { "type": "boolean" },
-        "arc_believability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "arc_believability": { "type": "number", "minimum": 0, "maximum": 100 },
         "supporting_chars_used": { "type": "boolean" },
         "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }

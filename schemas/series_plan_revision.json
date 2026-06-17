@@ -8,13 +8,13 @@
     "slug": { "type": "string", "maxLength": 256, "pattern": "^[a-z0-9-]+$" },
     "logline": { "type": "string", "maxLength": 200 },
     "genre": { "type": "string" },
-    "target_audience": { "type": "string", "maxLength": 50 },
+    "target_audience": { "type": "string", "maxLength": 200 },
     "themes": { "type": "array", "items": { "type": "string" } },
     "selling_points": { "type": "array", "items": { "type": "string" } },
     "world": {
       "type": "object",
       "properties": {
-        "summary": { "type": "string", "maxLength": 200 },
+        "summary": { "type": "string", "maxLength": 500 },
         "rules": { "type": "array", "items": { "type": "string" } }
       }
     },
@@ -36,7 +36,7 @@
         "properties": {
           "number": { "type": "integer" },
           "title": { "type": "string", "maxLength": 128 },
-          "premise": { "type": "string", "maxLength": 80 }
+          "premise": { "type": "string", "maxLength": 200 }
         }
       }
     },
