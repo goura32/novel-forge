@@ -140,9 +140,18 @@ class NovelEngineBase:
                 # Merge: move files from temp to final
                 for item in self._tmp_dir.iterdir():
                     dest = final_dir / item.name
-                    if not dest.exists():
+                    if dest.exists():
+                        # If dest exists, merge contents recursively
+                        if item.is_dir() and dest.is_dir():
+                            for sub_item in item.iterdir():
+                                sub_dest = dest / sub_item.name
+                                if not sub_dest.exists():
+                                    shutil.move(str(sub_item), str(sub_dest))
+                        # If dest is file and item is file, skip (keep existing)
+                    else:
                         shutil.move(str(item), str(dest))
-                self._tmp_dir.rmdir()
+                # Remove temp dir recursively (in case any items couldn't be moved)
+                shutil.rmtree(self._tmp_dir, ignore_errors=True)
 
     # ── helpers ───────────────────────────────────────────────────────
 
