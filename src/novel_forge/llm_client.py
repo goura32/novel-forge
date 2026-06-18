@@ -161,7 +161,7 @@ class LLMClient:
             },
         }
         if schema:
-            payload["format"] = schema
+            payload["format"] = "json"
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of 5 attempts (same content, same format).
