@@ -163,38 +163,23 @@ class LLMClient:
         if schema:
             payload["format"] = schema
 
-        # Inner loop: retry on JSON parse errors (up to 5 attempts, same content)
-        # Outer loop: retry on schema validation errors (max_retries + 1 attempts)
+        # Unified retry loop: JSON parse + schema validation errors share the
+        # same budget of 5 attempts (same content, same format, no fallback).
+        # Quality-gate (review-fix) retries are handled separately in write_scene.
         last_error: Exception | None = None
-        outer_max = self.max_retries + 1
-        JSON_PARSE_MAX_RETRIES = 5
-        for outer_attempt in range(outer_max):
-            # Inner loop: try to get valid JSON
-            json_result = None
-            for json_attempt in range(JSON_PARSE_MAX_RETRIES):
-                try:
-                    raw = self._call_api(payload)
-                    parsed = _parse_json_response(raw)
-                    json_result = (raw, parsed)
-                    break
-                except JsonParseError as e:
-                    last_error = e
-                    if json_attempt < JSON_PARSE_MAX_RETRIES - 1:
-                        continue
-            if json_result is None:
-                break
-            raw, parsed = json_result
-            # Schema validation
-            if schema:
-                try:
+        MAX_RETRIES = 5  # JSON parse + schema validation retries (fixed)
+        for attempt in range(MAX_RETRIES):
+            try:
+                raw = self._call_api(payload)
+                parsed = _parse_json_response(raw)
+                if schema:
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
-                except SchemaValidationError as e:
-                    last_error = e
-                    # Schema validation failures don't reset the JSON parse loop
-                    continue
-            self._write_log(kind, payload, raw, parsed)
-            return parsed
+                self._write_log(kind, payload, raw, parsed)
+                return parsed
+            except (JsonParseError, SchemaValidationError, LLMError) as e:
+                last_error = e
+                continue
         raise last_error or LLMError("LLM request failed")
 
     def _call_api(self, payload: dict[str, Any]) -> str:
