@@ -163,19 +163,14 @@ class LLMClient:
         if schema:
             payload["format"] = schema
 
-        # Retry strategy:
-        #   Attempt 1: format=schema (strict)
-        #   Attempt 2+: format=text (fallback, extract JSON from text)
-        # 2 attempts share the same budget. If both fail, raise.
+        # Unified retry loop: JSON parse + schema validation errors share the
+        # same budget of 5 attempts (same content, same format).
+        # Quality-gate (review-fix) retries are handled separately in write_scene.
         last_error: Exception | None = None
-        MAX_RETRIES = 2  # 1x schema + 1x text fallback
+        MAX_RETRIES = 5  # JSON parse + schema validation retries (fixed)
         for attempt in range(MAX_RETRIES):
             try:
-                attempt_payload = payload.copy()
-                if attempt > 0:
-                    # Fallback: remove format, use text mode
-                    attempt_payload.pop("format", None)
-                raw = self._call_api(attempt_payload)
+                raw = self._call_api(payload)
                 parsed = _parse_json_response(raw)
                 if schema:
                     from novel_forge.schemas import validate_or_raise
