@@ -160,11 +160,9 @@ class LLMClient:
                 **self._ollama_options,
             },
         }
-        if schema:
-            # Use Ollama's standard JSON mode instead of format=schema.
-            # format=schema is unreliable on qwen3.6 (returns plain text).
-            # We validate against the schema separately after parsing.
-            payload["format"] = "json"
+        # Do NOT use format=schema or format=json — both are unreliable on
+        # qwen3.6 (return plain text instead of JSON). Instead, omit format
+        # entirely and rely on prompt-level JSON instructions + extraction.
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of 5 attempts (same content, same format).
