@@ -183,26 +183,31 @@ class LLMClient:
                 return parsed
             except JsonParseError as e:
                 last_error = e
-                # Feed the bad response back and ask for JSON correction
                 current_prompt = (
-                    f"前回の出力はJSONではありませんでした。\n\n"
-                    f"前回の出力:\n{raw[:500]}\n\n"
-                    f"以下のスキーマに従い、必ず有効なJSONのみを出力してください。\n"
-                    f"JSON以外のテキスト（説明、注釈、マークダウン等）は一切含めないでください。\n\n"
-                    f"スキーマ: {json.dumps(schema, ensure_ascii=False)}\n\n"
+                    f"前回の出力はJSONではありませんでした。\n"
+                    f"前回の出力:\n{raw[:300]}\n\n"
+                    f"必ず有効なJSONのみを出力してください。\n"
+                    f"JSON以外のテキストは一切含めないでください。\n\n"
                     f"元の指示:\n{user_prompt}"
                 )
                 continue
             except SchemaValidationError as e:
                 last_error = e
-                # Feed schema validation error back so model can fix missing/incorrect fields
+                # Extract missing/invalid field names from error message
+                import re
+                missing = re.findall(r"'(\w+)' is a required property", str(e))
+                type_errs = re.findall(r"\[(\w+)\] .+ is not of type", str(e))
+                fields_hint = []
+                if missing:
+                    fields_hint.append(f"不足している必須フィールド: {', '.join(missing)}")
+                if type_errs:
+                    fields_hint.append(f"型が不正なフィールド: {', '.join(type_errs)}")
+                hint = "\n".join(fields_hint) if fields_hint else str(e)[:200]
                 current_prompt = (
-                    f"前回の出力はスキーマ検証に失敗しました。\n\n"
-                    f"検証エラー:\n{e}\n\n"
-                    f"前回の出力:\n{raw[:500]}\n\n"
-                    f"以下のスキーマに従い、必須フィールドを含めて修正してください。\n"
-                    f"JSON以外のテキスト（説明、注釈、マークダウン等）は一切含めないでください。\n\n"
-                    f"スキーマ: {json.dumps(schema, ensure_ascii=False)}\n\n"
+                    f"前回の出力はスキーマ検証に失敗しました。\n"
+                    f"エラー: {hint}\n"
+                    f"前回の出力:\n{raw[:300]}\n\n"
+                    f"不足・不正なフィールドを修正し、必ず有効なJSONのみを出力してください。\n\n"
                     f"元の指示:\n{user_prompt}"
                 )
                 continue
