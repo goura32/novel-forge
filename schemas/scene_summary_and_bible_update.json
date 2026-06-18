@@ -22,7 +22,19 @@
     },
     "characters": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 64 }
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string", "maxLength": 64},
+          "role": {"type": "string", "maxLength": 64},
+          "personality": {"type": "string", "maxLength": 200},
+          "appearance": {"type": "string", "maxLength": 200},
+          "motivation": {"type": "string", "maxLength": 200},
+          "arc": {"type": "string", "maxLength": 200},
+          "state": {"type": "string", "maxLength": 200},
+          "is_new": {"type": "boolean"}
+        }
+      }
     },
     "foreshadowing": {
       "type": "array",

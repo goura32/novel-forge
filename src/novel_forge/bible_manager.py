@@ -105,6 +105,8 @@ class BibleManager:
 
         # Characters
         for ch_data in result.get("characters", []):
+            if not isinstance(ch_data, dict):
+                continue
             existing = next(
                 (c for c in bible.characters if c.name == ch_data.get("name", "")),
                 None,
@@ -132,6 +134,8 @@ class BibleManager:
 
         # Foreshadowing
         for fh_data in result.get("foreshadowing", []):
+            if not isinstance(fh_data, dict):
+                continue
             fh_type = fh_data.get("type", "setup")
             if fh_type == "resolution":
                 for fh in bible.foreshadowing:
@@ -148,6 +152,8 @@ class BibleManager:
 
         # Relationships
         for rel_data in result.get("relationships", []):
+            if not isinstance(rel_data, dict):
+                continue
             existing = next(
                 (r for r in bible.relationships
                  if {r.character_a, r.character_b} == {
@@ -176,6 +182,8 @@ class BibleManager:
 
         # Subplots
         for sp_data in result.get("subplots", []):
+            if not isinstance(sp_data, dict):
+                continue
             existing = next(
                 (s for s in bible.subplots if s.id == sp_data.get("id", "")),
                 None,
@@ -197,6 +205,8 @@ class BibleManager:
 
         # Glossary
         for g_data in result.get("glossary", []):
+            if not isinstance(g_data, dict):
+                continue
             term = g_data.get("term", "")
             if term:
                 existing = next((g for g in bible.glossary if g.term == term), None)
@@ -210,6 +220,8 @@ class BibleManager:
 
         # World rules
         for r_data in result.get("world_rules", []):
+            if not isinstance(r_data, dict):
+                continue
             rule = r_data.get("rule", "")
             if rule and rule not in bible.world_rules:
                 bible.world_rules.append(rule)
