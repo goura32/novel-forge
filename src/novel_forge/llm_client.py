@@ -160,9 +160,9 @@ class LLMClient:
                 **self._ollama_options,
             },
         }
-        # format=schema and format=json both hang/timeout on Ollama 0.30.8
-        # with qwen3.6:35b.  Omit format entirely; rely on prompt-level
-        # JSON instructions + post-hoc parsing with retry feedback.
+        # format=schema hangs/times out on Ollama 0.30.8 with qwen3.6:35b.
+        # format="json" works correctly and enforces JSON-only output.
+        payload["format"] = "json"
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of MAX_RETRIES attempts.  On JsonParseError we feed
