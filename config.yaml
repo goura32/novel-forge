@@ -12,7 +12,7 @@ llm:
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
 
   # 出力トークン数上限（8192 = 8K）
-  num_predict: 8192
+  num_predict: 16384
 
   # コンテキスト長（null = モデル自動検出）
   # GPU メモリ不足の場合は小さくする（例: 8192, 16384）
