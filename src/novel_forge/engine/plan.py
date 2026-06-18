@@ -109,7 +109,8 @@ class PlanMixin:
                 "lang": self._lang,
             },
         )
-        result = self._llm.complete_json("series_plan_revision", system, user, schema)
+        revision_schema = get_schema("series_plan_revision")
+        result = self._llm.complete_json("series_plan_revision", system, user, revision_schema)
         if result.get("slug") and len(result["slug"]) > 200:
             result["slug"] = result["slug"][:200].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
