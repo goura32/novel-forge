@@ -170,6 +170,7 @@ class LLMClient:
         last_error: Exception | None = None
         MAX_RETRIES = 10
         current_prompt = user_prompt
+        raw = ""
         for attempt in range(MAX_RETRIES):
             try:
                 payload["prompt"] = current_prompt
@@ -192,7 +193,20 @@ class LLMClient:
                     f"元の指示:\n{user_prompt}"
                 )
                 continue
-            except (SchemaValidationError, LLMError) as e:
+            except SchemaValidationError as e:
+                last_error = e
+                # Feed schema validation error back so model can fix missing/incorrect fields
+                current_prompt = (
+                    f"前回の出力はスキーマ検証に失敗しました。\n\n"
+                    f"検証エラー:\n{e}\n\n"
+                    f"前回の出力:\n{raw[:500]}\n\n"
+                    f"以下のスキーマに従い、必須フィールドを含めて修正してください。\n"
+                    f"JSON以外のテキスト（説明、注釈、マークダウン等）は一切含めないでください。\n\n"
+                    f"スキーマ: {json.dumps(schema, ensure_ascii=False)}\n\n"
+                    f"元の指示:\n{user_prompt}"
+                )
+                continue
+            except LLMError as e:
                 last_error = e
                 continue
         raise last_error or LLMError("LLM request failed")
