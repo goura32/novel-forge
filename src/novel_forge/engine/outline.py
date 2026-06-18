@@ -70,9 +70,11 @@ class OutlineMixin:
                 f"前巻（第{vol_num - 1}巻）のアウトライン読み込みに失敗しました: {e}"
             ) from e
 
-    def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
-        """Three-phase outline generation: chapter structure, chapter design, then scene-by-scene."""
-        # Phase 1: Generate chapter structure
+    # ── Phase 1: Chapter structure ─────────────────────────────────────
+
+    def _generate_chapter_structure(self, series_plan: str, genre: str, vol_num: int,
+                                     system: str, previous_outline: str) -> list[dict]:
+        """Phase 1: Generate chapter structure (titles + purposes)."""
         chapter_schema = get_schema("chapter_outline")
         user = self._prompts.render(
             "chapter_outline.md",
@@ -81,7 +83,6 @@ class OutlineMixin:
         )
         chapters_result = self._llm.complete_json("chapter_outline", system, user, chapter_schema)
 
-        # Normalize chapters_result to list of chapter dicts
         if isinstance(chapters_result, dict):
             chapters_list = chapters_result.get("chapters", [chapters_result])
         elif isinstance(chapters_result, list):
@@ -90,8 +91,14 @@ class OutlineMixin:
             raise RuntimeError(
                 f"章構成の生成に失敗しました: 予期しない型 {type(chapters_result).__name__}"
             )
+        return chapters_list
 
-        # Phase 2: Generate detailed chapter design for each chapter
+    # ── Phase 2: Chapter design ────────────────────────────────────────
+
+    def _generate_chapter_designs(self, chapters_list: list[dict], series_plan: str,
+                                   vol_num: int, system: str,
+                                   previous_outline: str) -> list[dict]:
+        """Phase 2: Generate detailed design for each chapter."""
         chapter_designs = []
         previous_chapter_outcome = ""
         prev_summary = previous_outline[:500] if previous_outline else ""
@@ -122,27 +129,29 @@ class OutlineMixin:
             chapter_designs.append(design_result)
             previous_chapter_outcome = design_result.get("emotional_arc", "")
 
-        # Phase 3: Generate scenes for each chapter, one at a time
+        return chapter_designs
+
+    # ── Phase 3: Scene outlines ────────────────────────────────────────
+
+    def _generate_scene_outlines(self, chapters_list: list[dict], chapter_designs: list[dict],
+                                  series_plan: str, vol_num: int, system: str,
+                                  previous_outline: str) -> list[dict]:
+        """Phase 3: Generate scene-by-scene outlines for each chapter."""
         all_scenes = []
         scene_counter = 1
         previous_outcome = ""
-
-        # Build previous volume summary for context
-        prev_summary = ""
-        if previous_outline:
-            prev_summary = previous_outline[:500]  # Truncate for context length
+        prev_summary = previous_outline[:500] if previous_outline else ""
 
         for ch_idx, ch in enumerate(chapters_list, 1):
             ch_title = ch.get("title", f"第{ch_idx}章")
             ch_purpose = ch.get("purpose", "展開")
             ch_design = chapter_designs[ch_idx - 1] if ch_idx <= len(chapter_designs) else {}
 
-            # Determine number of scenes for this chapter (2-4)
             ch_scene_count = self._estimate_scene_count(ch_purpose)
 
             for sc_idx in range(ch_scene_count):
                 scene_number = scene_counter
-                total_scenes = len(all_scenes) + ch_scene_count  # Estimate
+                total_scenes = len(all_scenes) + ch_scene_count
 
                 user = self._prompts.render(
                     "scene_outline.md",
@@ -177,7 +186,28 @@ class OutlineMixin:
                 previous_outcome = scene_result.get("outcome", "")
                 scene_counter += 1
 
-        # Build final result with scenes nested under chapters
+        return all_scenes
+
+    # ── Main outline orchestrator ──────────────────────────────────────
+
+    def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
+        """Three-phase outline generation: chapter structure → chapter design → scene outlines."""
+        # Phase 1: Chapter structure
+        chapters_list = self._generate_chapter_structure(
+            series_plan, genre, vol_num, system, previous_outline
+        )
+
+        # Phase 2: Chapter designs
+        chapter_designs = self._generate_chapter_designs(
+            chapters_list, series_plan, vol_num, system, previous_outline
+        )
+
+        # Phase 3: Scene outlines
+        all_scenes = self._generate_scene_outlines(
+            chapters_list, chapter_designs, series_plan, vol_num, system, previous_outline
+        )
+
+        # Build result with scenes nested under chapters
         chapters_with_scenes = []
         for i, ch in enumerate(chapters_list):
             ch_scenes = [s for s in all_scenes if s.get("chapter_number") == i + 1]
@@ -188,15 +218,22 @@ class OutlineMixin:
                 "scenes": ch_scenes,
             })
 
+        title = ""
+        premise = ""
+        if isinstance(chapters_list, dict):
+            title = chapters_list.get("title", f"第{vol_num}巻")
+            premise = chapters_list.get("premise", "")
+
         result = {
-            "title": chapters_result.get("title", f"第{vol_num}巻") if isinstance(chapters_result, dict) else f"第{vol_num}巻",
-            "premise": chapters_result.get("premise", "") if isinstance(chapters_result, dict) else "",
+            "title": title or f"第{vol_num}巻",
+            "premise": premise,
             "chapters": chapters_with_scenes,
             "scenes": all_scenes,
         }
         return self._flatten_outline(result)
 
-    def _estimate_scene_count(self, purpose: str) -> int:
+    @staticmethod
+    def _estimate_scene_count(purpose: str) -> int:
         """Estimate number of scenes per chapter based on its role."""
         if purpose == "導入":
             return 2

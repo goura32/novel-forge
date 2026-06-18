@@ -103,6 +103,7 @@ def resume(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Resume from the last interrupted phase."""
     engine = _engine(workdir, model, lang, verbose=verbose)

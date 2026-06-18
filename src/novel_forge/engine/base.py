@@ -204,21 +204,3 @@ class NovelEngineBase:
         template = Path(__file__).resolve().parent.parent / "config.yaml"
         if template.exists():
             shutil.copy2(template, config_path)
-        else:
-            default = (
-                "llm:\\n"
-                '  model: "qwen3.6:35b-a3b-mtp-q4_K_M"\\n'
-                "  num_predict: 16384\\n"
-                "  num_ctx: 65536\\n"
-                "  timeout_seconds: 3600\\n"
-                "  max_retries: 2\\n"
-                "  ollama_options:\\n"
-                "    temperature: 0.7\\n"
-                "    top_k: 20\\n"
-                "    top_p: 0.80\\n"
-                "    repeat_penalty: 1.0\\n"
-                "    presence_penalty: 1.5\\n"
-                "quality:\\n"
-                "  max_review_retries: 1\\n"
-            )
-            config_path.write_text(default, encoding="utf-8")

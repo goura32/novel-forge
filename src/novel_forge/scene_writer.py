@@ -51,6 +51,8 @@ class SceneWriter:
         self._bible_mgr = BibleManager(bible_storage)
         self._bible_cache: Bible | None = None
 
+    # ── Bible caching ──────────────────────────────────────────────────
+
     def _get_bible(self) -> Bible:
         """Get Bible, loading from storage only once per instance."""
         if self._bible_cache is None:
@@ -60,6 +62,8 @@ class SceneWriter:
     def _invalidate_bible_cache(self) -> None:
         """Invalidate bible cache after updates."""
         self._bible_cache = None
+
+    # ── Bible text helpers for prompts ─────────────────────────────────
 
     def _get_subplots_text(self) -> str:
         """Get current subplots as formatted text."""
@@ -80,7 +84,7 @@ class SceneWriter:
         lines = []
         for r in bible.relationships:
             lines.append(
-                f"- {r.character_a} \u2194 {r.character_b}: "
+                f"- {r.character_a} ↔ {r.character_b}: "
                 f"{r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
             )
         return "\n".join(lines)
@@ -131,6 +135,28 @@ class SceneWriter:
         self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
         # Review → Quality Gate → revise loop
+        draft_text, record = self._run_review_loop(
+            draft_text, record, outline, scene, ctx, chapter.number
+        )
+
+        if record.status == "初稿済":
+            print(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", file=sys.stderr, flush=True)
+            record.status = "強制出力済"
+
+        return {"scene_number": record.scene_number, "status": record.status}
+
+    # ── review loop ───────────────────────────────────────────────────
+
+    def _run_review_loop(
+        self,
+        draft_text: str,
+        record: SceneRecord,
+        outline: VolumeOutline,
+        scene,
+        ctx: "SceneWriteContext",
+        chapter_number: int,
+    ) -> tuple[str, SceneRecord]:
+        """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
         for retry in range(self._quality.max_retries + 1):
             review = self._review_scene(
                 draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
@@ -149,16 +175,12 @@ class SceneWriter:
                 if lang_issues:
                     review["language_issues"] = lang_issues
                 draft_text = self._revise_scene(draft_text, review, ctx.lang)
-                self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
+                self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter_number)
             else:
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
 
-        if record.status == "初稿済":
-            print(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", file=sys.stderr, flush=True)
-            record.status = "強制出力済"
-
-        return {"scene_number": record.scene_number, "status": record.status}
+        return draft_text, record
 
     # ── review ───────────────────────────────────────────────────────
 
