@@ -206,6 +206,9 @@ class LLMClient:
             )
             resp.raise_for_status()
             data = resp.json()
+            # Check for Ollama error responses (e.g. CUDA out of memory)
+            if "error" in data:
+                raise LLMError(f"Ollama error: {data['error']}")
             result = data.get("response", "") or data.get("message", {}).get("content", "")
             if not result or not result.strip():
                 raise LLMError("Ollama returned empty response")
