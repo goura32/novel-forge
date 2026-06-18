@@ -11,8 +11,7 @@
   "properties": {
     "score": {
       "type": "number",
-      "minimum": 0,
-      "maximum": 100
+      "description": "シーン品質スコア。0〜100の範囲で出力すること。"
     },
     "dimensions": {
       "type": "array",
