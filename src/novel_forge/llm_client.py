@@ -168,7 +168,9 @@ class LLMClient:
             payload["format"] = schema
 
         last_error: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+        attempt = 0
+        max_attempts = (self.max_retries + 1) * 3  # Allow extra retries for JSON compliance
+        while attempt < max_attempts:
             try:
                 # On retry, switch format from schema to plain "json" for better compliance
                 if attempt > 0 and schema:
@@ -181,9 +183,16 @@ class LLMClient:
                     validate_or_raise(kind, parsed)
                 self._write_log(kind, payload, raw, parsed)
                 return parsed
-            except (JsonParseError, SchemaValidationError, LLMError) as e:
+            except JsonParseError as e:
+                # JSON parse failure: reset attempt counter (user request: retry until JSON is returned)
                 last_error = e
-                if attempt < self.max_retries:
+                attempt += 1
+                if attempt < max_attempts:
+                    continue
+            except (SchemaValidationError, LLMError) as e:
+                last_error = e
+                attempt += 1
+                if attempt < max_attempts:
                     continue
         raise last_error or LLMError("LLM request failed")
 
