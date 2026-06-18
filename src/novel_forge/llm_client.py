@@ -45,10 +45,6 @@ def _parse_json_response(text: str) -> Any:
             return json.loads(text[start : end + 1])
         except json.JSONDecodeError:
             pass
-    # Fallback: if the text looks like a scene draft (long text with no JSON),
-    # wrap it in a JSON object with "content" key
-    if len(text) > 100 and "\n" in text:
-        return {"content": text, "title": ""}
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 
@@ -167,33 +163,38 @@ class LLMClient:
         if schema:
             payload["format"] = schema
 
+        # Inner loop: retry on JSON parse errors (up to 5 attempts, same content)
+        # Outer loop: retry on schema validation errors (max_retries + 1 attempts)
         last_error: Exception | None = None
-        attempt = 0
-        max_attempts = (self.max_retries + 1) * 3  # Allow extra retries for JSON compliance
-        while attempt < max_attempts:
-            try:
-                # On retry, switch format from schema to plain "json" for better compliance
-                if attempt > 0 and schema:
-                    payload["format"] = "json"
-                raw = self._call_api(payload)
-                parsed = _parse_json_response(raw)
-                if schema:
+        outer_max = self.max_retries + 1
+        JSON_PARSE_MAX_RETRIES = 5
+        for outer_attempt in range(outer_max):
+            # Inner loop: try to get valid JSON
+            json_result = None
+            for json_attempt in range(JSON_PARSE_MAX_RETRIES):
+                try:
+                    raw = self._call_api(payload)
+                    parsed = _parse_json_response(raw)
+                    json_result = (raw, parsed)
+                    break
+                except JsonParseError as e:
+                    last_error = e
+                    if json_attempt < JSON_PARSE_MAX_RETRIES - 1:
+                        continue
+            if json_result is None:
+                break
+            raw, parsed = json_result
+            # Schema validation
+            if schema:
+                try:
                     from novel_forge.schemas import validate_or_raise
-
                     validate_or_raise(kind, parsed)
-                self._write_log(kind, payload, raw, parsed)
-                return parsed
-            except JsonParseError as e:
-                # JSON parse failure: reset attempt counter (user request: retry until JSON is returned)
-                last_error = e
-                attempt += 1
-                if attempt < max_attempts:
+                except SchemaValidationError as e:
+                    last_error = e
+                    # Schema validation failures don't reset the JSON parse loop
                     continue
-            except (SchemaValidationError, LLMError) as e:
-                last_error = e
-                attempt += 1
-                if attempt < max_attempts:
-                    continue
+            self._write_log(kind, payload, raw, parsed)
+            return parsed
         raise last_error or LLMError("LLM request failed")
 
     def _call_api(self, payload: dict[str, Any]) -> str:
