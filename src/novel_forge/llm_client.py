@@ -202,11 +202,14 @@ class LLMClient:
             resp = httpx.post(
                 self.api_url,
                 json=payload,
-                timeout=self.timeout_seconds,
+                timeout=1200,  # 20 min max per request (Ollama can be very slow)
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("response", "") or data.get("message", {}).get("content", "")
+            result = data.get("response", "") or data.get("message", {}).get("content", "")
+            if not result or not result.strip():
+                raise LLMError("Ollama returned empty response")
+            return result
         except httpx.HTTPError as e:
             raise LLMError(f"HTTP error: {e}") from e
 
