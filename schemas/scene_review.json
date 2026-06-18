@@ -88,9 +88,12 @@
             "description": "問題の説明"
           },
           "suggestion": {
-            "type": "string",
-            "maxLength": 2000,
-            "description": "具体的な修正指示"
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "description": "具体的な修正指示のリスト"
           }
         }
       }
