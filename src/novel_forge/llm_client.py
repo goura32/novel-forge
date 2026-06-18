@@ -202,7 +202,7 @@ class LLMClient:
             resp = httpx.post(
                 self.api_url,
                 json=payload,
-                timeout=1200,  # 20 min max per request (Ollama can be very slow)
+                timeout=self.timeout_seconds,
             )
             resp.raise_for_status()
             data = resp.json()

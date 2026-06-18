@@ -54,14 +54,6 @@ class WriteMixin:
                 flush=True,
             )
 
-        # Clear stale chapters on resume
-        chapters_dir = (
-            self._workdir / ".novel-forge" / "volumes" / f"vol{vol_num:02d}" / "chapters"
-        )
-        if chapters_dir.exists():
-            for ch_file in chapters_dir.glob("ch*.md"):
-                ch_file.unlink()
-
         for chapter in outline.chapters:
             chapter_scenes: list[str] = []
             ch_scenes = [s for s in outline.scenes if s.chapter_number == chapter.number]

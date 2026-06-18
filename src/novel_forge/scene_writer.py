@@ -49,10 +49,21 @@ class SceneWriter:
         self._bb_storage = blackboard_storage
         self._bible_storage = bible_storage
         self._bible_mgr = BibleManager(bible_storage)
+        self._bible_cache: Bible | None = None
+
+    def _get_bible(self) -> Bible:
+        """Get Bible, loading from storage only once per instance."""
+        if self._bible_cache is None:
+            self._bible_cache = self._bible_storage.load()
+        return self._bible_cache
+
+    def _invalidate_bible_cache(self) -> None:
+        """Invalidate bible cache after updates."""
+        self._bible_cache = None
 
     def _get_subplots_text(self) -> str:
         """Get current subplots as formatted text."""
-        bible = self._bible_storage.load()
+        bible = self._get_bible()
         if not bible.subplots:
             return "（なし）"
         lines = []
@@ -63,20 +74,20 @@ class SceneWriter:
 
     def _get_relationships_text(self) -> str:
         """Get current character relationships as formatted text."""
-        bible = self._bible_storage.load()
+        bible = self._get_bible()
         if not bible.relationships:
             return "（なし）"
         lines = []
         for r in bible.relationships:
             lines.append(
-                f"- {r.character_a} ↔ {r.character_b}: "
+                f"- {r.character_a} \u2194 {r.character_b}: "
                 f"{r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
             )
         return "\n".join(lines)
 
     def _get_foreshadowing_to_resolve_text(self) -> str:
         """Get unresolved foreshadowing as formatted text."""
-        bible = self._bible_storage.load()
+        bible = self._get_bible()
         unresolved = [fh for fh in bible.foreshadowing if not fh.resolved]
         if not unresolved:
             return "（なし）"
@@ -288,6 +299,7 @@ class SceneWriter:
 
         # Update bible (delegated to BibleManager)
         self._bible_mgr.apply_update(result, scene_number)
+        self._invalidate_bible_cache()
 
     # ── bible update ─────────────────────────────────────────────────
 
@@ -313,6 +325,7 @@ class SceneWriter:
         result = self._llm.complete_json("bible_update", system, user, schema)
 
         self._bible_mgr.apply_update(result, scene_number)
+        self._invalidate_bible_cache()
 
     # ── scene draft I/O ──────────────────────────────────────────────
 
