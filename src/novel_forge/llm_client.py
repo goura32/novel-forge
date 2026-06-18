@@ -160,15 +160,14 @@ class LLMClient:
                 **self._ollama_options,
             },
         }
-        # Do NOT use format=schema or format=json — both are unreliable on
-        # qwen3.6 (return plain text instead of JSON). Instead, omit format
-        # entirely and rely on prompt-level JSON instructions + extraction.
+        if schema:
+            payload["format"] = schema
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of 5 attempts (same content, same format).
         # Quality-gate (review-fix) retries are handled separately in write_scene.
         last_error: Exception | None = None
-        MAX_RETRIES = 5  # JSON parse + schema validation retries (fixed)
+        MAX_RETRIES = 10  # JSON parse + schema validation retries (fixed)
         for attempt in range(MAX_RETRIES):
             try:
                 raw = self._call_api(payload)
