@@ -89,7 +89,7 @@
           },
           "suggestion": {
             "type": "string",
-            "maxLength": 500,
+            "maxLength": 2000,
             "description": "具体的な修正指示"
           }
         }
