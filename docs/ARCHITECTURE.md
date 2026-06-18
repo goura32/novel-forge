@@ -181,11 +181,33 @@ LLM Response
 
 選定理由:
 - **日本語能力**: 日本語の小説生成において、高い表現力と文法穩定性
-- **JSON 出力**: `/api/generate` + `format:"json"` + `think:false` で安定
+- **JSON 出力**: `/api/generate` + `format: schema` + `think: false` で **100% 成功率**（6プロンプト×5スケール=30テスト全成功）
 - **長文処理**: 131,072 トークンの context 長
 - **VRAM 効率**: Q4 量子化で 24GB VRAM GPU で動作可能
+- **速度**: 平均4.7秒（simple〜complexプロンプト）
 
-### 6.2 モデルの切替
+### 6.2 最適パラメータ（2026-06-28 ベンチマーク確定）
+
+| パラメータ | 値 | 備考 |
+|---|---|---|
+| `think` | `false` | `true` は全スケールで0%（thinkingに逃げてcontent空） |
+| `format` | `schema` | JSON Schemaオブジェクトをそのまま渡す |
+| `num_predict` | `16384` | 1024〜16384全スケールで100%安定 |
+| `num_ctx` | `65536` | ws1.local GPU の安定値 |
+
+**`think: true` は不可**: `num_predict` を16倍にしても `done_reason=stop` で `response_len=0`。thinkingモードの構造的問題であり、トークン量では解決できない。
+
+### 6.3 比較検証: gemma4:26b
+
+| 設定 | 成功率 | 平均速度 | 備考 |
+|---|---|---|---|
+| **qwen3.6 + think:false** | **100%** | **4.7s** | 全スケール安定 |
+| gemma4:26b + think:false | 67% | 9.5s | longプロンプトで `num_predict` 不足 |
+| gemma4:26b + think:true | 40% | 不安定 | `done_reason=length` で切れる |
+
+gemma4 は `think: false` でも長いプロンプトで `num_predict` 不足になり、`think: true` は壊れる。
+
+### 6.4 モデルの切替
 
 `--model` フラグで別のモデルを指定可能。
 
