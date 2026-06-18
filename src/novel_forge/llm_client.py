@@ -48,6 +48,70 @@ def _parse_json_response(text: str) -> Any:
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 
+def _coerce_types(data: dict, schema: dict) -> dict:
+    """Coerce LLM output types to match schema expectations.
+
+    Handles common LLM mistakes:
+    - dict/object → string (e.g. target_audience: {age: "..."} → "...")
+    - string → array (when schema expects array but LLM returns comma-separated string)
+    - array → string (when schema expects string but LLM returns array)
+    """
+    if not isinstance(data, dict) or not isinstance(schema, dict):
+        return data
+
+    props = schema.get("properties", {})
+    required = schema.get("required", [])
+
+    # Add missing required fields with empty defaults
+    for field in required:
+        if field not in data:
+            field_schema = props.get(field, {})
+            ftype = field_schema.get("type", "")
+            if ftype == "array":
+                data[field] = []
+            elif ftype == "object":
+                data[field] = {}
+            elif ftype == "string":
+                data[field] = ""
+            elif ftype == "integer":
+                data[field] = 0
+
+    for field, value in list(data.items()):
+        if field not in props:
+            continue
+        field_schema = props.get(field, {})
+        expected_type = field_schema.get("type", "")
+
+        if expected_type == "string" and isinstance(value, dict):
+            # Convert dict to concatenated string
+            parts = []
+            for k, v in value.items():
+                if isinstance(v, list):
+                    v = "、".join(str(x) for x in v)
+                parts.append(f"{k}: {v}")
+            data[field] = "、".join(parts)
+
+        elif expected_type == "string" and isinstance(value, list):
+            # Convert list to comma-separated string
+            data[field] = "、".join(str(x) for x in value)
+
+        elif expected_type == "array" and isinstance(value, str):
+            # Convert comma/newline separated string to array
+            import re
+            items = [x.strip() for x in re.split(r"[,\n。]", value) if x.strip()]
+            data[field] = items
+
+        elif expected_type == "object" and isinstance(value, dict):
+            # Recurse into nested objects
+            nested_required = field_schema.get("required", [])
+            for nr in nested_required:
+                if nr not in value:
+                    value[nr] = "" if field_schema.get("properties", {}).get(nr, {}).get("type") == "string" else []
+            data[field] = _coerce_types(value, field_schema)
+
+    return data
+
+
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
     """config.yaml を読み込んで設定 dict を返す。
     config_path が None の場合は親ディレクトリから探す。
@@ -160,9 +224,12 @@ class LLMClient:
                 **self._ollama_options,
             },
         }
-        # format=schema hangs/times out on Ollama 0.30.8 with qwen3.6:35b.
-        # format="json" works correctly and enforces JSON-only output.
-        payload["format"] = "json"
+        # Use format=schema for structured output when schema is provided.
+        # Ollama 0.30.10 supports this natively.
+        if schema:
+            payload["format"] = schema
+        else:
+            payload["format"] = "json"
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of MAX_RETRIES attempts.  On JsonParseError we feed
