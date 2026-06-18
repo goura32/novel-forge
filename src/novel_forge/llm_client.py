@@ -161,15 +161,17 @@ class LLMClient:
             },
         }
         if schema:
-            payload["format"] = "json"
+            payload["format"] = schema
 
         # Unified retry loop: JSON parse + schema validation errors share the
-        # same budget of 5 attempts (same content, same format).
-        # Quality-gate (review-fix) retries are handled separately in write_scene.
+        # same budget of MAX_RETRIES attempts.  On JsonParseError we feed
+        # the bad response back so the model can correct itself.
         last_error: Exception | None = None
-        MAX_RETRIES = 10  # JSON parse + schema validation retries (fixed)
+        MAX_RETRIES = 10
+        current_prompt = user_prompt
         for attempt in range(MAX_RETRIES):
             try:
+                payload["prompt"] = current_prompt
                 raw = self._call_api(payload)
                 parsed = _parse_json_response(raw)
                 if schema:
@@ -177,7 +179,19 @@ class LLMClient:
                     validate_or_raise(kind, parsed)
                 self._write_log(kind, payload, raw, parsed)
                 return parsed
-            except (JsonParseError, SchemaValidationError, LLMError) as e:
+            except JsonParseError as e:
+                last_error = e
+                # Feed the bad response back and ask for JSON correction
+                current_prompt = (
+                    f"前回の出力はJSONではありませんでした。\n\n"
+                    f"前回の出力:\n{raw[:500]}\n\n"
+                    f"以下のスキーマに従い、必ず有効なJSONのみを出力してください。\n"
+                    f"JSON以外のテキスト（説明、注釈、マークダウン等）は一切含めないでください。\n\n"
+                    f"スキーマ: {json.dumps(schema, ensure_ascii=False)}\n\n"
+                    f"元の指示:\n{user_prompt}"
+                )
+                continue
+            except (SchemaValidationError, LLMError) as e:
                 last_error = e
                 continue
         raise last_error or LLMError("LLM request failed")
