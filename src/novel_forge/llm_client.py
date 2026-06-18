@@ -232,13 +232,12 @@ class LLMClient:
             payload["format"] = "json"
 
         # Unified retry loop: JSON parse + schema validation errors share the
-        # same budget of MAX_RETRIES attempts.  On JsonParseError we feed
+        # same budget of max_retries attempts.  On JsonParseError we feed
         # the bad response back so the model can correct itself.
         last_error: Exception | None = None
-        MAX_RETRIES = 10
         current_prompt = user_prompt
         raw = ""
-        for attempt in range(MAX_RETRIES):
+        for attempt in range(self.max_retries):
             try:
                 payload["prompt"] = current_prompt
                 raw = self._call_api(payload)

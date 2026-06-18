@@ -103,7 +103,7 @@
     },
     "planned_volumes": {
       "type": "array",
-      "maxItems": 3,
+      "maxItems": 20,
       "items": {
         "type": "object",
         "required": ["title", "premise"],

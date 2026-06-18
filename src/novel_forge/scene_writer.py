@@ -103,62 +103,62 @@ class SceneWriter:
         record: SceneRecord,
         ctx: "SceneWriteContext",
     ) -> dict[str, Any]:
-            system = self._prompts.render("system.md", {"lang": ctx.lang})
-            context = ctx.build_context_fn()
-            continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
+        system = self._prompts.render("system.md", {"lang": ctx.lang})
+        context = ctx.build_context_fn()
+        continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
 
-            # Draft
-            user = self._prompts.render(
-                "scene_draft.md",
-                {
-                    "series_plan": ctx.get_series_plan_summary_fn(),
-                    "outline": ctx.get_outline_summary_fn(outline),
-                    "scene": ctx.get_scene_summary_fn(scene),
-                    "chapter_title": chapter.title,
-                    "chapter_purpose": chapter.purpose,
-                    "context": context,
-                    "continuity": continuity,
-                    "subplots": self._get_subplots_text(),
-                    "relationships": self._get_relationships_text(),
-                    "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
-                    "lang": ctx.lang,
-                },
+        # Draft
+        user = self._prompts.render(
+            "scene_draft.md",
+            {
+                "series_plan": ctx.get_series_plan_summary_fn(),
+                "outline": ctx.get_outline_summary_fn(outline),
+                "scene": ctx.get_scene_summary_fn(scene),
+                "chapter_title": chapter.title,
+                "chapter_purpose": chapter.purpose,
+                "context": context,
+                "continuity": continuity,
+                "subplots": self._get_subplots_text(),
+                "relationships": self._get_relationships_text(),
+                "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
+                "lang": ctx.lang,
+            },
+        )
+        draft_schema = get_schema("scene_draft")
+        draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
+        draft_text = draft_result.get("content", "")
+        record.status = "初稿済"
+        self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
+
+        # Review → Quality Gate → revise loop
+        for retry in range(self._quality.max_retries + 1):
+            review = self._review_scene(
+                draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
+                ctx.get_outline_summary_fn,
             )
-            draft_schema = get_schema("scene_draft")
-            draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
-            draft_text = draft_result.get("content", "")
-            record.status = "初稿済"
-            self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
+            qg_result = self._quality.check_scene(review)
+            record.quality_retries = retry + 1
 
-            # Review → Quality Gate → revise loop (max 3 retries)
-            for retry in range(self._quality.max_retries + 1):
-                review = self._review_scene(
-                    draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
-                    ctx.get_outline_summary_fn,
-                )
-                qg_result = self._quality.check_scene(review)
-                record.quality_retries = retry + 1
+            if qg_result.passed:
+                record.status = "修正済"
+                record.quality_gate = qg_result
+                break
 
-                if qg_result.passed:
-                    record.status = "修正済"
-                    record.quality_gate = qg_result
-                    break
-
-                if retry < self._quality.max_retries:
-                    lang_issues = self._extract_language_issues(review)
-                    if lang_issues:
-                        review["language_issues"] = lang_issues
-                    draft_text = self._revise_scene(draft_text, review, ctx.lang)
-                    self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
-                else:
-                    record.status = "強制出力済"
-                    record.quality_gate = qg_result
-
-            if record.status == "初稿済":
-                print(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", file=sys.stderr, flush=True)
+            if retry < self._quality.max_retries:
+                lang_issues = self._extract_language_issues(review)
+                if lang_issues:
+                    review["language_issues"] = lang_issues
+                draft_text = self._revise_scene(draft_text, review, ctx.lang)
+                self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
+            else:
                 record.status = "強制出力済"
+                record.quality_gate = qg_result
 
-            return {"scene_number": record.scene_number, "status": record.status}
+        if record.status == "初稿済":
+            print(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", file=sys.stderr, flush=True)
+            record.status = "強制出力済"
+
+        return {"scene_number": record.scene_number, "status": record.status}
 
     # ── review ───────────────────────────────────────────────────────
 
