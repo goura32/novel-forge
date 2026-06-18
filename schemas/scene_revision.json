@@ -23,7 +23,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 200,
+        "maxLength": 500,
         "description": "変更内容"
       }
     }

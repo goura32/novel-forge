@@ -170,6 +170,9 @@ class LLMClient:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                # On retry, switch format from schema to plain "json" for better compliance
+                if attempt > 0 and schema:
+                    payload["format"] = "json"
                 raw = self._call_api(payload)
                 parsed = _parse_json_response(raw)
                 if schema:
