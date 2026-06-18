@@ -112,6 +112,9 @@ class NovelEngineBase:
 
     def _find_existing_series_dir(self) -> Path | None:
         """Find existing series directory in workdir (for commands after plan)."""
+        # Check if workdir itself is the series directory
+        if (self._workdir / "series_plan.json").exists():
+            return self._workdir
         # Look for {timestamp}_{slug} pattern directories
         for d in sorted(self._workdir.iterdir(), reverse=True):
             if d.is_dir() and "_" in d.name and not d.name.startswith("."):
