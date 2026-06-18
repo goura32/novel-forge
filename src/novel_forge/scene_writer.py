@@ -58,7 +58,7 @@ class SceneWriter:
         lines = []
         for sp in bible.subplots:
             if sp.status != "completed":
-                lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
+                lines.append(f"- {sp.name}: {sp.progress_note or '進捗なし'}")
         return "\n".join(lines) if lines else "（進行中のサブプロットなし）"
 
     def _get_relationships_text(self) -> str:

@@ -134,13 +134,15 @@ class ContextBuilder:
                 )
             )
         if bible.subplots:
-            parts.append(
-                "## サブプロット\n"
-                + "\n".join(
-                    f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}"
-                    for sp in bible.subplots
+            active_subplots = [sp for sp in bible.subplots if sp.status != "completed"]
+            if active_subplots:
+                parts.append(
+                    "## サブプロット\n"
+                    + "\n".join(
+                        f"- {sp.name}: {sp.progress_note or '進捗なし'}"
+                        for sp in active_subplots
+                    )
                 )
-            )
         if bible.glossary:
             parts.append(
                 "## 用語\n"

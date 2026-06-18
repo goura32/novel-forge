@@ -98,7 +98,7 @@
       "severity": "critical|major|minor|blocker",
       "category": "opening_hook|character_distinction|foreshadowing_consistency|sensory_coverage|page_turner|dialogue_naturalness|tone_consistency|scene_completeness|language_purity|pov_consistency",
       "description": "string",
-      "suggestion": "具体的な修正指示を日本語で記述すること。修正箇所の該当テキストを引用し、どう変えるべきかを明示すること。"
+      "suggestion": "修正箇所の該当テキストを引用し、修正後の具体的なテキストを示すこと。行番号は使わない。例: 「「weapon を構えた」を「兵器を構えた」に置換してください」"
     }
   ],
   "strengths": ["string"],
@@ -110,6 +110,16 @@
 - ❌ `category: "問題があります"`
 - ✅ `category: "pov_consistency"`
 
-**重要**: `issue.suggestion` は具体的な記述にすること。「修正が必要」という曖昧な記述ではなく、**該当テキストを引用して「この部分を○○に変えよ」と明示すること**。例:
+**重要**: `issue.suggestion` は具体的な記述にすること。「修正が必要」という曖昧な記述ではなく、**修正箇所の該当テキストを引用し、修正後の具体的なテキストを示すこと**。行番号は使わないこと。例:
 - ❌ 「英語表現を日本語に直してください」
-- ✅ 「3行目の「weapon」を「兵器」に置換してください。15行目の「backdoor」を「裏口」に置換してください」
+- ❌ 「3行目の「weapon」を「兵器」に置換してください」
+- ✅ 「「weapon を構えた」を「兵器を構えた」に置換してください」
+- ✅ 「「backdoor を発見した」を「裏口を発見した」に置換してください」
+- ✅ 「「モニター gaze を向けた」を「モニターの画面を凝視した」に置換してください」
+- ✅ 「「drip 音を立てて」を「水滴がぽたりぽたりと音を立てて」に修正してください」
+
+**重要**: 複数の修正箇所がある場合は、すべての箇所を漏れなく列挙すること。修正漏れがあると品質ゲートで再検出される。
+
+**重要**: 同じ修正前文書（同じ英語単語・同じフレーズ）への修正依頼を複数の issue で重複して出さないこと。`language_purity` の問題は**1つの issue にまとめて**、修正箇所をすべて列挙すること。例:
+- ❌ issue 1: 「gaze を視線に」、issue 2: 「gaze を凝視に」（重複）
+- ✅ issue 1: 「「gaze を向けた」を「視線を注いだ」、「anchor が外れれば」を「錨が外れれば」、「drip 音」を「水滴の音」にそれぞれ置換してください」
