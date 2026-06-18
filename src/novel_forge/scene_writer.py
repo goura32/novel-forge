@@ -346,8 +346,15 @@ class SceneWriter:
     def assemble_chapter(
         self, vol_num: int, chapter, scene_texts: list[str]
     ) -> None:
+        import re
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
         ch_path = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}" / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
         ch_path.parent.mkdir(parents=True, exist_ok=True)
-        content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(scene_texts)
+        # Remove scene markers like "シーンX（第Y章）:" or "シーンX:" from the beginning of each scene
+        cleaned_texts = []
+        for text in scene_texts:
+            # Remove lines like "シーン1（第2章）:" or "シーン5:" at the start
+            cleaned = re.sub(r'^シーン\d+（第\d+章）?[：:]\s*', '', text.strip())
+            cleaned_texts.append(cleaned)
+        content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(cleaned_texts)
         ch_path.write_text(content, encoding="utf-8")
