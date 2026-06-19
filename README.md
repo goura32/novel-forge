@@ -69,7 +69,7 @@ uv run novel-forge resume  --workdir ./work/series1
 | 機能 | 説明 | 人間介入 |
 |---|---|---|
 | シリーズ企画 | キーワードから世界観・キャラクター・構成案を生成 | 確認（暗黙承認） |
-| 巻アウトライン | MVME `(S > A | R)` 構造的アンカーを適用したシーン構成 | なし（LLM自律） |
+| 巻アウトライン | 3フェーズ（章構成→章設計→シーン設計）で生成 | なし（LLM自律） |
 | シーン執筆 | Blackboard + Bible による継続性維持 | なし（LLM自律） |
 | 自律レビュー | 全工程 LLM が自己レビュー・改稿・品質ゲート | なし（LLM自律） |
 | Bible 管理 | キャラクター、伏線、関係性、サブプロットの自動追跡 | なし（LLM自律） |
@@ -77,18 +77,36 @@ uv run novel-forge resume  --workdir ./work/series1
 | Markdown エクスポート | 完成原稿の KDP 確認用出力 | なし |
 | 最終レビュー | 全巻通読結果を kdp_readiness_report.md に記録 | 任意で確認 |
 
+## 排他制御
+
+同一シリーズ内では `plan` / `outline` / `write` / `export` / `resume` / `complete` は同時に実行できません。
+
+- `series_dir/.lock` ファイルで排他制御
+- ロック保持プロセスが終了していたら自動回収（stale lock detection）
+- 5分以上経過したロックも stale として強制取得
+- `status` はロック不要（読み取り専用）+ ロック状態を表示
+
+```bash
+# 同時実行しようとすると即座にエラー
+$ novel-forge write -V 1 --workdir ./work/series1
+✗ Lock held by PID=12345 (active, 120s ago). Another process is running on this series.
+  Wait for it to finish, or remove the lock file manually:
+  rm ./work/series1/.lock
+```
+
 ## アーキテクチャ
 
 ```
-cli.py → engine.py → scene_writer.py
+cli.py → engine/ → scene_writer.py
                     → context_builder.py
                     → bible_manager.py
 ```
 
-- **NovelEngine**: オーケストレーション層
-- **SceneWriter**: シーン執筆パイプライン（draft/review/revise/summarize）
-- **ContextBuilder**: コンテキスト構築（Bible + Blackboard）
-- **BibleManager**: Bible 管理（キャラクター、伏線、関係性、サブプロット）
+- **CLI Interface** (`cli.py`): ユーザー対話、排他制御
+- **NovelEngine** (`engine/`): オーケストレーション層（plan/outline/write/export の順次制御）
+- **SceneWriter** (`scene_writer.py`): シーン執筆パイプライン（draft/review/revise/summarize）
+- **ContextBuilder** (`context_builder.py`): コンテキスト構築（Bible + Blackboard）
+- **BibleManager** (`bible_manager.py`): Bible 管理（キャラクター、伏線、関係性、サブプロット）
 
 ## テスト
 

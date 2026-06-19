@@ -22,10 +22,10 @@
 | 用語 | 説明 |
 |---|---|
 | 企画 (plan) | キーワードからシリーズ全体の企画案を生成する工程 |
-| アウトライン (outline) | 巻ごとの章・シーン構成を設計する工程 |
+| アウトライン (outline) | 巻ごとの章・シーン構成を設計する工程（3フェーズ） |
 | 執筆 (write) | シーン本文を生成し、レビュー・改稿・品質ゲートを実行する工程 |
 | エクスポート (export) | 完成原稿を KDP 向けに出力する工程 |
-| 一括実行 (complete) | plan → outline → write → export を連続実行 |
+| 一括実行 (complete) | plan → outline → write → export を1プロセスで順次実行 |
 | 再開 (resume) | 中断した工程から再開 |
 
 ---
@@ -72,7 +72,7 @@
 
 | 用語 | 説明 |
 |---|---|
-| CLI Interface | ユーザーとの対話層。Typer で実装 |
+| CLI Interface | ユーザーとの対話層。排他制御を担当。Typer で実装 |
 | Orchestration Layer | 状態遷移管理、パイプライン順序制御。`NovelEngine` が担当 |
 | Domain Logic | シーン執筆、コンテキスト構築、Bible管理。各専用モジュールが担当 |
 | Infrastructure Layer | LLM 通信、永続化、ログ記録、スキーマ検証 |
@@ -81,13 +81,21 @@
 
 | 用語 | 説明 |
 |---|---|
-| NovelEngine | 中核となるオーケストレーション層。全コマンドがこのエンジンを通る |
+| NovelEngine | 中核となるオーケストレーション層。Mixin パターンで機能を組み立てる |
 | SceneWriter | シーン単位の処理パイプライン。draft/review/revise/summarize/bible_update |
 | ContextBuilder | context/continuity 構築、各種要約生成 |
 | BibleManager | Bible の更新・照会・最終確定 |
 | LLMClient | LLM API クライアント。リトライ・ログ・タイムアウト対応 |
 | QualityGate | シーンの品質を評価し、合格/不合格を判定 |
-| SceneWriteContext | write_scene() の引数をまとめたパラメータオブジェクト |
+
+### 4.3 排他制御
+
+| 用語 | 説明 |
+|---|---|
+| .lock | シリーズディレクトリに作成されるロックファイル |
+| stale lock | ロック保持プロセスが終了していた状態。自動回収される |
+| _acquire_lock() | ロック取得関数。O_CREAT\|O_EXCL でアトミック取得 |
+| _release_lock() | ロック解放関数 |
 
 ---
 
@@ -98,22 +106,28 @@
 | プロンプトテンプレート | `prompts/` の Markdown ファイル。`{variable}` プレースホルダーを使用 |
 | 自己レビュー | LLM が自分で生成した内容を評価する工程 |
 | 別プロンプト原則 | 生成・レビュー・改稿はそれぞれ別のプロンプトファイルを使用（自己評価バイアス防止） |
+| 3フェーズアウトライン | Phase1(章構成) → Phase2(章設計) → Phase3(シーン設計) の分割生成 |
 | summarize_and_update_bible | シーン要約とBible更新を1回のLLM呼び出しで実行する統合メソッド |
 
 **プロンプト一覧**:
 
 | ファイル | 用途 |
 |---|---|
-| `system.md` | 共通システムプロンプト |
+| `system.md` | 共通システムプロンプト（言語制約、出力形式） |
 | `series_plan.md` | シリーズ企画 |
 | `series_plan_review.md` | シリーズ企画の自己レビュー |
-| `volume_outline.md` | 巻アウトライン生成 |
+| `series_plan_revision.md` | シリーズ企画の改訂 |
+| `chapter_outline.md` | 巻アウトライン Phase 1: 章構成 |
+| `chapter_design.md` | 巻アウトライン Phase 2: 章設計 |
+| `scene_outline.md` | 巻アウトライン Phase 3: シーン設計 |
 | `scene_draft.md` | シーン初稿 |
 | `scene_review.md` | シーンレビュー |
 | `scene_revision.md` | シーン改稿 |
-| `scene_summary.md` | シーン要約 |
+| `scene_summary.md` | シーン要約（非推奨、summarize_and_bible_update を使用） |
 | `scene_summary_and_bible_update.md` | シーン要約 + Bible 更新（統合） |
-| `bible_update.md` | Bible 更新 |
+| `bible_update.md` | Bible 更新（非推奨、summarize_and_bible_update を使用） |
+| `kdp_metadata.md` | KDP メタデータ生成 |
+| `cover_prompt.md` | 表紙画像生成 |
 
 ---
 
@@ -121,20 +135,19 @@
 
 | 用語 | 説明 |
 |---|---|
-| 品質ゲート (Quality Gate) | シーン単位の品質を評価し、合格/不合格を判定する工程。全レビュー共通で `score >= 70.0`（0-100スケール）かつ `critical`/`blocker` issue が0件で合格 |
-| force_exported | 品質ゲート3回不合格でも続行するためのフラグ |
-| 深刻度 | 問題の重要度。`critical` / `major` / `minor` の3段階 |
-| 簡体字チェック | JIS漢字セット外の漢字を検出する品質チェック |
+| 品質ゲート (Quality Gate) | シーン単位の品質を評価し、合格/不合格を判定する工程 |
+| force_exported | 品質ゲート不合格でも続行するためのフラグ |
+| 深刻度 | 問題の重要度。`critical` / `major` / `minor` / `blocker` の4段階 |
+| スコア | 0-100 の数値。70以上で合格 |
+| 8次元評価 | opening_hook, character_distinction, foreshadowing_consistency, sensory_coverage, page_turner, dialogue_naturalness, tone_consistency, pov_consistency, language_purity, scene_completeness |
 
-**レビューカテゴリ（8次元）**:
-- `structural_validity`: 構造的妥当性
-- `scene_coherence`: シーン間の論理一貫性
-- `character_distinction`: キャラ立ち
-- `foreshadowing_consistency`: 伏線の整合性
-- `sensory_coverage`: 五感の網羅
-- `page_turner`: ページターナー
-- `tone_consistency`: 文体の一貫性
-- `pov_consistency`: 視点の一貫性
+**スコアリングガイド**:
+- 90-100: 商業出版レベル
+- 80-89: 良好、出版可能
+- 70-79: 合格ライン
+- 60-69: 改善が必要
+- 50-59: 大幅な改善が必要
+- 0-49: 書き直しが必要
 
 ---
 
@@ -142,11 +155,12 @@
 
 | 用語 | 説明 |
 |---|---|
-| MVME | Minimalist & Mathematical Edition。シーン目標を `(State > Action | Result)` で表す手法 |
-| JSON Schema 検証パイプライン | LLM 応答を4段階で検証 |
-| think: false | Ollama の思考モード無効化 |
-| コンテキスト注入 | シーン生成時に Blackboard、Bible、前シーン要約をプロンプトに含める処理 |
+| think: false | Ollama の思考モード無効化。NovelForge では必須 |
+| JSON Schema 検証パイプライン | LLM 応答を3段階で検証（parse → structure → wrapper） |
+| コンテキスト注入 | シーン生成時に Blackboard、Bible、前シーン全文をプロンプトに含める処理 |
 | RAW ログ | 全 LLM リクエスト/レスポンスを `raw_logs/` に保存した記録 |
+| num_predict | LLM 出力トークン数上限。16384 が安定値 |
+| num_ctx | コンテキスト長。65536 が安定値 |
 
 ---
 
@@ -155,12 +169,12 @@
 | 用語 | 説明 |
 |---|---|
 | workdir | 作業ディレクトリ。1つのシリーズの全データが格納される |
+| series_dir | 実際のシリーズディレクトリ（workdir 自体、または {timestamp}_{slug} サブディレクトリ） |
 | slug | シリーズの識別子。URL 安全な文字列 |
-| `.novel-forge/` | 機械用データの隔離ディレクトリ |
-| `exports/` | 人間が目にする唯一の出力ディレクトリ |
-| `chapters/` | 章単位の Markdown 原稿 |
-| `scenes/` | シーン単位の Markdown 原稿 |
-| `raw_logs/` | LLM 生ログ |
+| exports/ | 人間が目にする唯一の出力ディレクトリ |
+| chapters/ | 章単位の Markdown 原稿 |
+| scenes/ | シーン単位の Markdown 原稿 |
+| raw_logs/ | LLM 生ログ |
 
 ---
 
@@ -168,18 +182,20 @@
 
 ### 9.1 巻の状態
 
-```
-planned → outlined → drafting → drafted → exported → finalized
+```text
+planned → outlined → drafting → drafted → exported
                                     │
                                     └→ force_exported
 ```
 
+中国語表記: `計画中 → アウトライン済 → 執筆中 → 初稿済 → 出力済 / 強制出力済`
+
 ### 9.2 シーンの状態
 
-```
+```text
 planned → 初稿済 → 修正済
                 │
-                └→ 強制出力済 (3回不合格時)
+                └→ 強制出力済 (2回不合格時)
 ```
 
 ---
@@ -200,25 +216,8 @@ planned → 初稿済 → 修正済
 |---|---|
 | 暗黙承認 | 人間が明示的に承認しなくても、問題なければ次工程に進む方式 |
 | 人間介入ポイント | シリーズ企画の確認（暗黙承認）と最終レビュー（任意）の2箇所のみ |
-| タイムアウト | LLM リクエストの最大待機時間。工程別に設定（60s〜3600s） |
+| 順序実行 | ローカルLLMは1度に1プロンプトしか処理できないため、全工程は順次実行 |
 
 ---
 
-## 12. 巻数ガイドライン
-
-商業出版（KDP）のライトノベルシリーズにおける巻数の目安:
-
-| カテゴリ | 巻数 | 備考 |
-|---|---|---|
-| 短編シリーズ | 3-5巻 | 完結が早い、読み切りに近い |
-| 標準シリーズ | 6-12巻 | 最も一般的な範囲 |
-| 長編シリーズ | 13-20巻 | 人気作、長期連載 |
-| 超長編 | 20-40+巻 | トップクラス |
-
-**推奨: 6-12巻の範囲で計画すること。**
-
-各巻は独立した物語として完結しつつ、全体として大きなアークを形成する構成にすること。
-
----
-
-*Last updated: 2026-06-28*
+*Last updated: 2026-06-19*

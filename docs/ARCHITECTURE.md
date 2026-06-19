@@ -10,10 +10,10 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 
 | Layer | 役割 | 主要コンポーネント |
 |---|---|---|
-| CLI Interface | ユーザーとの対話 | `cli.py` (Typer) |
-| Orchestration | 状態遷移、パイプライン制御 | `engine.py` (NovelEngine) |
+| CLI Interface | ユーザーとの対話、排他制御 | `cli.py` (Typer) |
+| Orchestration | 状態遷移、パイプライン制御 | `engine/` (NovelEngine) |
 | Domain Logic | シーン執筆、コンテキスト構築、Bible管理 | `scene_writer.py`, `context_builder.py`, `bible_manager.py` |
-| Infrastructure | LLM通信、永続化、ログ、スキーマ検証 | `ollama_client.py`, `storage.py`, `schemas.py`, `quality.py` |
+| Infrastructure | LLM通信、永続化、ログ、スキーマ検証 | `llm_client.py`, `storage.py`, `schemas.py`, `quality_gate.py` |
 
 **用語の定義**: [GLOSSARY.md](GLOSSARY.md)
 
@@ -21,19 +21,26 @@ NovelForge は、ローカルLLMを使って小説シリーズを企画・構成
 
 ## 2. モジュール構成
 
-```
+```text
 src/novel_forge/
-├── cli.py              # CLI エントリポイント (Typer)
-├── engine.py            # オーケストレーション層 (NovelEngine)
-├── scene_writer.py      # シーン執筆パイプライン (SceneWriter)
-├── context_builder.py   # コンテキスト構築 (ContextBuilder)
-├── bible_manager.py     # Bible 管理 (BibleManager)
+├── cli.py              # CLI エントリポイント + 排他制御 (Typer)
+├── engine/             # オーケストレーション層 (Mixin パターン)
+│   ├── __init__.py     # NovelEngine クラス定義
+│   ├── base.py         # NovelEngineBase (__init__, helpers, state)
+│   ├── plan.py         # PlanMixin (plan, _generate_plan, _review_series_plan)
+│   ├── outline.py      # OutlineMixin (outline, _generate_outline 3-phase)
+│   ├── write.py         # WriteMixin (write, progress)
+│   └── export.py       # ExportMixin (export, _assemble_manuscript)
+├── scene_writer.py      # SceneWriter (シーン執筆パイプライン)
+├── context_builder.py   # ContextBuilder (context/continuity 構築)
+├── bible_manager.py     # BibleManager (Bible 管理)
 ├── models.py            # Pydantic データモデル
-├── ollama_client.py     # LLM クライアント
-├── prompts.py           # プロンプト管理
-├── quality.py           # 品質ゲート
+├── llm_client.py        # LLM クライアント (Ollama /api/generate)
+├── prompts.py           # プロンプト管理 (PromptManager)
+├── quality_gate.py      # QualityGate (シーン品質評価)
 ├── schemas.py           # JSON Schema 検証
-└── storage.py           # 永続化 (StateStorage, BlackboardStorage, BibleStorage)
+├── storage.py           # 永続化 (StateStorage, BlackboardStorage, BibleStorage)
+└── kanji_data.py        # 常用漢字データ
 ```
 
 ### 2.1 責務分割
@@ -50,17 +57,16 @@ src/novel_forge/
 `SceneWriter.write_scene()` への引数を `SceneWriteContext` データクラスでまとめています。
 
 ```python
-@dataclass
-class SceneWriteContext:
+class SceneWriteContext(BaseModel):
     lang: str
     vol_num: int
-    build_context_fn: Callable[[], str]
-    build_continuity_fn: Callable[[int, int], str]
-    get_series_plan_summary_fn: Callable[[], str]
-    get_outline_summary_fn: Callable[[VolumeOutline], str]
-    get_scene_summary_fn: Callable[[Scene], str]
-    get_bible_text_fn: Callable[[], str]
-    load_scene_draft_fn: Callable[..., str]
+    build_context_fn: Any          # () -> str
+    build_continuity_fn: Any       # (scene_number, vol_num) -> str
+    get_series_plan_summary_fn: Any  # () -> str
+    get_outline_summary_fn: Any    # (outline) -> str
+    get_scene_summary_fn: Any      # (scene) -> str
+    get_bible_text_fn: Any         # () -> str
+    load_scene_draft_fn: Any       # (vol_num, scene_number, chapter_number) -> str
 ```
 
 ---
@@ -71,15 +77,15 @@ class SceneWriteContext:
 
 ```
 キーワード → [plan] シリーズ企画 + 自己レビュー → 人間確認（暗黙承認）
-           → [outline] 巻アウトライン → 自己修正（最大3回）
+           → [outline] 巻アウトライン（3フェーズ）→ 自己修正（最大3回）
            → [write] シーン執筆（sequential）→ レビュー → 改稿 → 品質ゲート → Blackboard更新
            → [export] 原稿組立 → 最終レビュー → kdp_readiness_report.md
            → [next-volume] 次巻のアウトライン生成
 ```
 
-- シーンは **sequential のみ**（前シーン要約を `{continuity}` として次シーンに注入）
+- シーンは **sequential のみ**（前シーン全文を `{continuity}` として次シーンに注入）
 - アウトライン自己修正は **最大3回**
-- シーン品質ゲート不合格 → 自動改稿 → 再評価（最大1回、設定可能）。不合格 → `強制出力済`
+- シーン品質ゲート不合格 → 自動改稿 → 再評価（最大2回）。不合格 → `強制出力済`
 
 ### 3.2 状態遷移
 
@@ -103,31 +109,35 @@ class SceneWriteContext:
 
 ## 4. プロンプト戦略
 
-### 4.1 MVME (Minimalist & Mathematical Edition)
+### 4.1 アウトライン3フェーズ
 
-MVME はシーン目標を因果関係で表す手法です。「どのような状態から、誰がどのような行動をとり、その結果どうなるか」を構造的に指定します。
+巻アウトラインの生成は3フェーズに分かれています:
 
-全シーン目標に `(State > Action | Result)` パターンを強制します。詳細は [PROMPTS.md](PROMPTS.md) を参照。
+1. **Phase 1 (章構成)**: シリーズ企画から章のタイトルと役割を生成
+2. **Phase 2 (章設計)**: 各章のテーマ、感情弧、伏線メモを生成
+3. **Phase 3 (シーン設計)**: 各シーンの目標/結果/葛藤/視点を生成
+
+詳細は [PROMPTS.md](PROMPTS.md) を参照。
 
 ### 4.2 JSON Schema 検証パイプライン
 
-```
+```text
 LLM Response
   │
   ├─▶ Step 1: Raw content parse (unwrap markdown fence, `{result:...}`)
   ├─▶ Step 2: Draft202012Validator 構造検証
-  ├─▶ Step 3: Pydantic 型チェック (extra="forbid")
-  └─▶ Step 4: 論理一貫性チェック (State Machine, Blackboard)
+  ├─▶ Step 3: Pydantic 型チェック
+  └─▶ Step 4: 論理一貫性チェック (continuity, Blackboard)
 ```
 
 ### 4.3 コンテキスト注入
 
 各シーン生成時に注入する情報:
 
-1. **system**: JSON 出力 + ジャンル/ペルソナ指示 (from `prompts/system.md`)
+1. **system**: JSON 出力 + 言語制約 + ジャンル/ペルソナ指示 (from `prompts/system.md`)
 2. **context**: シリーズ企画 + 巻アウトライン + Blackboard.facts + Bible
-3. **scene**: アウトライン内の当該シーン定義 (MVME goal 含む)
-4. **continuity**: 前シーン要約 + revision履歴 (from Blackboard)
+3. **scene**: アウトライン内の当該シーン定義
+4. **continuity**: 前シーン全文 + 直近シーン要約 + 引き継ぎメモ
 
 ### 4.4 スキーマ設計原則
 
@@ -143,7 +153,7 @@ LLM Response
 
 ### 5.1 State Machine (進捗管理)
 
-`ProjectState` が制作進捗を管理。**事実記録と設定資料集は `state.json` とは別ファイル**として永続化します。
+`ProjectState` が制作進捗を管理。**事実記録と設定資料集は `state.json` とは別ファイル**として永続化。
 
 ### 5.2 事実記録（Blackboard）— 物語の事実
 
@@ -181,33 +191,20 @@ LLM Response
 
 選定理由:
 - **日本語能力**: 日本語の小説生成において、高い表現力と文法穩定性
-- **JSON 出力**: `/api/generate` + `format: schema` + `think: false` で **100% 成功率**（6プロンプト×5スケール=30テスト全成功）
+- **JSON 出力**: `/api/generate` + `format: schema` + `think: false` で安定動作
 - **長文処理**: 131,072 トークンの context 長
 - **VRAM 効率**: Q4 量子化で 24GB VRAM GPU で動作可能
-- **速度**: 平均4.7秒（simple〜complexプロンプト）
 
-### 6.2 最適パラメータ（2026-06-28 ベンチマーク確定）
+### 6.2 最適パラメータ
 
 | パラメータ | 値 | 備考 |
 |---|---|---|
-| `think` | `false` | `true` は全スケールで0%（thinkingに逃げてcontent空） |
-| `format` | `schema` | JSON Schemaオブジェクトをそのまま渡す |
-| `num_predict` | `16384` | 1024〜16384全スケールで100%安定 |
-| `num_ctx` | `65536` | ws1.local GPU の安定値 |
+| `think` | `false` | `true` は content 空になる |
+| `format` | `schema` | JSON Schema をそのまま渡す |
+| `num_predict` | `16384` | 1024〜16384 全スケールで安定 |
+| `num_ctx` | `65536` | GPU 安定値 |
 
-**`think: true` は不可**: `num_predict` を16倍にしても `done_reason=stop` で `response_len=0`。thinkingモードの構造的問題であり、トークン量では解決できない。
-
-### 6.3 比較検証: gemma4:26b
-
-| 設定 | 成功率 | 平均速度 | 備考 |
-|---|---|---|---|
-| **qwen3.6 + think:false** | **100%** | **4.7s** | 全スケール安定 |
-| gemma4:26b + think:false | 67% | 9.5s | longプロンプトで `num_predict` 不足 |
-| gemma4:26b + think:true | 40% | 不安定 | `done_reason=length` で切れる |
-
-gemma4 は `think: false` でも長いプロンプトで `num_predict` 不足になり、`think: true` は壊れる。
-
-### 6.4 モデルの切替
+### 6.3 モデルの切替
 
 `--model` フラグで別のモデルを指定可能。
 
@@ -223,10 +220,12 @@ gemma4 は `think: false` でも長いプロンプトで `num_predict` 不足に
 
 - 最大リトライ回数: 2回（合計3回まで試行）
 - リトライ時はエラーフィードバックをメッセージに追加
+- JSON パースエラー → フィードバック再プロンプト
+- スキーマ検証エラー → 不足フィールドを明示して再プロンプト
 
 ### 7.3 JSON抽出パイプライン
 
-1. **直接 parse** — `message.content` を JSON としてパース
+1. **直接parse** — `message.content` を JSON としてパース
 2. **Markdown fence フォールバック** — `` ```json ``` `` で囲まれた場合の中身を抽出
 3. **ラッパーオブジェクトフォールバック** — `{result: ...}` 等のラッパーオブジェクトを抽出
 
@@ -239,6 +238,7 @@ gemma4 は `think: false` でも長いプロンプトで `num_predict` 不足に
 | パストラバーサル防止 | `..` を含む slug を拒否 |
 | 原子的書き込み | 一時ファイル作成 → `fsync` → `rename` (POSIX atomic)。既存 JSON は `.bak` 退避 |
 | RAW ログ | 全 LLM リクエスト/レスポンスを `raw_logs/` に保存 |
+| 排他制御 | `series_dir/.lock` ファイルで同一シリーズの同時実行防止 |
 
 ---
 
@@ -252,29 +252,27 @@ gemma4 は `think: false` でも長いプロンプトで `num_predict` 不足に
 
 ## 10. ファイル構成
 
-```
-<workdir>/
-├── .novel-forge/
-│   ├── state.json              # プロジェクト状態
-│   ├── series_plan.json        # シリーズ企画
-│   ├── series_plan_review.json # シリーズ企画レビュー
-│   ├── blackboard.json         # 事実記録
-│   ├── bible.json              # 設定資料集
-│   ├── raw_logs/               # LLM リクエスト/レスポンスログ
-│   │   ├── 20260617_161613_series_plan.json
+```text
+<series_dir>/
+├── .lock                          # 排他ロックファイル
+├── state.json                     # プロジェクト状態
+├── series_plan.json               # シリーズ企画
+├── series_plan_review.json        # シリーズ企画レビュー
+├── blackboard.json                # 事実記録
+├── bible.json                     # 設定資料集
+├── raw_logs/                      # LLM リクエスト/レスポンスログ
+│   ├── 20260619_161231_series_plan.json
+│   └── ...
+├── vol01/
+│   ├── outline.json               # 巻アウトライン
+│   ├── vol01_ch01/
+│   │   ├── vol01_ch01.md          # 章組立Markdown
+│   │   ├── vol01_ch01_sc01.md     # シーン初稿
 │   │   └── ...
-│   └── volumes/
-│       └── vol01/
-│           ├── outline.json    # 巻アウトライン
-│           ├── blackboard.json # 巻ごとの事実記録
-│           ├── bible.json      # 巻ごとの設定資料集
-│           ├── chapters/       # 章 Markdown
-│           │   ├── ch01.md
-│           │   └── ...
-│           └── scenes/         # シーン Markdown
-│               └── ch01/
-│                   ├── vol01_ch01_sc01.md
-│                   └── ...
+│   └── vol01_ch02/
+│       └── ...
+├── vol02/
+│   └── ...
 └── exports/
     ├── vol01_manuscript.md
     ├── vol01_metadata.json
@@ -288,22 +286,22 @@ gemma4 は `think: false` でも長いプロンプトで `num_predict` 不足に
 ### 11.1 合格基準
 
 - `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
-- 不合格時は自動改稿 → 再評価（最大1回、`--max-retries` で設定可能）
+- 不合格時は自動改稿 → 再評価（最大2回）。2回不合格 → `強制出力済`
 
 ### 11.2 レビュー指摘修正回数
 
 | 工程 | デフォルト | 最大 | 設定方法 |
 |---|---|---|---|
-| シーン | 1回 | 3回 | `quality.max_review_retries` / `--max-retries` |
+| シーン | 2回 | 設定可能 | `quality.max_review_retries` / `--max-retries` |
 | アウトライン | 3回 | - | ハードコード |
 | シリーズ企画 | 3回 | - | ハードコード |
 
-### 11.3 簡体字チェック
+### 11.3 言語純度チェック
 
 - ツールによる検出は行わない（JIS 漢字セットベースの検出は誤検出が多いため）
 - プロンプトでの防止が主
-- LLM が簡体字を出力した場合、レビューで指摘する
+- LLM が簡体字を出力した場合、レビューで `language_purity` カテゴリとして指摘する
 
 ---
 
-*Last updated: 2026-06-28*
+*Last updated: 2026-06-19*

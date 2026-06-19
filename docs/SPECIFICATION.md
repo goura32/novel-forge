@@ -18,9 +18,7 @@ novel-forge/
 │   ├── series_plan.md
 │   ├── series_plan_review.md
 │   ├── series_plan_revision.md
-│   ├── volume_outline.md
-│   ├── volume_outline_review.md
-│   ├── volume_outline_revision.md
+│   ├── chapter_outline.md
 │   ├── chapter_design.md
 │   ├── scene_outline.md
 │   ├── scene_draft.md
@@ -30,15 +28,18 @@ novel-forge/
 │   ├── scene_summary_and_bible_update.md
 │   ├── bible_update.md
 │   ├── kdp_metadata.md
-│   ├── kdp_final_review.md
 │   └── cover_prompt.md
 ├── schemas/                      # JSON Schema 定義
 │   ├── series_plan.json
 │   ├── series_plan_review.json
+│   ├── series_plan_revision.json
 │   ├── volume_outline.json
-│   ├── scene.json
-│   ├── scene_design.json
+│   ├── volume_outline_review.json
+│   ├── volume_outline_revision.json
+│   ├── chapter_outline.json
 │   ├── chapter_design.json
+│   ├── scene_outline.json
+│   ├── scene_draft.json
 │   ├── scene_review.json
 │   ├── scene_revision.json
 │   ├── scene_summary.json
@@ -50,17 +51,24 @@ novel-forge/
 ├── src/
 │   └── novel_forge/
 │       ├── __init__.py
-│       ├── cli.py               # CLI エントリポイント
-│       ├── models.py            # Pydantic データモデル
-│       ├── schemas.py           # スキーマレジストリ
-│       ├── storage.py           # 永続化
-│       ├── ollama_client.py     # LLM クライアント
-│       ├── engine.py            # NovelEngine (オーケストレーション)
-│       ├── scene_writer.py      # SceneWriter (シーン執筆)
+│       ├── cli.py               # CLI エントリポイント + 排他制御
+│       ├── engine/              # NovelEngine (オーケストレーション)
+│       │   ├── __init__.py
+│       │   ├── base.py          # NovelEngineBase (初期化, state, lock)
+│       │   ├── plan.py          # シリーズ企画
+│       │   ├── outline.py       # 巻アウトライン
+│       │   ├── write.py          # シーン執筆
+│       │   └── export.py        # KDP出力
+│       ├── scene_writer.py      # SceneWriter (シーン執筆パイプライン)
 │       ├── context_builder.py   # ContextBuilder (コンテキスト構築)
 │       ├── bible_manager.py     # BibleManager (Bible 管理)
+│       ├── models.py            # Pydantic データモデル
+│       ├── llm_client.py        # LLM クライアント
 │       ├── prompts.py           # プロンプト管理
-│       └── quality.py           # QualityGate
+│       ├── quality_gate.py      # QualityGate
+│       ├── schemas.py           # スキーマレジストリ
+│       ├── storage.py           # 永続化
+│       └── kanji_data.py        # 常用漢字データ
 └── tests/
     └── test_*.py
 ```
@@ -84,6 +92,7 @@ novel-forge/
 | `GlossaryItem` | `models.py` | 用語 |
 | `VolumeOutline` | `models.py` | 巻アウトライン |
 | `SceneOutline` | `models.py` | シーンアウトライン |
+| `ChapterOutline` | `models.py` | 章アウトライン |
 
 ### 2.2 ステータス値
 
@@ -98,15 +107,15 @@ novel-forge/
 ```yaml
 llm:
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
-  num_predict: 8192
-  num_ctx: null
+  num_predict: 16384
+  num_ctx: 65536
   timeout_seconds: 3600
   max_retries: 2
-  ollama_host: null
+  ollama_host: "ws1.local:11434"
   ollama_options:
-    temperature: 1.0
+    temperature: 0.7
     top_k: 20
-    top_p: 0.95
+    top_p: 0.80
     repeat_penalty: 1.0
     presence_penalty: 1.5
 ```
@@ -122,6 +131,7 @@ llm:
 | `bible.json` | 設定資料集 | シーン完了時 |
 | `series_plan.json` | シリーズ企画 | plan 完了時 |
 | `outline.json` | 巻アウトライン | outline 完了時 |
+| `.lock` | 排他ロック | 全 engineering コマンド実行中 |
 
 ### 4.2 原子的書き込み
 
@@ -135,18 +145,32 @@ llm:
 
 ### 5.2 リトライ
 
-- 最大リトライ: 2回
-- タイムアウト: 設定ファイルで指定（デフォルト 3600s）
+- 最大リトライ: 2回（合計3回試行）
+- JSON パースエラーやスキーマ検証エラーはフィードバック付きでリトライ
 
-### 5.3 JSON 抽出
+### 5.3 JSON 抽出パイプライン
 
-1. 直接 parse
-2. Markdown fence フォールバック
-3. ラッパーオブジェクトフォールバック
+1. 直接 parse (`message.content` を JSON パース)
+2. Markdown fence フォールバック (`` ```json ``` ``)
+3. `{...}` 範囲抽出フォールバック
 
-## 6. 品質ゲート
+## 6. アウトライン生成（3フェーズパイプライン）
 
-### 6.1 評価カテゴリ（10次元）
+### 6.1 Phase 1: 章構成
+
+`chapter_outline.md` + `chapter_outline.json` — 章のタイトルと役割（導入/展開/転換/クライマックス/収束）
+
+### 6.2 Phase 2: 章設計
+
+`chapter_design.md` + `chapter_design.json` — 各章のテーマ、感情弧、伏線メモ、サブプロットメモ
+
+### 6.3 Phase 3: シーン設計
+
+`scene_outline.md` + `scene_outline.json` — 各シーンの目標/結果/葛藤/視点/登場人物
+
+## 7. 品質ゲート
+
+### 7.1 評価カテゴリ（10次元）
 
 | カテゴリ | 説明 |
 |---|---|
@@ -161,85 +185,59 @@ llm:
 | `language_purity` | 言語純度 |
 | `pov_consistency` | 視点の一貫性 |
 
-### 6.2 合格基準
+### 7.2 合格基準
 
-- **全レビュー共通**: `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
-- 不合格時は自動改稿 → 再評価（最大3回）。3回不合格 → `強制出力済`
+- `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
+- `revision_needed` がある場合は `score >= 85` でないと合格しない
+- 不合格時は自動改稿 → 再評価（最大2回）。2回不合格 → `強制出力済`
 
-### 6.3 スコアリングガイド
+## 8. 言語制約
 
-- **90-100**: 商業出版レベル。ほぼ問題なし
-- **80-89**: 良好。軽微な改善点があるが、そのまま出版可能
-- **70-79**: 合格ライン。いくつかの改善点があるが、全体的に読者を引き込む品質
-- **60-69**: 改善が必要。複数の major issue がある
-- **50-59**: 大幅な改善が必要
-- **0-49**: 書き直しが必要
-
-### 6.4 簡体字チェック
-
-JIS X 0208+0212+0213 セット（5976文字）で検出。
-
-## 7. 言語制約
-
-### 7.1 禁止事項
+### 8.1 禁止事項
 
 1. **英語**: 日本語として定着した語以外は日本語に翻訳
 2. **中国語**: 簡体字・繁体字の混入禁止
 3. **韓国語**: ハングル禁止
 
-### 7.2 例外
+### 8.2 例外
 
 - `slug` フィールドのみローマ字許可
-- 技術用語（CPU, GPU, SSD, USB, URL, 等）は英語のまま許可
+- 技術用語（CPU, GPU, SSD, USB, URL, 等22語）は英語のまま許可
 - 医療・科学分野の英語略語（ICU, DNA, RNA 等）は許可
 
-## 8. 依存要件
+## 9. 依存要件
 
-### 8.1 前巻必須
+### 9.1 前巻必須
 
 **次巻のアウトライン生成には、前巻の `outline.json` が必須。**
 
-- `outline -V N`（N >= 2）実行時、`volumes/vol{N-1:02d}/outline.json` が存在しない場合は `RuntimeError`
-- エラーメッセージに「先に前巻のアウトラインを生成してください」と表示
+- `outline -V N`（N >= 2）実行時、`vol{N-1:02d}/outline.json` が存在しない場合は `RuntimeError`
 
-### 8.2 アウトライン再生成時の再執筆
+### 9.2 前巻シーン参照（continuity）
 
-**アウトライン再生成後、既に本文執筆済みの章・シーンは再執筆が必要。**
+各シーンの執筆時、`build_continuity()` が前シーンの全文を注入。これによりシーン間の連続性を維持。
 
-- `outline` 再実行時、既存の `chapters/` ディレクトリを削除
-- `write` 実行時、`修正済` または `強制出力済` のシーンは既存の原稿を再利用
-- アウトライン変更によりシーン構成が変わった場合、該当シーンは `計画中` にリセット
+- 巻内の連続性: 前シーン全文 + 直近3シーン要摘要 + 引き継ぎメモ
+- 巻間の連続性: 前巻の `scene_summaries` が Blackboard に蓄積され、 continuity に含まれる
 
-## 9. テスト
+## 10. テスト
 
-### 9.1 テストファイル
+### 10.1 テストファイル
 
 | ファイル | 内容 |
 |---|---|
 | `test_models.py` | データモデルテスト |
 | `test_storage.py` | 永続化テスト |
-| `test_engine.py` | エンジンテスト |
+| `test_prompts.py` | プロンプトテスト |
 | `test_quality.py` | 品質ゲートテスト |
-| `test_schemas.py` | スキーマ検証テスト |
-| `test_engine_integration.py` | エンジン統合テスト（モックLLM） |
+| `test_engine_integration.py` | エンジン統合テスト |
 
-### 9.2 実行
+### 10.2 実行
 
 ```bash
 uv run pytest tests/ -x -q
 ```
 
-### 9.3 テスト数
-
-| ファイル | テスト数 |
-|---|---|
-| `test_models.py` | 47 |
-| `test_quality.py` | 9 |
-| `test_engine_integration.py` | 70 |
-| `test_engine.py` | 11 |
-
-**合計: 137 テスト**
-
 ---
 
-*Last updated: 2026-06-28*
+*Last updated: 2026-06-19*
