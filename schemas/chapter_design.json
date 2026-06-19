@@ -16,23 +16,23 @@
     },
     "theme": {
       "type": "string",
-      "maxLength": 200,
-      "description": "章のテーマ。この章が描く核心的なテーマや問い。例: 「信頼の崩壊」「選択の代償」「自己犠牲」"
+      "maxLength": 300,
+      "description": "章のテーマ"
     },
     "emotional_arc": {
       "type": "string",
-      "maxLength": 200,
-      "description": "章の感情の弧。読者がこの章で辿る感情的な変化。例: 「不安→緊張→絶望→希望」"
+      "maxLength": 300,
+      "description": "感情の弧"
     },
     "foreshadowing_notes": {
       "type": "string",
-      "maxLength": 300,
-      "description": "章内の伏線に関するメモ。設置する伏線、回収する伏線、次章への引き継ぎ事項。"
+      "maxLength": 500,
+      "description": "伏線メモ"
     },
     "subplot_notes": {
       "type": "string",
-      "maxLength": 300,
-      "description": "章内のサブプロットに関するメモ。どのサブプロットを進展させるか、どのキャラクターが関わるか。"
+      "maxLength": 500,
+      "description": "サブプロットメモ"
     }
   },
   "description": "章の詳細設計。章の役割、テーマ、感情アーク、伏線・サブプロットの扱いを定義する。"

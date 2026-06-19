@@ -15,6 +15,10 @@
 - `scene_coherence`: シーン間の論理一貫性があるか
 - `pace_analysis`: ペース配分が適切か
 - `character_arc_review`: キャラクターアークがあるか
+  - `protagonist_has_arc`: 主人公に成長・変化の軌跡があるか（boolean）
+  - `arc_believability`: アークの信頼性・自然さ（0-100の数値）。無理のない成長であれば高得点、唐突な変化は低得点
+  - `supporting_chars_used`: 補助キャラクターが物語に機能しているか（boolean）
+  - `score`: 上記を総合した 0-100 のスコア
 
 ## 深刻度
 

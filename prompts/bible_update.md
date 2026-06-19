@@ -18,6 +18,11 @@
 - キャラクター関係性の変化は、本文内で明確に描写されている場合のみ抽出する
 - サブプロットの進捗は、本文内で具体的な進展があった場合のみ更新する
 
+**relationships の出力について:**
+- 関係性の種類を出力するフィールド名は `type` とする（`bible_update.json` スキーマの定義に従う）
+- `type` の例: 「友人」「敵対」「師弟」「恋愛」「家族」「同僚」「不明」 etc.
+- bible 側では `relationship_type` として格納されるが、出力時には `type` を使うこと
+
 ## 出力スキーマ
 
 `bible_update.json` に適合する JSON を出力すること。JSON Schema の各フィールド定義・required・maxLength・enum に従うこと。

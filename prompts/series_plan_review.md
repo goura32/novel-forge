@@ -32,11 +32,11 @@
 
 **医療用語の例外:** `ICU`, `DNA`, `RNA` 等の医療・科学分野の英語略語は、日本語として定着しているものに限り許可される。
 
-`overall_score` の計算方法は `series_plan_review.json` の `overall_score` の description に従うこと。
+`score` の計算方法は `series_plan_review.json` の `score` の description に従うこと。
 
 ## スコア制約
 
-`overall_score` は **0 以上 100 以下** の整数とすること。
+`score` は **0 以上 100 以下** の整数とすること。
 100点満点や1000点満点など、異なる尺度で出力してはならない。
 
 **スコア計算ルール（厳格適用）:**

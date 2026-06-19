@@ -18,7 +18,7 @@
     },
     "logline": {
       "type": "string",
-      "maxLength": 200,
+      "maxLength": 400,
       "description": "シリーズのあらすじ（1-2文）"
     },
     "genre": {
@@ -30,7 +30,7 @@
     },
     "target_audience": {
       "anyOf": [
-        {"type": "string", "maxLength": 200},
+        {"type": "string", "maxLength": 300},
         {
           "type": "object",
           "properties": {

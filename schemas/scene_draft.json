@@ -15,7 +15,7 @@
     "content": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 16000,
+      "maxLength": 8000,
       "description": "シーンの本文"
     }
   }

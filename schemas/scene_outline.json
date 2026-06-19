@@ -11,18 +11,18 @@
     },
     "goal": {
       "type": "string",
-      "maxLength": 200,
-      "description": "シーン開始時の目標。State: 開始時の状況、Action: 主人公の行動。結果は outcome に書くため、goal には含めない。"
+      "maxLength": 400,
+      "description": "シーン開始時の状況と主人公の行動"
     },
     "outcome": {
       "type": "string",
-      "maxLength": 500,
-      "description": "シーン終了時の実際の結果。次のシーンの goal（State部分）に繋がること。必ず記述すること。"
+      "maxLength": 400,
+      "description": "シーン終了時の実際の結果"
     },
     "conflict": {
       "type": "string",
       "maxLength": 300,
-      "description": "シーン内の葛藤"
+      "description": "シーン内の障害・対立"
     },
     "pov": {
       "type": "string",
