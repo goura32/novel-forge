@@ -217,7 +217,7 @@ class LLMClient:
             "system": system_prompt,
             "prompt": user_prompt,
             "stream": False,
-            "think": False,
+            "think": "medium",
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,

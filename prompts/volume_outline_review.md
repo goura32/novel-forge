@@ -53,7 +53,7 @@
 
 ```json
 {
-  "overall_score": 0.0,
+  "score": 0,
   "issues": [
     {
       "severity": "critical|major|minor",

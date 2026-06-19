@@ -13,14 +13,9 @@ from typing import Any
 from novel_forge.bible_manager import BibleManager
 from novel_forge.models import (
     Bible,
-    CharacterProfile,
     Fact,
-    ForeshadowingItem,
-    GlossaryItem,
-    RelationshipItem,
     SceneRecord,
     SceneWriteContext,
-    SubplotItem,
     VolumeOutline,
 )
 from novel_forge.quality_gate import QualityGate
@@ -269,21 +264,6 @@ class SceneWriter:
 
     # ── summarize → blackboard update ───────────────────────────────
 
-    def summarize_scene(self, scene_number: int, draft_text: str, lang: str) -> None:
-        system = self._prompts.render("system.md", {"lang": lang})
-        user = self._prompts.render(
-            "scene_summary.md",
-            {"scene": draft_text, "lang": lang},
-        )
-        schema = get_schema("scene_summary")
-        result = self._llm.complete_json("scene_summary", system, user, schema)
-        bb = self._bb_storage.load()
-        bb.scene_summaries[str(scene_number)] = result.get("summary", "")
-        for fact_data in result.get("facts", []):
-            bb.facts.append(Fact(**fact_data))
-        bb.continuity_notes.extend(result.get("continuity_notes", []))
-        self._bb_storage.save(bb)
-
     def summarize_and_update_bible(
         self,
         scene_number: int,
@@ -324,30 +304,6 @@ class SceneWriter:
         self._invalidate_bible_cache()
 
     # ── bible update ─────────────────────────────────────────────────
-
-    def update_bible_from_scene(
-        self,
-        scene_number: int,
-        draft_text: str,
-        lang: str,
-        get_bible_text_fn,
-    ) -> None:
-        system = self._prompts.render("system.md", {"lang": lang})
-        current_bible_text = get_bible_text_fn()
-
-        user = self._prompts.render(
-            "bible_update.md",
-            {
-                "scene_text": draft_text,
-                "current_bible": current_bible_text,
-                "lang": lang,
-            },
-        )
-        schema = get_schema("bible_update")
-        result = self._llm.complete_json("bible_update", system, user, schema)
-
-        self._bible_mgr.apply_update(result, scene_number)
-        self._invalidate_bible_cache()
 
     # ── scene draft I/O ──────────────────────────────────────────────
 
