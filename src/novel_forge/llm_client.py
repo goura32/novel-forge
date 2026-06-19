@@ -203,7 +203,7 @@ class LLMClient:
         except Exception as e:
             import sys
             print(f"[LLMClient] Warning: could not detect max context length: {e}", file=sys.stderr)
-        return 262144  # フォールバック（qwen3.6:35b ネイティブコンテキスト長）
+        return 32768  # フォールバック（qwen3.6:35b の安定動作値）
 
     def complete_json(
         self,
@@ -217,11 +217,11 @@ class LLMClient:
             "system": system_prompt,
             "prompt": user_prompt,
             "stream": False,
-            "think": "medium",
+            "think": self._ollama_options.get("think", False),
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
-                **self._ollama_options,
+                **{k: v for k, v in self._ollama_options.items() if k != "think"},
             },
         }
         # Use format=schema for structured output when schema is provided.

@@ -177,6 +177,29 @@ class SceneWriter:
 
         return draft_text, record
 
+    # ── helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _auto_revision_needed(review: dict) -> bool:
+        """Determine revision_needed from issues when LLM omits the field.
+
+        Mirrors the rule documented in scene_review schema:
+        - blocker or critical issue → True
+        - 2+ major issues → True
+        - minor only or no issues → False
+        - single major → False
+        """
+        issues = review.get("issues", [])
+        if not issues:
+            return False
+        blocker_critical = sum(
+            1 for i in issues if i.get("severity") in ("blocker", "critical")
+        )
+        if blocker_critical > 0:
+            return True
+        major_count = sum(1 for i in issues if i.get("severity") == "major")
+        return major_count >= 2
+
     # ── review ───────────────────────────────────────────────────────
 
     def _review_scene(
@@ -206,6 +229,9 @@ class SceneWriter:
             try:
                 result = self._llm.complete_json("scene_review", system, user, schema)
                 if "score" in result:
+                    # Ensure revision_needed is present (LLM sometimes omits it)
+                    if "revision_needed" not in result:
+                        result["revision_needed"] = self._auto_revision_needed(result)
                     return result
             except Exception as e:
                 if attempt < 2:

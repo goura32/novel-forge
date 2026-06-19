@@ -16,9 +16,8 @@ llm:
   num_predict: 16384
 
   # コンテキスト長（null = モデル自動検出）
-  # GPU メモリ不足の場合は小さくする（例: 8192, 16384）
-  # ws1.local の GPU では 4096 が安定動作の目安
-  num_ctx: 65536
+  # ws1.local GPU: 32768 で安定動作。65536 は OOM する場合がある
+  num_ctx: 32768
 
   # API タイムアウト（秒）
   timeout_seconds: 3600
@@ -30,7 +29,9 @@ llm:
   # ollama_host: "ws1.local:11434"
 
   # Ollama サンプリングオプション（公式推奨値）
+  # think: false — qwen3.6 + format=schema では必須。thinkingモードではスキーマ出力が不安定
   ollama_options:
+    think: false
     temperature: 0.7
     top_k: 20
     top_p: 0.80
