@@ -103,6 +103,7 @@ def resume(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """Resume from the last interrupted phase."""
@@ -111,11 +112,13 @@ def resume(
     action = result["action"]
     console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
     if action == "write":
-        engine.write()
+        engine.write(volume)
     elif action == "outline":
-        engine.outline()
+        engine.outline(volume)
     elif action == "export":
-        engine.export()
+        engine.export(volume)
+    elif action == "plan":
+        console.print("[red]Cannot resume plan — re-run with `plan` command.[/red]")
 
 
 @app.command()
@@ -124,6 +127,7 @@ def complete(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
+    volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
@@ -132,11 +136,11 @@ def complete(
     console.print("[bold]Step 1/4: Plan[/bold]")
     engine.plan(keywords)
     console.print("[bold]Step 2/4: Outline[/bold]")
-    engine.outline()
+    engine.outline(volume)
     console.print("[bold]Step 3/4: Write[/bold]")
-    engine.write()
+    engine.write(volume)
     console.print("[bold]Step 4/4: Export[/bold]")
-    result = engine.export()
+    result = engine.export(volume)
     console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
 
 

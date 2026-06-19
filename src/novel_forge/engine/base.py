@@ -210,6 +210,7 @@ class NovelEngineBase:
         config_path = self._workdir / "config.yaml"
         if config_path.exists():
             return
-        template = Path(__file__).resolve().parent.parent / "config.yaml"
+        # Look for template in project root (parent of src/)
+        template = Path(__file__).resolve().parent.parent.parent / "config.yaml"
         if template.exists():
             shutil.copy2(template, config_path)

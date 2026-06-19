@@ -135,7 +135,9 @@ class OutlineMixin:
 
     def _generate_scene_outlines(self, chapters_list: list[dict], chapter_designs: list[dict],
                                   series_plan: str, vol_num: int, system: str,
-                                  previous_outline: str) -> list[dict]:
+                                  previous_outline: str,
+                                  volume_title: str = "",
+                                  volume_premise: str = "") -> list[dict]:
         """Phase 3: Generate scene-by-scene outlines for each chapter."""
         all_scenes = []
         scene_counter = 1
@@ -158,8 +160,8 @@ class OutlineMixin:
                     {
                         "series_plan": series_plan,
                         "volume_number": str(vol_num),
-                        "volume_title": "",
-                        "volume_premise": "",
+                        "volume_title": volume_title,
+                        "volume_premise": volume_premise,
                         "chapter_number": str(ch_idx),
                         "chapter_title": ch_title,
                         "chapter_purpose": ch_purpose,
@@ -192,6 +194,11 @@ class OutlineMixin:
 
     def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
         """Three-phase outline generation: chapter structure → chapter design → scene outlines."""
+        # Extract volume title/premise from series plan for scene prompts
+        plan_data = self._get_plan_data()
+        volume_title = plan_data.get("title", f"第{vol_num}巻") if plan_data else f"第{vol_num}巻"
+        volume_premise = plan_data.get("premise", "") if plan_data else ""
+
         # Phase 1: Chapter structure
         chapters_list = self._generate_chapter_structure(
             series_plan, genre, vol_num, system, previous_outline
@@ -204,7 +211,8 @@ class OutlineMixin:
 
         # Phase 3: Scene outlines
         all_scenes = self._generate_scene_outlines(
-            chapters_list, chapter_designs, series_plan, vol_num, system, previous_outline
+            chapters_list, chapter_designs, series_plan, vol_num, system, previous_outline,
+            volume_title=volume_title, volume_premise=volume_premise,
         )
 
         # Build result with scenes nested under chapters
@@ -218,11 +226,11 @@ class OutlineMixin:
                 "scenes": ch_scenes,
             })
 
-        title = ""
-        premise = ""
+        title = volume_title
+        premise = volume_premise
         if isinstance(chapters_list, dict):
-            title = chapters_list.get("title", f"第{vol_num}巻")
-            premise = chapters_list.get("premise", "")
+            title = chapters_list.get("title", volume_title)
+            premise = chapters_list.get("premise", volume_premise)
 
         result = {
             "title": title or f"第{vol_num}巻",
@@ -231,6 +239,18 @@ class OutlineMixin:
             "scenes": all_scenes,
         }
         return self._flatten_outline(result)
+
+    def _get_plan_data(self) -> dict:
+        """Load series plan data from disk."""
+        import json
+        # _series_dir is provided by NovelEngineBase (MRO)
+        plan_path = self._series_dir / "series_plan.json"  # type: ignore[attr-defined]
+        if plan_path.exists():
+            try:
+                return json.loads(plan_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                pass
+        return {}
 
     @staticmethod
     def _estimate_scene_count(purpose: str) -> int:

@@ -228,7 +228,7 @@ class SceneWriter:
             desc = issue.get("description", "")
             if any(kw in desc for kw in [
                 "言語", "英語", "簡体字", "ハングル", "中国語",
-                "language_purity", "langue",
+                "language_purity",
             ]):
                 lang_issues.append(desc)
         return lang_issues
@@ -385,11 +385,11 @@ class SceneWriter:
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
         ch_path = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}" / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
         ch_path.parent.mkdir(parents=True, exist_ok=True)
-        # Remove scene markers like "シーンX（第Y章）:" or "シーンX:" from the beginning of each scene
+        # Remove scene markers like "シーンX（第Y章）:", "シーンX(第Y章):", "シーンX:" from the start
         cleaned_texts = []
         for text in scene_texts:
-            # Remove lines like "シーン1（第2章）:" or "シーン5:" at the start
-            cleaned = re.sub(r'^シーン\d+（第\d+章）?[：:]\s*', '', text.strip())
+            cleaned = re.sub(r'^シーン\d+[\uff08\(]第\d+章[\uff08\)]\s*[：:]\s*', '', text.strip())
+            cleaned = re.sub(r'^シーン\d+\s*[：:]\s*', '', cleaned)
             cleaned_texts.append(cleaned)
         content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(cleaned_texts)
         ch_path.write_text(content, encoding="utf-8")
