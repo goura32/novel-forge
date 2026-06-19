@@ -91,7 +91,8 @@
       }
     },
     "revision_needed": {
-      "type": "boolean"
+        "type": "boolean",
+        "description": "改稿が必要かどうか。blocker・critical issue がある場合、または major issue が2つ以上ある場合に true。minor issue のみ、issue なし、major 1つの場合は false。"
     },
     "ready_for_publication": {
       "type": "boolean"

@@ -12,7 +12,7 @@
    - `VR` → 「仮想現実」
    - `AI` → 「人工知能」（比喩としては「頭脳」「知性」も可）
    - **日本語に翻訳すると不自然・冗長になる技術用語のみ英語のまま表記してよい（例外は狭く解釈すること）**
-     - **許可される技術用語（完全リスト）**: CPU、GPU、SSD、USB、URL、HTML、RAM、ROM、DNS、VPN、SSH、FTP、API、SDK、LAN、WAN、GPS、LED、LCD、OLED、DNA、RNA、CT、MRI、X線、IoT、PC、ICU
+     - **許可される技術用語（完全リスト）**: CPU、GPU、SSD、USB、URL、HTML、RAM、ROM、DNS、VPN、SSH、FTP、API、SDK、LAN、WAN、GPS、LED、LCD、OLED、DNA、RNA、CT、MRI、X線、IoT、PC、AI、ICU
      - **不許可（すべて日本語訳）**: name → 名前、weapon → 兵器、door → 扉、wall → 壁、light → 光、screen → 画面、data → データ、file → ファイル、run → 走る、think → 思う、see → 見る、hear → 聞く
    - **英語の一般名詞・動詞・形容詞・副詞**（the, and, run, beautiful, slightly, dark, large, small, cold, hot 等）は**すべて日本語に翻訳**。これらは例外ではない
    - **英字の人名・地名:** 日本語話者にとって馴染みのないものはカタカナ転記（John → ジョン）
