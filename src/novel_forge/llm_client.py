@@ -216,12 +216,10 @@ class LLMClient:
             "model": self.model,
             "system": system_prompt,
             "prompt": user_prompt,
-            "stream": False,
-            "think": self._ollama_options.get("think", False),
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
-                **{k: v for k, v in self._ollama_options.items() if k != "think"},
+                **self._ollama_options,
             },
         }
         # Use format=schema for structured output when schema is provided.
