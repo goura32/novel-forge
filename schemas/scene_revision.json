@@ -21,7 +21,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 500,
+        "maxLength": 2000,
         "description": "変更内容"
       },
       "description": "変更内容のリスト（省略可）"
