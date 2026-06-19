@@ -214,3 +214,30 @@ class NovelEngineBase:
         template = Path(__file__).resolve().parent.parent.parent / "config.yaml"
         if template.exists():
             shutil.copy2(template, config_path)
+            return
+        # Fallback: create minimal config with defaults
+        default_config = {
+            "llm": {
+                "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+                "num_predict": 16384,
+                "num_ctx": 65536,
+                "timeout_seconds": 3600,
+                "max_retries": 2,
+                "ollama_options": {
+                    "temperature": 0.7,
+                    "top_k": 20,
+                    "top_p": 0.80,
+                    "repeat_penalty": 1.0,
+                    "presence_penalty": 1.5,
+                },
+            },
+            "quality": {
+                "max_review_retries": 2,
+            },
+        }
+        import yaml
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
+        except Exception:
+            pass  # Non-critical: engine works with code defaults

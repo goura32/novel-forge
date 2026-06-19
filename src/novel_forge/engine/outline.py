@@ -194,10 +194,16 @@ class OutlineMixin:
 
     def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
         """Three-phase outline generation: chapter structure → chapter design → scene outlines."""
-        # Extract volume title/premise from series plan for scene prompts
+        # Extract volume title/premise from series plan's planned_volumes for this volume
         plan_data = self._get_plan_data()
-        volume_title = plan_data.get("title", f"第{vol_num}巻") if plan_data else f"第{vol_num}巻"
-        volume_premise = plan_data.get("premise", "") if plan_data else ""
+        volume_title = f"第{vol_num}巻"
+        volume_premise = ""
+        if plan_data:
+            volumes = plan_data.get("planned_volumes", [])
+            if vol_num <= len(volumes):
+                vol_item = volumes[vol_num - 1]
+                volume_title = vol_item.get("title", volume_title) or volume_title
+                volume_premise = vol_item.get("premise", "") or ""
 
         # Phase 1: Chapter structure
         chapters_list = self._generate_chapter_structure(

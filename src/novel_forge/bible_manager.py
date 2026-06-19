@@ -79,8 +79,9 @@ class BibleManager:
         if bible.subplots:
             lines.append("サブプロット:")
             for sp in bible.subplots:
+                # Do NOT include status markers like [in_progress] — LLM may copy them into text
                 lines.append(
-                    f"  - [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}"
+                    f"  - {sp.name}: {sp.progress_note or '進捗なし'}"
                 )
         if bible.glossary:
             lines.append("用語:")
