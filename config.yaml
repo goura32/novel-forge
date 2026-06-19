@@ -11,13 +11,11 @@ llm:
   # モデル名
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
 
-  # 出力トークン数上限（16384 = 16K）
-  # ベンチマーク確定値: qwen3.6 + think=false で 1024〜16384 全スケール100%成功
-  num_predict: 16384
+  # 出力トークン数上限（32768 = 32K）
+  num_predict: 32768
 
   # コンテキスト長（null = モデル自動検出）
-  # ws1.local GPU: 32768 で安定動作。65536 は OOM する場合がある
-  num_ctx: 32768
+  num_ctx: null
 
   # API タイムアウト（秒）
   timeout_seconds: 3600
