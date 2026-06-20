@@ -537,10 +537,21 @@ class LLMClient:
             return
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
+        # Organize logs by phase: plan/outline/write/error
+        PHASE_MAP = {
+            "series": "plan",
+            "chapter": "outline",
+            "scene": "write",
+            "volume": "outline",
+        }
+        kind_prefix = kind.split("_")[0]
+        phase = PHASE_MAP.get(kind_prefix, "other")
+        sub_dir = self.raw_log_dir / phase
+        sub_dir.mkdir(exist_ok=True)
         idx = 0
         while True:
             suffix = f"_{idx:03d}" if idx > 0 else ""
-            log_path = self.raw_log_dir / f"{timestamp}_{kind}{suffix}.json"
+            log_path = sub_dir / f"{timestamp}_{kind}{suffix}.json"
             if not log_path.exists():
                 break
             idx += 1
