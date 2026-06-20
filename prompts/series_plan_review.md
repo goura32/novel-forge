@@ -49,3 +49,26 @@
 ## 出力スキーマ
 
 `series_plan_review.json` に適合する JSON を出力すること。
+
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+
+```json
+{
+  "score": 85,
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "カテゴリ名",
+      "description": "問題の説明",
+      "suggestion": "改善提案"
+    }
+  ],
+  "strengths": ["強み1", "強み2"],
+  "recommendations": ["推奨事項1", "推奨事項2"]
+}
+```
+
+**注意**:
+- 上記テンプレートのキー名（score, issues, strengths, recommendations）は変更しないこと。
+- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `score` は 0〜100 の整数とすること。

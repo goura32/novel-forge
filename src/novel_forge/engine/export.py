@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from novel_forge.models import SceneRecord
+from novel_forge.models import SceneRecord  # used in type hints elsewhere
 
 
 class ExportMixin:

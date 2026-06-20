@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
 from novel_forge.models import (
@@ -235,7 +237,6 @@ class NovelEngineBase:
                 "max_review_retries": 2,
             },
         }
-        import yaml
         try:
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)

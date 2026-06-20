@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 from novel_forge.models import VolumeOutline
 from novel_forge.storage import BlackboardStorage, BibleStorage

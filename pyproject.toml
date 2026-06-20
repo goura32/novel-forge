@@ -1,6 +1,6 @@
 [project]
 name = "novel-forge"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-LLM assisted novel production pipeline"
 readme = "README.md"
 requires-python = ">=3.14"

@@ -27,6 +27,5 @@ llm:
   # ollama_host: "ws1.local:11434"
 
   # Ollama サンプリングオプション
-  # think は qwen3.6 + format=schema では必須。それ以外は Ollama 既定値を使用
-  ollama_options:
-    think: false
+  # qwen3.6 は thinking モードをサポートするため、オプションは空にする
+  ollama_options: {}

@@ -172,7 +172,7 @@ class LLMClient:
         if api_url is None:
             import os
             host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
-            api_url = f"http://{host}/api/generate"
+            api_url = f"http://{host}/api/chat"
         self.api_url = api_url
         self.model = model
         self.timeout_seconds = timeout_seconds
@@ -214,20 +214,20 @@ class LLMClient:
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": self.model,
-            "system": system_prompt,
-            "prompt": user_prompt,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
                 **self._ollama_options,
             },
         }
-        # Use format=schema for structured output when schema is provided.
-        # Ollama 0.30.10 supports this natively.
-        if schema:
-            payload["format"] = schema
-        else:
-            payload["format"] = "json"
+        # format=schema は Ollama 0.30.10 + qwen3.6 で不完全な JSON が
+        # 生成される問題があるため、format=json を使用し
+        # スキーマバリデーションは Python 側で行う
+        payload["format"] = "json"
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of max_retries attempts.  On JsonParseError we feed
@@ -237,7 +237,7 @@ class LLMClient:
         raw = ""
         for attempt in range(self.max_retries):
             try:
-                payload["prompt"] = current_prompt
+                payload["messages"][1]["content"] = current_prompt
                 raw = self._call_api(payload)
                 parsed = _parse_json_response(raw)
                 if schema:
@@ -247,6 +247,7 @@ class LLMClient:
                 return parsed
             except JsonParseError as e:
                 last_error = e
+                self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
                 current_prompt = (
                     f"前回の出力はJSONではありませんでした。\n"
                     f"前回の出力:\n{raw[:300]}\n\n"
@@ -257,10 +258,11 @@ class LLMClient:
                 continue
             except SchemaValidationError as e:
                 last_error = e
+                self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
                 # Extract missing/invalid field names from error message
                 import re
                 missing = re.findall(r"'(\w+)' is a required property", str(e))
-                type_errs = re.findall(r"\[(\w+)\] .+ is not of type", str(e))
+                type_errs = re.findall(r"\[\w+\] .+ is not of type", str(e))
                 fields_hint = []
                 if missing:
                     fields_hint.append(f"不足している必須フィールド: {', '.join(missing)}")
@@ -277,22 +279,56 @@ class LLMClient:
                 continue
             except LLMError as e:
                 last_error = e
+                self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)})
                 continue
+        # All retries exhausted — save final failure log
+        self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]})
         raise last_error or LLMError("LLM request failed")
 
     def _call_api(self, payload: dict[str, Any]) -> str:
         try:
+            # stream: false を指定して一括取得
+            # think: false は qwen3.6 の thinking モードを無効化する（chat API のトップレベルパラメータ）
+            payload = {**payload, "stream": False, "think": False}
             resp = httpx.post(
                 self.api_url,
                 json=payload,
                 timeout=self.timeout_seconds,
             )
             resp.raise_for_status()
-            data = resp.json()
-            # Check for Ollama error responses (e.g. CUDA out of memory)
-            if "error" in data:
-                raise LLMError(f"Ollama error: {data['error']}")
-            result = data.get("response", "") or data.get("message", {}).get("content", "")
+            # Ollama /api/chat may return NDJSON (streaming) or single JSON.
+            text = resp.text.strip()
+            if "\n" in text:
+                # NDJSON: each line is a JSON object
+                # For chat API, content is in message.content (may also be in message.thinking for thinking models)
+                parts: list[str] = []
+                thinking_parts: list[str] = []
+                for line in text.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if "error" in chunk:
+                        raise LLMError(f"Ollama error: {chunk['error']}")
+                    msg = chunk.get("message", {})
+                    content = msg.get("content", "")
+                    if content:
+                        parts.append(content)
+                    thinking = msg.get("thinking", "")
+                    if thinking and thinking not in thinking_parts:
+                        thinking_parts.append(thinking)
+                result = "".join(parts)
+                # If content is empty but thinking has output, use thinking (qwen3.6 behavior)
+                if not result.strip() and thinking_parts:
+                    result = "".join(thinking_parts)
+            else:
+                data = json.loads(text)
+                if "error" in data:
+                    raise LLMError(f"Ollama error: {data['error']}")
+                result = data.get("message", {}).get("content", "")
             if not result or not result.strip():
                 raise LLMError("Ollama returned empty response")
             return result
