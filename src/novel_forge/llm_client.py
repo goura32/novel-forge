@@ -396,6 +396,11 @@ class LLMClient:
         user_prompt: str,
         schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        # Separate ollama_options into API-level and options-level
+        # "think" is an API-level parameter, not part of options
+        api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
+        think_value = self._ollama_options.get("think", True)
+
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
@@ -406,11 +411,11 @@ class LLMClient:
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
                 "seed": 42,
-                **self._ollama_options,
+                **api_options,
             },
         }
         payload["format"] = schema if schema else "json"
-        payload["think"] = self._ollama_options.get("think", True)
+        payload["think"] = think_value
 
         last_error: Exception | None = None
         current_prompt = user_prompt

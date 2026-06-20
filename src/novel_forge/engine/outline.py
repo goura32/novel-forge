@@ -246,7 +246,7 @@ class OutlineMixin:
 
         result = {
             "title": title or f"第{vol_num}巻",
-            "premise": premise,
+            "premise": premise or "",
             "chapters": chapters_with_scenes,
             "scenes": all_scenes,
         }
@@ -385,4 +385,9 @@ class OutlineMixin:
              "lang": self._lang, "previous_outline": previous_outline},
         )
         result = self._llm.complete_json("volume_outline_revision", system, user, schema)
+        # Ensure title/premise are not None after revision
+        if not result.get("title"):
+            result["title"] = outline.get("title") or f"第{vol_num}巻"
+        if not result.get("premise"):
+            result["premise"] = outline.get("premise") or ""
         return self._flatten_outline(result)
