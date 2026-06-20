@@ -438,9 +438,10 @@ class LLMClient:
         # format=schema は Ollama 0.30.10 でネストされたオブジェクト構造を
         # 正しく適用できないため、format=json を使用し
         # スキーマバリデーションは Python 側で行う
-        # think: true は LLM がスキーマをより正確に遵守できるようにする
+        # think: true は qwen3.6モデルでthinkingのみ出力されcontentが空になる
+        # 問題があるため、think: false を使用
         payload["format"] = "json"
-        payload["think"] = True
+        payload["think"] = False
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of max_retries attempts.  On JsonParseError we feed
