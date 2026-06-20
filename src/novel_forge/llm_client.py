@@ -423,7 +423,12 @@ class LLMClient:
         for attempt in range(self.max_retries):
             try:
                 payload["messages"][1]["content"] = current_prompt
+                import sys as _sys
+                _sys.stderr.write(f"  [LLM CALL] kind={kind} attempt={attempt+1}/{self.max_retries} model={self.model}\n")
+                _call_start = time.time()
                 raw = self._call_api(payload)
+                _call_elapsed = time.time() - _call_start
+                _sys.stderr.write(f"  [LLM DONE] kind={kind} attempt={attempt+1} elapsed={_call_elapsed:.1f}s raw_len={len(raw)}\n")
                 parsed = _parse_json_response(raw)
                 if schema:
                     # Coerce types and fill missing required fields before validation
