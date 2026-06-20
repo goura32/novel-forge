@@ -494,8 +494,8 @@ class LLMClient:
                     if thinking and thinking not in thinking_parts:
                         thinking_parts.append(thinking)
                 result = "".join(parts)
-                if not result.strip() and thinking_parts:
-                    result = "".join(thinking_parts)
+                # Do NOT fall back to thinking content — it's English chain-of-thought
+                # that would contaminate Japanese output. Empty content = error.
             else:
                 data = json.loads(text)
                 if "error" in data:
