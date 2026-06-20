@@ -33,14 +33,7 @@ def _extract_json_text(text: str) -> str:
 
 
 def _escape_json_string_values(text: str) -> str:
-    """Replace unescaped newlines inside JSON string values with \\n.
-
-    Ollama /api/chat sometimes returns JSON where string values contain
-    literal newlines instead of \\n escapes, causing json.loads to fix.
-
-    Uses a simple state machine to only touch content inside string
-    values, avoiding structural quotes (key names, delimiters).
-    """
+    """Replace unescaped newlines inside JSON string values with \\n."""
     result = []
     i = 0
     n = len(text)
@@ -50,18 +43,15 @@ def _escape_json_string_values(text: str) -> str:
         ch = text[i]
         if in_string:
             if escape_next:
-                # Copy escaped char as-is (\", \\, \/, \n etc.)
                 result.append(ch)
                 escape_next = False
             elif ch == '\\':
                 result.append(ch)
                 escape_next = True
             elif ch == '"':
-                # End of string value
                 result.append(ch)
                 in_string = False
             elif ch == '\n':
-                # Literal newline inside string — escape it
                 result.append('\\')
                 result.append('n')
             else:
@@ -74,180 +64,169 @@ def _escape_json_string_values(text: str) -> str:
     return ''.join(result)
 
 
+def _fix_bracket_quoted_values(s: str) -> str:
+    """Replace 「...」-quoted values (after ': ') with "..."-quoted values."""
+    result = []
+    i = 0
+    n = len(s)
+    while i < n:
+        if (i + 2 < n and s[i] == ':' and s[i + 1] == ' '
+                and s[i + 2] == '\u300c'):
+            result.append(': ')
+            i += 2
+            start = i
+            j = i
+            last_period = -1
+            depth = 0
+            while j < n:
+                if s[j] == '\u300c':
+                    depth += 1
+                elif s[j] == '\u300d':
+                    depth -= 1
+                elif s[j] == '。' and depth == 0:
+                    last_period = j
+                elif s[j] == ',' and depth == 0:
+                    break
+                elif s[j] == '\n' and depth == 0:
+                    break
+                j += 1
+            end = last_period + 1 if last_period >= 0 else j
+            value = s[start:end]
+            escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+            result.append('"')
+            result.append(escaped)
+            result.append('"')
+            i = end
+        else:
+            result.append(s[i])
+            i += 1
+    return ''.join(result)
+
+
+def _fix_single_quoted_values(s: str) -> str:
+    """Replace single-quoted string values with double-quoted values."""
+    result = []
+    i = 0
+    n = len(s)
+    while i < n:
+        if (s[i] == "'" and i > 0 and s[i - 1] in (':', ',')):
+            j = i + 1
+            while j < n:
+                if s[j] == "'" and s[j - 1] != '\\':
+                    break
+                j += 1
+            if j < n:
+                value = s[i + 1:j]
+                escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                result.append('"')
+                result.append(escaped)
+                result.append('"')
+                i = j + 1
+                continue
+        result.append(s[i])
+        i += 1
+    return ''.join(result)
+
+
+def _fix_unquoted_values(s: str) -> str:
+    """Wrap bare unquoted string values in double quotes.
+
+    Handles patterns like: "key": value (where value is not quoted)
+    The value ends at ,\n or \n at the same nesting level.
+    """
+    result = []
+    i = 0
+    n = len(s)
+    while i < n:
+        if (s[i] == ':' and i + 1 < n and s[i + 1] == ' '
+                and i + 2 < n
+                and s[i + 2] not in ('"', "'", '{', '[', '}', ']', 'n', 't', 'f')):
+            # Check if this is inside a string value (skip if so)
+            quote_count = 0
+            for k in range(i):
+                if s[k] == '"' and (k == 0 or s[k - 1] != '\\'):
+                    quote_count += 1
+            if quote_count % 2 == 1:
+                result.append(s[i])
+                i += 1
+                continue
+            result.append('": "')
+            i += 2  # skip ': '
+            start = i
+            j = i
+            depth_brace = 0
+            depth_bracket = 0
+            last_period = -1
+            while j < n:
+                if s[j] == '{':
+                    depth_brace += 1
+                elif s[j] == '}':
+                    depth_brace -= 1
+                elif s[j] == '[':
+                    depth_bracket += 1
+                elif s[j] == ']':
+                    depth_bracket -= 1
+                elif depth_brace == 0 and depth_bracket == 0:
+                    if s[j] == '。':
+                        last_period = j
+                    elif s[j] == ',':
+                        break
+                    elif s[j] == '\n':
+                        break
+                j += 1
+            end = last_period + 1 if last_period >= 0 else j
+            if end < n and s[end] == '"':
+                end += 1
+            value = s[start:end].rstrip()
+            escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+            result.append(escaped)
+            result.append('"')
+            i = end
+        else:
+            result.append(s[i])
+            i += 1
+    return ''.join(result)
+
+
+def _fix_missing_colons(s: str) -> str:
+    """Fix missing colons: "key", "value" -> "key": "value"."""
+    import re
+    return re.sub(r'"\s*,\s*"([^"]*)"', r'": "\1"', s)
+
+
 def _parse_json_response(text: str) -> Any:
+    """Parse JSON from LLM response with progressive fallback fixes."""
     text = _extract_json_text(text)
+
+    # Attempt 1: Direct parse
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    # Ollama may emit literal newlines inside string values — fix and retry
+
+    # Attempt 2: Fix literal newlines in string values
     fixed = _escape_json_string_values(text)
     try:
         return json.loads(fixed)
     except json.JSONDecodeError:
         pass
-    # Ollama sometimes produces invalid JSON. Try increasingly aggressive fixes.
-    # Fix 1: Replace 「...」-quoted values with "..."-quoted values.
-    # Fix 2: Replace single-quoted values with double-quoted values.
-    # Fix 3: Wrap bare unquoted string values in quotes.
-    # Fix 4: Fix missing colons between key and value.
 
-    def _fix_bracket_quoted_values(s: str) -> str:
-        """Replace 「...」-quoted values (after ': ') with "..."-quoted values."""
-        result = []
-        i = 0
-        n = len(s)
-        while i < n:
-            if (i + 2 < n and s[i] == ':' and s[i + 1] == ' '
-                    and s[i + 2] == '\u300c'):
-                result.append(': ')
-                i += 2
-                start = i
-                j = i
-                last_period = -1
-                depth = 0
-                while j < n:
-                    if s[j] == '\u300c':
-                        depth += 1
-                    elif s[j] == '\u300d':
-                        depth -= 1
-                    elif s[j] == '。' and depth == 0:
-                        last_period = j
-                    elif s[j] == ',' and depth == 0:
-                        break
-                    elif s[j] == '\n' and depth == 0:
-                        break
-                    j += 1
-                end = last_period + 1 if last_period >= 0 else j
-                value = s[start:end]
-                escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                result.append('"')
-                result.append(escaped)
-                result.append('"')
-                i = end
-            else:
-                result.append(s[i])
-                i += 1
-        return ''.join(result)
+    # Attempt 3-6: Progressive structural fixes
+    fix_chain = [
+        _fix_bracket_quoted_values,
+        _fix_single_quoted_values,
+        _fix_unquoted_values,
+        _fix_missing_colons,
+    ]
+    patched = fixed
+    for fix_fn in fix_chain:
+        patched = fix_fn(patched)
+        try:
+            return json.loads(patched)
+        except json.JSONDecodeError:
+            continue
 
-    def _fix_single_quoted_values(s: str) -> str:
-        """Replace single-quoted string values with double-quoted values."""
-        result = []
-        i = 0
-        n = len(s)
-        while i < n:
-            # Match pattern: ': 'value'  (single-quoted value after colon-space)
-            if (s[i] == "'" and i > 0 and s[i - 1] in (':', ',')):
-                # Find the matching closing single quote
-                j = i + 1
-                while j < n:
-                    if s[j] == "'" and s[j - 1] != '\\':
-                        break
-                    j += 1
-                if j < n:
-                    value = s[i + 1:j]
-                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                    result.append('"')
-                    result.append(escaped)
-                    result.append('"')
-                    i = j + 1
-                    continue
-            result.append(s[i])
-            i += 1
-        return ''.join(result)
-
-    def _fix_unquoted_values(s: str) -> str:
-        """Wrap bare unquoted string values in double quotes.
-
-        Handles patterns like: "key": value (where value is not quoted)
-        The value ends at ,\n or \n at the same nesting level.
-        """
-        result = []
-        i = 0
-        n = len(s)
-        while i < n:
-            # Look for pattern: ": value  (colon, space, then non-quote, non-brace, non-bracket)
-            if (s[i] == ':' and i + 1 < n and s[i + 1] == ' '
-                    and i + 2 < n
-                    and s[i + 2] not in ('"', "'", '{', '[', '}', ']', 'n', 't', 'f')):
-                # Check if this is inside a string value (skip if so)
-                # Simple heuristic: count unescaped quotes before this position
-                quote_count = 0
-                for k in range(i):
-                    if s[k] == '"' and (k == 0 or s[k - 1] != '\\'):
-                        quote_count += 1
-                if quote_count % 2 == 1:
-                    # Inside a string, skip
-                    result.append(s[i])
-                    i += 1
-                    continue
-                result.append(': "')
-                i += 2  # skip ': '
-                start = i
-                # Find end of value: ,\n or \n at depth 0
-                j = i
-                depth_brace = 0
-                depth_bracket = 0
-                last_period = -1
-                while j < n:
-                    if s[j] == '{':
-                        depth_brace += 1
-                    elif s[j] == '}':
-                        depth_brace -= 1
-                    elif s[j] == '[':
-                        depth_bracket += 1
-                    elif s[j] == ']':
-                        depth_bracket -= 1
-                    elif depth_brace == 0 and depth_bracket == 0:
-                        if s[j] == '。':
-                            last_period = j
-                        elif s[j] == ',':
-                            break
-                        elif s[j] == '\n':
-                            break
-                    j += 1
-                end = last_period + 1 if last_period >= 0 else j
-                # Skip a misplaced " after the value (LLM sometimes produces
-                # value" instead of value, where " is the next key's opening quote)
-                if end < n and s[end] == '"':
-                    end += 1
-                value = s[start:end].rstrip()
-                escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                result.append(escaped)
-                result.append('"')
-                i = end
-            else:
-                result.append(s[i])
-                i += 1
-        return ''.join(result)
-
-    def _fix_missing_colons(s: str) -> str:
-        """Fix missing colons: "key", "value" -> "key": "value"."""
-        import re
-        return re.sub(r'"\s*,\s*"([^"]*)"', r'": "\1"', s)
-
-    # Apply fixes in sequence
-    patched = _fix_bracket_quoted_values(fixed)
-    try:
-        return json.loads(patched)
-    except json.JSONDecodeError:
-        pass
-    patched = _fix_single_quoted_values(patched)
-    try:
-        return json.loads(patched)
-    except json.JSONDecodeError:
-        pass
-    patched = _fix_unquoted_values(patched)
-    try:
-        return json.loads(patched)
-    except json.JSONDecodeError:
-        pass
-    patched = _fix_missing_colons(patched)
-    try:
-        return json.loads(patched)
-    except json.JSONDecodeError:
-        pass
-    # Last resort: try to extract JSON object from the text
+    # Last resort: extract JSON object boundaries
     start = patched.find("{")
     end = patched.rfind("}")
     if start != -1 and end != -1 and end > start:
@@ -255,6 +234,7 @@ def _parse_json_response(text: str) -> Any:
             return json.loads(patched[start : end + 1])
         except json.JSONDecodeError:
             pass
+
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 
@@ -323,10 +303,7 @@ def _coerce_types(data: dict, schema: dict) -> dict:
 
 
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
-    """config.yaml を読み込んで設定 dict を返す。
-    config_path が None の場合は親ディレクトリから探す。
-    見つからない場合は空 dict。
-    """
+    """config.yaml を読み込んで設定 dict を返す。"""
     import os
     yaml = _try_import_yaml()
     if yaml is None:
@@ -336,14 +313,12 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
     if config_path:
         paths_to_try.append(config_path)
     else:
-        # カレントディレクトリから親へ辿って config.yaml を探す
         cwd = Path.cwd()
         for p in [cwd, *cwd.parents]:
             candidate = p / "config.yaml"
             if candidate.exists():
                 paths_to_try.append(candidate)
                 break
-        # 環境変数で指定されたパス
         env_path = os.environ.get("NOVEL_FORGE_CONFIG")
         if env_path:
             paths_to_try.append(Path(env_path))
@@ -388,7 +363,6 @@ class LLMClient:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.raw_log_dir = raw_log_dir
-        # 固定値: qwen3.6:35b-a3b-mtp-q4_K_M の context_length
         self.num_ctx = num_ctx if num_ctx else 262144
         self.num_predict = num_predict
         self._ollama_options = ollama_options or {}
@@ -407,14 +381,13 @@ class LLMClient:
             resp.raise_for_status()
             data = resp.json()
             model_info = data.get("model_info", {})
-            # モデル固有の context_length キーを探す (例: qwen35moe.context_length)
             for key, val in model_info.items():
                 if key.endswith(".context_length") and isinstance(val, (int, float)):
                     return int(val)
         except Exception as e:
             import sys
             print(f"[LLMClient] Warning: could not detect max context length: {e}", file=sys.stderr)
-        return 32768  # フォールバック（qwen3.6:35b の安定動作値）
+        return 32768
 
     def complete_json(
         self,
@@ -436,16 +409,9 @@ class LLMClient:
                 **self._ollama_options,
             },
         }
-        # format=schema は Ollama 0.30.10 でネストされたオブジェクト構造を
-        # 正しく適用できないため、format=json を使用し
-        # スキーマバリデーションは Python 側で行う
-        # think: true はスキーマ遵守率向上のため必要（num_predict: 65536で対応）
         payload["format"] = "json"
         payload["think"] = True
 
-        # Unified retry loop: JSON parse + schema validation errors share the
-        # same budget of max_retries attempts.  On JsonParseError we feed
-        # the bad response back so the model can correct itself.
         last_error: Exception | None = None
         current_prompt = user_prompt
         raw = ""
@@ -462,7 +428,6 @@ class LLMClient:
             except JsonParseError as e:
                 last_error = e
                 self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
-                # 失敗内容は要約してフィードバック（プロンプト肥大化防止）
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -475,7 +440,6 @@ class LLMClient:
             except SchemaValidationError as e:
                 last_error = e
                 self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
-                # エラーメッセージは短縮してフィードバック（プロンプト肥大化防止）
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -488,14 +452,11 @@ class LLMClient:
                 last_error = e
                 self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)})
                 continue
-        # All retries exhausted — save final failure log
         self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]})
         raise last_error or LLMError("LLM request failed")
 
     def _call_api(self, payload: dict[str, Any]) -> str:
         try:
-            # stream: false を指定して一括取得
-            # think は complete_json で設定される（デフォルト: true）
             payload = {**payload, "stream": False}
             resp = httpx.post(
                 self.api_url,
@@ -503,11 +464,9 @@ class LLMClient:
                 timeout=self.timeout_seconds,
             )
             resp.raise_for_status()
-            # Ollama /api/chat may return NDJSON (streaming) or single JSON.
             text = resp.text.strip()
             if "\n" in text:
                 # NDJSON: each line is a JSON object
-                # For chat API, content is in message.content (may also be in message.thinking for thinking models)
                 parts: list[str] = []
                 thinking_parts: list[str] = []
                 for line in text.splitlines():
@@ -528,7 +487,6 @@ class LLMClient:
                     if thinking and thinking not in thinking_parts:
                         thinking_parts.append(thinking)
                 result = "".join(parts)
-                # If content is empty but thinking has output, use thinking (qwen3.6 behavior)
                 if not result.strip() and thinking_parts:
                     result = "".join(thinking_parts)
             else:
@@ -553,7 +511,6 @@ class LLMClient:
             return
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        # Find unique filename with index
         idx = 0
         while True:
             suffix = f"_{idx:03d}" if idx > 0 else ""
