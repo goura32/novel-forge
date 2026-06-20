@@ -12,6 +12,7 @@
 ## 評価カテゴリ
 
 - `structural_validity`: 物語の弧（導入→展開→転換→クライマックス→収束）が明確か
+  - **収束の章が必須**: 全章のpurposeに「収束」が1つでもない場合、`chapter_roles_valid` を `false` とし、`structural_validity.score` を 0 とすること。これは物語の弧が不完全なため。
 - `scene_coherence`: シーン間の論理一貫性があるか
 - `pace_analysis`: ペース配分が適切か
 - `character_arc_review`: キャラクターアークがあるか
