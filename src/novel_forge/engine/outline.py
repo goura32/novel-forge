@@ -385,7 +385,8 @@ class OutlineMixin:
              "lang": self._lang, "previous_outline": previous_outline},
         )
         result = self._llm.complete_json("volume_outline_revision", system, user, schema)
-        # Ensure title/premise are not None after revision
+
+        # Fallback: If title is missing (LLM sometimes omits it), use fallback values
         if not result.get("title"):
             result["title"] = outline.get("title") or f"第{vol_num}巻"
         if not result.get("premise"):
