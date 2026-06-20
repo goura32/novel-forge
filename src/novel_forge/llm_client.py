@@ -461,9 +461,11 @@ class LLMClient:
             except JsonParseError as e:
                 last_error = e
                 self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
+                # 失敗内容は要約してフィードバック（プロンプト肥大化防止）
+                error_hint = str(e)[:100]
                 current_prompt = (
-                    f"前回の出力はJSONではありませんでした。\n"
-                    f"前回の出力:\n{raw[:300]}\n\n"
+                    f"前回の出力はJSONとして解析できませんでした。\n"
+                    f"エラー: {error_hint}\n"
                     f"必ず有効なJSONのみを出力してください。\n"
                     f"JSON以外のテキストは一切含めないでください。\n\n"
                     f"元の指示:\n{user_prompt}"
@@ -472,20 +474,11 @@ class LLMClient:
             except SchemaValidationError as e:
                 last_error = e
                 self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
-                # Extract missing/invalid field names from error message
-                import re
-                missing = re.findall(r"'(\w+)' is a required property", str(e))
-                type_errs = re.findall(r"\[\w+\] .+ is not of type", str(e))
-                fields_hint = []
-                if missing:
-                    fields_hint.append(f"不足している必須フィールド: {', '.join(missing)}")
-                if type_errs:
-                    fields_hint.append(f"型が不正なフィールド: {', '.join(type_errs)}")
-                hint = "\n".join(fields_hint) if fields_hint else str(e)[:200]
+                # エラーメッセージは短縮してフィードバック（プロンプト肥大化防止）
+                error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
-                    f"エラー: {hint}\n"
-                    f"前回の出力:\n{raw[:300]}\n\n"
+                    f"エラー: {error_hint}\n"
                     f"不足・不正なフィールドを修正し、必ず有効なJSONのみを出力してください。\n\n"
                     f"元の指示:\n{user_prompt}"
                 )
