@@ -35,7 +35,7 @@ class ContextBuilder:
         lines = [
             f"タイトル: {data.get('title', '')}",
             f"あらすじ: {data.get('logline', '')}",
-            f"ジャンル: {data.get('genre', '')}",
+            f"ジャンル: {', '.join(data.get('genre', []))}",
             f"ターゲット読者: {data.get('target_audience', '')}",
             f"テーマ: {', '.join(data.get('themes', []))}",
         ]
