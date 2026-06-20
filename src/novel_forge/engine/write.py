@@ -45,15 +45,15 @@ class WriteMixin:
             bar_len = 20
             filled = int(bar_len * done_scenes / total_scenes) if total_scenes > 0 else 0
             bar = "█" * filled + "░" * (bar_len - filled)
-            print(
+            _sys.stderr.write(
                 f"  [{bar}] {pct:5.1f}% "
                 f"({done_scenes}/{total_scenes}) "
                 f"{status} "
                 f"経過: {elapsed_str} "
-                f"残り推定: {remaining_str}",
-                flush=True,
+                f"残り推定: {remaining_str}\n"
             )
 
+        import sys as _sys
         for chapter in outline.chapters:
             chapter_scenes: list[str] = []
             ch_scenes = [s for s in outline.scenes if s.chapter_number == chapter.number]
@@ -67,6 +67,7 @@ class WriteMixin:
                     )
                     _progress(scene.number, f"スキップ(済)")
                     continue
+                _sys.stderr.write(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
                 result = self._scene_writer.write_scene(
                     outline=outline,
                     chapter=chapter,
@@ -98,7 +99,7 @@ class WriteMixin:
                     self._lang,
                     self._bible_mgr.to_text,
                 )
-                _progress(scene.number, f"シーン{scene.number} 完了")
+                _sys.stderr.write(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
                 self._save()
 
             self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes)

@@ -134,7 +134,7 @@ class SceneWriter:
         )
 
         if record.status == "初稿済":
-            print(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", file=sys.stderr, flush=True)
+            sys.stderr.write(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。\n")
             record.status = "強制出力済"
 
         return {"scene_number": record.scene_number, "status": record.status}
@@ -234,7 +234,7 @@ class SceneWriter:
                     return result
             except Exception as e:
                 if attempt < 2:
-                    print(f"  [REVIEW RETRY] attempt {attempt+1}/3: {e}", flush=True)
+                    sys.stderr.write(f"  [REVIEW RETRY] attempt {attempt+1}/3: {e}\n")
                     continue
                 raise
         return {"score": 0, "issues": [], "dimensions": [], "revision_needed": True}

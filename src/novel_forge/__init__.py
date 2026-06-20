@@ -1,2 +1,3 @@
 def main() -> None:
-    print("Hello from novel-tool!")
+    import sys
+    sys.stderr.write("Hello from novel-tool!\n")

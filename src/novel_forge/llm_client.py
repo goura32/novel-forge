@@ -410,7 +410,7 @@ class LLMClient:
             },
         }
         payload["format"] = "json"
-        payload["think"] = True
+        payload["think"] = self._ollama_options.get("think", True)
 
         last_error: Exception | None = None
         current_prompt = user_prompt

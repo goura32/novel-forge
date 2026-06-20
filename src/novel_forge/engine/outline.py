@@ -31,7 +31,8 @@ class OutlineMixin:
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
             if score >= 70 and len(critical_issues) == 0:
                 break
-            print(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3", flush=True)
+            import sys as _sys
+            _sys.stderr.write(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3\n")
             result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema, previous_outline)
             review = self._review_outline(result, series_plan, previous_outline)
             review = self._recalc_review_score(review)
