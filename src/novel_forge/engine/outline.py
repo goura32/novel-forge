@@ -318,7 +318,7 @@ class OutlineMixin:
 
         # 深刻度による上限/下限
         issues = review.get("issues", [])
-        has_critical = any(i.get("severity") == "critical" for i in issues)
+        has_critical = any(i.get("severity") in ("critical", "blocker") for i in issues)
         major_count = sum(1 for i in issues if i.get("severity") == "major")
 
         if has_critical:
