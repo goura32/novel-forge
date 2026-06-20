@@ -548,11 +548,29 @@ class LLMClient:
         thinking_saved = thinking
         if len(thinking) > 2000:
             thinking_saved = thinking[:500] + f"\n... [truncated {len(thinking) - 1000} chars] ...\n" + thinking[-500:]
+        # Build compact request log: omit system_prompt (same for all calls),
+        # keep only user_prompt and non-prompt fields
+        req_log = {k: v for k, v in payload.items() if k not in ("api_key", "messages")}
+        if "messages" in payload:
+            user_msgs = [m for m in payload["messages"] if m.get("role") == "user"]
+            if user_msgs:
+                req_log["user_prompt"] = user_msgs[-1]["content"]
+        # Strip thinking from raw_text to avoid duplication with response_thinking
+        raw_for_log = raw_text if raw_text else raw
+        if raw_for_log and thinking_saved:
+            try:
+                # Try to parse and remove thinking from raw JSON
+                raw_data = json.loads(raw_for_log)
+                if isinstance(raw_data, dict) and "message" in raw_data:
+                    raw_data["message"].pop("thinking", None)
+                    raw_for_log = json.dumps(raw_data, ensure_ascii=False)
+            except (json.JSONDecodeError, TypeError):
+                pass  # Keep raw_for_log as-is if parsing fails
         log_data = {
             "kind": kind,
             "timestamp": timestamp,
-            "request": {k: v for k, v in payload.items() if k != "api_key"},
-            "response_raw": raw_text if raw_text else raw,
+            "request": req_log,
+            "response_raw": raw_for_log,
             "response_parsed": parsed,
         }
         if thinking_saved:
