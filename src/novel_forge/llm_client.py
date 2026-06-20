@@ -166,7 +166,7 @@ class LLMClient:
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
         num_ctx: int | None = None,
-        num_predict: int = 32768,
+        num_predict: int = 65536,
         ollama_options: dict[str, Any] | None = None,
     ):
         if api_url is None:
