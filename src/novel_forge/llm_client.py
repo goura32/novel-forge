@@ -388,8 +388,9 @@ class LLMClient:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.raw_log_dir = raw_log_dir
+        # 固定値: qwen3.6:35b-a3b-mtp-q4_K_M の context_length
+        self.num_ctx = num_ctx if num_ctx else 262144
         self.num_predict = num_predict
-        self.num_ctx = num_ctx or self._detect_max_ctx()
         self._ollama_options = ollama_options or {}
 
     def _detect_max_ctx(self) -> int:
