@@ -57,5 +57,6 @@
 - `chapters[].purpose` は「導入」「展開」「転換」「クライマックス」「収束」から選択すること。
 - `chapters[].scenes[].goal` は `State: ... | Action: ...` 形式で記述すること。
 - `number` と `chapter_number` は engine で機械採番されるため含めないこと。
+- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**
 
 言語: {lang}

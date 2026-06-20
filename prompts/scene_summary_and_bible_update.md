@@ -80,5 +80,6 @@
 - `foreshadowing[].type` は「setup」「resolution」から選択すること。
 - `relationships[].change_direction` は「improved」「worsened」「changed」「unchanged」から選択すること。
 - `subplots[].status` は「not_started」「in_progress」「completed」から選択すること。
+- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**
 
 言語: {lang}

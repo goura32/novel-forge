@@ -98,3 +98,4 @@
 - `pace_analysis` の ratio は 0〜100 の数値。合計が 100 に収まるようにすること。
 - `character_arc_review.arc_believability` は 0〜100 の数値。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
+- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**

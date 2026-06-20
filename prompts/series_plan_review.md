@@ -72,3 +72,4 @@
 - 上記テンプレートのキー名（score, issues, strengths, recommendations）は変更しないこと。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
 - `score` は 0〜100 の整数とすること。
+- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**
