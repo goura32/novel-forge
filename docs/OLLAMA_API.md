@@ -2,94 +2,100 @@
 
 2026-06-20 実施。qwen3.6:35b-a3b-mtp-q4_K_M モデルを使用。
 
+## 採用設定（絶対）
+
+```
+API:      /api/chat（/generate ではない）
+think:    true（必須）
+format:   json（schema ではない）
+stream:   false
+num_ctx:  262144
+num_predict: 32768
+seed:     42
+timeout:  3600秒
+```
+
+**理由:**
+- `format=schema` は Ollama 0.30.10 でネストされたオブジェクト構造を正しく適用できない
+- `think: true` は LLM がスキーマをより正確に遵守できる
+- `format=json` + Python 側バリデーションが最も安定
+
 ## エンドポイント
 
-### `/api/generate`（推奨）
+### `/api/chat`（採用）
 - 現在の novel-forge が使用
 - `think` / `format` / `options` すべてが正しく機能
-- 構造化出力（`format: {schema}`）が安定
+- 配列内のオブジェクトも正しく適用可能
 
-### `/v1/chat/completions`（OpenAI 互換）
-- `response_format` はサポート
-- `think` パラメータは **効かない**（`/api.generate` のみサポート）
-- `reasoning` フィールドが常に返る（think 無効化しても）
-- `extra_body.chat_template_kwargs.enable_thinking` も効かない
-- `extra_body.options.think` も効かない
+### `/api/generate`（非採用）
+- 旧バージョンで使用。現在は非推奨
+- `think: true` + `format: schema` で空レスポンス問題
+
+### `/v1/chat/completions`（OpenAI 互換、非採用）
+- `think` パラメータは **効かない**
+- `reasoning` フィールドが常に返る
 
 ## パラメータマトリクス
 
-### `/api/generate`
-
-| パラメータ | 位置 | 必須 | 備考 |
-|---|---|---|---|
-| model | トップレベル | ✅ | |
-| system | トップレベル | ✅ | |
-| prompt | トップレベル | ✅ | |
-| stream | トップレベル | ✅ | `false` 固定 |
-| think | トップレベル | ✅ | qwen3.6 では `false` が必須 |
-| format | トップレベル | schema使用時 | JSON schema オブジェクトを直接指定 |
-| options | トップレベル | ✅ | num_ctx, num_predict 等 |
-
-### `/v1/chat/completions`
+### `/api/chat`
 
 | パラメータ | 位置 | 必須 | 備考 |
 |---|---|---|---|
 | model | トップレベル | ✅ | |
 | messages | トップレベル | ✅ | OpenAI 形式 |
 | stream | トップレベル | ✅ | `false` 固定 |
-| think | トップレベル | ❌ | **効かない** |
-| response_format | トップレベル | schema使用時 | `{"type": "json_object"}` または `{"type": "json_schema", "json_schema": {...}}` |
-| extra_body | トップレベル | ❌ | chat_template_kwargs 経由でも think 無効化不可 |
+| think | トップレベル | ✅ | qwen3.6 では `true` を採用 |
+| format | トップレベル | schema使用時 | JSON schema オブジェクトを直接指定 |
+| options | トップレベル | ✅ | num_ctx, num_predict, seed 等 |
 
 ## テスト結果
 
 ### 環境
 - ホスト: ws1.local:11434
 - モデル: qwen3.6:35b-a3b-mtp-q4_K_M
-- num_ctx: 262144 (256K), num_predict: 32768 (32K)
+- Ollama: 0.30.10
 
-### `/api/generate` テスト
+### `/api/chat` + `format=schema` テスト
 
-| # | format | think | 結果 | 所要時間 |
+| # | スキーマ | think | 結果 | 備考 |
 |---|---|---|---|---|
-| 1 | schema | false | ✅ 正常 | 17秒（短文）/ 76秒（長文4343文字） |
-| 2 | schema | true | ❌ 空レスポンス | 9秒後に何も返らない |
-| 3 | schema | options.think | ❌ 空レスポンス | options 内では効かない |
-| 4 | json | false | ✅ 正常 | 1.3秒 |
-| 5 | なし | false | ✅ 正常 | 1.2秒 |
-| 6 | json | true | ❌ 空レスポンス | 15秒後に何も返らない |
-| 7 | schema | false | ✅ 正常 | 76秒で4343文字（novel-forge 実サイズ） |
+| 1 | フラット | true | ✅ 全フィールド適用 | ネストなし |
+| 2 | ネスト | true | ⚠️ ネスト内フィールド欠落 | structural_validity.score 等 |
+| 3 | ネスト | false | ❌ スキーマ無視 | 任意フィールド生成 |
+| 4 | 配列内オブジェクト | true | ✅ 正しく適用 | |
+| 5 | なし | true | ⚠️ プロンプト依存 | |
 
-### `/v1/chat/completions` テスト
+### `/api/chat` + `format=json` テスト
 
-| # | think 指定方法 | response_format | 結果 |
+| # | think | 結果 | 備考 |
 |---|---|---|---|
-| 1 | トップレベル `think: false` | json_object | ⚠️ content は正常だが reasoning に6363文字の思考プロセスが返る |
-| 2 | トップレベル `think: false` | なし | ⚠️ 同上 |
-| 3 | `extra_body.chat_template_kwargs.enable_thinking: false` | json_object | ⚠️ 効かない。reasoning が返る |
-| 4 | `extra_body.options.think: false` | json_object | ⚠️ 効かない。reasoning が返る |
+| 1 | true | ✅ プロンプト依存 | フィールド明示すればOK |
+| 2 | false | ⚠️ スキーマ無視 | LLMが任意フィールド生成 |
+
+### 配列テスト
+
+| # | 内容 | 結果 |
+|---|---|---|
+| 1 | 文字列の配列 | ✅ `["red", "green", "blue"]` |
+| 2 | オブジェクトの配列 | ✅ 各フィールド正しく適用 |
 
 ## 結論
 
 ### 推奨構成
 ```
-/api/generate + think: false + format: {schema}
+/api/chat + think: true + format: json + Python側バリデーション
 ```
 
-- qwen3.6 は think モデルのため、`think: false` が必須
-- `think: true` との組み合わせは format 問わず長文で空レスポンス
-- `format: schema` は `/api.generate` でのみ安定動作
-- `options.think` は効かない。トップレベルの `think` フィールドが必須
+- `format=schema` はネスト構造でフィールド欠落が発生
+- `think: true` でスキーマ遵守精度が向上
+- `format=json` + Python 側バリデーションが最も安定
+- 配列は正しく適用可能
 
-### OpenAI 互換 API の制限
-- `/v1/chat/completions` では `think` パラメータがサポートされていない
-- `reasoning` フィールドが常に返るため、レスポンスパーサーの追加が必要
-- 現在の novel-forge の `/api/generate` ベースの実装が最適
-
-### 参考: vLLM/SGLang での think 無効化
-- vLLM: `extra_body={"chat_template_kwargs": {"enable_thinking": false}}`
-- SGLang: 起動パラメータで `--chat-template-kwargs '{"enable_thinking": false}'`
-- Ollama ではこれらの方法は使えない
+### スキーマ設計ルール
+- 配列にすべき項目は配列を使用（curl で動作確認済み）
+- ネスト構造は `format=schema` で問題があるため、`format=json` 使用時は Python 側でバリデーション
+- スキーマ変更時は必ず curl で事前動作確認
 
 ## 変更履歴
-- 2026-06-20: 初版作成。全パターンのテスト結果を記録
+- 2026-06-20: 初版作成。`/api/generate` ベース
+- 2026-06-20: `/api/chat` ベースに更新。`think: true` + `format: json` に統一

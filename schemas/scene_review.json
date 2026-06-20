@@ -86,16 +86,24 @@
             "maxLength": 500,
             "description": "問題の説明"
           },
-          "suggestion": {"type": "array", "items": {"type": "string", "maxLength": 2000}, "description": "具体的な修正指示のリスト。必ず1つ以上の要素を含めること。"}
+          "suggestion": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "description": "具体的な修正指示のリスト。必ず1つ以上の要素を含めること。"
+          }
         }
       }
     },
     "revision_needed": {
-        "type": "boolean",
-        "description": "改稿が必要かどうか。blocker・critical issue がある場合、または major issue が2つ以上ある場合に true。minor issue のみ、issue なし、major 1つの場合は false。"
+      "type": "boolean",
+      "description": "改稿が必要かどうか。blocker・critical issue がある場合、または major issue が2つ以上ある場合に true。minor issue のみ、issue なし、major 1つの場合は false。"
     },
     "ready_for_publication": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "出版可能かどうか"
     }
   }
 }

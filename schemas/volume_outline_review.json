@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OutlineReview",
-  "description": "巻アウトラインの自己レビュー結果（VolumeOutlinePipeline §3.2）",
+  "description": "巻アウトラインの自己レビュー結果",
   "type": "object",
   "required": ["structural_validity", "scene_coherence", "pace_analysis", "character_arc_review", "score", "issues", "suggestions"],
   "properties": {
