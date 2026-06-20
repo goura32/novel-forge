@@ -49,23 +49,51 @@
 
 `volume_outline_review.json` に適合する JSON を出力すること。
 
-## 出力形式
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 
 ```json
 {
-  "score": 0,
+  "structural_validity": {
+    "has_clear_arc": true,
+    "chapter_roles_valid": true,
+    "climax_placement_valid": true,
+    "score": 85
+  },
+  "scene_coherence": {
+    "scene_transitions_valid": true,
+    "no_contradictions": true,
+    "state_continuity": true,
+    "score": 80
+  },
+  "pace_analysis": {
+    "introduction_ratio": 20,
+    "development_ratio": 40,
+    "climax_ratio": 25,
+    "pacing_comment": "ペースのコメント（500文字以内）",
+    "score": 75
+  },
+  "character_arc_review": {
+    "protagonist_has_arc": true,
+    "arc_believability": 85,
+    "supporting_chars_used": true,
+    "score": 80
+  },
+  "score": 82,
   "issues": [
     {
-      "severity": "critical|major|minor",
-      "category": "string",
-      "description": "string",
-      "suggestion": "string"
+      "severity": "critical",
+      "category": "カテゴリ名（64文字以内）",
+      "description": "問題の説明（500文字以内）",
+      "affected_elements": ["要素1", "要素2"]
     }
   ],
-  "has_clear_arc": true,
-  "chapter_roles_valid": true,
-  "climax_placement_valid": true,
-  "scene_transitions_valid": true,
-  "state_continuity": true
+  "suggestions": ["改善提案1", "改善提案2"]
 }
 ```
+
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `structural_validity.score` は 0〜100 の数値。
+- `pace_analysis` の ratio は 0〜100 の数値。合計が 100 に収まるようにすること。
+- `character_arc_review.arc_believability` は 0〜100 の数値。
+- `issues[].severity` は「critical」「major」「minor」から選択すること。

@@ -100,29 +100,74 @@
 **重要**: `score` は 0 から 100 の数値で評価すること（10 段階ではない）。
 `dimensions[].score` も 0 から 100 の数値で評価すること。
 
-## 出力形式
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 
 ```json
 {
-  "score": 0,
+  "score": 85,
   "dimensions": [
     {
-      "name": "string",
-      "score": 0
+      "name": "opening_hook",
+      "score": 80
+    },
+    {
+      "name": "character_distinction",
+      "score": 75
+    },
+    {
+      "name": "foreshadowing_consistency",
+      "score": 70
+    },
+    {
+      "name": "sensory_coverage",
+      "score": 85
+    },
+    {
+      "name": "page_turner",
+      "score": 80
+    },
+    {
+      "name": "dialogue_naturalness",
+      "score": 90
+    },
+    {
+      "name": "tone_consistency",
+      "score": 85
+    },
+    {
+      "name": "scene_completeness",
+      "score": 80
+    },
+    {
+      "name": "language_purity",
+      "score": 95
+    },
+    {
+      "name": "pov_consistency",
+      "score": 85
     }
   ],
   "issues": [
     {
-      "severity": "critical|major|minor|blocker",
-      "category": "opening_hook|character_distinction|foreshadowing_consistency|sensory_coverage|page_turner|dialogue_naturalness|tone_consistency|scene_completeness|language_purity|pov_consistency",
-      "description": "string",
-      "suggestion": ["string"]
+      "severity": "critical",
+      "category": "pov_consistency",
+      "description": "問題の説明",
+      "suggestion": ["「修正前の表現」を「修正後の表現」に置換してください"]
     }
   ],
-  "strengths": ["string"],
-  "revision_needed": true
+  "strengths": ["強み1", "強み2"],
+  "revision_needed": true,
+  "ready_for_publication": false
 }
 ```
+
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `dimensions[].name` は「opening_hook」「character_distinction」「foreshadowing_consistency」「sensory_coverage」「page_turner」「dialogue_naturalness」「tone_consistency」「scene_completeness」「language_purity」「pov_consistency」から選択すること。10個すべてを含めること。
+- `issues[].severity` は「blocker」「critical」「major」「minor」から選択すること。
+- `issues[].category` は `dimensions[].name` と同じ列挙値から選択すること。
+- `issues[].suggestion` は**文字列の配列**であること。各要素は1つの修正箇所を表す具体的な指示。
+- `score` は 0〜100 の数値。`dimensions[].score` も 0〜100 の数値。
 
 **重要**: `issue.category` は上記の評価カテゴリから必ず選択すること。各 issue に対して適切なカテゴリを明示的に指定すること。例:
 - ❌ `category: "問題があります"`

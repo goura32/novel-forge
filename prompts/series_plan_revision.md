@@ -32,4 +32,46 @@
 
 修正後のシリーズ企画を JSON で出力すること。`series_plan.json` スキーマに適合する JSON とすること。
 
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+
+```json
+{
+  "title": "シリーズタイトル（128文字以内）",
+  "slug": "url-friendly-identifier",
+  "logline": "1-2行のあらすじ（200文字以内）",
+  "genre": "ジャンル",
+  "target_audience": "ターゲット読者（200文字以内）",
+  "themes": ["テーマ1", "テーマ2"],
+  "selling_points": ["セールスポイント1", "セールスポイント2"],
+  "world": {
+    "summary": "世界観の概要（500文字以内）",
+    "rules": ["世界観のルール1", "ルール2"]
+  },
+  "main_characters": [
+    {
+      "name": "名前（64文字以内）",
+      "role": "主人公",
+      "arc": "キャラクターの成長・変化（200文字以内）"
+    }
+  ],
+  "planned_volumes": [
+    {
+      "number": 1,
+      "title": "巻タイトル（128文字以内）",
+      "premise": "巻のあらすじ（200文字以内）"
+    }
+  ],
+  "premise": "シリーズの前提",
+  "keywords": ["キーワード1", "キーワード2"],
+  "catchphrase": "キャッチコピー",
+  "differentiation": "差別化ポイント"
+}
+```
+
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `main_characters[].role` は「主人公」「ヒロイン」「相棒」「敵対者」「師匠」「仲間」から選択すること。
+- `world` は `summary` と `rules` のみを含むこと。
+- `planned_volumes[].number` は巻番号（整数）を含むこと。
+
 言語: {lang}
