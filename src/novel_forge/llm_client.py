@@ -376,7 +376,7 @@ class LLMClient:
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
         num_ctx: int | None = None,
-        num_predict: int = 32768,
+        num_predict: int = 65536,
         ollama_options: dict[str, Any] | None = None,
     ):
         if api_url is None:
@@ -439,10 +439,9 @@ class LLMClient:
         # format=schema は Ollama 0.30.10 でネストされたオブジェクト構造を
         # 正しく適用できないため、format=json を使用し
         # スキーマバリデーションは Python 側で行う
-        # think: true は qwen3.6モデルでthinkingのみ出力されcontentが空になる
-        # 問題があるため、think: false を使用
+        # think: true はスキーマ遵守率向上のため必要（num_predict: 65536で対応）
         payload["format"] = "json"
-        payload["think"] = False
+        payload["think"] = True
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of max_retries attempts.  On JsonParseError we feed
