@@ -420,6 +420,7 @@ class LLMClient:
         last_error: Exception | None = None
         current_prompt = user_prompt
         raw = ""
+        thinking = ""
         for attempt in range(self.max_retries):
             try:
                 payload["messages"][1]["content"] = current_prompt
@@ -428,7 +429,7 @@ class LLMClient:
                 import sys as _sys
                 _sys.stderr.write(f"  [LLM CALL] kind={kind} attempt={attempt+1}/{self.max_retries} model={self.model} seed={42+attempt}\n")
                 _call_start = time.time()
-                raw = self._call_api(payload)
+                raw_text, raw, thinking = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
                 _sys.stderr.write(f"  [LLM DONE] kind={kind} attempt={attempt+1} elapsed={_call_elapsed:.1f}s raw_len={len(raw)}\n")
                 parsed = _parse_json_response(raw)
@@ -437,11 +438,11 @@ class LLMClient:
                     parsed = _coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
-                self._write_log(kind, payload, raw, parsed)
+                self._write_log(kind, payload, raw, parsed, thinking=thinking, raw_text=raw_text)
                 return parsed
             except JsonParseError as e:
                 last_error = e
-                self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
+                self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking)
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -453,7 +454,7 @@ class LLMClient:
                 continue
             except SchemaValidationError as e:
                 last_error = e
-                self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]})
+                self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking)
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -464,12 +465,18 @@ class LLMClient:
                 continue
             except LLMError as e:
                 last_error = e
-                self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)})
+                self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)}, thinking=thinking)
                 continue
-        self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]})
+        self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]}, thinking=thinking)
         raise last_error or LLMError("LLM request failed")
 
-    def _call_api(self, payload: dict[str, Any]) -> str:
+    def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str]:
+        """Call Ollama API and return (raw_text, content, thinking).
+
+        raw_text: raw Ollama response text (NDJSON or single JSON)
+        content: extracted content (may be empty for thinking-only responses)
+        thinking: extracted thinking (may be empty if model doesn't use CoT)
+        """
         try:
             payload = {**payload, "stream": False}
             resp = httpx.post(
@@ -479,6 +486,7 @@ class LLMClient:
             )
             resp.raise_for_status()
             text = resp.text.strip()
+            thinking_combined = ""
             if "\n" in text:
                 # NDJSON: each line is a JSON object
                 parts: list[str] = []
@@ -501,6 +509,7 @@ class LLMClient:
                     if thinking and thinking not in thinking_parts:
                         thinking_parts.append(thinking)
                 result = "".join(parts)
+                thinking_combined = "".join(thinking_parts)
                 # Do NOT fall back to thinking content — it's English chain-of-thought
                 # that would contaminate Japanese output. Empty content = error.
             else:
@@ -508,9 +517,10 @@ class LLMClient:
                 if "error" in data:
                     raise LLMError(f"Ollama error: {data['error']}")
                 result = data.get("message", {}).get("content", "")
+                thinking_combined = data.get("message", {}).get("thinking", "")
             if not result or not result.strip():
                 raise LLMError("Ollama returned empty response")
-            return result
+            return text, result, thinking_combined
         except httpx.HTTPError as e:
             raise LLMError(f"HTTP error: {e}") from e
 
@@ -520,6 +530,8 @@ class LLMClient:
         payload: dict[str, Any],
         raw: str,
         parsed: Any,
+        thinking: str = "",
+        raw_text: str = "",
     ) -> None:
         if not self.raw_log_dir:
             return
@@ -532,12 +544,18 @@ class LLMClient:
             if not log_path.exists():
                 break
             idx += 1
+        # Truncate thinking for readability (keep first/last 500 chars)
+        thinking_saved = thinking
+        if len(thinking) > 2000:
+            thinking_saved = thinking[:500] + f"\n... [truncated {len(thinking) - 1000} chars] ...\n" + thinking[-500:]
         log_data = {
             "kind": kind,
             "timestamp": timestamp,
             "request": {k: v for k, v in payload.items() if k != "api_key"},
-            "response_raw": raw,
+            "response_raw": raw_text if raw_text else raw,
             "response_parsed": parsed,
         }
+        if thinking_saved:
+            log_data["response_thinking"] = thinking_saved
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(log_data, f, ensure_ascii=False, indent=2)
