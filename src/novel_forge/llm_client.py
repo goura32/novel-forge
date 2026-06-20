@@ -423,8 +423,10 @@ class LLMClient:
         for attempt in range(self.max_retries):
             try:
                 payload["messages"][1]["content"] = current_prompt
+                # Increment seed on each retry to get different output
+                payload["options"]["seed"] = 42 + attempt
                 import sys as _sys
-                _sys.stderr.write(f"  [LLM CALL] kind={kind} attempt={attempt+1}/{self.max_retries} model={self.model}\n")
+                _sys.stderr.write(f"  [LLM CALL] kind={kind} attempt={attempt+1}/{self.max_retries} model={self.model} seed={42+attempt}\n")
                 _call_start = time.time()
                 raw = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
