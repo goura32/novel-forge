@@ -3,60 +3,176 @@
   "title": "OutlineReview",
   "description": "巻アウトラインの自己レビュー結果",
   "type": "object",
-  "required": ["structural_validity", "scene_coherence", "pace_analysis", "character_arc_review", "score", "issues", "suggestions"],
+  "required": [
+    "structural_validity",
+    "scene_coherence",
+    "pace_analysis",
+    "character_arc_review",
+    "score",
+    "issues",
+    "suggestions"
+  ],
   "properties": {
     "structural_validity": {
       "type": "object",
-      "required": ["has_clear_arc", "chapter_roles_valid", "climax_placement_valid", "score"],
+      "required": [
+        "has_clear_arc",
+        "chapter_roles_valid",
+        "climax_placement_valid",
+        "score"
+      ],
       "properties": {
-        "has_clear_arc": { "type": "boolean" },
-        "chapter_roles_valid": { "type": "boolean" },
-        "climax_placement_valid": { "type": "boolean" },
-        "score": { "type": "number", "description": "スコア。0〜100の範囲で出力すること。" }
+        "has_clear_arc": {
+          "type": "boolean"
+        },
+        "chapter_roles_valid": {
+          "type": "boolean"
+        },
+        "climax_placement_valid": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "number",
+          "description": "スコア。0〜100の範囲で出力すること。",
+          "minimum": 0,
+          "maximum": 100
+        }
       }
     },
     "scene_coherence": {
       "type": "object",
-      "required": ["scene_transitions_valid", "no_contradictions", "state_continuity", "score"],
+      "required": [
+        "scene_transitions_valid",
+        "no_contradictions",
+        "state_continuity",
+        "score"
+      ],
       "properties": {
-        "scene_transitions_valid": { "type": "boolean" },
-        "no_contradictions": { "type": "boolean" },
-        "state_continuity": { "type": "boolean" },
-        "score": { "type": "number", "description": "スコア。0〜100の範囲で出力すること。" }
+        "scene_transitions_valid": {
+          "type": "boolean"
+        },
+        "no_contradictions": {
+          "type": "boolean"
+        },
+        "state_continuity": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "number",
+          "description": "スコア。0〜100の範囲で出力すること。",
+          "minimum": 0,
+          "maximum": 100
+        }
       }
     },
     "pace_analysis": {
       "type": "object",
-      "required": ["introduction_ratio", "development_ratio", "climax_ratio", "pacing_comment", "score"],
+      "required": [
+        "introduction_ratio",
+        "development_ratio",
+        "climax_ratio",
+        "pacing_comment",
+        "score"
+      ],
       "properties": {
-        "introduction_ratio": { "type": "number", "minimum": 0, "maximum": 100 },
-        "development_ratio": { "type": "number", "minimum": 0, "maximum": 100 },
-        "climax_ratio": { "type": "number", "minimum": 0, "maximum": 100 },
-        "pacing_comment": { "type": "string", "maxLength": 500, "description": "ペースのコメント" },
-        "score": { "type": "number", "description": "スコア。0〜100の範囲で出力すること。" }
+        "introduction_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "development_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "climax_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "pacing_comment": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "ペースのコメント"
+        },
+        "score": {
+          "type": "number",
+          "description": "スコア。0〜100の範囲で出力すること。",
+          "minimum": 0,
+          "maximum": 100
+        }
       }
     },
     "character_arc_review": {
       "type": "object",
-      "required": ["protagonist_has_arc", "arc_believability", "supporting_chars_used", "score"],
+      "required": [
+        "protagonist_has_arc",
+        "arc_believability",
+        "supporting_chars_used",
+        "score"
+      ],
       "properties": {
-        "protagonist_has_arc": { "type": "boolean" },
-        "arc_believability": { "type": "number", "minimum": 0, "maximum": 100 },
-        "supporting_chars_used": { "type": "boolean" },
-        "score": { "type": "number", "description": "スコア。0〜100の範囲で出力すること。" }
+        "protagonist_has_arc": {
+          "type": "boolean"
+        },
+        "arc_believability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "supporting_chars_used": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "number",
+          "description": "スコア。0〜100の範囲で出力すること。",
+          "minimum": 0,
+          "maximum": 100
+        }
       }
     },
-    "score": { "type": "number", "description": "総合評価スコア。0〜100の範囲で出力すること。" },
+    "score": {
+      "type": "number",
+      "description": "総合評価スコア。0〜100の範囲で出力すること。",
+      "minimum": 0,
+      "maximum": 100
+    },
     "issues": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["severity", "category", "description", "affected_elements"],
+        "required": [
+          "severity",
+          "category",
+          "description",
+          "affected_elements"
+        ],
         "properties": {
-          "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
-          "category": { "type": "string", "maxLength": 64, "description": "問題のカテゴリ名" },
-          "description": { "type": "string", "maxLength": 500, "description": "問題の説明" },
-          "affected_elements": { "type": "array", "items": { "type": "string", "maxLength": 128 } }
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "問題のカテゴリ名"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "問題の説明"
+          },
+          "affected_elements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
         }
       }
     },

@@ -2,39 +2,88 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeOutline",
   "type": "object",
-  "required": ["chapters"],
+  "required": [
+    "chapters"
+  ],
   "properties": {
-    "title": { "type": "string", "maxLength": 128 },
-    "premise": { "type": "string", "maxLength": 200 },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "巻タイトル"
+    },
+    "premise": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "巻の前提"
+    },
     "chapters": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["title", "purpose"],
+        "required": [
+          "title",
+          "purpose"
+        ],
         "properties": {
-          "title": { "type": "string", "maxLength": 128 },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          },
           "purpose": {
             "type": "string",
-            "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
+            "enum": [
+              "導入",
+              "展開",
+              "転換",
+              "クライマックス",
+              "収束"
+            ],
             "description": "章の役割。日本語で指定: 導入/展開/転換/クライマックス/収束"
           },
           "scenes": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["title", "goal", "outcome"],
+              "required": [
+                "title",
+                "goal",
+                "outcome"
+              ],
               "properties": {
-                "title": { "type": "string", "maxLength": 128 },
-                "pov": { "type": "string", "maxLength": 64 },
-                "goal": { "type": "string", "maxLength": 200 },
-                "conflict": { "type": "string", "maxLength": 200 },
-                "outcome": { "type": "string", "maxLength": 200 },
-                "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
+                "title": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "pov": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "goal": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "conflict": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "outcome": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "characters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                }
               }
-            }
+            },
+            "minItems": 1
           }
         }
-      }
+      },
+      "minItems": 1
     }
   },
   "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"

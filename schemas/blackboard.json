@@ -44,7 +44,7 @@
         "type": "string",
         "maxLength": 1000
       },
-      "description": "シーン要約"
+      "description": "シーン要約の辞書。キーはシーン番号（文字列）、値は要約"
     },
     "continuity_notes": {
       "type": "array",

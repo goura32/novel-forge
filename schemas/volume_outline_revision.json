@@ -2,39 +2,112 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeOutlineRevision",
   "type": "object",
-  "required": ["title", "premise", "chapters"],
+  "required": [
+    "title",
+    "premise",
+    "chapters"
+  ],
   "properties": {
-    "title": { "type": "string", "maxLength": 128, "description": "巻タイトル" },
-    "premise": { "type": "string", "maxLength": 200, "description": "巻の前提" },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "巻タイトル"
+    },
+    "premise": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "巻の前提"
+    },
     "chapters": {
       "type": "array",
       "maxItems": 6,
       "items": {
         "type": "object",
-        "required": ["title", "purpose"],
+        "required": [
+          "title",
+          "purpose"
+        ],
         "properties": {
-          "title": { "type": "string", "maxLength": 128, "description": "章タイトル" },
-          "purpose": { "type": "string", "enum": ["導入", "展開", "転換", "クライマックス", "収束"], "description": "章の役割" },
+          "title": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "章タイトル"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "導入",
+              "展開",
+              "転換",
+              "クライマックス",
+              "収束"
+            ],
+            "description": "章の役割"
+          },
           "scenes": {
             "type": "array",
             "maxItems": 4,
             "items": {
               "type": "object",
-              "required": ["title", "goal", "outcome"],
+              "required": [
+                "title",
+                "goal",
+                "outcome"
+              ],
               "properties": {
-                "title": { "type": "string", "maxLength": 128, "description": "シーンタイトル" },
-                "goal": { "type": "string", "maxLength": 400, "description": "State: 状況 | Action: 行動" },
-                "outcome": { "type": "string", "maxLength": 400, "description": "シーン終了時の結果" },
-                "conflict": { "type": "string", "maxLength": 300, "description": "障害・対立" },
-                "pov": { "type": "string", "maxLength": 64, "description": "視点人物" },
-                "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 }, "description": "登場人物" },
-                "key_events": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "description": "主要イベント" },
-                "setting": { "type": "string", "maxLength": 200, "description": "舞台設定" }
+                "title": {
+                  "type": "string",
+                  "maxLength": 128,
+                  "description": "シーンタイトル"
+                },
+                "goal": {
+                  "type": "string",
+                  "maxLength": 400,
+                  "description": "State: 状況 | Action: 行動"
+                },
+                "outcome": {
+                  "type": "string",
+                  "maxLength": 400,
+                  "description": "シーン終了時の結果"
+                },
+                "conflict": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "description": "障害・対立"
+                },
+                "pov": {
+                  "type": "string",
+                  "maxLength": 64,
+                  "description": "視点人物"
+                },
+                "characters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "description": "登場人物"
+                },
+                "key_events": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "description": "主要イベント"
+                },
+                "setting": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "舞台設定"
+                }
               }
-            }
+            },
+            "minItems": 1
           }
         }
-      }
+      },
+      "minItems": 1
     }
   }
 }

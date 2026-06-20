@@ -111,13 +111,38 @@
       "items": {
         "type": "object",
         "properties": {
-          "character_a": { "type": "string", "maxLength": 64 },
-          "character_b": { "type": "string", "maxLength": 64 },
-          "relationship_type": { "type": "string", "maxLength": 64 },
-          "status": { "type": "string", "maxLength": 64 },
-          "change_direction": { "type": "string" },
-          "trigger_event": { "type": "string", "maxLength": 200 },
-          "scene_number": { "type": "integer" }
+          "character_a": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "character_b": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "relationship_type": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "change_direction": {
+            "type": "string",
+            "enum": [
+              "improved",
+              "worsened",
+              "changed",
+              "unchanged"
+            ]
+          },
+          "trigger_event": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "scene_number": {
+            "type": "integer"
+          }
         }
       }
     },
@@ -126,12 +151,37 @@
       "items": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string", "maxLength": 128 },
-          "status": { "type": "string" },
-          "progress_note": { "type": "string", "maxLength": 200 },
-          "related_characters": { "type": "array", "items": { "type": "string" } },
-          "related_foreshadowing_ids": { "type": "array", "items": { "type": "string" } }
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "completed"
+            ]
+          },
+          "progress_note": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "related_characters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "related_foreshadowing_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     }

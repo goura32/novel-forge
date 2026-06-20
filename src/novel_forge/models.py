@@ -101,8 +101,8 @@ class ChapterDesign(BaseModel):
     )
     theme: str = Field(max_length=200, default="")
     emotional_arc: str = Field(max_length=200, default="")
-    foreshadowing_notes: str = Field(max_length=300, default="")
-    subplot_notes: str = Field(max_length=300, default="")
+    foreshadowing_notes: list[str] = Field(default_factory=list)
+    subplot_notes: list[str] = Field(default_factory=list)
     scene_summaries: list[str] = Field(default_factory=list)
     characters: list[str] = Field(default_factory=list)
 
@@ -150,7 +150,7 @@ class SeriesPlan(BaseModel):
     title: str = ""
     slug: str = Field(default="", max_length=256, pattern=r"^[a-z0-9-]+$")
     logline: str = Field(default="", max_length=200)
-    genre: str = ""
+    genre: list[str] = Field(default_factory=list)
     target_audience: str = Field(default="", max_length=200)
     themes: list[str] = Field(default_factory=list)
     selling_points: list[str] = Field(default_factory=list)

@@ -60,7 +60,7 @@
       "severity": "critical",
       "category": "カテゴリ名",
       "description": "問題の説明",
-      "suggestion": "改善提案"
+      "suggestion": ["改善提案1", "改善提案2"]
     }
   ],
   "strengths": ["強み1", "強み2"],
@@ -71,5 +71,5 @@
 **注意**:
 - 上記テンプレートのキー名（score, issues, strengths, recommendations）は変更しないこと。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
-- `score` は 0〜100 の整数とすること。
+- `issues[].suggestion` は**文字列の配列**であること。各要素は1つの改善提案。
 - **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**

@@ -2,7 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SeriesPlanReview",
   "type": "object",
-  "required": ["score", "issues", "strengths", "recommendations"],
+  "required": [
+    "score",
+    "issues",
+    "strengths",
+    "recommendations"
+  ],
   "properties": {
     "score": {
       "type": "number",
@@ -12,24 +17,46 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["severity", "category", "description", "suggestion"],
+        "required": [
+          "severity",
+          "category",
+          "description",
+          "suggestion"
+        ],
         "properties": {
           "severity": {
             "type": "string",
-            "enum": ["critical", "major", "minor"],
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ],
             "description": "問題の重大度。critical=言語制約違反や致命的欠陥、major=改善必須、minor=任意改善"
           },
           "category": {
             "type": "string",
-            "description": "問題のカテゴリ名"
+            "description": "問題のカテゴリ名",
+            "enum": [
+              "language_purity",
+              "market_competitiveness",
+              "target_fit",
+              "series_sustainability",
+              "title_power",
+              "catchphrase"
+            ]
           },
           "description": {
             "type": "string",
             "description": "問題の説明"
           },
           "suggestion": {
-            "type": "string",
-            "description": "改善提案"
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "改善提案"
+            },
+            "description": "改善提案のリスト"
           }
         }
       }

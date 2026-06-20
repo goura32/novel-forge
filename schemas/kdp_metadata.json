@@ -45,7 +45,8 @@
         "type": "string",
         "maxLength": 32,
         "description": "キーワード"
-      }
+      },
+      "maxItems": 7
     },
     "categories": {
       "type": "array",
@@ -53,7 +54,9 @@
         "type": "string",
         "maxLength": 64,
         "description": "カテゴリ"
-      }
+      },
+      "minItems": 1,
+      "maxItems": 2
     },
     "content_warnings": {
       "type": "array",

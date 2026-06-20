@@ -6,12 +6,15 @@
     "score",
     "dimensions",
     "issues",
-    "revision_needed"
+    "revision_needed",
+    "ready_for_publication"
   ],
   "properties": {
     "score": {
       "type": "number",
-      "description": "シーン品質スコア。0〜100の範囲で出力すること。"
+      "description": "シーン品質スコア。0〜100の範囲で出力すること。",
+      "minimum": 0,
+      "maximum": 100
     },
     "dimensions": {
       "type": "array",
@@ -95,7 +98,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "maxLength": 2000
+              "maxLength": 500
             },
             "description": "具体的な修正指示のリスト。必ず1つ以上の要素を含めること。"
           }

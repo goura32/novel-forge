@@ -2,15 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ChapterOutline",
   "type": "object",
-  "required": ["chapters"],
+  "required": [
+    "chapters"
+  ],
   "properties": {
-    "title": { "type": "string", "maxLength": 128, "description": "巻タイトル" },
-    "premise": { "type": "string", "maxLength": 200, "description": "巻の前提" },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "巻タイトル"
+    },
+    "premise": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "巻の前提"
+    },
     "chapters": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["title", "purpose"],
+        "required": [
+          "title",
+          "purpose"
+        ],
         "properties": {
           "title": {
             "type": "string",
@@ -19,11 +32,18 @@
           },
           "purpose": {
             "type": "string",
-            "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
+            "enum": [
+              "導入",
+              "展開",
+              "転換",
+              "クライマックス",
+              "収束"
+            ],
             "description": "章の役割"
           }
         }
-      }
+      },
+      "minItems": 1
     }
   },
   "description": "章の構成。chapters 配列として各章の title と purpose を出力する。"

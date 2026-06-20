@@ -2,7 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SeriesPlan",
   "type": "object",
-  "required": ["title", "logline", "genre", "themes", "selling_points", "world", "main_characters", "planned_volumes"],
+  "required": [
+    "title",
+    "logline",
+    "genre",
+    "themes",
+    "selling_points",
+    "world",
+    "main_characters",
+    "planned_volumes",
+    "target_audience"
+  ],
   "properties": {
     "title": {
       "type": "string",
@@ -16,7 +26,10 @@
     },
     "genre": {
       "type": "array",
-      "items": {"type": "string", "maxLength": 64},
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      },
       "minItems": 1,
       "maxItems": 3,
       "description": "ジャンル（1-3個）"
@@ -32,7 +45,8 @@
         "type": "string",
         "maxLength": 64,
         "description": "テーマ"
-      }
+      },
+      "minItems": 1
     },
     "selling_points": {
       "type": "array",
@@ -40,11 +54,15 @@
         "type": "string",
         "maxLength": 128,
         "description": "売りポイント。"
-      }
+      },
+      "minItems": 1
     },
     "world": {
       "type": "object",
-      "required": ["summary", "rules"],
+      "required": [
+        "summary",
+        "rules"
+      ],
       "properties": {
         "summary": {
           "type": "string",
@@ -65,7 +83,11 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "role", "arc"],
+        "required": [
+          "name",
+          "role",
+          "arc"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -74,7 +96,14 @@
           },
           "role": {
             "type": "string",
-            "enum": ["主人公", "ヒロイン", "相棒", "敵対者", "師匠", "仲間"],
+            "enum": [
+              "主人公",
+              "ヒロイン",
+              "相棒",
+              "敵対者",
+              "師匠",
+              "仲間"
+            ],
             "description": "キャラクターの役割。上記6種から選択。"
           },
           "arc": {
@@ -83,14 +112,18 @@
             "description": "キャラクターの成長・変化"
           }
         }
-      }
+      },
+      "minItems": 1
     },
     "planned_volumes": {
       "type": "array",
       "maxItems": 20,
       "items": {
         "type": "object",
-        "required": ["title", "premise"],
+        "required": [
+          "title",
+          "premise"
+        ],
         "properties": {
           "title": {
             "type": "string",
@@ -103,7 +136,8 @@
             "description": "巻のあらすじ"
           }
         }
-      }
+      },
+      "minItems": 1
     }
   }
 }
