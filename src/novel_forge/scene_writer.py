@@ -167,7 +167,7 @@ class SceneWriter:
         for retry in range(self._quality.max_retries + 1):
             review = self._review_scene(
                 draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
-                ctx.get_outline_summary_fn,
+                ctx.get_outline_summary_fn, _log=_log,
             )
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
@@ -225,7 +225,11 @@ class SceneWriter:
         lang: str,
         build_context_fn,
         get_outline_summary_fn,
+        _log=None,
     ) -> dict:
+        import sys as _sys
+        if _log is None:
+            _log = lambda msg: _sys.stderr.write(msg)
         system = self._prompts.render("system.md", {"lang": lang})
         user = self._prompts.render(
             "scene_review.md",
@@ -239,6 +243,7 @@ class SceneWriter:
             },
         )
         schema = get_schema("scene_review")
+        _log(f"  [REVIEW START]\n")
         # Retry up to 3 times on failure (timeout, parse error, etc.)
         for attempt in range(3):
             try:
@@ -247,10 +252,11 @@ class SceneWriter:
                     # Ensure revision_needed is present (LLM sometimes omits it)
                     if "revision_needed" not in result:
                         result["revision_needed"] = self._auto_revision_needed(result)
+                    _log(f"  [REVIEW DONE] score={result.get('score')} revision_needed={result.get('revision_needed')}\n")
                     return result
             except Exception as e:
                 if attempt < 2:
-                    sys.stderr.write(f"  [REVIEW RETRY] attempt {attempt+1}/3: {e}\n")
+                    _log(f"  [REVIEW RETRY] attempt {attempt+1}/3: {e}\n")
                     continue
                 raise
         return {"score": 0, "issues": [], "dimensions": [], "revision_needed": True}
