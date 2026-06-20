@@ -100,7 +100,9 @@ class OutlineMixin:
 
     def _generate_chapter_designs(self, chapters_list: list[dict], series_plan: str,
                                    vol_num: int, system: str,
-                                   previous_outline: str) -> list[dict]:
+                                   previous_outline: str,
+                                   volume_title: str = "",
+                                   volume_premise: str = "") -> list[dict]:
         """Phase 2: Generate detailed design for each chapter."""
         chapter_designs = []
         previous_chapter_outcome = ""
@@ -115,8 +117,8 @@ class OutlineMixin:
                 {
                     "series_plan": series_plan,
                     "volume_number": str(vol_num),
-                    "volume_title": "",
-                    "volume_premise": "",
+                    "volume_title": volume_title,
+                    "volume_premise": volume_premise,
                     "chapter_number": str(ch_idx),
                     "chapter_title": ch_title,
                     "chapter_purpose": ch_purpose,
@@ -215,7 +217,8 @@ class OutlineMixin:
 
         # Phase 2: Chapter designs
         chapter_designs = self._generate_chapter_designs(
-            chapters_list, series_plan, vol_num, system, previous_outline
+            chapters_list, series_plan, vol_num, system, previous_outline,
+            volume_title=volume_title, volume_premise=volume_premise,
         )
 
         # Phase 3: Scene outlines

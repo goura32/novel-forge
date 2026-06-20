@@ -18,6 +18,7 @@
 ```json
 {
   "title": "",
+  "slug": "",
   "logline": "",
   "genre": [],
   "target_audience": "",
@@ -34,10 +35,11 @@
 
 **注意**: 
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `slug` はタイトルから生成するローマ字のハイフン区切りパス。32文字以内。例: `kioku-no-reshipi-to-heikou-yakata-no-meikyuu`
 - `main_characters[].role` は「主人公」「ヒロイン」「相棒」「敵対者」「師匠」「仲間」から選択すること。
 - `world` は `summary` と `rules` のみを含むこと。
 - `planned_volumes` は `title` と `premise` のみを含むこと。`number` は自動採番のため含めないこと。
-
+- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**
 ## 企画の要件
 
 1. **市場意識**: 競合他社との差別化ポイントを明確にすること

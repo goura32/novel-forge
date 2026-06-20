@@ -59,11 +59,34 @@ class PlanMixin:
             {"keywords": keywords, "lang": self._lang},
         )
         result = self._llm.complete_json("series_plan", system, user, schema)
+        # Slug fallback: generate from title if LLM didn't provide one
+        if not result.get("slug"):
+            title = result.get("title", "")
+            slug = self._title_to_slug(title)
+            result["slug"] = slug
         if result.get("slug") and len(result["slug"]) > 200:
             result["slug"] = result["slug"][:200].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
         return result
+
+    @staticmethod
+    def _title_to_slug(title: str) -> str:
+        """Convert a Japanese title to a romanized slug fallback.
+        Uses a simple approach: extract ASCII chars and hyphens,
+        or fall back to a timestamp-based slug."""
+        import re
+        # Try to extract romaji portions from the title
+        romaji_parts = re.findall(r'[a-zA-Z][a-zA-Z0-9]*', title)
+        if romaji_parts:
+            slug = "-".join(p.lower() for p in romaji_parts)
+            slug = re.sub(r'[^a-z0-9-]', '', slug)
+            if slug:
+                return slug[:200]
+        # Fallback: use a generic slug based on title hash
+        import hashlib
+        h = hashlib.md5(title.encode()).hexdigest()[:12]
+        return f"series-{h}"
 
     def _revise_plan(self, plan: dict, review: dict, system: str, schema: dict) -> dict:
         """Revise series plan based on review issues."""
@@ -112,6 +135,9 @@ class PlanMixin:
         )
         revision_schema = get_schema("series_plan_revision")
         result = self._llm.complete_json("series_plan_revision", system, user, revision_schema)
+        if not result.get("slug"):
+            title = result.get("title", "")
+            result["slug"] = self._title_to_slug(title)
         if result.get("slug") and len(result["slug"]) > 200:
             result["slug"] = result["slug"][:200].rstrip("-")
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
