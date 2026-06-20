@@ -22,12 +22,22 @@
 `chapter_outline.json` の配列として、各章の title と purpose を出力すること。
 
 ```json
-[
-  {
-    "title": "章タイトル",
-    "purpose": "導入"
-  }
-]
+{
+  "chapters": [
+    {
+      "title": "章タイトル",
+      "purpose": "導入"
+    },
+    {
+      "title": "章タイトル",
+      "purpose": "展開"
+    }
+  ]
+}
 ```
+
+**注意**:
+- `purpose` は「導入」「展開」「転換」「クライマックス」「収束」から選択すること。
+- 4〜6章を目安とすること。
 
 言語: {lang}
