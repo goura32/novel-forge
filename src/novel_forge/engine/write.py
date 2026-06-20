@@ -10,7 +10,7 @@ from novel_forge.models import VolumeOutline, SceneWriteContext
 class WriteMixin:
     """Scene writing methods for NovelEngine."""
 
-    def write(self, volume_number: int | None = None) -> list[dict[str, Any]]:
+    def write(self, volume_number: int | None = None, log_fn=None) -> list[dict[str, Any]]:
         import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
@@ -33,6 +33,13 @@ class WriteMixin:
         done_scenes = 0
         start_time = _time.time()
 
+        def _log(msg: str):
+            """Write to both stderr and optional log callback."""
+            import sys as _sys
+            _sys.stderr.write(msg)
+            if log_fn:
+                log_fn(msg.rstrip())
+
         def _progress(scene_num: int, status: str):
             nonlocal done_scenes
             done_scenes += 1
@@ -45,15 +52,13 @@ class WriteMixin:
             bar_len = 20
             filled = int(bar_len * done_scenes / total_scenes) if total_scenes > 0 else 0
             bar = "█" * filled + "░" * (bar_len - filled)
-            _sys.stderr.write(
+            _log(
                 f"  [{bar}] {pct:5.1f}% "
                 f"({done_scenes}/{total_scenes}) "
                 f"{status} "
                 f"経過: {elapsed_str} "
                 f"残り推定: {remaining_str}\n"
             )
-
-        import sys as _sys
         for chapter in outline.chapters:
             chapter_scenes: list[str] = []
             ch_scenes = [s for s in outline.scenes if s.chapter_number == chapter.number]
@@ -67,7 +72,7 @@ class WriteMixin:
                     )
                     _progress(scene.number, f"スキップ(済)")
                     continue
-                _sys.stderr.write(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
+                _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
                 result = self._scene_writer.write_scene(
                     outline=outline,
                     chapter=chapter,
@@ -86,6 +91,7 @@ class WriteMixin:
                         get_bible_text_fn=self._bible_mgr.to_text,
                         load_scene_draft_fn=self._scene_writer.load_scene_draft,
                     ),
+                    log_fn=log_fn,
                 )
                 results.append(result)
                 draft_text = self._scene_writer.load_scene_draft(
@@ -93,13 +99,15 @@ class WriteMixin:
                 )
                 chapter_scenes.append(draft_text)
                 # Post-scene: summarize + bible update (1 LLM call)
+                _log(f"  [SUMMARY START] vol{vol_num} ch{chapter.number} sc{scene.number}\n")
                 self._scene_writer.summarize_and_update_bible(
                     record.scene_number,
                     draft_text,
                     self._lang,
                     self._bible_mgr.to_text,
                 )
-                _sys.stderr.write(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
+                _log(f"  [SUMMARY END] vol{vol_num} ch{chapter.number} sc{scene.number}\n")
+                _log(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
                 self._save()
 
             self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes)

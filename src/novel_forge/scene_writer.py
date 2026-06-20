@@ -100,12 +100,21 @@ class SceneWriter:
         scene,
         record: SceneRecord,
         ctx: "SceneWriteContext",
+        log_fn=None,
     ) -> dict[str, Any]:
+        import sys as _sys
+
+        def _log(msg: str):
+            _sys.stderr.write(msg)
+            if log_fn:
+                log_fn(msg.rstrip())
+
         system = self._prompts.render("system.md", {"lang": ctx.lang})
         context = ctx.build_context_fn()
         continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
 
         # Draft
+        _log(f"  [DRAFT START] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number}\n")
         user = self._prompts.render(
             "scene_draft.md",
             {
@@ -125,12 +134,13 @@ class SceneWriter:
         draft_schema = get_schema("scene_draft")
         draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
         draft_text = draft_result.get("content", "")
+        _log(f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}\n")
         record.status = "初稿済"
         self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
         # Review → Quality Gate → revise loop
         draft_text, record = self._run_review_loop(
-            draft_text, record, outline, scene, ctx, chapter.number
+            draft_text, record, outline, scene, ctx, chapter.number, _log=_log
         )
 
         if record.status == "初稿済":
@@ -149,8 +159,11 @@ class SceneWriter:
         scene,
         ctx: "SceneWriteContext",
         chapter_number: int,
+        _log=None,
     ) -> tuple[str, SceneRecord]:
         """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
+        if _log is None:
+            _log = lambda msg: None
         for retry in range(self._quality.max_retries + 1):
             review = self._review_scene(
                 draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
@@ -162,9 +175,11 @@ class SceneWriter:
             if qg_result.passed:
                 record.status = "修正済"
                 record.quality_gate = qg_result
+                _log(f"  [REVIEW PASS] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} score={qg_result.score} retry={retry}\n")
                 break
 
             if retry < self._quality.max_retries:
+                _log(f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} score={qg_result.score} retry={retry}/{self._quality.max_retries}\n")
                 lang_issues = self._extract_language_issues(review)
                 if lang_issues:
                     review["language_issues"] = lang_issues
@@ -173,6 +188,7 @@ class SceneWriter:
             else:
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
+                _log(f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} score={qg_result.score}\n")
 
         return draft_text, record
 

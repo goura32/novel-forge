@@ -421,6 +421,8 @@ class LLMClient:
                 raw = self._call_api(payload)
                 parsed = _parse_json_response(raw)
                 if schema:
+                    # Coerce types and fill missing required fields before validation
+                    parsed = _coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
                 self._write_log(kind, payload, raw, parsed)
