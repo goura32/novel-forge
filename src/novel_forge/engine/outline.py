@@ -384,7 +384,15 @@ class OutlineMixin:
             {"current_outline": outline_text, "review": review_text, "series_plan": series_plan,
              "lang": self._lang, "previous_outline": previous_outline},
         )
-        result = self._llm.complete_json("volume_outline_revision", system, user, schema)
+        try:
+            result = self._llm.complete_json("volume_outline_revision", system, user, schema)
+        except Exception:
+            # LLMがスキーマ違反の出力をした場合（title/premise欠落など）→ フォールバック
+            result = {
+                "title": outline.get("title") or f"第{vol_num}巻",
+                "premise": outline.get("premise") or "",
+                "chapters": outline.get("chapters", []),
+            }
 
         # Fallback: If title is missing (LLM sometimes omits it), use fallback values
         if not result.get("title"):
