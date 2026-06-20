@@ -32,17 +32,39 @@ def _extract_json_text(text: str) -> str:
     return text
 
 
+def _escape_json_string_values(text: str) -> str:
+    """Replace unescaped newlines inside JSON string values with \\n.
+
+    Ollama /api/chat sometimes returns JSON where string values contain
+    literal newlines instead of \\n escapes, causing json.loads to fail.
+    """
+    import re
+    # Match JSON string values: "..." (handling escaped quotes)
+    def _fix_string(match: re.Match) -> str:
+        s = match.group(0)
+        # Replace literal newlines (not already escaped) with \\n
+        return s.replace("\n", "\\n")
+    # Pattern: double-quoted string with escaped chars allowed
+    return re.sub(r'"(?:[^"\\]|\\.)*"', _fix_string, text)
+
+
 def _parse_json_response(text: str) -> Any:
     text = _extract_json_text(text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    start = text.find("{")
-    end = text.rfind("}")
+    # Ollama may emit literal newlines inside string values — fix and retry
+    fixed = _escape_json_string_values(text)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+    start = fixed.find("{")
+    end = fixed.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(text[start : end + 1])
+            return json.loads(fixed[start : end + 1])
         except json.JSONDecodeError:
             pass
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
