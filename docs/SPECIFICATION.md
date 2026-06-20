@@ -107,17 +107,13 @@ novel-forge/
 ```yaml
 llm:
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
-  num_predict: 16384
-  num_ctx: 65536
+  num_predict: -1
+  num_ctx: 262144
   timeout_seconds: 3600
   max_retries: 2
   ollama_host: "ws1.local:11434"
   ollama_options:
-    temperature: 0.7
-    top_k: 20
-    top_p: 0.80
-    repeat_penalty: 1.0
-    presence_penalty: 1.5
+    think: true
 ```
 
 ## 4. 永続化
@@ -141,7 +137,7 @@ llm:
 
 ### 5.1 エンドポイント
 
-`/api/generate` を使用。`format: JSON Schema` + `think: false`。
+`/api/chat` を使用。`format: schema` + `think: true`。
 
 ### 5.2 リトライ
 
@@ -188,7 +184,6 @@ llm:
 ### 7.2 合格基準
 
 - `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
-- `revision_needed` がある場合は `score >= 85` でないと合格しない
 - 不合格時は自動改稿 → 再評価（最大2回）。2回不合格 → `強制出力済`
 
 ## 8. 言語制約
@@ -240,4 +235,4 @@ uv run pytest tests/ -x -q
 
 ---
 
-*Last updated: 2026-06-19*
+*Last updated: 2026-06-20*

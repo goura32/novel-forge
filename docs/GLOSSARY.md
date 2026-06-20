@@ -155,12 +155,12 @@
 
 | 用語 | 説明 |
 |---|---|
-| think: false | Ollama の思考モード無効化。NovelForge では必須 |
+| think: true | Ollama の思考モード。NovelForge では `true` を採用。`false` は配列フィールドが空になる問題あり |
 | JSON Schema 検証パイプライン | LLM 応答を3段階で検証（parse → structure → wrapper） |
 | コンテキスト注入 | シーン生成時に Blackboard、Bible、前シーン全文をプロンプトに含める処理 |
 | RAW ログ | 全 LLM リクエスト/レスポンスを `raw_logs/` に保存した記録 |
-| num_predict | LLM 出力トークン数上限。16384 が安定値 |
-| num_ctx | コンテキスト長。65536 が安定値 |
+| num_predict | LLM 出力トークン数上限。`32768` が安定値（`-1` = 無制限も可） |
+| num_ctx | コンテキスト長。`262144` が qwen3.6:35b の最大値 |
 
 ---
 
@@ -220,4 +220,4 @@ planned → 初稿済 → 修正済
 
 ---
 
-*Last updated: 2026-06-19*
+*Last updated: 2026-06-20*

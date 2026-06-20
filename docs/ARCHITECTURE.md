@@ -122,12 +122,11 @@ class SceneWriteContext(BaseModel):
 ### 4.2 JSON Schema 検証パイプライン
 
 ```text
-LLM Response
+LLM Response (format=schema + think=true)
   │
   ├─▶ Step 1: Raw content parse (unwrap markdown fence, `{result:...}`)
   ├─▶ Step 2: Draft202012Validator 構造検証
-  ├─▶ Step 3: Pydantic 型チェック
-  └─▶ Step 4: 論理一貫性チェック (continuity, Blackboard)
+  └─▶ Step 3: Pydantic 型チェック (models.py)
 ```
 
 ### 4.3 コンテキスト注入
@@ -199,10 +198,10 @@ LLM Response
 
 | パラメータ | 値 | 備考 |
 |---|---|---|
-| `think` | `false` | `true` は content 空になる |
-| `format` | `schema` | JSON Schema をそのまま渡す |
-| `num_predict` | `16384` | 1024〜16384 全スケールで安定 |
-| `num_ctx` | `65536` | GPU 安定値 |
+| `think` | `true` | `false` は配列フィールドが空になる問題あり。`true` で安定 |
+| `format` | `schema` | JSON Schema をそのまま渡す。`format=schema` + `think=true` で最も安定 |
+| `num_predict` | `32768` | `-1`（無制限）も動作するが、32768 が安定値 |
+| `num_ctx` | `262144` | qwen3.6:35b の最大コンテキスト長（auto-detect） |
 
 ### 6.3 モデルの切替
 
@@ -214,7 +213,7 @@ LLM Response
 
 ### 7.1 API Endpoint
 
-`/api/generate` を採用。`format: JSON Schema` + `think: false` で安定した構造化出力。
+`/api/chat` を採用。`format: schema` + `think: true` で安定した構造化出力。
 
 ### 7.2 リトライ戦略
 
@@ -304,4 +303,4 @@ LLM Response
 
 ---
 
-*Last updated: 2026-06-19*
+*Last updated: 2026-06-20*
