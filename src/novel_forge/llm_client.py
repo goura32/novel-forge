@@ -36,16 +36,42 @@ def _escape_json_string_values(text: str) -> str:
     """Replace unescaped newlines inside JSON string values with \\n.
 
     Ollama /api/chat sometimes returns JSON where string values contain
-    literal newlines instead of \\n escapes, causing json.loads to fail.
+    literal newlines instead of \\n escapes, causing json.loads to fix.
+
+    Uses a simple state machine to only touch content inside string
+    values, avoiding structural quotes (key names, delimiters).
     """
-    import re
-    # Match JSON string values: "..." (handling escaped quotes)
-    def _fix_string(match: re.Match) -> str:
-        s = match.group(0)
-        # Replace literal newlines (not already escaped) with \\n
-        return s.replace("\n", "\\n")
-    # Pattern: double-quoted string with escaped chars allowed
-    return re.sub(r'"(?:[^"\\]|\\.)*"', _fix_string, text)
+    result = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape_next = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            if escape_next:
+                # Copy escaped char as-is (\", \\, \/, \n etc.)
+                result.append(ch)
+                escape_next = False
+            elif ch == '\\':
+                result.append(ch)
+                escape_next = True
+            elif ch == '"':
+                # End of string value
+                result.append(ch)
+                in_string = False
+            elif ch == '\n':
+                # Literal newline inside string — escape it
+                result.append('\\')
+                result.append('n')
+            else:
+                result.append(ch)
+        else:
+            if ch == '"':
+                in_string = True
+            result.append(ch)
+        i += 1
+    return ''.join(result)
 
 
 def _parse_json_response(text: str) -> Any:
@@ -60,11 +86,173 @@ def _parse_json_response(text: str) -> Any:
         return json.loads(fixed)
     except json.JSONDecodeError:
         pass
-    start = fixed.find("{")
-    end = fixed.rfind("}")
+    # Ollama sometimes produces invalid JSON. Try increasingly aggressive fixes.
+    # Fix 1: Replace 「...」-quoted values with "..."-quoted values.
+    # Fix 2: Replace single-quoted values with double-quoted values.
+    # Fix 3: Wrap bare unquoted string values in quotes.
+    # Fix 4: Fix missing colons between key and value.
+
+    def _fix_bracket_quoted_values(s: str) -> str:
+        """Replace 「...」-quoted values (after ': ') with "..."-quoted values."""
+        result = []
+        i = 0
+        n = len(s)
+        while i < n:
+            if (i + 2 < n and s[i] == ':' and s[i + 1] == ' '
+                    and s[i + 2] == '\u300c'):
+                result.append(': ')
+                i += 2
+                start = i
+                j = i
+                last_period = -1
+                depth = 0
+                while j < n:
+                    if s[j] == '\u300c':
+                        depth += 1
+                    elif s[j] == '\u300d':
+                        depth -= 1
+                    elif s[j] == '。' and depth == 0:
+                        last_period = j
+                    elif s[j] == ',' and depth == 0:
+                        break
+                    elif s[j] == '\n' and depth == 0:
+                        break
+                    j += 1
+                end = last_period + 1 if last_period >= 0 else j
+                value = s[start:end]
+                escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                result.append('"')
+                result.append(escaped)
+                result.append('"')
+                i = end
+            else:
+                result.append(s[i])
+                i += 1
+        return ''.join(result)
+
+    def _fix_single_quoted_values(s: str) -> str:
+        """Replace single-quoted string values with double-quoted values."""
+        result = []
+        i = 0
+        n = len(s)
+        while i < n:
+            # Match pattern: ': 'value'  (single-quoted value after colon-space)
+            if (s[i] == "'" and i > 0 and s[i - 1] in (':', ',')):
+                # Find the matching closing single quote
+                j = i + 1
+                while j < n:
+                    if s[j] == "'" and s[j - 1] != '\\':
+                        break
+                    j += 1
+                if j < n:
+                    value = s[i + 1:j]
+                    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                    result.append('"')
+                    result.append(escaped)
+                    result.append('"')
+                    i = j + 1
+                    continue
+            result.append(s[i])
+            i += 1
+        return ''.join(result)
+
+    def _fix_unquoted_values(s: str) -> str:
+        """Wrap bare unquoted string values in double quotes.
+
+        Handles patterns like: "key": value (where value is not quoted)
+        The value ends at ,\n or \n at the same nesting level.
+        """
+        result = []
+        i = 0
+        n = len(s)
+        while i < n:
+            # Look for pattern: ": value  (colon, space, then non-quote, non-brace, non-bracket)
+            if (s[i] == ':' and i + 1 < n and s[i + 1] == ' '
+                    and i + 2 < n
+                    and s[i + 2] not in ('"', "'", '{', '[', '}', ']', 'n', 't', 'f')):
+                # Check if this is inside a string value (skip if so)
+                # Simple heuristic: count unescaped quotes before this position
+                quote_count = 0
+                for k in range(i):
+                    if s[k] == '"' and (k == 0 or s[k - 1] != '\\'):
+                        quote_count += 1
+                if quote_count % 2 == 1:
+                    # Inside a string, skip
+                    result.append(s[i])
+                    i += 1
+                    continue
+                result.append(': "')
+                i += 2  # skip ': '
+                start = i
+                # Find end of value: ,\n or \n at depth 0
+                j = i
+                depth_brace = 0
+                depth_bracket = 0
+                last_period = -1
+                while j < n:
+                    if s[j] == '{':
+                        depth_brace += 1
+                    elif s[j] == '}':
+                        depth_brace -= 1
+                    elif s[j] == '[':
+                        depth_bracket += 1
+                    elif s[j] == ']':
+                        depth_bracket -= 1
+                    elif depth_brace == 0 and depth_bracket == 0:
+                        if s[j] == '。':
+                            last_period = j
+                        elif s[j] == ',':
+                            break
+                        elif s[j] == '\n':
+                            break
+                    j += 1
+                end = last_period + 1 if last_period >= 0 else j
+                # Skip a misplaced " after the value (LLM sometimes produces
+                # value" instead of value, where " is the next key's opening quote)
+                if end < n and s[end] == '"':
+                    end += 1
+                value = s[start:end].rstrip()
+                escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+                result.append(escaped)
+                result.append('"')
+                i = end
+            else:
+                result.append(s[i])
+                i += 1
+        return ''.join(result)
+
+    def _fix_missing_colons(s: str) -> str:
+        """Fix missing colons: "key", "value" -> "key": "value"."""
+        import re
+        return re.sub(r'"\s*,\s*"([^"]*)"', r'": "\1"', s)
+
+    # Apply fixes in sequence
+    patched = _fix_bracket_quoted_values(fixed)
+    try:
+        return json.loads(patched)
+    except json.JSONDecodeError:
+        pass
+    patched = _fix_single_quoted_values(patched)
+    try:
+        return json.loads(patched)
+    except json.JSONDecodeError:
+        pass
+    patched = _fix_unquoted_values(patched)
+    try:
+        return json.loads(patched)
+    except json.JSONDecodeError:
+        pass
+    patched = _fix_missing_colons(patched)
+    try:
+        return json.loads(patched)
+    except json.JSONDecodeError:
+        pass
+    # Last resort: try to extract JSON object from the text
+    start = patched.find("{")
+    end = patched.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(fixed[start : end + 1])
+            return json.loads(patched[start : end + 1])
         except json.JSONDecodeError:
             pass
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
@@ -184,11 +372,11 @@ class LLMClient:
         self,
         api_url: str | None = None,
         model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
-        timeout_seconds: int = 600,
+        timeout_seconds: int = 3600,
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
         num_ctx: int | None = None,
-        num_predict: int = 65536,
+        num_predict: int = 32768,
         ollama_options: dict[str, Any] | None = None,
     ):
         if api_url is None:
@@ -243,13 +431,16 @@ class LLMClient:
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
+                "seed": 42,
                 **self._ollama_options,
             },
         }
-        # format=schema は Ollama 0.30.10 + qwen3.6 で不完全な JSON が
-        # 生成される問題があるため、format=json を使用し
+        # format=schema は Ollama 0.30.10 でネストされたオブジェクト構造を
+        # 正しく適用できないため、format=json を使用し
         # スキーマバリデーションは Python 側で行う
+        # think: true は LLM がスキーマをより正確に遵守できるようにする
         payload["format"] = "json"
+        payload["think"] = True
 
         # Unified retry loop: JSON parse + schema validation errors share the
         # same budget of max_retries attempts.  On JsonParseError we feed
@@ -310,8 +501,8 @@ class LLMClient:
     def _call_api(self, payload: dict[str, Any]) -> str:
         try:
             # stream: false を指定して一括取得
-            # think: false は qwen3.6 の thinking モードを無効化する（chat API のトップレベルパラメータ）
-            payload = {**payload, "stream": False, "think": False}
+            # think は complete_json で設定される（デフォルト: true）
+            payload = {**payload, "stream": False}
             resp = httpx.post(
                 self.api_url,
                 json=payload,
