@@ -31,7 +31,7 @@ class TestFindNonJapaneseKanji:
 class TestQualityGate:
     def test_pass(self):
         qg = QualityGate()
-        result = qg.check_scene({"score": 80, "issues": []})
+        result = qg.check_scene({"score": 80, "issues": [], "revision_needed": False})
         assert result.passed is True
 
     def test_fail_low_score(self):

@@ -82,11 +82,6 @@ def find_non_japanese_kanji(text: str) -> list[str]:
         )
         if is_cjk and ch not in jis:
             # JIS未収録のCJK漢字 → 簡体字の可能性が高い
-            # ただし、人名用漢字・常用漢字の拡張は日本語として許可
-            # 簡易判定: JIS未収録でも日本語として使われる漢字は許可
-            # 許可リスト: 常用漢字2136字 + 人名用漢字863字のうちJIS未収録分
-            # ここでは簡易的に、JIS未収録CJK漢字を「疑い」として検出
-            # （厳密には常用漢字テーブルが必要だが、現状はJISセットで代用）
             result.append(ch)
     return result
 
@@ -107,9 +102,11 @@ class QualityGate:
         critical_count = sum(
             1 for i in issues if i.get("severity") in ("critical", "blocker")
         )
-        # revision_needed がある場合は、score >= 85 でないとパスしない
-        threshold = 85.0 if review_result.get("revision_needed") else self.PASS_THRESHOLD
-        passed = score >= threshold and critical_count == 0
+        # revision_needed が明示的に false の場合のみ、score 閾値でパスを許可
+        # revision_needed が true または欠落している場合は不合格とする
+        revision_needed = review_result.get("revision_needed", True)
+        threshold = self.PASS_THRESHOLD
+        passed = score >= threshold and critical_count == 0 and not revision_needed
         return QualityGateResult(
             passed=passed,
             score=score,
