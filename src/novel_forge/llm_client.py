@@ -351,7 +351,7 @@ class LLMClient:
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
         num_ctx: int | None = None,
-        num_predict: int = 65536,
+        num_predict: int = -1,
         ollama_options: dict[str, Any] | None = None,
     ):
         if api_url is None:
@@ -409,7 +409,7 @@ class LLMClient:
                 **self._ollama_options,
             },
         }
-        payload["format"] = "json"
+        payload["format"] = schema if schema else "json"
         payload["think"] = self._ollama_options.get("think", True)
 
         last_error: Exception | None = None

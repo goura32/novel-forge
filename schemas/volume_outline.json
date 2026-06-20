@@ -4,7 +4,6 @@
   "type": "object",
   "required": ["chapters"],
   "properties": {
-    "volume_number": { "type": "integer", "minimum": 1, "description": "engine.py で機械採番されるため、LLMは含めない" },
     "title": { "type": "string", "maxLength": 128 },
     "premise": { "type": "string", "maxLength": 200 },
     "chapters": {

@@ -104,59 +104,10 @@
 
 ```json
 {
-  "score": 85,
-  "dimensions": [
-    {
-      "name": "opening_hook",
-      "score": 80
-    },
-    {
-      "name": "character_distinction",
-      "score": 75
-    },
-    {
-      "name": "foreshadowing_consistency",
-      "score": 70
-    },
-    {
-      "name": "sensory_coverage",
-      "score": 85
-    },
-    {
-      "name": "page_turner",
-      "score": 80
-    },
-    {
-      "name": "dialogue_naturalness",
-      "score": 90
-    },
-    {
-      "name": "tone_consistency",
-      "score": 85
-    },
-    {
-      "name": "scene_completeness",
-      "score": 80
-    },
-    {
-      "name": "language_purity",
-      "score": 95
-    },
-    {
-      "name": "pov_consistency",
-      "score": 85
-    }
-  ],
-  "issues": [
-    {
-      "severity": "critical",
-      "category": "pov_consistency",
-      "description": "問題の説明",
-      "suggestion": ["「修正前の表現」を「修正後の表現」に置換してください"]
-    }
-  ],
-  "strengths": ["強み1", "強み2"],
-  "revision_needed": true,
+  "score": 0,
+  "dimensions": [],
+  "issues": [],
+  "revision_needed": false,
   "ready_for_publication": false
 }
 ```

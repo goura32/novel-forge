@@ -11,11 +11,11 @@ llm:
   # モデル名
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
 
-  # 出力トークン数上限（32768 = 32K）
-  num_predict: 32768
+  # 出力トークン数上限（-1 = 無制限）
+  num_predict: -1
 
-  # コンテキスト長（null = モデル自動検出）
-  num_ctx: null
+  # コンテキスト長（262144 = qwen3.6:35b の最大値）
+  num_ctx: 262144
 
   # API タイムアウト（秒）
   timeout_seconds: 3600
@@ -27,5 +27,5 @@ llm:
   # ollama_host: "ws1.local:11434"
 
   # Ollama サンプリングオプション
-  # qwen3.6 は thinking モードをサポートするため、オプションは空にする
-  ollama_options: {}
+  ollama_options:
+    think: true

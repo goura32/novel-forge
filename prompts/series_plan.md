@@ -17,29 +17,18 @@
 
 ```json
 {
-  "title": "シリーズタイトル（128文字以内）",
-  "slug": "URL-friendly-identifier",
-  "logline": "1-2行のあらすじ",
-  "genre": "ジャンル",
-  "themes": ["テーマ1", "テーマ2"],
-  "selling_points": ["セールスポイント1", "セールスポイント2"],
+  "title": "",
+  "logline": "",
+  "genre": [],
+  "target_audience": "",
+  "themes": [],
+  "selling_points": [],
   "world": {
-    "summary": "世界観の概要（500文字以内）",
-    "rules": ["世界観のルール1", "ルール2"]
+    "summary": "",
+    "rules": []
   },
-  "main_characters": [
-    {
-      "name": "名前",
-      "role": "主人公",
-      "arc": "キャラクターの成長・変化（200文字以内）"
-    }
-  ],
-  "planned_volumes": [
-    {
-      "title": "巻タイトル",
-      "premise": "巻のあらすじ（200文字以内）"
-    }
-  ]
+  "main_characters": [],
+  "planned_volumes": []
 }
 ```
 

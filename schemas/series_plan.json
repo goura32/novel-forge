@@ -2,19 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SeriesPlan",
   "type": "object",
-  "required": ["title", "slug", "logline", "genre", "themes", "selling_points", "world", "main_characters", "planned_volumes"],
+  "required": ["title", "logline", "genre", "themes", "selling_points", "world", "main_characters", "planned_volumes"],
   "properties": {
     "title": {
       "type": "string",
       "maxLength": 128,
       "description": "シリーズのタイトルすること検索力・宣伝力を考慮した、商業的に魅力的なタイトル。"
-    },
-    "slug": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 256,
-      "pattern": "^[a-z0-9-]+$",
-      "description": "タイトルから生成するローマ字のハイフン区切りパス。256文字以内。例: 「忘却」→ boukyaku、「記憶探偵」→ kioku-tantei。"
     },
     "logline": {
       "type": "string",
@@ -22,25 +15,16 @@
       "description": "シリーズのあらすじ（1-2文）"
     },
     "genre": {
-      "anyOf": [
-        {"type": "string", "maxLength": 64},
-        {"type": "array", "items": {"type": "string", "maxLength": 64}}
-      ],
-      "description": "ジャンル。文字列または文字列配列で出力。"
+      "type": "array",
+      "items": {"type": "string", "maxLength": 64},
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "ジャンル（1-3個）"
     },
     "target_audience": {
-      "anyOf": [
-        {"type": "string", "maxLength": 300},
-        {
-          "type": "object",
-          "properties": {
-            "age_range": {"type": "string", "maxLength": 100},
-            "gender": {"type": "string", "maxLength": 100},
-            "interests": {"type": "array", "items": {"type": "string", "maxLength": 100}}
-          }
-        }
-      ],
-      "description": "ターゲット読者。文字列またはオブジェクトで出力。"
+      "type": "string",
+      "maxLength": 200,
+      "description": "ターゲット読者（例: 10代後半〜20代の女性、ミステリー愛好者）"
     },
     "themes": {
       "type": "array",

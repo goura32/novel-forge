@@ -42,6 +42,11 @@
             "type": "number",
             "minimum": 0,
             "maximum": 100
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "評価コメント"
           }
         }
       }
