@@ -95,10 +95,25 @@
           "suggestion": {
             "type": "array",
             "items": {
-              "type": "string",
-              "maxLength": 500
+              "type": "object",
+              "required": [
+                "before",
+                "after"
+              ],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "修正前のテキスト（該当箇所を引用）"
+                },
+                "after": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "修正後のテキスト"
+                }
+              }
             },
-            "description": "具体的な修正指示のリスト。必ず1つ以上の要素を含めること。"
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
         }
       }

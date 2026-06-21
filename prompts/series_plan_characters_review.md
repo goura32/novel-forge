@@ -89,7 +89,7 @@
 ## issues 出力ルール（厳守）
 
 1. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
-2. **suggestion は配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること
+2. **suggestion はペア配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 3. **affected_elements の明示**: 問題が特定の巻・キャラクターに関わる場合、`affected_elements` に該当名を列挙すること
 4. **重複禁止**: 同じ修正箇所への指摘を複数の issue で重複して出さないこと
 
@@ -103,14 +103,14 @@
       "category": "consistency",
       "description": "キャラクターの行動が設定と矛盾している",
       "affected_elements": ["九条涼"],
-      "suggestion": ["涼の行動を性格設定に整合するように修正してください"]
+      "suggestion": [{"before": "涼の矛盾する行動", "after": "性格設定に整合した行動"}]
     },
     {
       "severity": "major",
       "category": "differentiation",
       "description": "主人公とヒロインの性格が似すぎて差別化が不十分",
       "affected_elements": ["九条涼", "レイナ"],
-      "suggestion": ["ヒロインに独自の行動特性・口癖を追加してください"]
+      "suggestion": [{"before": "ヒロインの性格（主人公と類似）", "after": "独自の行動特性・口癖を持つ性格"}]
     }
   ],
   "suggestions": ["キャラクター間の対立軸をより明確にしてください"],

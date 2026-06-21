@@ -103,21 +103,15 @@
 - `dimensions[].name` は「opening_hook」「character_distinction」「sensory_coverage」「scene_closure」「dialogue_naturalness」「tone_consistency」「scene_completeness」「language_purity」「pov_consistency」から選択すること。9個すべてを含めること。
 - `issues[].severity` は「blocker」「critical」「major」「minor」から選択すること。
 - `issues[].category` は `dimensions[].name` と同じ列挙値から選択すること。
-- `issues[].suggestion` は**文字列の配列**であること。各要素は1つの修正箇所を表す具体的な指示。
-- `score` は 0〜100 の数値。`dimensions[].score` も 0〜100 の数値。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
-**重要**: `issue.category` は上記の評価カテゴリから必ず選択すること。各 issue に対して適切なカテゴリを明示的に指定すること。例:
-- ❌ `category: "問題があります"`
-- ✅ `category: "pov_consistency"`
-
-**重要**: `issue.suggestion` は**文字列の配列**であること。各要素は1つの修正箇所を表し、修正箇所の該当テキストを引用し、修正後の具体的なテキストを示すこと。行番号は使わないこと。例:
+**重要**: `issue.suggestion` は**修正前後のペア配列**であること。各要素は before に修正前のテキストを引用し、after に修正後の具体的なテキストを示すこと。行番号は使わないこと。例:
 - ❌ `suggestion: "英語表現を日本語に直してください"`
-- ❌ `suggestion: "「weapon」を「兵器」、「backdoor」を「裏口」に置換してください"`
-- ✅ `suggestion: ["「weapon を構えた」を「兵器を構えた」に置換してください", "「backdoor を発見した」を「裏口を発見した」に置換してください"]`
-- ✅ `suggestion: ["「モニター gaze を向けた」を「モニターの画面を凝視した」に置換してください", "「drip 音を立てて」を「水滴がぽたりぽたりと音を立てて」に修正してください"]`
+- ❌ `suggestion: "「weapon」を「兵器」に置換してください"`
+- ✅ `suggestion: [{"before": "weapon を構えた", "after": "兵器を構えた"}, {"before": "backdoor を発見した", "after": "裏口を発見した"}]`
 
 **重要**: 複数の修正箇所がある場合は、各箇所を配列の別要素として列挙すること。修正漏れがあると品質ゲートで再検出される。
 
-**重要**: 同じ修正前文書（同じ英語単語・同じフレーズ）への修正依頼を複数の issue で重複して出さないこと。`language_purity` の問題は**1つの issue にまとめて**、修正箇所を配列要素としてすべて列挙すること。例:
-- ❌ issue 1: `suggestion: ["gaze を視線に"]`, issue 2: `suggestion: ["gaze を凝視に"]`（重複）
-- ✅ issue 1: `suggestion: ["「gaze を向けた」を「視線を注いだ」に置換してください", "「anchor が外れれば」を「錨が外れれば」に置換してください", "「drip 音」を「水滴の音」に置換してください"]`
+**重要**: 同じ修正前テキスト（同じ英語単語・同じフレーズ）への修正依頼を複数の issue で重複して出さないこと。`language_purity` の問題は**1つの issue にまとめて**、修正箇所を配列要素としてすべて列挙すること。例:
+- ❌ issue 1: `suggestion: [{"before": "gaze を向けた", "after": "視線を注いだ"}]`, issue 2: `suggestion: [{"before": "gaze を向けた", "after": "凝視した"}]`（重複）
+- ✅ issue 1: `suggestion: [{"before": "gaze を向けた", "after": "視線を注いだ"}, {"before": "anchor が外れれば", "after": "錨が外れれば"}, {"before": "drip 音", "after": "水滴の音"}]`

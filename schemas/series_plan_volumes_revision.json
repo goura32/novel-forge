@@ -3,27 +3,77 @@
   "title": "SeriesPlanVolumesRevision",
   "description": "シリーズ企画（各巻）の改訂結果",
   "type": "object",
-  "required": ["planned_volumes", "changes"],
+  "required": [
+    "planned_volumes",
+    "changes"
+  ],
   "properties": {
     "planned_volumes": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["title", "premise"],
+        "required": [
+          "title",
+          "premise"
+        ],
         "properties": {
-          "title": { "type": "string", "maxLength": 128, "description": "巻タイトル" },
-          "premise": { "type": "string", "maxLength": 200, "description": "巻のあらすじ" },
-          "theme": { "type": "string", "maxLength": 128, "description": "巻のテーマ" },
-          "emotional_arc": { "type": "string", "maxLength": 200, "description": "巻全体の感情の弧" },
-          "key_events": { "type": "array", "items": { "type": "string", "maxLength": 200 } },
-          "cliffhanger": { "type": "string", "maxLength": 200, "description": "次巻へのフック" }
+          "title": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "巻タイトル"
+          },
+          "premise": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "巻のあらすじ"
+          },
+          "theme": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "巻のテーマ"
+          },
+          "emotional_arc": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "巻全体の感情の弧"
+          },
+          "key_events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "cliffhanger": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "次巻へのフック"
+          }
         }
       }
     },
     "changes": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 200 },
-      "description": "修正内容のリスト"
+      "items": {
+        "type": "object",
+        "required": [
+          "before",
+          "after"
+        ],
+        "properties": {
+          "before": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正前のテキスト"
+          },
+          "after": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正後のテキスト"
+          }
+        }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
     }
   }
 }

@@ -97,3 +97,15 @@
 - `pace_analysis` の ratio は 0〜100 の数値。合計が 100 に収まるようにすること。
 - `character_arc_review.arc_believability` は 0〜100 の数値。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+
+**suggestion 出力例:**
+```json
+{
+  "severity": "critical",
+  "category": "structural_validity",
+  "description": "収束の章が欠落している",
+  "affected_elements": ["第5章"],
+  "suggestion": [{"before": "第5章のpurpose「転換」", "after": "第5章のpurpose「収束」"}]
+}
+```

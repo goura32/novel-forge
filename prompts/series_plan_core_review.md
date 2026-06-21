@@ -96,8 +96,8 @@
 ## issues 出力ルール（厳守）
 
 1. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
-2. **suggestion は配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること
-3. **affected_elements の明示**: 問題が特定の章・シーン・キャラクターに関わる場合、`affected_elements` に該当名を列挙すること
+2. **suggestion はペア配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+3. **affected_elements の明示**: 問題が特定の巻・キャラクターに関わる場合、`affected_elements` に該当名を列挙すること
 4. **重複禁止**: 同じ修正箇所への指摘を複数の issue で重複して出さないこと
 
 **複数指摘事項の出力例:**
@@ -110,13 +110,13 @@
       "category": "world_consistency",
       "description": "第3巻の前提がシリーズの世界観ルールと矛盾している",
       "affected_elements": ["第3巻"],
-      "suggestion": ["第3巻の前提を世界観ルールに整合するように修正してください"]
+      "suggestion": [{"before": "第3巻の前提（矛盾する内容）", "after": "世界観ルールに整合した前提"}]
     },
     {
       "severity": "major",
       "category": "logline_quality",
       "description": "タイトルが直球的で印象に残りにくい",
-      "suggestion": ["具体的なイメージを喚起するタイトルに変更してください"]
+      "suggestion": [{"before": "現在のタイトル", "after": "具体的なイメージを喚起するタイトル"}]
     }
   ],
   "suggestions": ["全体的にタイトルの印象力を強化してください"],

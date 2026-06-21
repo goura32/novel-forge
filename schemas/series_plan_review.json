@@ -52,11 +52,25 @@
           "suggestion": {
             "type": "array",
             "items": {
-              "type": "string",
-              "maxLength": 500,
-              "description": "改善提案"
+              "type": "object",
+              "required": [
+                "before",
+                "after"
+              ],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "修正前のテキスト"
+                },
+                "after": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "修正後のテキスト"
+                }
+              }
             },
-            "description": "改善提案のリスト"
+            "description": "修正前後のペアリスト"
           }
         }
       }

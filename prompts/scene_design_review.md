@@ -113,6 +113,18 @@
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
 - `issues[].category` は評価カテゴリ名から選択すること。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+
+**suggestion 出力例:**
+```json
+{
+  "severity": "critical",
+  "category": "goal_outcome_coherence",
+  "description": "シーンの結果が次のシーンの目標に繋がっていない",
+  "affected_elements": ["シーン3"],
+  "suggestion": [{"before": "シーン3の結果（次シーンと無関係）", "after": "シーン3の結果（次シーンの目標に繋がる内容）"}]
+}
+```
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。
 

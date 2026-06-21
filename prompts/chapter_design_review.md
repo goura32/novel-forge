@@ -98,6 +98,18 @@
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
 - `issues[].category` は評価カテゴリ名から選択すること。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+
+**suggestion 出力例:**
+```json
+{
+  "severity": "major",
+  "category": "scene_distribution",
+  "description": "シーン数が章の役割に比べて不足している",
+  "affected_elements": ["第3章"],
+  "suggestion": [{"before": "第3章のシーン数（2シーン）", "after": "第3章のシーン数（4シーン）"}]
+}
+```
 
 **重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
 

@@ -93,7 +93,7 @@
 ## issues 出力ルール（厳守）
 
 1. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
-2. **suggestion は配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること
+2. **suggestion はペア配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 3. **affected_elements の明示**: 問題が特定の巻に関わる場合、`affected_elements` に該当巻番号を列挙すること
 4. **重複禁止**: 同じ修正箇所への指摘を複数の issue で重複して出さないこと
 
@@ -107,14 +107,14 @@
       "category": "theme_consistency",
       "description": "第2巻のテーマがシリーズテーマと乖離している",
       "affected_elements": ["第2巻"],
-      "suggestion": ["第2巻のテーマをシリーズテーマに整合するように修正してください"]
+      "suggestion": [{"before": "第2巻のテーマ（乖離する内容）", "after": "シリーズテーマに整合したテーマ"}]
     },
     {
       "severity": "major",
       "category": "cliffhanger",
       "description": "第1巻のクライフハンガーがなく、次巻への引きが弱い",
       "affected_elements": ["第1巻"],
-      "suggestion": ["第1巻の末尾に次巻を読みたくなる具体的な謎・危機を追加してください"]
+      "suggestion": [{"before": "第1巻の末尾（平坦な終わり）", "after": "次巻を読みたくなる具体的な謎・危機を追加"}]
     }
   ],
   "suggestions": ["各巻のテーマが重複しないように見直してください"],

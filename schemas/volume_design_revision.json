@@ -111,8 +111,26 @@
     },
     "changes": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 200 },
-      "description": "修正内容のリスト。各要素は修正箇所と修正結果を簡潔に記述する"
+      "items": {
+        "type": "object",
+        "required": [
+          "before",
+          "after"
+        ],
+        "properties": {
+          "before": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正前のテキスト"
+          },
+          "after": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正後のテキスト"
+          }
+        }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
     }
   }
 }

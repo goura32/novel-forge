@@ -3,21 +3,85 @@
   "title": "SceneDesignRevision",
   "description": "シーン設計の改訂結果",
   "type": "object",
-  "required": ["title", "goal", "outcome"],
+  "required": [
+    "title",
+    "goal",
+    "outcome"
+  ],
   "properties": {
-    "title": { "type": "string", "maxLength": 128, "description": "シーンタイトル" },
-    "goal": { "type": "string", "maxLength": 400, "description": "シーン開始時の状況と主人公の行動" },
-    "outcome": { "type": "string", "maxLength": 400, "description": "シーン終了時の実際の結果" },
-    "conflict": { "type": "string", "maxLength": 300, "description": "シーン内の障害・対立" },
-    "pov": { "type": "string", "maxLength": 64, "description": "視点人物" },
-    "characters": { "type": "array", "items": { "type": "string", "maxLength": 64 }, "description": "登場人物" },
-    "key_events": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "description": "主要イベント" },
-    "setting": { "type": "string", "maxLength": 200, "description": "舞台設定" },
-    "emotional_arc": { "type": "string", "maxLength": 200, "description": "感情の弧" },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "シーンタイトル"
+    },
+    "goal": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "シーン開始時の状況と主人公の行動"
+    },
+    "outcome": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "シーン終了時の実際の結果"
+    },
+    "conflict": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "シーン内の障害・対立"
+    },
+    "pov": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "視点人物"
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      },
+      "description": "登場人物"
+    },
+    "key_events": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "description": "主要イベント"
+    },
+    "setting": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "舞台設定"
+    },
+    "emotional_arc": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "感情の弧"
+    },
     "changes": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 200 },
-      "description": "修正内容のリスト。各要素は修正箇所と修正結果を簡潔に記述する"
+      "items": {
+        "type": "object",
+        "required": [
+          "before",
+          "after"
+        ],
+        "properties": {
+          "before": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正前のテキスト"
+          },
+          "after": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正後のテキスト"
+          }
+        }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
     }
   }
 }

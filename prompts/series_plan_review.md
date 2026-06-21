@@ -69,4 +69,14 @@
 **注意**:
 - 上記テンプレートのキー名（score, issues, strengths, recommendations）は変更しないこと。
 - `issues[].severity` は「critical」「major」「minor」から選択すること。
-- `issues[].suggestion` は**文字列の配列**であること。各要素は1つの改善提案。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+
+**suggestion 出力例:**
+```json
+{
+  "severity": "critical",
+  "category": "language_purity",
+  "description": "シーン本文に英語が混入している",
+  "suggestion": [{"before": "weapon を構えた", "after": "兵器を構えた"}, {"before": "gaze を向けた", "after": "視線を注いだ"}]
+}
+```

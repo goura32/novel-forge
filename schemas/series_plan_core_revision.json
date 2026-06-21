@@ -3,26 +3,94 @@
   "title": "SeriesPlanCoreRevision",
   "description": "シリーズ企画（核）の改訂結果",
   "type": "object",
-  "required": ["title", "logline", "genre", "target_audience", "themes", "selling_points", "world", "changes"],
+  "required": [
+    "title",
+    "logline",
+    "genre",
+    "target_audience",
+    "themes",
+    "selling_points",
+    "world",
+    "changes"
+  ],
   "properties": {
-    "title": { "type": "string", "maxLength": 128, "description": "シリーズのタイトル" },
-    "logline": { "type": "string", "maxLength": 200, "description": "シリーズのあらすじ" },
-    "genre": { "type": "array", "items": { "type": "string", "maxLength": 64 } },
-    "target_audience": { "type": "string", "maxLength": 128 },
-    "themes": { "type": "array", "items": { "type": "string", "maxLength": 128 } },
-    "selling_points": { "type": "array", "items": { "type": "string", "maxLength": 200 } },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "シリーズのタイトル"
+    },
+    "logline": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "シリーズのあらすじ"
+    },
+    "genre": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "target_audience": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "themes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
+    },
+    "selling_points": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      }
+    },
     "world": {
       "type": "object",
-      "required": ["summary", "rules"],
+      "required": [
+        "summary",
+        "rules"
+      ],
       "properties": {
-        "summary": { "type": "string", "maxLength": 500 },
-        "rules": { "type": "array", "items": { "type": "string", "maxLength": 200 } }
+        "summary": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
       }
     },
     "changes": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 200 },
-      "description": "修正内容のリスト。各要素は修正箇所と修正結果を簡潔に記述する"
+      "items": {
+        "type": "object",
+        "required": [
+          "before",
+          "after"
+        ],
+        "properties": {
+          "before": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正前のテキスト"
+          },
+          "after": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "修正後のテキスト"
+          }
+        }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
     }
   }
 }
