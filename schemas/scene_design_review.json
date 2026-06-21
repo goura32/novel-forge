@@ -4,12 +4,13 @@
  "description": "シーン設計の自己レビュー結果",
  "type": "object",
  "required": [
-  "goal_outcome_coherence",
-  "conflict_quality",
-  "pov_character_consistency",
-  "setting_event_completeness",
-  "issues",
-  "suggestions"
+     "goal_outcome_coherence",
+     "conflict_quality",
+     "pov_character_consistency",
+     "setting_event_completeness",
+     "scene_diversity",
+     "issues",
+     "suggestions"
  ],
  "properties": {
   "goal_outcome_coherence": {
@@ -69,21 +70,38 @@
    }
   },
   "setting_event_completeness": {
-   "type": "object",
-   "required": [
-    "setting_clear",
-    "key_events_sufficient"
-   ],
-   "properties": {
-    "setting_clear": {
-     "type": "boolean",
-     "description": "舞台設定が明確か"
-    },
-    "key_events_sufficient": {
-     "type": "boolean",
-     "description": "主要イベントが十分か"
-    }
-   }
+      "type": "object",
+      "required": [
+          "setting_clear",
+          "key_events_sufficient"
+      ],
+      "properties": {
+          "setting_clear": {
+              "type": "boolean",
+              "description": "舞台設定が明確か"
+          },
+          "key_events_sufficient": {
+              "type": "boolean",
+              "description": "主要イベントが十分か"
+          }
+      }
+  },
+  "scene_diversity": {
+      "type": "object",
+      "required": [
+          "diverse_from_previous",
+          "story_progresses"
+      ],
+      "properties": {
+          "diverse_from_previous": {
+              "type": "boolean",
+              "description": "前シーンと異なる出来事・感情・葛藤を持っているか"
+          },
+          "story_progresses": {
+              "type": "boolean",
+              "description": "シーン間で物語が前進しているか"
+          }
+      }
   },
   "issues": {
    "type": "array",

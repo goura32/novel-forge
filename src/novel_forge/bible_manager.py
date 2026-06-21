@@ -108,8 +108,15 @@ class BibleManager:
         for ch_data in result.get("characters", []):
             if not isinstance(ch_data, dict):
                 continue
+            new_name = ch_data.get("name", "").strip()
+            if not new_name:
+                continue
+            # 完全一致または部分一致（既存キャラ名が新名に含まれる、または新名が既存キャラ名に含まれる）で重複チェック
             existing = next(
-                (c for c in bible.characters if c.name == ch_data.get("name", "")),
+                (c for c in bible.characters
+                 if c.name == new_name
+                 or (len(new_name) >= 2 and new_name in c.name)
+                 or (len(c.name) >= 2 and c.name in new_name)),
                 None,
             )
             if existing:
