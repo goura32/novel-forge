@@ -15,6 +15,11 @@ def _load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMA_BY_NAME:
         path = _SCHEMA_DIR / f"{name}.json"
         if not path.exists():
+            import sys as _sys
+            available = sorted(p.stem for p in _SCHEMA_DIR.glob("*.json"))
+            _sys.stderr.write(f"  [SCHEMA ERROR] Schema not found: {path}\n")
+            _sys.stderr.write(f"  [SCHEMA ERROR] Requested: '{name}'\n")
+            _sys.stderr.write(f"  [SCHEMA ERROR] Available schemas: {available}\n")
             raise FileNotFoundError(f"Schema not found: {path}")
         with open(path, encoding="utf-8") as f:
             _SCHEMA_BY_NAME[name] = json.load(f)

@@ -14,33 +14,13 @@
 - キャラクター同士の関係性が自然であること
 - 世界観の設定と矛盾しないこと
 
-## 出力スキーマ
-`series_plan_characters.json` に適合する JSON を出力すること。
-
-```json
-{
-  "main_characters": [
-    {
-      "name": "キャラクター名",
-      "role": "主人公",
-      "arc": "成長・変化",
-      "gender": "男性",
-      "age": "28歳",
-      "occupation": "職業",
-      "personality": "性格",
-      "appearance": "外見",
-      "background": "背景",
-      "motivation": "動機",
-      "flaw": "欠点",
-      "growth": "成長の方向性"
-    }
-  ]
-}
-```
+## 出力
+`series_plan_characters.json` スキーマに適合する JSON を出力すること。
 
 **注意**:
 - `role` は「主人公」「ヒロイン」「相棒」「敵対者」「師匠」「仲間」から選択
 - `gender` は「男性」「女性」「その他」から選択
 - 最低2人以上のキャラクターを設計すること
+- JSONの文字列値内に改行を含めないこと
 
 言語: {lang}

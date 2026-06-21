@@ -14,27 +14,13 @@
 - 巻全体でシリーズのテーマをカバーすること
 - 各巻が独立した物語として完結しつつ、全体として大きなアークを形成すること
 
-## 出力スキーマ
-`series_plan_volumes.json` に適合する JSON を出力すること。
-
-```json
-{
-  "planned_volumes": [
-    {
-      "title": "巻タイトル",
-      "premise": "巻のあらすじ",
-      "theme": "巻のテーマ",
-      "emotional_arc": "感情の弧",
-      "key_events": ["主要イベント1"],
-      "cliffhanger": "次巻へのフック"
-    }
-  ]
-}
-```
+## 出力
+`series_plan_volumes.json` スキーマに適合する JSON を出力すること。
 
 **注意**:
 - `planned_volumes` は最低1個以上
 - `key_events` は最低1個以上
 - `cliffhanger` は最終巻以外必須
+- JSONの文字列値内に改行を含めないこと
 
 言語: {lang}
