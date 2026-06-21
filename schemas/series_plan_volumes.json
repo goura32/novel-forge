@@ -3,21 +3,54 @@
   "title": "SeriesPlanVolumes",
   "description": "シリーズ企画の各巻設計。世界観とキャラクターを踏まえて各巻のタイトルと前提を設計する。",
   "type": "object",
-  "required": ["planned_volumes"],
+  "required": [
+    "planned_volumes"
+  ],
   "properties": {
     "planned_volumes": {
       "type": "array",
       "maxItems": 20,
       "items": {
         "type": "object",
-        "required": ["title", "premise", "theme", "emotional_arc", "key_events", "cliffhanger"],
+        "required": [
+          "title",
+          "premise"
+        ],
         "properties": {
-          "title": { "type": "string", "maxLength": 128, "description": "巻タイトル" },
-          "premise": { "type": "string", "maxLength": 300, "description": "巻のあらすじ" },
-          "theme": { "type": "string", "maxLength": 200, "description": "巻のテーマ" },
-          "emotional_arc": { "type": "string", "maxLength": 200, "description": "巻全体の感情の弧" },
-          "key_events": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "minItems": 1, "description": "巻内の主要イベント" },
-          "cliffhanger": { "type": "string", "maxLength": 200, "description": "次巻へのフック（クライフハンガー）" }
+          "title": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "巻タイトル"
+          },
+          "premise": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "巻のあらすじ"
+          },
+          "theme": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "巻のテーマ"
+          },
+          "emotional_arc": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "巻全体の感情の弧"
+          },
+          "key_events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "description": "巻内の主要イベント"
+          },
+          "cliffhanger": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "次巻へのフック（クライフハンガー）"
+          }
         }
       },
       "minItems": 1
