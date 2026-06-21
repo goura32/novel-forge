@@ -50,16 +50,6 @@
    - **減点要素**: 舞台設定が曖昧、主要イベントが不足
    - **高評価要素**: 舞台設定が具体的で、主要イベントがシーンを推進する
 
-## スコアリングガイド
-
-- **85-100**: 優秀。商業出版レベル
-- **70-84**: 合格。改善点はあるが出版可能
-- **0-69**: 不合格。書き直しが必要
-
-**スコア計算**: 各 dimension を 0-100 で評価し、平均を `score` とする。減点要素1つにつき 15 点減点。
-
-**甘つけ防止**: 80 点以上は本当に優れた場合のみ。70-84 点が合格ライン。減点要素が1つでもある場合は 80 点以上にしない。
-
 ## 改稿要否（revision_needed）の判定
 
 - 「重大」 issue が1つでもある → `true`
@@ -79,24 +69,19 @@
     "goal_clear": false,
     "outcome_follows": false,
     "connects_to_next": false,
-    "score": 50
   },
   "conflict_quality": {
     "conflict_exists": false,
     "conflict_meaningful": false,
-    "score": 50
   },
   "pov_character_consistency": {
     "pov_clear": false,
     "character_actions_consistent": false,
-    "score": 50
   },
   "setting_event_completeness": {
     "setting_clear": false,
     "key_events_sufficient": false,
-    "score": 50
   },
-  "score": 50,
   "issues": [
     {
       "severity": "重大",

@@ -6,7 +6,6 @@ import json
 from typing import Any
 
 from novel_forge.models import VolumeOutline
-from novel_forge.quality_gate import recalc_review_score
 from novel_forge.schemas import get_schema
 
 
@@ -24,19 +23,19 @@ class DesignMixin:
 
         result = self.orchestrate_design(series_plan, genre, vol_num, system, schema, previous_design)
         review = self._review_design(result, series_plan, previous_design)
-        review = recalc_review_score(review)
 
         # Review → Revise loop (max 3 retries)
         for retry in range(3):
-            score = review.get("score", 0)
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-            if score >= 70 and len(critical_issues) == 0:
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            if not revision_needed:
                 break
             import sys as _sys
-            _sys.stderr.write(f"  [DESIGN REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3\n")
+            _sys.stderr.write(f"  [DESIGN REVIEW] blocker={len(blocker_issues)} critical={len(critical_issues)} major={len(major_issues)} retry={retry+1}/3\n")
             result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
             review = self._review_design(result, series_plan, previous_design)
-            review = recalc_review_score(review)
 
         vol = self._current_volume()
         vol.status = "デザイン済"

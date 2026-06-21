@@ -64,34 +64,14 @@
 - issue なし
 - 「重要」 issue が1つだけ
 
-## スコアリングガイド
-
-- **85-100**: 優秀。商業出版レベル
-- **70-84**: 合格。改善点はあるが出版可能
-- **0-69**: 不合格。書き直しが必要
-
-**スコア計算**: 各 dimension のスコアを 0-100 で評価し、平均を `score` とする。
-
-**上限制限**:
-- 「致命的」 issue がある場合: score 最大 30
-- 「重大」 issue がある場合: score 最大 50
-- 「重要」 issue が3つ以上ある場合: score 最大 65
-
-**甘つけ防止**: 80 点以上は本当に優れた場合のみ。70-84 点が合格ライン。減点要素が1つでもある場合は 80 点以上にしない。
-
 ## 出力スキーマ
 
 `scene_review.json` に適合する JSON を出力すること。
-
-**重要**: `score` は 0 から 100 の数値で評価すること（10 段階ではない）。
-`dimensions[].score` も 0 から 100 の数値で評価すること。
 
 **以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 
 ```json
 {
-  "score": 0,
-  "dimensions": [],
   "issues": [],
   "revision_needed": false,
   "ready_for_publication": false
@@ -100,10 +80,8 @@
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- `dimensions[].name` は「opening_hook」「character_distinction」「sensory_coverage」「scene_closure」「dialogue_naturalness」「tone_consistency」「scene_completeness」「language_purity」「pov_consistency」から選択すること。9個すべてを含めること。
-- `issues[].severity` は「blocker」「重大」「重要」「軽微」から選択すること。
-- `issues[].category` は `dimensions[].name` と同じ列挙値から選択すること。
-- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+- - `issues[].severity` は「blocker」「重大」「重要」「軽微」から選択すること。
+- `issues[].category` は - `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
 **重要**: `issue.suggestion` は**修正前後のペア配列**であること。各要素は before に修正前のテキストを引用し、after に修正後の具体的なテキストを示すこと。行番号は使わないこと。例:
 - ❌ `suggestion: "英語表現を日本語に直してください"`

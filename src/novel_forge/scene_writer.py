@@ -175,11 +175,11 @@ class SceneWriter:
             if qg_result.passed:
                 record.status = "修正済"
                 record.quality_gate = qg_result
-                _log(f"  [REVIEW PASS] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} score={qg_result.score} retry={retry}\n")
+                _log(f"  [REVIEW PASS] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} issues={len(qg_result.issues)} retry={retry}\n")
                 break
 
             if retry < self._quality.max_retries:
-                _log(f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} score={qg_result.score} retry={retry}/{self._quality.max_retries}\n")
+                _log(f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count} retry={retry}/{self._quality.max_retries}\n")
                 lang_issues = self._extract_language_issues(review)
                 if lang_issues:
                     review["language_issues"] = lang_issues
@@ -188,7 +188,7 @@ class SceneWriter:
             else:
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
-                _log(f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} score={qg_result.score}\n")
+                _log(f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count}\n")
 
         return draft_text, record
 

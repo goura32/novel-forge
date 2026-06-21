@@ -44,15 +44,6 @@
    - **減点要素**: シーン数が少なすぎる/多すぎる、シーンでテーマをカバーしていない
    - **高評価要素**: シーン数が適切、シーンでテーマを十分にカバーしている
 
-## スコアリングガイド
-
-- **85-100**: 優秀。商業出版レベル
-- **70-84**: 合格。改善点はあるが出版可能
-- **0-69**: 不合格。書き直しが必要
-
-**スコア計算**: 各 dimension を 0-100 で評価し、平均を `score` とする。減点要素1つにつき 15 点減点。
-
-**甘つけ防止**: 80 点以上は本当に優れた場合のみ。70-84 点が合格ライン。減点要素が1つでもある場合は 80 点以上にしない。
 ## 出力
 
 `chapter_design_review.json` スキーマに適合する JSON を出力すること。
@@ -64,24 +55,19 @@
   "role_validity": {
     "purpose_clear": false,
     "fits_volume_arc": false,
-    "score": 50
   },
   "theme_coherence": {
     "theme_clear": false,
     "consistent_with_series": false,
-    "score": 50
   },
   "emotional_arc_quality": {
     "arc_exists": false,
     "arc_believable": false,
-    "score": 50
   },
   "scene_distribution": {
     "count_appropriate": false,
     "coverage_sufficient": false,
-    "score": 50
   },
-  "score": 50,
   "issues": [
     {
       "severity": "重大",
@@ -110,8 +96,6 @@
   "suggestion": [{"before": "第3章のシーン数（2シーン）", "after": "第3章のシーン数（4シーン）"}]
 }
 ```
-
-**重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。
 

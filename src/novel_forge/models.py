@@ -164,7 +164,6 @@ class SeriesPlan(BaseModel):
 
 class QualityGateResult(BaseModel):
     passed: bool = False
-    score: float = Field(ge=0.0, le=100.0, default=0.0)
     issues: list[dict[str, Any]] = Field(default_factory=list)
 
 

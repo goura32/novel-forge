@@ -1,130 +1,85 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SceneReview",
-  "type": "object",
-  "required": [
-    "score",
-    "dimensions",
-    "issues",
-    "revision_needed",
-    "ready_for_publication"
-  ],
-  "properties": {
-    "score": {
-      "type": "number",
-      "description": "シーン品質スコア。0〜100の範囲で出力すること。",
-      "minimum": 0,
-      "maximum": 100
-    },
-    "dimensions": {
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "SceneReview",
+ "type": "object",
+ "required": [
+  "issues",
+  "revision_needed",
+  "ready_for_publication"
+ ],
+ "properties": {
+  "issues": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "severity",
+     "category",
+     "description",
+     "suggestion"
+    ],
+    "properties": {
+     "severity": {
+      "type": "string",
+      "enum": [
+       "軽微",
+       "重要",
+       "重大",
+       "致命的"
+      ]
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "opening_hook",
+       "character_distinction",
+       "sensory_coverage",
+       "scene_closure",
+       "dialogue_naturalness",
+       "tone_consistency",
+       "scene_completeness",
+       "language_purity",
+       "pov_consistency"
+      ]
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "問題の説明"
+     },
+     "suggestion": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "name",
-          "score"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "評価次元名",
-            "enum": [
-              "opening_hook",
-              "character_distinction",
-              "sensory_coverage",
-              "scene_closure",
-              "dialogue_naturalness",
-              "tone_consistency",
-              "scene_completeness",
-              "language_purity",
-              "pov_consistency"
-            ]
-          },
-          "score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "comment": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "評価コメント"
-          }
+       "type": "object",
+       "required": [
+        "before",
+        "after"
+       ],
+       "properties": {
+        "before": {
+         "type": "string",
+         "maxLength": 200,
+         "description": "修正前のテキスト（該当箇所を引用）"
+        },
+        "after": {
+         "type": "string",
+         "maxLength": 200,
+         "description": "修正後のテキスト"
         }
-      }
-    },
-    "issues": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "severity",
-          "category",
-          "description",
-          "suggestion"
-        ],
-        "properties": {
-          "severity": {
-            "type": "string",
-            "enum": [
-              "軽微",
-              "重要",
-              "重大",
-              "致命的"
-            ]
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "opening_hook",
-              "character_distinction",
-              "sensory_coverage",
-              "scene_closure",
-              "dialogue_naturalness",
-              "tone_consistency",
-              "scene_completeness",
-              "language_purity",
-              "pov_consistency"
-            ]
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "問題の説明"
-          },
-          "suggestion": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "修正前のテキスト（該当箇所を引用）"
-                },
-                "after": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "修正後のテキスト"
-                }
-              }
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
-          }
-        }
-      }
-    },
-    "revision_needed": {
-      "type": "boolean",
-      "description": "改稿が必要かどうか。blocker・critical issue がある場合、または major issue が2つ以上ある場合に true。minor issue のみ、issue なし、major 1つの場合は false。"
-    },
-    "ready_for_publication": {
-      "type": "boolean",
-      "description": "出版可能かどうか"
+       }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+     }
     }
+   }
+  },
+  "revision_needed": {
+   "type": "boolean",
+   "description": "改稿が必要かどうか。blocker・critical issue がある場合、または major issue が2つ以上ある場合に true。minor issue のみ、issue なし、major 1つの場合は false。"
+  },
+  "ready_for_publication": {
+   "type": "boolean",
+   "description": "出版可能かどうか"
   }
+ }
 }

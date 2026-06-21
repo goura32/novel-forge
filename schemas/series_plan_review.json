@@ -1,93 +1,88 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SeriesPlanReview",
-  "type": "object",
-  "required": [
-    "score",
-    "issues",
-    "strengths",
-    "recommendations"
-  ],
-  "properties": {
-    "score": {
-      "type": "number",
-      "description": "総合評価スコア。0〜100の範囲で出力すること。"
-    },
-    "issues": {
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "SeriesPlanReview",
+ "type": "object",
+ "required": [
+  "issues",
+  "strengths",
+  "recommendations"
+ ],
+ "properties": {
+  "issues": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "severity",
+     "category",
+     "description",
+     "suggestion"
+    ],
+    "properties": {
+     "severity": {
+      "type": "string",
+      "enum": [
+       "重大",
+       "重要",
+       "軽微"
+      ],
+      "description": "問題の重大度。critical=言語制約違反や致命的欠陥、major=改善必須、minor=任意改善"
+     },
+     "category": {
+      "type": "string",
+      "description": "問題のカテゴリ名",
+      "enum": [
+       "language_purity",
+       "market_competitiveness",
+       "target_fit",
+       "series_sustainability",
+       "title_power",
+       "catchphrase"
+      ]
+     },
+     "description": {
+      "type": "string",
+      "description": "問題の説明"
+     },
+     "suggestion": {
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "severity",
-          "category",
-          "description",
-          "suggestion"
-        ],
-        "properties": {
-          "severity": {
-            "type": "string",
-            "enum": [
-              "重大",
-              "重要",
-              "軽微"
-            ],
-            "description": "問題の重大度。critical=言語制約違反や致命的欠陥、major=改善必須、minor=任意改善"
-          },
-          "category": {
-            "type": "string",
-            "description": "問題のカテゴリ名",
-            "enum": [
-              "language_purity",
-              "market_competitiveness",
-              "target_fit",
-              "series_sustainability",
-              "title_power",
-              "catchphrase"
-            ]
-          },
-          "description": {
-            "type": "string",
-            "description": "問題の説明"
-          },
-          "suggestion": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "修正前のテキスト"
-                },
-                "after": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "修正後のテキスト"
-                }
-              }
-            },
-            "description": "修正前後のペアリスト"
-          }
+       "type": "object",
+       "required": [
+        "before",
+        "after"
+       ],
+       "properties": {
+        "before": {
+         "type": "string",
+         "maxLength": 200,
+         "description": "修正前のテキスト"
+        },
+        "after": {
+         "type": "string",
+         "maxLength": 200,
+         "description": "修正後のテキスト"
         }
-      }
-    },
-    "strengths": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "企画の強み"
-      }
-    },
-    "recommendations": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "改善推奨事項"
-      }
+       }
+      },
+      "description": "修正前後のペアリスト"
+     }
     }
+   }
+  },
+  "strengths": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "description": "企画の強み"
+   }
+  },
+  "recommendations": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "description": "改善推奨事項"
+   }
   }
+ }
 }

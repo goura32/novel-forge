@@ -20,7 +20,7 @@ from novel_forge.models import (
 )
 from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager
-from novel_forge.quality_gate import QualityGate, recalc_review_score
+from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
@@ -263,15 +263,15 @@ class NovelEngineBase:
             label: Label for stderr logging.
         """
         review = review_fn(item, system)
-        review = recalc_review_score(review)
         for retry in range(max_retries):
-            score = review.get("score", 0)
-            critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-            if score >= 70 and len(critical) == 0:
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            if not revision_needed:
                 break
             import sys as _sys
-            _sys.stderr.write(f"  [{label}] score={score} critical={len(critical)} retry={retry+1}/{max_retries}\n")
+            _sys.stderr.write(f"  [{label}] blocker={len(blocker_issues)} critical={len(critical_issues)} major={len(major_issues)} retry={retry+1}/{max_retries}\n")
             item = revise_fn(item, review, system)
             review = review_fn(item, system)
-            review = recalc_review_score(review)
         return item

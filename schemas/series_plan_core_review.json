@@ -1,154 +1,123 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SeriesPlanCoreReview",
-  "description": "シリーズ企画（核）の自己レビュー結果",
-  "type": "object",
-  "required": [
-    "title_power",
-    "logline_quality",
-    "genre_fit",
-    "world_consistency",
-    "score",
-    "issues",
-    "suggestions"
-  ],
-  "properties": {
-    "title_power": {
-      "type": "object",
-      "required": [
-        "memorable",
-        "score"
-      ],
-      "properties": {
-        "memorable": {
-          "type": "boolean"
-        },
-        "score": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 100
-        }
-      }
-    },
-    "logline_quality": {
-      "type": "object",
-      "required": [
-        "clear",
-        "compelling",
-        "score"
-      ],
-      "properties": {
-        "clear": {
-          "type": "boolean"
-        },
-        "compelling": {
-          "type": "boolean"
-        },
-        "score": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 100
-        }
-      }
-    },
-    "genre_fit": {
-      "type": "object",
-      "required": [
-        "appropriate",
-        "score"
-      ],
-      "properties": {
-        "appropriate": {
-          "type": "boolean"
-        },
-        "score": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 100
-        }
-      }
-    },
-    "world_consistency": {
-      "type": "object",
-      "required": [
-        "consistent",
-        "score"
-      ],
-      "properties": {
-        "consistent": {
-          "type": "boolean"
-        },
-        "score": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 100
-        }
-      }
-    },
-    "score": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 100,
-      "description": "総合評価スコア（0-100の整数）"
-    },
-    "issues": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "severity",
-          "category",
-          "description"
-        ],
-        "properties": {
-          "severity": {
-            "type": "string",
-            "enum": [
-              "重大",
-              "重要",
-              "軽微"
-            ]
-          },
-          "category": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 500
-          },
-          "suggestion": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "修正前のテキスト（該当箇所を引用）"
-                },
-                "after": {
-                  "type": "string",
-                  "maxLength": 200,
-                  "description": "修正後のテキスト"
-                }
-              }
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
-          }
-        }
-      }
-    },
-    "suggestions": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "maxLength": 500
-      }
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "SeriesPlanCoreReview",
+ "description": "シリーズ企画（核）の自己レビュー結果",
+ "type": "object",
+ "required": [
+  "title_power",
+  "logline_quality",
+  "genre_fit",
+  "world_consistency",
+  "issues",
+  "suggestions"
+ ],
+ "properties": {
+  "title_power": {
+   "type": "object",
+   "required": [
+    "memorable"
+   ],
+   "properties": {
+    "memorable": {
+     "type": "boolean"
     }
+   }
+  },
+  "logline_quality": {
+   "type": "object",
+   "required": [
+    "clear",
+    "compelling"
+   ],
+   "properties": {
+    "clear": {
+     "type": "boolean"
+    },
+    "compelling": {
+     "type": "boolean"
+    }
+   }
+  },
+  "genre_fit": {
+   "type": "object",
+   "required": [
+    "appropriate"
+   ],
+   "properties": {
+    "appropriate": {
+     "type": "boolean"
+    }
+   }
+  },
+  "world_consistency": {
+   "type": "object",
+   "required": [
+    "consistent"
+   ],
+   "properties": {
+    "consistent": {
+     "type": "boolean"
+    }
+   }
+  },
+  "issues": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "severity",
+     "category",
+     "description"
+    ],
+    "properties": {
+     "severity": {
+      "type": "string",
+      "enum": [
+       "重大",
+       "重要",
+       "軽微"
+      ]
+     },
+     "category": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 500
+     },
+     "suggestion": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "before",
+        "after"
+       ],
+       "properties": {
+        "before": {
+         "type": "string",
+         "maxLength": 200,
+         "description": "修正前のテキスト（該当箇所を引用）"
+        },
+        "after": {
+         "type": "string",
+         "maxLength": 200,
+         "description": "修正後のテキスト"
+        }
+       }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+     }
+    }
+   }
+  },
+  "suggestions": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "maxLength": 500
+   }
   }
+ }
 }
