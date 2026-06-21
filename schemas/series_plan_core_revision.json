@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCoreRevision",
+  "description": "シリーズ企画（核）の修正結果 — series_plan_core と同じスキーマ",
+  "type": "object",
+  "required": ["title", "logline", "genre", "target_audience", "themes", "selling_points", "world"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 200 },
+    "logline": { "type": "string", "maxLength": 500 },
+    "genre": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 3 },
+    "target_audience": { "type": "string", "maxLength": 200 },
+    "themes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "selling_points": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "world": {
+      "type": "object",
+      "required": ["summary", "rules"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 2000 },
+        "rules": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    }
+  }
+}
