@@ -354,5 +354,140 @@ def complete(
         console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
 
 
+@app.command()
+def doctor(
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="Model to test"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+):
+    """Diagnose Ollama connectivity and model readiness."""
+    import json as _json
+
+    console.print("[bold]NovelForge Doctor[/bold]")
+    print()
+
+    # 1. Check Ollama is running
+    console.print("1. Ollama connectivity")
+    try:
+        resp = httpx.get("http://ws1.local:11434/", timeout=5)
+        if resp.status_code == 200:
+            console.print("   [green]✓ Ollama is running[/green]")
+        else:
+            console.print(f"   [red]✗ Ollama returned status {resp.status_code}[/red]")
+            return
+    except Exception as e:
+        console.print(f"   [red]✗ Cannot reach Ollama: {e}[/red]")
+        return
+
+    # 2. Check required model
+    print()
+    console.print(f"2. Model: {model}")
+    try:
+        resp = httpx.post(
+            "http://ws1.local:11434/api/show",
+            json={"name": model},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            info = resp.json()
+            details = info.get("details", {})
+            ctx = details.get("context_length", "?")
+            fmt = details.get("format", "?")
+            fam = details.get("family", "?")
+            console.print(f"   [green]✓ Model loaded[/green]")
+            console.print(f"   context_length: {ctx}")
+            console.print(f"   format: {fmt}")
+            console.print(f"   family: {fam}")
+        else:
+            console.print(f"   [yellow]⚠ Model info status {resp.status_code}[/yellow]")
+            console.print(f"   Run: ollama pull {model}")
+    except Exception as e:
+        console.print(f"   [red]✗ Model check failed: {e}[/red]")
+
+    # 3. Test simple inference (thinking=False)
+    print()
+    console.print("3. Inference test (thinking=False, stream=True)")
+    try:
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": "Reply with only: OK"}],
+            "stream": True,
+            "format": "json",
+            "options": {"think": False, "num_predict": 50},
+        }
+        content_parts = []
+        with httpx.stream(
+            "POST",
+            "http://ws1.local:11434/api/chat",
+            json=payload,
+            timeout=120,
+        ) as stream_resp:
+            for line in stream_resp.iter_lines():
+                if not line.strip():
+                    continue
+                chunk = _json.loads(line)
+                if chunk.get("done"):
+                    done_reason = chunk.get("done_reason", "")
+                    console.print(f"   done_reason: {done_reason}")
+                    break
+                msg = chunk.get("message", {})
+                if msg.get("content"):
+                    content_parts.append(msg["content"])
+        content = "".join(content_parts)
+        if content:
+            console.print(f"   [green]✓ content: [{content[:200]}][/green]")
+        else:
+            console.print(f"   [yellow]⚠ Empty content — model returned no output[/yellow]")
+    except Exception as e:
+        console.print(f"   [red]✗ Inference failed: {e}[/red]")
+
+    # 4. Test inference with thinking=True
+    print()
+    console.print("4. Inference test (thinking=True, stream=True)")
+    try:
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": "Reply with only: OK"}],
+            "stream": True,
+            "format": "json",
+            "options": {"think": True, "num_predict": 100},
+        }
+        content_parts = []
+        thinking_parts = []
+        with httpx.stream(
+            "POST",
+            "http://ws1.local:11434/api/chat",
+            json=payload,
+            timeout=300,
+        ) as stream_resp:
+            for line in stream_resp.iter_lines():
+                if not line.strip():
+                    continue
+                chunk = _json.loads(line)
+                if chunk.get("done"):
+                    done_reason = chunk.get("done_reason", "")
+                    console.print(f"   done_reason: {done_reason}")
+                    break
+                msg = chunk.get("message", {})
+                if msg.get("content"):
+                    content_parts.append(msg["content"])
+                if msg.get("thinking"):
+                    thinking_parts.append(msg["thinking"])
+        content = "".join(content_parts)
+        thinking = "".join(thinking_parts)
+        if content:
+            console.print(f"   [green]✓ content: [{content[:200]}][/green]")
+        else:
+            console.print(f"   [yellow]⚠ Empty content[/yellow]")
+        if thinking:
+            console.print(f"   thinking: [{thinking[:200]}...][/green]")
+        else:
+            console.print(f"   [dim]thinking: (none)[/dim]")
+    except Exception as e:
+        console.print(f"   [red]✗ Inference failed: {e}[/red]")
+
+    print()
+    console.print("[bold]Done.[/bold]")
+
+
 if __name__ == "__main__":
     app()
