@@ -131,3 +131,51 @@ class QualityGate:
             "score": avg_score,
             "forced_export_count": forced_export_count,
         }
+
+
+def recalc_review_score(review: dict) -> dict:
+    """Python側でレビュースコアを再計算し、LLMの計算ミスを修正する。
+
+    ルール:
+    1. サブスコア（score以外の数値サブオブジェクト）の平均を計算
+    2. critical issue があれば score ≤ 50
+    3. major issue が3つ以上あれば score ≤ 65
+    4. minor only であれば score ≥ 70
+    """
+    scores = []
+    for key, val in review.items():
+        if key in ("score", "issues", "suggestions", "_score_breakdown"):
+            continue
+        if isinstance(val, dict):
+            s = val.get("score", None)
+            if isinstance(s, (int, float)) and 0 <= s <= 100:
+                scores.append(int(s))
+
+    if scores:
+        avg = round(sum(scores) / len(scores))
+    else:
+        avg = 0
+
+    issues = review.get("issues", [])
+    has_critical = any(i.get("severity") in ("critical", "blocker") for i in issues)
+    major_count = sum(1 for i in issues if i.get("severity") == "major")
+
+    if has_critical:
+        avg = min(avg, 50)
+    elif major_count >= 3:
+        avg = min(avg, 65)
+    elif not has_critical and major_count == 0:
+        avg = max(avg, 70)
+
+    review["score"] = avg
+    review["_score_breakdown"] = {
+        "sub_scores": {k: review.get(k, {}).get("score", 0)
+                       for k in review
+                       if k not in ("score", "issues", "suggestions", "_score_breakdown")
+                       and isinstance(review.get(k), dict)},
+        "average": round(sum(scores) / len(scores)) if scores else 0,
+        "capped": avg,
+        "has_critical": has_critical,
+        "major_count": major_count,
+    }
+    return review

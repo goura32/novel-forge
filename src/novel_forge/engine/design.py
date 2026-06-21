@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from novel_forge.models import VolumeOutline
+from novel_forge.quality_gate import recalc_review_score
 from novel_forge.schemas import get_schema
 
 
@@ -23,7 +24,7 @@ class DesignMixin:
 
         result = self.orchestrate_design(series_plan, genre, vol_num, system, schema, previous_design)
         review = self._review_design(result, series_plan, previous_design)
-        review = self._recalc_review_score(review)
+        review = recalc_review_score(review)
 
         # Review → Revise loop (max 3 retries)
         for retry in range(3):
@@ -35,7 +36,7 @@ class DesignMixin:
             _sys.stderr.write(f"  [DESIGN REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3\n")
             result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
             review = self._review_design(result, series_plan, previous_design)
-            review = self._recalc_review_score(review)
+            review = recalc_review_score(review)
 
         vol = self._current_volume()
         vol.status = "デザイン済"

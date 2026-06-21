@@ -20,7 +20,7 @@ from novel_forge.models import (
 )
 from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager
-from novel_forge.quality_gate import QualityGate
+from novel_forge.quality_gate import QualityGate, recalc_review_score
 from novel_forge.schemas import get_schema
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
@@ -243,50 +243,35 @@ class NovelEngineBase:
         except Exception:
             pass  # Non-critical: engine works with code defaults
 
-    @staticmethod
-    def _recalc_review_score(review: dict) -> dict:
-        """Python側でレビュースコアを再計算し、LLMの計算ミスを修正する。
+    def _review_and_revise(
+        self,
+        item: dict,
+        review_fn,
+        revise_fn,
+        system: str,
+        max_retries: int = 3,
+        label: str = "",
+    ) -> dict:
+        """Generic review → revise loop.
 
-        ルール:
-        1. サブスコア（score以外の数値サブオブジェクト）の平均を計算
-        2. critical issue があれば score ≤ 50
-        3. major issue が3つ以上あれば score ≤ 65
-        4. minor only であれば score ≥ 70
+        Args:
+            item: The object to review/revise (modified in place).
+            review_fn: Callable(item, system) -> review dict.
+            revise_fn: Callable(item, review, system) -> revised item dict.
+            system: System prompt string.
+            max_retries: Maximum number of review/revise cycles.
+            label: Label for stderr logging.
         """
-        scores = []
-        for key, val in review.items():
-            if key in ("score", "issues", "suggestions", "_score_breakdown"):
-                continue
-            if isinstance(val, dict):
-                s = val.get("score", None)
-                if isinstance(s, (int, float)) and 0 <= s <= 100:
-                    scores.append(int(s))
-
-        if scores:
-            avg = round(sum(scores) / len(scores))
-        else:
-            avg = 0
-
-        issues = review.get("issues", [])
-        has_critical = any(i.get("severity") in ("critical", "blocker") for i in issues)
-        major_count = sum(1 for i in issues if i.get("severity") == "major")
-
-        if has_critical:
-            avg = min(avg, 50)
-        elif major_count >= 3:
-            avg = min(avg, 65)
-        elif not has_critical and major_count == 0:
-            avg = max(avg, 70)
-
-        review["score"] = avg
-        review["_score_breakdown"] = {
-            "sub_scores": {k: review.get(k, {}).get("score", 0)
-                           for k in review
-                           if k not in ("score", "issues", "suggestions", "_score_breakdown")
-                           and isinstance(review.get(k), dict)},
-            "average": round(sum(scores) / len(scores)) if scores else 0,
-            "capped": avg,
-            "has_critical": has_critical,
-            "major_count": major_count,
-        }
-        return review
+        review = review_fn(item, system)
+        review = recalc_review_score(review)
+        for retry in range(max_retries):
+            score = review.get("score", 0)
+            critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+            if score >= 70 and len(critical) == 0:
+                break
+            import sys as _sys
+            _sys.stderr.write(f"  [{label}] score={score} critical={len(critical)} retry={retry+1}/{max_retries}\n")
+            item = revise_fn(item, review, system)
+            review = review_fn(item, system)
+            review = recalc_review_score(review)
+        return item
