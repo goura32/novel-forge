@@ -19,7 +19,7 @@
 
 ## 出力スキーマ
 
-`chapter_outline.json` の配列として、各章の title と purpose を出力すること。
+`volume_design.json` に適合する JSON を出力すること。
 
 ```json
 {

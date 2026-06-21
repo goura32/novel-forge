@@ -117,17 +117,17 @@ class QualityGate:
         self,
         scene_scores: list[float],
         structural_validity: bool = True,
-        force_exported_count: int = 0,
+        forced_export_count: int = 0,
     ) -> dict:
         """巻全体の品質を判定する。"""
         avg_score = sum(scene_scores) / len(scene_scores) if scene_scores else 0.0
         max_score = 100.0
-        if force_exported_count > 0:
+        if forced_export_count > 0:
             max_score = 50.0
         avg_score = min(avg_score, max_score)
         passed = avg_score >= self.PASS_THRESHOLD and structural_validity
         return {
             "passed": passed,
             "score": avg_score,
-            "force_exported_count": force_exported_count,
+            "forced_export_count": forced_export_count,
         }

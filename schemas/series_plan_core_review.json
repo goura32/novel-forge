@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCoreReview",
+  "description": "シリーズ企画（核）の自己レビュー結果",
+  "type": "object",
+  "required": ["title_power", "logline_quality", "genre_fit", "world_uniqueness", "score", "issues", "suggestions"],
+  "properties": {
+    "title_power": { "type": "object", "required": ["memorable", "searchable", "score"], "properties": { "memorable": { "type": "boolean" }, "searchable": { "type": "boolean" }, "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "logline_quality": { "type": "object", "required": ["clear", "compelling", "score"], "properties": { "clear": { "type": "boolean" }, "compelling": { "type": "boolean" }, "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "genre_fit": { "type": "object", "required": ["appropriate", "differentiated", "score"], "properties": { "appropriate": { "type": "boolean" }, "differentiated": { "type": "boolean" }, "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "world_uniqueness": { "type": "object", "required": ["original", "consistent", "score"], "properties": { "original": { "type": "boolean" }, "consistent": { "type": "boolean" }, "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "総合評価スコア" },
+    "issues": { "type": "array", "items": { "type": "object", "required": ["severity", "category", "description"], "properties": { "severity": { "type": "string", "enum": ["critical", "major", "minor"] }, "category": { "type": "string", "maxLength": 64 }, "description": { "type": "string", "maxLength": 500 } } } },
+    "suggestions": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
+  }
+}

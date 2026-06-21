@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDesignReview",
+  "description": "シーン設計の自己レビュー結果",
+  "type": "object",
+  "required": [
+    "goal_outcome_coherence",
+    "conflict_quality",
+    "pov_character_consistency",
+    "setting_event_completeness",
+    "score",
+    "issues",
+    "suggestions"
+  ],
+  "properties": {
+    "goal_outcome_coherence": {
+      "type": "object",
+      "required": ["goal_clear", "outcome_follows", "connects_to_next", "score"],
+      "properties": {
+        "goal_clear": { "type": "boolean", "description": "シーンの目標が明確か" },
+        "outcome_follows": { "type": "boolean", "description": "結果が目標から自然に導かれるか" },
+        "connects_to_next": { "type": "boolean", "description": "結果が次のシーンの目標に繋がるか" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "スコア" }
+      }
+    },
+    "conflict_quality": {
+      "type": "object",
+      "required": ["conflict_exists", "conflict_meaningful", "score"],
+      "properties": {
+        "conflict_exists": { "type": "boolean", "description": "葛藤が存在するか" },
+        "conflict_meaningful": { "type": "boolean", "description": "葛藤が物語に意味を持つか" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "スコア" }
+      }
+    },
+    "pov_character_consistency": {
+      "type": "object",
+      "required": ["pov_clear", "character_actions_consistent", "score"],
+      "properties": {
+        "pov_clear": { "type": "boolean", "description": "POVが明確か" },
+        "character_actions_consistent": { "type": "boolean", "description": "キャラクターの行動が設定と矛盾しないか" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "スコア" }
+      }
+    },
+    "setting_event_completeness": {
+      "type": "object",
+      "required": ["setting_clear", "key_events_sufficient", "score"],
+      "properties": {
+        "setting_clear": { "type": "boolean", "description": "舞台設定が明確か" },
+        "key_events_sufficient": { "type": "boolean", "description": "主要イベントが十分か" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "スコア" }
+      }
+    },
+    "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "総合評価スコア" },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description", "affected_elements"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
+          "category": { "type": "string", "maxLength": 64, "description": "問題のカテゴリ名" },
+          "description": { "type": "string", "maxLength": 500, "description": "問題の説明" },
+          "affected_elements": { "type": "array", "items": { "type": "string", "maxLength": 128 } }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 500, "description": "改善提案" }
+    }
+  }
+}

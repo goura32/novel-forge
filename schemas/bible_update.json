@@ -39,7 +39,7 @@
         "properties": {
           "character_a": { "type": "string", "maxLength": 64 },
           "character_b": { "type": "string", "maxLength": 64 },
-          "type": { "type": "string", "maxLength": 64 },
+          "relationship_type": { "type": "string", "maxLength": 64 },
           "change_direction": { "type": "string", "enum": ["improved", "worsened", "changed", "unchanged"] },
           "trigger_event": { "type": "string", "maxLength": 200 }
         }

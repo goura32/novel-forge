@@ -164,8 +164,8 @@ class BibleManager:
                 None,
             )
             if existing:
-                if rel_data.get("type"):
-                    existing.relationship_type = rel_data["type"]
+                if rel_data.get("relationship_type"):
+                    existing.relationship_type = rel_data["relationship_type"]
                 if rel_data.get("change_direction"):
                     existing.change_direction = rel_data["change_direction"]
                 if rel_data.get("trigger_event"):
@@ -175,7 +175,7 @@ class BibleManager:
                 bible.relationships.append(RelationshipItem(
                     character_a=rel_data.get("character_a", ""),
                     character_b=rel_data.get("character_b", ""),
-                    relationship_type=rel_data.get("type", ""),
+                    relationship_type=rel_data.get("relationship_type", ""),
                     change_direction=rel_data.get("change_direction", ""),
                     trigger_event=rel_data.get("trigger_event", ""),
                     scene_number=scene_number,

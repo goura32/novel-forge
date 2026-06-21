@@ -141,15 +141,13 @@ class VolumeOutline(BaseModel):
 # ── シリーズ企画 ───────────────────────────────────────────────────────
 
 class VolumePlanItem(BaseModel):
-    number: int = Field(ge=1)
     title: str = Field(max_length=128, default="")
-    premise_str: str = Field(max_length=200, default="", alias="premise")
+    premise: str = Field(max_length=200, default="")
 
 
 class SeriesPlan(BaseModel):
     title: str = ""
-    slug: str = Field(default="", max_length=256, pattern=r"^[a-z0-9-]+$")
-    logline: str = Field(default="", max_length=200)
+    logline: str = Field(default="", max_length=400)
     genre: list[str] = Field(default_factory=list)
     target_audience: str = Field(default="", max_length=200)
     themes: list[str] = Field(default_factory=list)
@@ -157,7 +155,6 @@ class SeriesPlan(BaseModel):
     world: dict[str, Any] = Field(default_factory=lambda: {"summary": "", "rules": []})
     main_characters: list[CharacterProfile] = Field(default_factory=list)
     planned_volumes: list[VolumePlanItem] = Field(default_factory=list)
-    premise: str = ""
     keywords: list[str] = Field(default_factory=list)
     catchphrase: str = ""
     differentiation: str = ""

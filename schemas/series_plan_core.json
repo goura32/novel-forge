@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCore",
+  "description": "シリーズ企画の核。タイトル、あらすじ、ジャンル、ターゲット、テーマ、売りポイント、世界観。",
+  "type": "object",
+  "required": ["title", "logline", "genre", "themes", "selling_points", "world", "target_audience"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 128, "description": "シリーズのタイトル" },
+    "logline": { "type": "string", "maxLength": 400, "description": "シリーズのあらすじ（1-2文）" },
+    "genre": { "type": "array", "items": { "type": "string", "maxLength": 64 }, "minItems": 1, "maxItems": 3, "description": "ジャンル（1-3個）" },
+    "target_audience": { "type": "string", "maxLength": 200, "description": "ターゲット読者" },
+    "themes": { "type": "array", "items": { "type": "string", "maxLength": 64 }, "minItems": 1, "description": "テーマ" },
+    "selling_points": { "type": "array", "items": { "type": "string", "maxLength": 128 }, "minItems": 1, "description": "売りポイント" },
+    "world": {
+      "type": "object",
+      "required": ["summary", "rules"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 500, "description": "世界観の概要" },
+        "rules": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "description": "世界観のルール" }
+      }
+    }
+  }
+}

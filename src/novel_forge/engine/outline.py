@@ -1,4 +1,4 @@
-"""Volume outline generation — outline, _generate_outline, _review_outline, _revise_outline."""
+"""Volume outline generation — outline, orchestrate_outline, _review_outline, _revise_outline."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class OutlineMixin:
         schema = get_schema("volume_outline")
         previous_outline = self._get_previous_volume_outline(vol_num)
 
-        result = self._generate_outline(series_plan, genre, vol_num, system, schema, previous_outline)
+        result = self.orchestrate_outline(series_plan, genre, vol_num, system, schema, previous_outline)
         review = self._review_outline(result, series_plan, previous_outline)
         review = self._recalc_review_score(review)
 
@@ -73,18 +73,18 @@ class OutlineMixin:
                 f"前巻（第{vol_num - 1}巻）のアウトライン読み込みに失敗しました: {e}"
             ) from e
 
-    # ── Phase 1: Chapter structure ─────────────────────────────────────
+    # ── Phase 1: Volume design (chapter structure) ───────────────────────
 
-    def _generate_chapter_structure(self, series_plan: str, genre: str, vol_num: int,
+    def _generate_volume_design(self, series_plan: str, genre: str, vol_num: int,
                                      system: str, previous_outline: str) -> list[dict]:
         """Phase 1: Generate chapter structure (titles + purposes)."""
-        chapter_schema = get_schema("chapter_outline")
+        chapter_schema = get_schema("volume_design")
         user = self._prompts.render(
-            "chapter_outline.md",
+            "volume_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
              "lang": self._lang, "previous_outline": previous_outline},
         )
-        chapters_result = self._llm.complete_json("chapter_outline", system, user, chapter_schema)
+        chapters_result = self._llm.complete_json("volume_design", system, user, chapter_schema)
 
         if isinstance(chapters_result, dict):
             chapters_list = chapters_result.get("chapters", [chapters_result])
@@ -136,9 +136,9 @@ class OutlineMixin:
 
         return chapter_designs
 
-    # ── Phase 3: Scene outlines ────────────────────────────────────────
+    # ── Phase 3: Scene designs ───────────────────────────────────────────
 
-    def _generate_scene_outlines(self, chapters_list: list[dict], chapter_designs: list[dict],
+    def _generate_scene_designs(self, chapters_list: list[dict], chapter_designs: list[dict],
                                   series_plan: str, vol_num: int, system: str,
                                   previous_outline: str,
                                   volume_title: str = "",
@@ -161,7 +161,7 @@ class OutlineMixin:
                 total_scenes = len(all_scenes) + ch_scene_count
 
                 user = self._prompts.render(
-                    "scene_outline.md",
+                    "scene_design.md",
                     {
                         "series_plan": series_plan,
                         "volume_number": str(vol_num),
@@ -183,8 +183,8 @@ class OutlineMixin:
                         "lang": self._lang,
                     },
                 )
-                scene_schema = get_schema("scene_outline")
-                scene_result = self._llm.complete_json("scene_outline", system, user, scene_schema)
+                scene_schema = get_schema("scene_design")
+                scene_result = self._llm.complete_json("scene_design", system, user, scene_schema)
 
                 scene_result["chapter_number"] = ch_idx
                 scene_result["number"] = scene_number
@@ -197,9 +197,8 @@ class OutlineMixin:
 
     # ── Main outline orchestrator ──────────────────────────────────────
 
-    def _generate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
-        """Three-phase outline generation: chapter structure → chapter design → scene outlines."""
-        # Extract volume title/premise from series plan's planned_volumes for this volume
+    def orchestrate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
+        """Multi-phase outline generation with per-chapter and per-scene review loops."""
         plan_data = self._get_plan_data()
         volume_title = f"第{vol_num}巻"
         volume_premise = ""
@@ -210,20 +209,28 @@ class OutlineMixin:
                 volume_title = vol_item.get("title", volume_title) or volume_title
                 volume_premise = vol_item.get("premise", "") or ""
 
-        # Phase 1: Chapter structure
-        chapters_list = self._generate_chapter_structure(
+        # Phase 1: Volume design (chapter structure)
+        chapters_list = self._generate_volume_design(
             series_plan, genre, vol_num, system, previous_outline
         )
 
-        # Phase 2: Chapter designs
+        # Phase 2: Chapter designs + review/revise loop
         chapter_designs = self._generate_chapter_designs(
             chapters_list, series_plan, vol_num, system, previous_outline,
             volume_title=volume_title, volume_premise=volume_premise,
         )
+        chapter_designs = self._review_and_revise_chapter_designs(
+            chapter_designs, chapters_list, series_plan, vol_num, system,
+            volume_title=volume_title, volume_premise=volume_premise,
+        )
 
-        # Phase 3: Scene outlines
-        all_scenes = self._generate_scene_outlines(
+        # Phase 3: Scene designs + review/revise loop
+        all_scenes = self._generate_scene_designs(
             chapters_list, chapter_designs, series_plan, vol_num, system, previous_outline,
+            volume_title=volume_title, volume_premise=volume_premise,
+        )
+        all_scenes = self._review_and_revise_scene_designs(
+            all_scenes, chapters_list, chapter_designs, series_plan, vol_num, system,
             volume_title=volume_title, volume_premise=volume_premise,
         )
 
@@ -250,7 +257,7 @@ class OutlineMixin:
             "chapters": chapters_with_scenes,
             "scenes": all_scenes,
         }
-        return self._flatten_outline(result)
+        return self._normalize_outline_numbering(result)
 
     def _get_plan_data(self) -> dict:
         """Load series plan data from disk."""
@@ -276,7 +283,8 @@ class OutlineMixin:
         else:  # 展開, 転換
             return 3
 
-    def _flatten_outline(self, result):
+    def _normalize_outline_numbering(self, result):
+        """章・シーンに通し番号を振り、フラットな構造に正規化する。"""
         flat_chapters = []
         flat_scenes = []
         scene_counter = 1
@@ -359,6 +367,157 @@ class OutlineMixin:
         schema = get_schema("volume_outline_review")
         return self._llm.complete_json("volume_outline_review", system, user, schema)
 
+    # ── Chapter design review/revise ─────────────────────────────────────
+
+    def _review_chapter_design(self, ch_design, ch_info, series_plan, vol_num, system,
+                                volume_title="", volume_premise=""):
+        user = self._prompts.render(
+            "chapter_design_review.md",
+            {
+                "series_plan": series_plan,
+                "volume_title": volume_title,
+                "volume_premise": volume_premise,
+                "chapter_number": str(ch_info.get("number", "")),
+                "chapter_title": ch_info.get("title", ""),
+                "chapter_purpose": ch_info.get("purpose", ""),
+                "chapter_theme": ch_design.get("theme", ""),
+                "chapter_emotional_arc": ch_design.get("emotional_arc", ""),
+                "foreshadowing_notes": "; ".join(ch_design.get("foreshadowing_notes", [])),
+                "subplot_notes": "; ".join(ch_design.get("subplot_notes", [])),
+                "scene_list": "",  # filled by caller if needed
+                "lang": self._lang,
+            },
+        )
+        return self._llm.complete_json("chapter_design_review", system, user, get_schema("chapter_design_review"))
+
+    def _revise_chapter_design(self, ch_design, review, system):
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            sev = issue.get("severity", "")
+            cat = issue.get("category", "")
+            desc = issue.get("description", "")
+            lines.append(f"  [{sev}] {cat}: {desc}")
+        review_text = "\n".join(lines)
+        current = (
+            f"章タイトル: {ch_design.get('title', '')}\n"
+            f"役割: {ch_design.get('purpose', '')}\n"
+            f"テーマ: {ch_design.get('theme', '')}\n"
+            f"感情の弧: {ch_design.get('emotional_arc', '')}"
+        )
+        user = self._prompts.render(
+            "chapter_design_revision.md",
+            {"current_design": current, "review": review_text, "lang": self._lang},
+        )
+        result = self._llm.complete_json("chapter_design_revision", system, user, get_schema("chapter_design_revision"))
+        result["number"] = ch_design.get("number")
+        result["title"] = result.get("title", ch_design.get("title", ""))
+        return result
+
+    def _review_and_revise_chapter_designs(self, chapter_designs, chapters_list, series_plan,
+                                            vol_num, system, volume_title="", volume_premise=""):
+        """Review and revise each chapter design (max 2 retries per chapter)."""
+        for i, ch_design in enumerate(chapter_designs):
+            ch_info = chapters_list[i] if i < len(chapters_list) else {}
+            review = self._review_chapter_design(
+                ch_design, ch_info, series_plan, vol_num, system,
+                volume_title=volume_title, volume_premise=volume_premise,
+            )
+            for retry in range(2):
+                score = review.get("score", 0)
+                critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+                if score >= 70 and len(critical) == 0:
+                    break
+                import sys as _sys
+                _sys.stderr.write(f"  [CH REVIEW] ch={i+1} score={score} critical={len(critical)} retry={retry+1}/2\n")
+                ch_design = self._revise_chapter_design(ch_design, review, system)
+                review = self._review_chapter_design(
+                    ch_design, ch_info, series_plan, vol_num, system,
+                    volume_title=volume_title, volume_premise=volume_premise,
+                )
+            chapter_designs[i] = ch_design
+        return chapter_designs
+
+    # ── Scene design review/revise ───────────────────────────────────────
+
+    def _review_scene_design(self, scene, ch_info, series_plan, vol_num, system,
+                              volume_title="", volume_premise="", previous_outcome=""):
+        user = self._prompts.render(
+            "scene_design_review.md",
+            {
+                "series_plan": series_plan,
+                "volume_title": volume_title,
+                "volume_premise": volume_premise,
+                "chapter_title": ch_info.get("title", ""),
+                "chapter_purpose": ch_info.get("purpose", ""),
+                "scene_title": scene.get("title", ""),
+                "scene_goal": scene.get("goal", ""),
+                "scene_outcome": scene.get("outcome", ""),
+                "scene_conflict": scene.get("conflict", ""),
+                "scene_pov": scene.get("pov", ""),
+                "scene_characters": ", ".join(scene.get("characters", [])),
+                "scene_key_events": "; ".join(scene.get("key_events", [])),
+                "scene_setting": scene.get("setting", ""),
+                "scene_emotional_arc": scene.get("emotional_arc", ""),
+                "previous_outcome": previous_outcome,
+                "lang": self._lang,
+            },
+        )
+        return self._llm.complete_json("scene_design_review", system, user, get_schema("scene_design_review"))
+
+    def _revise_scene_design(self, scene, review, system):
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            sev = issue.get("severity", "")
+            cat = issue.get("category", "")
+            desc = issue.get("description", "")
+            lines.append(f"  [{sev}] {cat}: {desc}")
+        review_text = "\n".join(lines)
+        current = (
+            f"シーンタイトル: {scene.get('title', '')}\n"
+            f"目標: {scene.get('goal', '')}\n"
+            f"結果: {scene.get('outcome', '')}\n"
+            f"葛藤: {scene.get('conflict', '')}\n"
+            f"POV: {scene.get('pov', '')}"
+        )
+        user = self._prompts.render(
+            "scene_design_revision.md",
+            {"current_design": current, "review": review_text, "lang": self._lang},
+        )
+        result = self._llm.complete_json("scene_design_revision", system, user, get_schema("scene_design_revision"))
+        result["chapter_number"] = scene.get("chapter_number")
+        result["number"] = scene.get("number")
+        return result
+
+    def _review_and_revise_scene_designs(self, all_scenes, chapters_list, chapter_designs,
+                                          series_plan, vol_num, system,
+                                          volume_title="", volume_premise=""):
+        """Review and revise each scene design (max 2 retries per scene)."""
+        previous_outcome = ""
+        for i, scene in enumerate(all_scenes):
+            ch_idx = scene.get("chapter_number", 1) - 1
+            ch_info = chapters_list[ch_idx] if ch_idx < len(chapters_list) else {}
+            review = self._review_scene_design(
+                scene, ch_info, series_plan, vol_num, system,
+                volume_title=volume_title, volume_premise=volume_premise,
+                previous_outcome=previous_outcome,
+            )
+            for retry in range(2):
+                score = review.get("score", 0)
+                critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+                if score >= 70 and len(critical) == 0:
+                    break
+                import sys as _sys
+                _sys.stderr.write(f"  [SC REVIEW] sc={i+1} score={score} critical={len(critical)} retry={retry+1}/2\n")
+                scene = self._revise_scene_design(scene, review, system)
+                review = self._review_scene_design(
+                    scene, ch_info, series_plan, vol_num, system,
+                    volume_title=volume_title, volume_premise=volume_premise,
+                    previous_outcome=previous_outcome,
+                )
+            all_scenes[i] = scene
+            previous_outcome = scene.get("outcome", "")
+        return all_scenes
+
     def _revise_outline(self, outline, review, series_plan, genre, vol_num, system, schema, previous_outline=""):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
@@ -399,4 +558,4 @@ class OutlineMixin:
             result["title"] = outline.get("title") or f"第{vol_num}巻"
         if not result.get("premise"):
             result["premise"] = outline.get("premise") or ""
-        return self._flatten_outline(result)
+        return self._normalize_outline_numbering(result)

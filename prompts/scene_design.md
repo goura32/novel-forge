@@ -42,7 +42,7 @@
 
 ## 出力スキーマ
 
-`scene_outline.json` に適合する JSON を出力すること。JSON Schema の各フィールド定義・required・maxLength に従うこと。
+`scene_design.json` に適合する JSON を出力すること。JSON Schema の各フィールド定義・required・maxLength に従うこと。
 
 **以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 

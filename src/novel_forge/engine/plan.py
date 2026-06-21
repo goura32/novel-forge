@@ -1,7 +1,8 @@
-"""Series plan generation — plan, _generate_plan, _revise_plan, _review_series_plan."""
+"""Series plan generation — 3-phase: core → characters → volumes, each with review/revise loop."""
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
@@ -13,32 +14,38 @@ class PlanMixin:
     """Series plan generation methods for NovelEngine."""
 
     def plan(self, keywords: str) -> dict[str, Any]:
-        # Auto-generate config.yaml if missing
+        """3-phase series plan: core → characters → volumes, each with review/revise."""
         self._ensure_config()
         system = self._prompts.render("system.md", {"lang": self._lang})
-        schema = get_schema("series_plan")
 
-        result = self._generate_plan(keywords, system, schema)
-        review = self._review_series_plan(result)
+        # Phase 1: Core (title, logline, genre, themes, world)
+        core = self._generate_plan_core(keywords, system)
+        core = self._review_and_revise_plan_core(core, system)
 
-        # Review → Revise loop (max 3 retries)
-        for retry in range(3):
-            score = review.get("score", 0)
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-            if score >= 70 and len(critical_issues) == 0:
-                break
-            import sys as _sys
-            _sys.stderr.write(f"  [REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3\n")
-            result = self._revise_plan(result, review, system, schema)
-            review = self._review_series_plan(result)
+        # Phase 2: Characters (based on core world/setting)
+        characters = self._generate_plan_characters(core, system)
+        characters = self._review_and_revise_plan_characters(characters, core, system)
+
+        # Phase 3: Volumes (based on core + characters)
+        volumes = self._generate_plan_volumes(core, characters, system)
+        volumes = self._review_and_revise_plan_volumes(volumes, core, characters, system)
+
+        # Merge all phases into final series_plan
+        result = {**core, **characters, **volumes}
+
+        # Slug fallback
+        if not result.get("slug"):
+            result["slug"] = self._slugify(result.get("title", ""))
+        if result.get("slug") and len(result["slug"]) > 200:
+            result["slug"] = result["slug"][:200].rstrip("-")
+
+        # Auto-number volumes
+        for i, vol in enumerate(result.get("planned_volumes", []), 1):
+            vol["number"] = i
 
         self._state.series_title = result.get("title", "")
         self._state.status = "計画中"
-        slug = result.get("slug", "")
-        if len(slug) > 200:
-            slug = slug[:200].rstrip("-")
-        self._slug = slug
-        # Move _default data to final series directory
+        self._slug = result.get("slug", "")
         self._move_to_final_dir()
         self._scene_writer._series_dir = self._series_dir
         self._ctx_builder._workdir = self._series_dir
@@ -49,140 +56,159 @@ class PlanMixin:
         self._scene_writer._bible_storage = self._bible_storage
         self._scene_writer._bible_mgr = self._bible_mgr
         self._save_path(0, "series_plan.json", result)
-        self._save_path(0, "series_plan_review.json", review)
         self._save()
         return result
 
-    def _generate_plan(self, keywords: str, system: str, schema: dict) -> dict:
-        user = self._prompts.render(
-            "series_plan.md",
-            {"keywords": keywords, "lang": self._lang},
+    # ── Phase 1: Core ────────────────────────────────────────────────────
+
+    def _generate_plan_core(self, keywords: str, system: str) -> dict:
+        user = self._prompts.render("series_plan_core.md", {"keywords": keywords, "lang": self._lang})
+        return self._llm.complete_json("series_plan_core", system, user, get_schema("series_plan_core"))
+
+    def _review_plan_core(self, core: dict, system: str) -> dict:
+        plan_text = (
+            f"タイトル: {core.get('title', '')}\n"
+            f"あらすじ: {core.get('logline', '')}\n"
+            f"ジャンル: {', '.join(core.get('genre', []))}\n"
+            f"ターゲット読者: {core.get('target_audience', '')}\n"
+            f"テーマ: {', '.join(core.get('themes', []))}\n"
+            f"売りポイント: {'; '.join(core.get('selling_points', []))}\n"
+            f"世界観: {core.get('world', {}).get('summary', '')}\n"
+            f"世界観ルール: {'; '.join(core.get('world', {}).get('rules', []))}"
         )
-        result = self._llm.complete_json("series_plan", system, user, schema)
-        # Slug fallback: generate from title if LLM didn't provide one
-        if not result.get("slug"):
-            title = result.get("title", "")
-            slug = self._title_to_slug(title)
-            result["slug"] = slug
-        if result.get("slug") and len(result["slug"]) > 200:
-            result["slug"] = result["slug"][:200].rstrip("-")
-        for i, vol in enumerate(result.get("planned_volumes", []), 1):
-            vol["number"] = i
-        return result
+        user = self._prompts.render("series_plan_core_review.md", {"plan_text": plan_text, "lang": self._lang})
+        return self._llm.complete_json("series_plan_core_review", system, user, get_schema("series_plan_core_review"))
+
+    def _revise_plan_core(self, core: dict, review: dict, system: str) -> dict:
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
+        review_text = "\n".join(lines)
+        user = self._prompts.render(
+            "series_plan_core_revision.md",
+            {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text, "lang": self._lang},
+        )
+        return self._llm.complete_json("series_plan_core_revision", system, user, get_schema("series_plan_core"))
+
+    def _review_and_revise_plan_core(self, core: dict, system: str) -> dict:
+        review = self._review_plan_core(core, system)
+        for retry in range(3):
+            score = review.get("score", 0)
+            critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+            if score >= 70 and len(critical) == 0:
+                break
+            import sys as _sys
+            _sys.stderr.write(f"  [CORE REVIEW] score={score} critical={len(critical)} retry={retry+1}/3\n")
+            core = self._revise_plan_core(core, review, system)
+            review = self._review_plan_core(core, system)
+        return core
+
+    # ── Phase 2: Characters ──────────────────────────────────────────────
+
+    def _generate_plan_characters(self, core: dict, system: str) -> dict:
+        world_text = core.get("world", {}).get("summary", "")
+        rules_text = "; ".join(core.get("world", {}).get("rules", []))
+        user = self._prompts.render(
+            "series_plan_characters.md",
+            {"world_summary": world_text, "world_rules": rules_text, "lang": self._lang},
+        )
+        return self._llm.complete_json("series_plan_characters", system, user, get_schema("series_plan_characters"))
+
+    def _review_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
+        lines = ["世界観:", core.get("world", {}).get("summary", ""), "", "メインキャラクター:"]
+        for c in characters.get("main_characters", []):
+            lines.append("  - {}（{}）: {}".format(c.get('name', ''), c.get('role', ''), c.get('arc', '')))
+        char_text = "\n".join(lines)
+        user = self._prompts.render("series_plan_characters_review.md", {"characters": char_text, "lang": self._lang})
+        return self._llm.complete_json("series_plan_characters_review", system, user, get_schema("series_plan_characters_review"))
+
+    def _revise_plan_characters(self, characters: dict, review: dict, system: str) -> dict:
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
+        review_text = "\n".join(lines)
+        user = self._prompts.render(
+            "series_plan_characters_revision.md",
+            {"current_characters": json.dumps(characters, ensure_ascii=False), "review": review_text, "lang": self._lang},
+        )
+        return self._llm.complete_json("series_plan_characters_revision", system, user, get_schema("series_plan_characters"))
+
+    def _review_and_revise_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
+        review = self._review_plan_characters(characters, core, system)
+        for retry in range(3):
+            score = review.get("score", 0)
+            critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+            if score >= 70 and len(critical) == 0:
+                break
+            import sys as _sys
+            _sys.stderr.write(f"  [CHAR REVIEW] score={score} critical={len(critical)} retry={retry+1}/3\n")
+            characters = self._revise_plan_characters(characters, review, system)
+            review = self._review_plan_characters(characters, core, system)
+        return characters
+
+    # ── Phase 3: Volumes ─────────────────────────────────────────────────
+
+    def _generate_plan_volumes(self, core: dict, characters: dict, system: str) -> dict:
+        core_text = f"タイトル: {core.get('title', '')}\nあらすじ: {core.get('logline', '')}\n世界観: {core.get('world', {}).get('summary', '')}"
+        char_lines = ["メインキャラクター:"]
+        for c in characters.get("main_characters", []):
+            char_lines.append("  - {}（{}）: {}".format(c.get('name', ''), c.get('role', ''), c.get('arc', '')))
+        char_text = "\n".join(char_lines)
+        user = self._prompts.render(
+            "series_plan_volumes.md",
+            {"core_text": core_text, "characters_text": char_text, "lang": self._lang},
+        )
+        return self._llm.complete_json("series_plan_volumes", system, user, get_schema("series_plan_volumes"))
+
+    def _review_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
+        lines = ["シリーズ核:", f"  タイトル: {core.get('title', '')}", f"  あらすじ: {core.get('logline', '')}", "", "各巻:"]
+        for v in volumes.get("planned_volumes", []):
+            lines.append(f"  - {v.get('title', '')}: {v.get('premise', '')}")
+        vol_text = "\n".join(lines)
+        user = self._prompts.render("series_plan_volumes_review.md", {"volumes": vol_text, "lang": self._lang})
+        return self._llm.complete_json("series_plan_volumes_review", system, user, get_schema("series_plan_volumes_review"))
+
+    def _revise_plan_volumes(self, volumes: dict, review: dict, system: str) -> dict:
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
+        review_text = "\n".join(lines)
+        user = self._prompts.render(
+            "series_plan_volumes_revision.md",
+            {"current_volumes": json.dumps(volumes, ensure_ascii=False), "review": review_text, "lang": self._lang},
+        )
+        return self._llm.complete_json("series_plan_volumes_revision", system, user, get_schema("series_plan_volumes"))
+
+    def _review_and_revise_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
+        review = self._review_plan_volumes(volumes, core, characters, system)
+        for retry in range(3):
+            score = review.get("score", 0)
+            critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
+            if score >= 70 and len(critical) == 0:
+                break
+            import sys as _sys
+            _sys.stderr.write(f"  [VOL REVIEW] score={score} critical={len(critical)} retry={retry+1}/3\n")
+            volumes = self._revise_plan_volumes(volumes, review, system)
+            review = self._review_plan_volumes(volumes, core, characters, system)
+        return volumes
+
+    # ── Utility ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def _title_to_slug(title: str) -> str:
-        """Convert a Japanese title to a romanized slug fallback.
-        Uses a simple approach: extract ASCII chars and hyphens,
-        or fall back to a timestamp-based slug."""
+    def _slugify(title: str) -> str:
         import re
-        # Try to extract romaji portions from the title
         romaji_parts = re.findall(r'[a-zA-Z][a-zA-Z0-9]*', title)
         if romaji_parts:
             slug = "-".join(p.lower() for p in romaji_parts)
             slug = re.sub(r'[^a-z0-9-]', '', slug)
             if slug:
                 return slug[:200]
-        # Fallback: use a generic slug based on title hash
         import hashlib
         h = hashlib.md5(title.encode()).hexdigest()[:12]
         return f"series-{h}"
-
-    def _revise_plan(self, plan: dict, review: dict, system: str, schema: dict) -> dict:
-        """Revise series plan based on review issues."""
-        # Build review text (no JSON keys)
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            sev = issue.get("severity", "")
-            cat = issue.get("category", "")
-            desc = issue.get("description", "")
-            sug = issue.get("suggestion", "")
-            lines.append(f"  [{sev}] {cat}: {desc}")
-            if sug:
-                lines.append(f"    提案: {sug}")
-        for s in review.get("strengths", []):
-            lines.append(f"  強み: {s}")
-        for r in review.get("recommendations", []):
-            lines.append(f"  推奨: {r}")
-        review_text = "\n".join(lines)
-
-        # Build current plan text
-        plan_lines = [
-            f"タイトル: {plan.get('title', '')}",
-            f"あらすじ: {plan.get('logline', '')}",
-            f"ジャンル: {plan.get('genre', '')}",
-            f"ターゲット読者: {plan.get('target_audience', '')}",
-            f"テーマ: {', '.join(plan.get('themes', []))}",
-            f"売りポイント: {'; '.join(plan.get('selling_points', []))}",
-            f"世界観: {plan.get('world', {}).get('summary', '')}",
-            f"世界観ルール: {'; '.join(plan.get('world', {}).get('rules', []))}",
-            "メインキャラクター:",
-        ]
-        for c in plan.get("main_characters", []):
-            plan_lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
-        plan_lines.append("各巻:")
-        for v in plan.get("planned_volumes", []):
-            plan_lines.append(f"  - {v.get('title', '')}: {v.get('premise', '')}")
-        plan_text = "\n".join(plan_lines)
-
-        user = self._prompts.render(
-            "series_plan_revision.md",
-            {
-                "current_plan": plan_text,
-                "review": review_text,
-                "lang": self._lang,
-            },
-        )
-        revision_schema = get_schema("series_plan_revision")
-        result = self._llm.complete_json("series_plan_revision", system, user, revision_schema)
-        if not result.get("slug"):
-            title = result.get("title", "")
-            result["slug"] = self._title_to_slug(title)
-        if result.get("slug") and len(result["slug"]) > 200:
-            result["slug"] = result["slug"][:200].rstrip("-")
-        for i, vol in enumerate(result.get("planned_volumes", []), 1):
-            vol["number"] = i
-        return result
-
-    def _review_series_plan(self, plan: dict[str, Any]) -> dict[str, Any]:
-        system = self._prompts.render("system.md", {"lang": self._lang})
-        filtered = {
-            "title": plan.get("title", ""),
-            "logline": plan.get("logline", ""),
-            "genre": plan.get("genre", ""),
-            "target_audience": plan.get("target_audience", ""),
-            "themes": plan.get("themes", []),
-            "selling_points": plan.get("selling_points", []),
-            "world_summary": plan.get("world", {}).get("summary", ""),
-            "world_rules": plan.get("world", {}).get("rules", []),
-            "main_characters": [
-                {"name": c.get("name", ""), "arc": c.get("arc", "")}
-                for c in plan.get("main_characters", [])
-            ],
-            "planned_volumes": [
-                {"title": v.get("title", ""), "premise": v.get("premise", "")}
-                for v in plan.get("planned_volumes", [])
-            ],
-        }
-        lines = [
-            f"タイトル: {filtered['title']}",
-            f"あらすじ: {filtered['logline']}",
-            f"ジャンル: {filtered['genre']}",
-            f"ターゲット読者: {filtered['target_audience']}",
-            f"テーマ: {', '.join(filtered['themes'])}",
-            f"売りポイント: {'; '.join(filtered['selling_points'])}",
-            f"世界観: {filtered['world_summary']}",
-            f"世界観ルール: {'; '.join(filtered['world_rules'])}",
-            "メインキャラクター:",
-        ]
-        for c in filtered["main_characters"]:
-            lines.append(f"  - {c['name']}: {c['arc']}")
-        lines.append("各巻:")
-        for v in filtered["planned_volumes"]:
-            lines.append(f"  - {v['title']}: {v['premise']}")
-        plan_text = "\n".join(lines)
-        user = self._prompts.render(
-            "series_plan_review.md",
-            {"series_plan": plan_text, "lang": self._lang},
-        )
-        return self._llm.complete_json("series_plan_review", system, user, get_schema("series_plan_review"))

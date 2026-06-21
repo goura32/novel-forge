@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterDesignRevision",
+  "description": "章設計の改訂結果",
+  "type": "object",
+  "required": ["title", "purpose", "theme", "emotional_arc"],
+  "properties": {
+    "title": { "type": "string", "maxLength": 128, "description": "章タイトル" },
+    "purpose": { "type": "string", "enum": ["導入", "展開", "転換", "クライマックス", "収束"], "description": "章の役割" },
+    "theme": { "type": "string", "maxLength": 300, "description": "章のテーマ" },
+    "emotional_arc": { "type": "string", "maxLength": 300, "description": "感情の弧" },
+    "foreshadowing_notes": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "description": "伏線メモ" },
+    "subplot_notes": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "description": "サブプロットメモ" }
+  }
+}
