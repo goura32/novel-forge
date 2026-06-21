@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generator, Optional
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
