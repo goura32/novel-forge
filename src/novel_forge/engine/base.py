@@ -31,6 +31,10 @@ from novel_forge.logging_config import setup_logging, get_logger, console
 class NovelEngineBase:
     """Base class for NovelEngine — __init__, helpers, state management."""
 
+    _BLOCKER = "致命的"
+    _CRITICAL = "重大"
+    _MAJOR = "重要"
+
     def __init__(
         self,
         workdir: Path,
@@ -291,9 +295,9 @@ class NovelEngineBase:
         """
         review = review_fn(item, system)
         for retry in range(max_retries):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break

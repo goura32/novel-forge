@@ -42,10 +42,11 @@ class DesignMixin:
         if sc_num is not None:
             base = base / f"vol{vol_num:02d}_ch{ch_num:02d}_sc{sc_num:02d}"
         base.mkdir(parents=True, exist_ok=True)
-        review_path = base / f"vol{vol_num:02d}_ch{ch_num:02d}"
+        # base is the directory; build the review file name from vol/ch/sc parts
+        review_name = f"vol{vol_num:02d}_ch{ch_num:02d}"
         if sc_num is not None:
-            review_path = base / f"vol{vol_num:02d}_ch{ch_num:02d}_sc{sc_num:02d}"
-        review_path = review_path.with_name(review_path.name + "_review.json")
+            review_name += f"_sc{sc_num:02d}"
+        review_path = base / (review_name + "_review.json")
         review_path.write_text(json.dumps({"reviews": reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def design(self, volume_number: int | None = None) -> dict[str, Any]:
@@ -63,9 +64,9 @@ class DesignMixin:
         # Review → Revise loop (max 3 retries)
         all_volume_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break
@@ -324,7 +325,6 @@ class DesignMixin:
 
     def _get_plan_data(self) -> dict:
         """Load series plan data from disk."""
-        import json
         # _series_dir is provided by NovelEngineBase (MRO)
         plan_path = self._series_dir / "series_plan.json"  # type: ignore[attr-defined]
         if plan_path.exists():
@@ -427,9 +427,9 @@ class DesignMixin:
             )
             ch_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
             for retry in range(2):
-                blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-                critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-                major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+                blocker = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+                critical = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+                major = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
                 revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
                 if not revision_needed:
                     break
@@ -529,9 +529,9 @@ class DesignMixin:
             )
             sc_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
             for retry in range(2):
-                blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-                critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-                major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+                blocker = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+                critical = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+                major = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
                 revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
                 if not revision_needed:
                     break

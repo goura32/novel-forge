@@ -5,6 +5,7 @@ Also manages scene summarization and Bible updates after each scene.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,10 @@ from novel_forge.logging_config import get_logger
 
 class SceneWriter:
     """Handles scene drafting, review, revision, and post-processing."""
+
+    # Pre-compiled regex patterns for chapter assembly
+    _RE_SCENE_MARKER_FULL = re.compile(r'^シーン\d+[\uff08\(]第\d+章[\uff08\)]\s*[：:]\s*')
+    _RE_SCENE_MARKER_SIMPLE = re.compile(r'^シーン\d+\s*[：:]\s*')
 
     def __init__(
         self,
@@ -425,7 +430,6 @@ class SceneWriter:
         各シーンの最終版を version=0（接尾辞なし）でも保存する。
         scene_numbers: 各シーンの番号リスト。None の場合は 1, 2, ... を仮定。
         """
-        import re
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
         ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}"
         ch_dir.mkdir(parents=True, exist_ok=True)
@@ -452,8 +456,8 @@ class SceneWriter:
         # Remove scene markers
         cleaned_texts = []
         for text in scene_texts:
-            cleaned = re.sub(r'^シーン\d+[\uff08\(]第\d+章[\uff08\)]\s*[：:]\s*', '', text.strip())
-            cleaned = re.sub(r'^シーン\d+\s*[：:]\s*', '', cleaned)
+            cleaned = self._RE_SCENE_MARKER_FULL.sub('', text.strip())
+            cleaned = self._RE_SCENE_MARKER_SIMPLE.sub('', cleaned)
             cleaned_texts.append(cleaned)
         content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(cleaned_texts)
         ch_path.write_text(content, encoding="utf-8")

@@ -16,6 +16,7 @@ from novel_forge.engine import NovelEngine
 app = typer.Typer(help="NovelForge — Local-LLM novel production pipeline")
 console = Console()
 
+DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
 _LOCK_FILE_NAME = ".lock"
 _LOCK_TIMEOUT_SECONDS = 300  # 5 min stale lock threshold
 
@@ -118,7 +119,7 @@ def _resolve_series_dir(workdir: Path) -> Path:
 
 def _engine(
     workdir: Path = Path("."),
-    model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
+    model: str = DEFAULT_MODEL,
     lang: str = "ja",
     max_review_retries: int | None = None,
     verbose: bool = False,
@@ -135,7 +136,7 @@ def _engine(
 def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
@@ -153,7 +154,7 @@ def plan(
 def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
@@ -170,7 +171,7 @@ def design(
 def write(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
@@ -188,7 +189,7 @@ def write(
 def export(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
@@ -204,7 +205,7 @@ def export(
 @app.command()
 def status(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
@@ -237,7 +238,7 @@ def status(
 @app.command()
 def resume(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
@@ -264,7 +265,7 @@ def resume(
 def complete(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),

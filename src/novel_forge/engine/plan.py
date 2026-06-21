@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
@@ -103,9 +104,9 @@ class PlanMixin:
         review = self._review_plan_core(core, system)
         all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break
@@ -159,9 +160,9 @@ class PlanMixin:
         review = self._review_plan_characters(characters, core, system)
         all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break
@@ -218,9 +219,9 @@ class PlanMixin:
         review = self._review_plan_volumes(volumes, core, characters, system)
         all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break
@@ -242,7 +243,6 @@ class PlanMixin:
 
     @staticmethod
     def _slugify(title: str) -> str:
-        import re
         romaji_parts = re.findall(r'[a-zA-Z][a-zA-Z0-9]*', title)
         if romaji_parts:
             slug = "-".join(p.lower() for p in romaji_parts)

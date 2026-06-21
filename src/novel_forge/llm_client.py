@@ -70,6 +70,8 @@ class LLMClient:
         "scene": "write",
         "volume": "design",
     }
+    _THINKING_TRUNCATE_THRESHOLD = 500
+    _THINKING_KEEP_CHARS = 200
     def __init__(
         self,
         api_url: str | None = None,
@@ -307,13 +309,14 @@ class LLMClient:
             if not log_path.exists():
                 break
             idx += 1
-        # Truncate thinking: keep first/last 200 chars
+        # Truncate thinking: keep first/last _THINKING_KEEP_CHARS chars
         thinking_saved = thinking
-        if len(thinking) > 500:
+        if len(thinking) > self._THINKING_TRUNCATE_THRESHOLD:
+            keep = self._THINKING_KEEP_CHARS
             thinking_saved = (
-                thinking[:200]
-                + f"\n... [中略 {len(thinking) - 400} chars] ...\n"
-                + thinking[-200:]
+                thinking[:keep]
+                + f"\n... [中略 {len(thinking) - keep * 2} chars] ...\n"
+                + thinking[-keep:]
             )
         # Build compact request log: omit system_prompt (same for all calls),
         # keep only user_prompt and non-prompt fields
