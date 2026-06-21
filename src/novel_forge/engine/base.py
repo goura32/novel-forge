@@ -24,6 +24,7 @@ from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
+from novel_forge.logging_config import setup_logging, get_logger, console
 
 
 class NovelEngineBase:
@@ -39,11 +40,14 @@ class NovelEngineBase:
         config: dict[str, Any] | None = None,
         max_review_retries: int | None = None,
         verbose: bool = False,
+        raw_log_enabled: bool = False,
     ):
         self._workdir = workdir
         self._lang = lang
         self._verbose = verbose
         self._slug: str = ""
+        self._raw_log_enabled = raw_log_enabled
+        self._log = get_logger("novel_forge.engine")
         self._storage = StateStorage(self._series_dir)
         self._bb_storage = BlackboardStorage(self._series_dir)
         self._bible_storage = BibleStorage(self._series_dir)
@@ -64,6 +68,7 @@ class NovelEngineBase:
                 api_url=api_url,
                 model=model,
                 raw_log_dir=self._series_dir / "raw_logs",
+                raw_log_enabled=self._raw_log_enabled,
                 timeout_seconds=timeout,
                 max_retries=max_retries,
                 num_predict=num_predict,
@@ -270,8 +275,11 @@ class NovelEngineBase:
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break
-            import sys as _sys
-            _sys.stderr.write(f"  [{label}] blocker={len(blocker_issues)} critical={len(critical_issues)} major={len(major_issues)} retry={retry+1}/{max_retries}\n")
+            self._log.warning(
+                "  [%s] blocker=%d critical=%d major=%d retry=%d/%d",
+                label, len(blocker_issues), len(critical_issues), len(major_issues),
+                retry + 1, max_retries,
+            )
             item = revise_fn(item, review, system)
             review = review_fn(item, system)
         return item

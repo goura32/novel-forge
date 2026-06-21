@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from novel_forge.logging_config import console
+
 from novel_forge.models import VolumeOutline, SceneWriteContext
 
 
@@ -34,9 +36,10 @@ class WriteMixin:
         start_time = _time.time()
 
         def _log(msg: str):
-            """Write to both stderr and optional log callback."""
-            import sys as _sys
-            _sys.stderr.write(msg)
+            """Write to both logger and optional log callback."""
+            _logger = getattr(self, "_log", None)
+            if _logger is not None:
+                _logger.info(msg.rstrip())
             if log_fn:
                 log_fn(msg.rstrip())
 
@@ -52,12 +55,12 @@ class WriteMixin:
             bar_len = 20
             filled = int(bar_len * done_scenes / total_scenes) if total_scenes > 0 else 0
             bar = "█" * filled + "░" * (bar_len - filled)
-            _log(
+            console.print(
                 f"  [{bar}] {pct:5.1f}% "
                 f"({done_scenes}/{total_scenes}) "
                 f"{status} "
                 f"経過: {elapsed_str} "
-                f"残り推定: {remaining_str}\n"
+                f"残り推定: {remaining_str}"
             )
         for chapter in design_obj.chapters:
             chapter_scenes: list[str] = []
@@ -72,7 +75,7 @@ class WriteMixin:
                     )
                     _progress(scene.number, f"スキップ(済)")
                     continue
-                _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
+                _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s")
                 result = self._scene_writer.write_scene(
                     outline=design_obj,
                     chapter=chapter,
@@ -106,13 +109,19 @@ class WriteMixin:
                     self._lang,
                     self._bible_mgr.to_text,
                 )
-                _log(f"  [SUMMARY END] vol{vol_num} ch{chapter.number} sc{scene.number}\n")
-                _log(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
-                self._save()
+                _log(f"  [SUMMARY END] vol{vol_num} ch{chapter.number} sc{scene.number}")
+                _log(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s")
+                _save = getattr(self, "_save", None)
+                if _save:
+                    _save()
 
             self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes)
 
         vol.status = "初稿済"
-        self._state.status = "初稿済"
-        self._save()
+        _state = getattr(self, "_state", None)
+        if _state:
+            _state.status = "初稿済"
+        _save = getattr(self, "_save", None)
+        if _save:
+            _save()
         return results

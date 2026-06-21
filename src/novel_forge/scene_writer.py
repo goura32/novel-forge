@@ -5,7 +5,6 @@ Also manages scene summarization and Bible updates after each scene.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +19,7 @@ from novel_forge.models import (
 from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BlackboardStorage, BibleStorage
+from novel_forge.logging_config import get_logger
 
 
 class SceneWriter:
@@ -44,6 +44,7 @@ class SceneWriter:
         self._bible_storage = bible_storage
         self._bible_mgr = BibleManager(bible_storage)
         self._bible_cache: Bible | None = None
+        self._log = get_logger("novel_forge.scene_writer")
 
     # ── Bible caching ──────────────────────────────────────────────────
 
@@ -102,19 +103,14 @@ class SceneWriter:
         ctx: "SceneWriteContext",
         log_fn=None,
     ) -> dict[str, Any]:
-        import sys as _sys
-
-        def _log(msg: str):
-            _sys.stderr.write(msg)
-            if log_fn:
-                log_fn(msg.rstrip())
-
         system = self._prompts.render("system.md", {"lang": ctx.lang})
         context = ctx.build_context_fn()
         continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
 
         # Draft
-        _log(f"  [DRAFT START] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number}\n")
+        self._log.info("  [DRAFT START] vol%d ch%d sc%d", ctx.vol_num, chapter.number, record.scene_number)
+        if log_fn:
+            log_fn(f"  [DRAFT START] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number}")
         user = self._prompts.render(
             "scene_draft.md",
             {
@@ -134,17 +130,19 @@ class SceneWriter:
         draft_schema = get_schema("scene_draft")
         draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
         draft_text = draft_result.get("content", "")
-        _log(f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}\n")
+        self._log.info("  [DRAFT END] vol%d ch%d sc%d len=%d", ctx.vol_num, chapter.number, record.scene_number, len(draft_text))
+        if log_fn:
+            log_fn(f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}")
         record.status = "初稿済"
         self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
 
         # Review → Quality Gate → revise loop
         draft_text, record = self._run_review_loop(
-            draft_text, record, design_obj, scene, ctx, chapter.number, _log=_log
+            draft_text, record, design_obj, scene, ctx, chapter.number, log_fn=log_fn
         )
 
         if record.status == "初稿済":
-            sys.stderr.write(f"  [WARNING] シーン{record.scene_number}: 品質ゲートループ後に初稿済のまま。強制出力済に変更。\n")
+            self._log.warning("  [WARNING] シーン%d: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", record.scene_number)
             record.status = "強制出力済"
 
         return {"scene_number": record.scene_number, "status": record.status}
@@ -159,15 +157,13 @@ class SceneWriter:
         scene,
         ctx: "SceneWriteContext",
         chapter_number: int,
-        _log=None,
+        log_fn=None,
     ) -> tuple[str, SceneRecord]:
         """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
-        if _log is None:
-            _log = lambda msg: None
         for retry in range(self._quality.max_retries + 1):
             review = self._review_scene(
                 draft_text, design_obj, scene, ctx.lang, ctx.build_context_fn,
-                ctx.get_outline_summary_fn, _log=_log,
+                ctx.get_outline_summary_fn,
             )
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
@@ -175,11 +171,17 @@ class SceneWriter:
             if qg_result.passed:
                 record.status = "修正済"
                 record.quality_gate = qg_result
-                _log(f"  [REVIEW PASS] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} issues={len(qg_result.issues)} retry={retry}\n")
+                msg = f"  [REVIEW PASS] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} issues={len(qg_result.issues)} retry={retry}"
+                self._log.info(msg)
+                if log_fn:
+                    log_fn(msg)
                 break
 
             if retry < self._quality.max_retries:
-                _log(f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count} retry={retry}/{self._quality.max_retries}\n")
+                msg = f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count} retry={retry}/{self._quality.max_retries}"
+                self._log.info(msg)
+                if log_fn:
+                    log_fn(msg)
                 lang_issues = self._extract_language_issues(review)
                 if lang_issues:
                     review["language_issues"] = lang_issues
@@ -188,7 +190,10 @@ class SceneWriter:
             else:
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
-                _log(f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count}\n")
+                msg = f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count}"
+                self._log.warning(msg)
+                if log_fn:
+                    log_fn(msg)
 
         return draft_text, record
 
@@ -225,11 +230,7 @@ class SceneWriter:
         lang: str,
         build_context_fn,
         get_outline_summary_fn,
-        _log=None,
     ) -> dict:
-        import sys as _sys
-        if _log is None:
-            _log = lambda msg: _sys.stderr.write(msg)
         system = self._prompts.render("system.md", {"lang": lang})
         user = self._prompts.render(
             "scene_review.md",
@@ -243,23 +244,21 @@ class SceneWriter:
             },
         )
         schema = get_schema("scene_review")
-        _log(f"  [REVIEW START]\n")
+        self._log.info("  [REVIEW START]")
         # Retry up to 3 times on failure (timeout, parse error, etc.)
         for attempt in range(3):
             try:
                 result = self._llm.complete_json("scene_review", system, user, schema)
-                if "score" in result:
-                    # Ensure revision_needed is present (LLM sometimes omits it)
-                    if "revision_needed" not in result:
-                        result["revision_needed"] = self._auto_revision_needed(result)
-                    _log(f"  [REVIEW DONE] score={result.get('score')} revision_needed={result.get('revision_needed')}\n")
-                    return result
+                if "revision_needed" not in result:
+                    result["revision_needed"] = self._auto_revision_needed(result)
+                self._log.info("  [REVIEW DONE] revision_needed=%s", result.get("revision_needed"))
+                return result
             except Exception as e:
                 if attempt < 2:
-                    _log(f"  [REVIEW RETRY] attempt {attempt+1}/3: {e}\n")
+                    self._log.warning("  [REVIEW RETRY] attempt %d/3: %s", attempt + 1, e)
                     continue
                 raise
-        return {"score": 0, "issues": [], "dimensions": [], "revision_needed": True}
+        return {"issues": [], "revision_needed": True}
 
     # ── language issue extraction ────────────────────────────────────
 

@@ -9,6 +9,7 @@ import httpx
 
 
 from novel_forge.json_parser import JsonParseError, coerce_types, parse_json_response
+from novel_forge.logging_config import get_logger
 
 
 class LLMError(Exception):
@@ -67,6 +68,7 @@ class LLMClient:
         timeout_seconds: int = 3600,
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
+        raw_log_enabled: bool = False,
         num_ctx: int | None = None,
         num_predict: int = -1,
         ollama_options: dict[str, Any] | None = None,
@@ -80,9 +82,11 @@ class LLMClient:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.raw_log_dir = raw_log_dir
+        self.raw_log_enabled = raw_log_enabled
         self.num_ctx = num_ctx if num_ctx else 262144
         self.num_predict = num_predict
         self._ollama_options = ollama_options or {}
+        self._log = get_logger("novel_forge.llm")
 
     def _detect_max_ctx(self) -> int:
         """Ollama /api/show からモデルの context_length を取得する。"""
@@ -143,23 +147,28 @@ class LLMClient:
                 payload["messages"][1]["content"] = current_prompt
                 # Increment seed on each retry to get different output
                 payload["options"]["seed"] = 42 + attempt
-                import sys as _sys
-                _sys.stderr.write(f"  [LLM CALL] kind={kind} attempt={attempt+1}/{self.max_retries} model={self.model} seed={42+attempt}\n")
+                self._log.debug(
+                    "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d",
+                    kind, attempt + 1, self.max_retries, self.model, 42 + attempt,
+                )
                 _call_start = time.time()
                 raw_text, raw, thinking = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
-                _sys.stderr.write(f"  [LLM DONE] kind={kind} attempt={attempt+1} elapsed={_call_elapsed:.1f}s raw_len={len(raw)}\n")
+                self._log.debug(
+                    "  [LLM DONE] kind=%s attempt=%d elapsed=%.1fs raw_len=%d",
+                    kind, attempt + 1, _call_elapsed, len(raw),
+                )
                 parsed = parse_json_response(raw)
                 if schema:
                     # Coerce types and fill missing required fields before validation
                     parsed = coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
-                self._write_log(kind, payload, raw, parsed, thinking=thinking, raw_text=raw_text)
+                self._write_log(kind, payload, raw, parsed, thinking=thinking, raw_text=raw_text, elapsed=_call_elapsed, attempt=attempt)
                 return parsed
             except JsonParseError as e:
                 last_error = e
-                self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking)
+                self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -171,7 +180,7 @@ class LLMClient:
                 continue
             except SchemaValidationError as e:
                 last_error = e
-                self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking)
+                self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -182,9 +191,9 @@ class LLMClient:
                 continue
             except LLMError as e:
                 last_error = e
-                self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)}, thinking=thinking)
+                self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 continue
-        self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]}, thinking=thinking)
+        self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
         raise last_error or LLMError("LLM request failed")
 
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str]:
@@ -249,8 +258,10 @@ class LLMClient:
         parsed: Any,
         thinking: str = "",
         raw_text: str = "",
+        elapsed: float = 0.0,
+        attempt: int = 0,
     ) -> None:
-        if not self.raw_log_dir:
+        if not self.raw_log_dir or not self.raw_log_enabled:
             return
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -268,14 +279,18 @@ class LLMClient:
         idx = 0
         while True:
             suffix = f"_{idx:03d}" if idx > 0 else ""
-            log_path = sub_dir / f"{timestamp}_{kind}{suffix}.json"
+            log_path = sub_dir / f"{timestamp}_a{attempt}_{kind}{suffix}.json"
             if not log_path.exists():
                 break
             idx += 1
-        # Truncate thinking for readability (keep first/last 500 chars)
+        # Truncate thinking: keep first/last 200 chars
         thinking_saved = thinking
-        if len(thinking) > 2000:
-            thinking_saved = thinking[:500] + f"\n... [truncated {len(thinking) - 1000} chars] ...\n" + thinking[-500:]
+        if len(thinking) > 500:
+            thinking_saved = (
+                thinking[:200]
+                + f"\n... [中略 {len(thinking) - 400} chars] ...\n"
+                + thinking[-200:]
+            )
         # Build compact request log: omit system_prompt (same for all calls),
         # keep only user_prompt and non-prompt fields
         req_log = {k: v for k, v in payload.items() if k not in ("api_key", "messages")}
@@ -283,20 +298,22 @@ class LLMClient:
             user_msgs = [m for m in payload["messages"] if m.get("role") == "user"]
             if user_msgs:
                 req_log["user_prompt"] = user_msgs[-1]["content"]
-        # Strip thinking from raw_text to avoid duplication with response_thinking
+        # Strip thinking from raw_text to avoid duplication
         raw_for_log = raw_text if raw_text else raw
         if raw_for_log and thinking_saved:
             try:
-                # Try to parse and remove thinking from raw JSON
                 raw_data = json.loads(raw_for_log)
                 if isinstance(raw_data, dict) and "message" in raw_data:
                     raw_data["message"].pop("thinking", None)
                     raw_for_log = json.dumps(raw_data, ensure_ascii=False)
             except (json.JSONDecodeError, TypeError):
-                pass  # Keep raw_for_log as-is if parsing fails
+                pass
         log_data = {
             "kind": kind,
             "timestamp": timestamp,
+            "elapsed_seconds": round(elapsed, 1),
+            "model": self.model,
+            "attempt": attempt,
             "request": req_log,
             "response_raw": raw_for_log,
             "response_parsed": parsed,

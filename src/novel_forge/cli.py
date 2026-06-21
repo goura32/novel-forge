@@ -122,8 +122,13 @@ def _engine(
     lang: str = "ja",
     max_review_retries: int | None = None,
     verbose: bool = False,
+    raw_log: bool = False,
 ) -> NovelEngine:
-    return NovelEngine(workdir=workdir, model=model, lang=lang, max_review_retries=max_review_retries, verbose=verbose)
+    return NovelEngine(
+        workdir=workdir, model=model, lang=lang,
+        max_review_retries=max_review_retries, verbose=verbose,
+        raw_log_enabled=raw_log,
+    )
 
 
 @app.command()
@@ -133,11 +138,12 @@ def plan(
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Generate a series plan from keywords."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
         result = engine.plan(keywords)
         console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
         console.print(f"  [dim]Output: {engine._series_dir}[/dim]")
@@ -150,11 +156,12 @@ def design(
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Generate a volume design (chapter/scene structure)."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
         result = engine.design(volume)
         console.print(f"[green]✓[/green] Volume {volume} design generated")
 
@@ -167,11 +174,12 @@ def write(
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Write scene drafts."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose)
+        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
         results = engine.write(volume)
         console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -183,11 +191,12 @@ def export(
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Export manuscript for KDP."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
         result = engine.export(volume)
         console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
 
@@ -198,9 +207,10 @@ def status(
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Show current project status."""
-    engine = _engine(workdir, model, lang, verbose=verbose)
+    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
     s = engine.status()
     table = Table(title="NovelForge Status")
     table.add_column("Key", style="bold")
@@ -231,11 +241,12 @@ def resume(
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Resume from the last interrupted phase."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
         result = engine.resume()
         action = result["action"]
         console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
@@ -258,11 +269,12 @@ def complete(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Run the full pipeline: plan → design → write → export."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose)
+        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
         console.print("[bold]Step 1/4: Plan[/bold]")
         engine.plan(keywords)
         console.print("[bold]Step 2/4: Design[/bold]")

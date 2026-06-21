@@ -32,8 +32,12 @@ class DesignMixin:
             revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
             if not revision_needed:
                 break
-            import sys as _sys
-            _sys.stderr.write(f"  [DESIGN REVIEW] blocker={len(blocker_issues)} critical={len(critical_issues)} major={len(major_issues)} retry={retry+1}/3\n")
+            _log = getattr(self, "_log", None)
+            if _log is not None:
+                _log.warning(
+                    "  [DESIGN REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
+                    len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
+                )
             result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
             review = self._review_design(result, series_plan, previous_design)
 
@@ -375,12 +379,18 @@ class DesignMixin:
                 volume_title=volume_title, volume_premise=volume_premise,
             )
             for retry in range(2):
-                score = review.get("score", 0)
-                critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-                if score >= 70 and len(critical) == 0:
+                blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+                critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+                major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+                revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
+                if not revision_needed:
                     break
-                import sys as _sys
-                _sys.stderr.write(f"  [CH REVIEW] ch={i+1} score={score} critical={len(critical)} retry={retry+1}/2\n")
+                _log = getattr(self, "_log", None)
+                if _log is not None:
+                    _log.warning(
+                        "  [CH REVIEW] ch=%d blocker=%d critical=%d major=%d retry=%d/2",
+                        i + 1, len(blocker), len(critical), len(major), retry + 1,
+                    )
                 ch_design = self._revise_chapter_design(ch_design, review, system)
                 review = self._review_chapter_design(
                     ch_design, ch_info, series_plan, vol_num, system,
@@ -454,12 +464,18 @@ class DesignMixin:
                 previous_outcome=previous_outcome,
             )
             for retry in range(2):
-                score = review.get("score", 0)
-                critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
-                if score >= 70 and len(critical) == 0:
+                blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+                critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+                major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+                revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
+                if not revision_needed:
                     break
-                import sys as _sys
-                _sys.stderr.write(f"  [SC REVIEW] sc={i+1} score={score} critical={len(critical)} retry={retry+1}/2\n")
+                _log = getattr(self, "_log", None)
+                if _log is not None:
+                    _log.warning(
+                        "  [SC REVIEW] sc=%d blocker=%d critical=%d major=%d retry=%d/2",
+                        i + 1, len(blocker), len(critical), len(major), retry + 1,
+                    )
                 scene = self._revise_scene_design(scene, review, system)
                 review = self._review_scene_design(
                     scene, ch_info, series_plan, vol_num, system,
