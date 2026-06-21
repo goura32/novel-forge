@@ -348,16 +348,16 @@ class DesignMixin:
         }
         return review
 
-    def _review_design(self, outline, series_plan, previous_design=""):
+    def _review_design(self, design_obj, series_plan, previous_design=""):
         system = self._prompts.render("system.md", {"lang": self._lang})
         lines = [f"シリーズ企画: {series_plan}", ""]
         if previous_design:
             lines.append(previous_design)
             lines.append("")
-        lines.extend([f"巻タイトル: {outline.get('title', '未設定')}", f"前提: {outline.get('premise', '未設定')}", ""])
-        for ch in outline.get("chapters", []):
+        lines.extend([f"巻タイトル: {design_obj.get('title', '未設定')}", f"前提: {design_obj.get('premise', '未設定')}", ""])
+        for ch in design_obj.get("chapters", []):
             lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
-            for sc in outline.get("scenes", []):
+            for sc in design_obj.get("scenes", []):
                 if sc.get("chapter_number") == ch["number"]:
                     lines.append(f"  シーン{sc['number']}: {sc['title']}")
                     lines.append(f"    目標: {sc.get('goal', '')[:100]}")
@@ -518,7 +518,7 @@ class DesignMixin:
             previous_outcome = scene.get("outcome", "")
         return all_scenes
 
-    def _revise_design(self, outline, review, series_plan, genre, vol_num, system, schema, previous_design=""):
+    def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -530,10 +530,10 @@ class DesignMixin:
                 lines.append(f"    提案: {sug}")
         review_text = "\n".join(lines)
 
-        outline_lines = [f"巻タイトル: {outline.get('title', '')}", f"前提: {outline.get('premise', '')}", ""]
-        for ch in outline.get("chapters", []):
+        outline_lines = [f"巻タイトル: {design_obj.get('title', '')}", f"前提: {design_obj.get('premise', '')}", ""]
+        for ch in design_obj.get("chapters", []):
             outline_lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
-            for sc in outline.get("scenes", []):
+            for sc in design_obj.get("scenes", []):
                 if sc.get("chapter_number") == ch["number"]:
                     outline_lines.append(f"  シーン{sc['number']}: {sc['title']}")
         outline_text = "\n".join(outline_lines)
@@ -548,14 +548,14 @@ class DesignMixin:
         except Exception:
             # LLMがスキーマ違反の出力をした場合（title/premise欠落など）→ フォールバック
             result = {
-                "title": outline.get("title") or f"第{vol_num}巻",
-                "premise": outline.get("premise") or "",
-                "chapters": outline.get("chapters", []),
+                "title": design_obj.get("title") or f"第{vol_num}巻",
+                "premise": design_obj.get("premise") or "",
+                "chapters": design_obj.get("chapters", []),
             }
 
         # Fallback: If title is missing (LLM sometimes omits it), use fallback values
         if not result.get("title"):
-            result["title"] = outline.get("title") or f"第{vol_num}巻"
+            result["title"] = design_obj.get("title") or f"第{vol_num}巻"
         if not result.get("premise"):
-            result["premise"] = outline.get("premise") or ""
+            result["premise"] = design_obj.get("premise") or ""
         return self._normalize_design_numbering(result)

@@ -95,7 +95,7 @@ class SceneWriter:
 
     def write_scene(
         self,
-        outline: VolumeOutline,
+        design_obj: VolumeOutline,
         chapter,
         scene,
         record: SceneRecord,
@@ -119,7 +119,7 @@ class SceneWriter:
             "scene_draft.md",
             {
                 "series_plan": ctx.get_series_plan_summary_fn(),
-                "outline": ctx.get_outline_summary_fn(outline),
+                "outline": ctx.get_outline_summary_fn(design_obj),
                 "scene": ctx.get_scene_summary_fn(scene),
                 "chapter_title": chapter.title,
                 "chapter_purpose": chapter.purpose,
@@ -140,7 +140,7 @@ class SceneWriter:
 
         # Review → Quality Gate → revise loop
         draft_text, record = self._run_review_loop(
-            draft_text, record, outline, scene, ctx, chapter.number, _log=_log
+            draft_text, record, design_obj, scene, ctx, chapter.number, _log=_log
         )
 
         if record.status == "初稿済":
@@ -155,7 +155,7 @@ class SceneWriter:
         self,
         draft_text: str,
         record: SceneRecord,
-        outline: VolumeOutline,
+        design_obj: VolumeOutline,
         scene,
         ctx: "SceneWriteContext",
         chapter_number: int,
@@ -166,7 +166,7 @@ class SceneWriter:
             _log = lambda msg: None
         for retry in range(self._quality.max_retries + 1):
             review = self._review_scene(
-                draft_text, outline, scene, ctx.lang, ctx.build_context_fn,
+                draft_text, design_obj, scene, ctx.lang, ctx.build_context_fn,
                 ctx.get_outline_summary_fn, _log=_log,
             )
             qg_result = self._quality.check_scene(review)
@@ -220,7 +220,7 @@ class SceneWriter:
     def _review_scene(
         self,
         draft_text: str,
-        outline: VolumeOutline,
+        design_obj: VolumeOutline,
         scene,
         lang: str,
         build_context_fn,
@@ -235,7 +235,7 @@ class SceneWriter:
             "scene_review.md",
             {
                 "scene": draft_text,
-                "outline": get_outline_summary_fn(outline),
+                "outline": get_outline_summary_fn(design_obj),
                 "context": build_context_fn(),
                 "subplots": self._get_subplots_text(),
                 "relationships": self._get_relationships_text(),

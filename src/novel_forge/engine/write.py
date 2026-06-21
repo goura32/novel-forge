@@ -14,22 +14,22 @@ class WriteMixin:
         import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
-        outline_data = self._load_path(vol_num, "design.json")
-        outline = VolumeOutline(**outline_data)
+        design_data = self._load_path(vol_num, "design.json")
+        design_obj = VolumeOutline(**design_data)
 
         # Deduplicate chapters
         seen_chapters = {}
-        for ch in outline.chapters:
+        for ch in design_obj.chapters:
             if ch.number not in seen_chapters:
                 seen_chapters[ch.number] = ch
-        outline.chapters = sorted(seen_chapters.values(), key=lambda c: c.number)
+        design_obj.chapters = sorted(seen_chapters.values(), key=lambda c: c.number)
 
         vol = self._current_volume()
         vol.status = "執筆中"
         results = []
 
         # Count total scenes
-        total_scenes = len(outline.scenes)
+        total_scenes = len(design_obj.scenes)
         done_scenes = 0
         start_time = _time.time()
 
@@ -59,9 +59,9 @@ class WriteMixin:
                 f"経過: {elapsed_str} "
                 f"残り推定: {remaining_str}\n"
             )
-        for chapter in outline.chapters:
+        for chapter in design_obj.chapters:
             chapter_scenes: list[str] = []
-            ch_scenes = [s for s in outline.scenes if s.chapter_number == chapter.number]
+            ch_scenes = [s for s in design_obj.scenes if s.chapter_number == chapter.number]
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("修正済", "強制出力済"):
@@ -74,7 +74,7 @@ class WriteMixin:
                     continue
                 _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s\n")
                 result = self._scene_writer.write_scene(
-                    outline=outline,
+                    outline=design_obj,
                     chapter=chapter,
                     scene=scene,
                     record=record,

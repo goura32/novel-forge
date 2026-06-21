@@ -63,7 +63,7 @@ class ContextBuilder:
             return data.get("genre", "fantasy")
         return "fantasy"
 
-    # ── scene / outline summaries ────────────────────────────────────
+    # ── scene / design summaries ────────────────────────────────────
 
     def get_scene_summary(self, scene) -> str:
         goal_text = scene.goal or ""
@@ -85,12 +85,12 @@ class ContextBuilder:
             lines.append(f"舞台設定: {scene.setting}")
         return "\n".join(lines)
 
-    def get_outline_summary(self, outline: VolumeOutline) -> str:
-        lines = [f"タイトル: {outline.title}", f"前提: {outline.premise}", ""]
-        for ch in outline.chapters:
+    def get_outline_summary(self, design_obj: VolumeOutline) -> str:
+        lines = [f"タイトル: {design_obj.title}", f"前提: {design_obj.premise}", ""]
+        for ch in design_obj.chapters:
             lines.append(f"第{ch.number}章: {ch.title}（{ch.purpose}）")
         lines.append("")
-        for sc in outline.scenes:
+        for sc in design_obj.scenes:
             goal_text = sc.goal or ""
             if "|" in goal_text:
                 state_part = goal_text.split("|")[0].strip()
