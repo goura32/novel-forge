@@ -164,11 +164,11 @@ class ContextBuilder:
         bb = self._bb_storage.load()
         parts = []
 
-        # 前シーン全文
+        # 前シーンの要約（最初に配置 — LLMが次に何を書くかを優先的に考えるため）
         if scene_number > 1 and vol_num > 0:
-            prev_draft = load_scene_draft_fn(vol_num, scene_number - 1)
-            if prev_draft:
-                parts.append(f"## 前シーン全文\n{prev_draft}")
+            prev_summary = bb.scene_summaries.get(str(scene_number - 1), "")
+            if prev_summary:
+                parts.append(f"## 前シーンの要約（このシーンの直前の状況）\n{prev_summary}")
 
         # 前々シーンまでの要約（直近 3 件）
         summaries = []
@@ -183,5 +183,11 @@ class ContextBuilder:
         notes = "\n".join(bb.continuity_notes[-5:]) if bb.continuity_notes else ""
         if notes:
             parts.append(f"## 引き継ぎメモ\n{notes}")
+
+        # 前シーン全文（最後に配置 — 参照用）
+        if scene_number > 1 and vol_num > 0:
+            prev_draft = load_scene_draft_fn(vol_num, scene_number - 1)
+            if prev_draft:
+                parts.append(f"## 前シーン全文（参照用）\n{prev_draft}")
 
         return "\n\n".join(parts) if parts else "（最初のシーン）"
