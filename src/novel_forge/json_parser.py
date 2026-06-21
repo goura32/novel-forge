@@ -173,6 +173,15 @@ def _fix_unquoted_values(s: str) -> str:
     return ''.join(result)
 
 
+def _fix_trailing_comma(s: str) -> str:
+    """Remove trailing commas before } or ] in JSON."""
+    # Remove trailing comma before }:  "key": "value",} -> "key": "value"}
+    s = re.sub(r',\s*}', '}', s)
+    # Remove trailing comma before ]:  ["a","b",] -> ["a","b"]
+    s = re.sub(r',\s*]', ']', s)
+    return s
+
+
 def _fix_missing_colons(s: str) -> str:
     """Fix missing colons: "key", "value" -> "key": "value"."""
     return re.sub(r'"\s*,\s*"([^"]*)"', r'": "\1"', s)
@@ -200,6 +209,7 @@ def parse_json_response(text: str) -> Any:
         _fix_bracket_quoted_values,
         _fix_single_quoted_values,
         _fix_unquoted_values,
+        _fix_trailing_comma,
         _fix_missing_colons,
     ]
     patched = fixed

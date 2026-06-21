@@ -33,7 +33,11 @@ class PlanMixin:
         volumes = self._review_and_revise_plan_volumes(volumes, core, characters, system)
 
         # Merge all phases into final series_plan
-        result = {**core, **characters, **volumes}
+        # Remove phase-internal fields that don't belong in the merged plan
+        core_clean = {k: v for k, v in core.items() if k != "changes"}
+        characters_clean = {k: v for k, v in characters.items() if k != "changes"}
+        volumes_clean = {k: v for k, v in volumes.items() if k != "changes"}
+        result = {**core_clean, **characters_clean, **volumes_clean}
 
         # Slug fallback
         if not result.get("slug"):
@@ -135,7 +139,61 @@ class PlanMixin:
             "series_plan_characters.md",
             {"world_summary": world_text, "world_rules": rules_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_characters", system, user, get_schema("series_plan_characters_revision"))
+        result = self._llm.complete_json("series_plan_characters", system, user, get_schema("series_plan_characters_revision"))
+        result = self._fix_character_duplicates(result)
+        return result
+
+    @staticmethod
+    def _fix_character_duplicates(characters: dict) -> dict:
+        """Detect and fix duplicate characters, role conflicts, and empty growth fields.
+
+        This is a fail-safe for when the LLM ignores prompt-level duplicate prevention.
+        """
+        chars = characters.get("main_characters", [])
+        if not chars:
+            return characters
+
+        # 1. Detect duplicate names
+        seen_names: dict[str, int] = {}
+        for i, c in enumerate(chars):
+            name = c.get("name", "")
+            if name in seen_names:
+                # Duplicate found — rename with suffix
+                new_name = f"{name}（{seen_names[name] + 1}）"
+                c["name"] = new_name
+                seen_names[name] += 1
+                # Also change role to avoid role conflict
+                existing_roles = {ch.get("role", "") for j, ch in enumerate(chars) if j != i}
+                for alt_role in ["ヒロイン", "相棒", "師匠", "仲間", "敵対者"]:
+                    if alt_role not in existing_roles:
+                        c["role"] = alt_role
+                        break
+            else:
+                seen_names[name] = 1
+
+        # 2. Fix empty growth fields
+        for c in chars:
+            if not c.get("growth") or not c.get("growth", "").strip():
+                arc = c.get("arc", "") or "物語を通じた成長"
+                role = c.get("role", "")
+                c["growth"] = f"{arc}を経て、最終的に自己の課題を克服し、新たな境地へ到達する"
+
+        # 3. Ensure role uniqueness (first occurrence wins)
+        used_roles: set[str] = set()
+        available_roles = ["主人公", "ヒロイン", "相棒", "敵対者", "師匠", "仲間"]
+        for c in chars:
+            role = c.get("role", "")
+            if role in used_roles:
+                for alt in available_roles:
+                    if alt not in used_roles:
+                        c["role"] = alt
+                        used_roles.add(alt)
+                        break
+            else:
+                used_roles.add(role)
+
+        characters["main_characters"] = chars
+        return characters
 
     def _review_plan_characters(self, characters: dict, core: dict, system: str, seed_offset: int = 0) -> dict:
         lines = ["世界観:", core.get("world", {}).get("summary", ""), "", "メインキャラクター:"]
