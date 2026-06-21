@@ -3,19 +3,12 @@
   "title": "SeriesPlanVolumes",
   "description": "シリーズ企画の各巻設計。世界観とキャラクターを踏まえて各巻のタイトルと前提を設計する。",
   "type": "object",
-  "required": [
-    "planned_volumes"
-  ],
   "properties": {
     "planned_volumes": {
       "type": "array",
       "maxItems": 20,
       "items": {
         "type": "object",
-        "required": [
-          "title",
-          "premise"
-        ],
         "properties": {
           "title": {
             "type": "string",
@@ -55,5 +48,8 @@
       },
       "minItems": 1
     }
-  }
+  },
+  "required": [
+    "planned_volumes"
+  ]
 }

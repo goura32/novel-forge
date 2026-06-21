@@ -223,14 +223,38 @@ def parse_json_response(text: str) -> Any:
 
 
 def coerce_types(data: dict, schema: dict) -> dict:
-    """Coerce types in parsed JSON to match schema expectations."""
+    """Coerce types in parsed JSON to match schema expectations.
+
+    Also fills missing fields with default values based on their type:
+    - string -> ""
+    - array -> []
+    - object -> {}
+    - integer/number -> 0
+    - boolean -> false
+    """
     if not schema or not isinstance(data, dict):
         return data
 
     properties = schema.get("properties", {})
     for key, prop_schema in properties.items():
         if key not in data:
+            # Fill missing field with default value based on type
+            expected_type = prop_schema.get("type")
+            if expected_type == "string":
+                data[key] = ""
+            elif expected_type == "array":
+                data[key] = []
+            elif expected_type == "object":
+                data[key] = {}
+                # Recursively fill nested object defaults
+                if "properties" in prop_schema:
+                    coerce_types(data[key], prop_schema)
+            elif expected_type in ("integer", "number"):
+                data[key] = 0
+            elif expected_type == "boolean":
+                data[key] = False
             continue
+
         value = data[key]
         expected_type = prop_schema.get("type")
 
@@ -246,6 +270,18 @@ def coerce_types(data: dict, schema: dict) -> dict:
             data[key] = [value] if value else []
         elif expected_type == "object" and not isinstance(value, dict):
             pass  # Cannot coerce non-dict to dict — skip to avoid data loss
+        elif expected_type == "object" and isinstance(value, dict) and "properties" in prop_schema:
+            # Recursively coerce nested objects
+            coerce_types(value, prop_schema)
+
+    # Also handle array items (e.g. main_characters[], planned_volumes[])
+    for key, prop_schema in properties.items():
+        if key in data and isinstance(data[key], list) and prop_schema.get("type") == "array":
+            items_schema = prop_schema.get("items", {})
+            if items_schema.get("type") == "object" and "properties" in items_schema:
+                for item in data[key]:
+                    if isinstance(item, dict):
+                        coerce_types(item, items_schema)
 
     return data
 

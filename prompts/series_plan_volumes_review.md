@@ -8,6 +8,12 @@
 
 ## 評価基準
 
+0. **必須フィールドの完全性** (`missing_field`)
+   - 各巻に以下の必須フィールドがすべて含まれているか確認すること: title, premise, theme, emotional_arc, key_events, cliffhanger
+   - **欠落フィールドがある場合**: severity=「重大」で issue を出力すること。category は `missing_field` とする
+   - **出力例**: `{"severity": "重大", "category": "missing_field", "description": "第3巻「繋がる味と再生の板前」に必須フィールド「theme」「emotional_arc」「key_events」「cliffhanger」が欠落しています。", "affected_elements": ["第3巻"], "suggestion": [{"before": "(欠落)", "after": "各フィールドの具体的な記述"}]}`
+   - すべてのフィールドが埋まっている場合は、このカテゴリの issue を出力しないこと
+
 1. **巻の独自性** (`volume_uniqueness`)
    - 各巻が明確に異なる目的・テーマを持っているか
    - **減点要素**: 各巻のテーマが重複している、各巻の目的が不明確

@@ -8,6 +8,11 @@
 
 ## 評価基準
 
+0. **必須フィールドの完全性** (`missing_field`)
+   - 以下の必須フィールドがすべて含まれているか確認すること: title, logline, genre, themes, selling_points, world (summary + rules), target_audience
+   - **欠落フィールドがある場合**: severity=「重大」で issue を出力すること。category は `missing_field` とする
+   - すべてのフィールドが埋まっている場合は、このカテゴリの issue を出力しないこと
+
 1. **タイトルの力** (`title_power`)
    - 覚えやすいか、印象的か
    - **減点要素**: 直球的すぎる（「〜の物語」「〜と〜」）、長すぎる（10字以上）、何の作品かわからない

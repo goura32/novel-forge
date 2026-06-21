@@ -3,26 +3,11 @@
   "title": "SeriesPlanCharacters",
   "description": "シリーズ企画のキャラクター設計。世界観を踏まえてメインキャラクターを設計する。",
   "type": "object",
-  "required": [
-    "main_characters"
-  ],
   "properties": {
     "main_characters": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "role",
-          "arc",
-          "gender",
-          "age",
-          "occupation",
-          "personality",
-          "background",
-          "motivation",
-          "flaw"
-        ],
         "properties": {
           "name": {
             "type": "string",
@@ -99,5 +84,8 @@
       },
       "minItems": 2
     }
-  }
+  },
+  "required": [
+    "main_characters"
+  ]
 }
