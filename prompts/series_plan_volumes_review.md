@@ -79,4 +79,47 @@
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。
 
+## 改稿要否（revision_needed）の判定
+
+`revision_needed` は以下の条件のいずれかに該当する場合のみ `true` とすること:
+
+- `critical` issue が1つでもある → `true`
+- `major` issue が2つ以上ある → `true`
+- `minor` issue のみ、または issue なし → `false`
+- `major` issue が1つだけ → `false`
+
+`revision_needed` は JSON のトップレベルフィールドとして出力すること。
+
+## issues 出力ルール（厳守）
+
+1. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
+2. **suggestion は配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること
+3. **affected_elements の明示**: 問題が特定の巻に関わる場合、`affected_elements` に該当巻番号を列挙すること
+4. **重複禁止**: 同じ修正箇所への指摘を複数の issue で重複して出さないこと
+
+**複数指摘事項の出力例:**
+```json
+{
+  "score": 55,
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "theme_consistency",
+      "description": "第2巻のテーマがシリーズテーマと乖離している",
+      "affected_elements": ["第2巻"],
+      "suggestion": ["第2巻のテーマをシリーズテーマに整合するように修正してください"]
+    },
+    {
+      "severity": "major",
+      "category": "cliffhanger",
+      "description": "第1巻のクライフハンガーがなく、次巻への引きが弱い",
+      "affected_elements": ["第1巻"],
+      "suggestion": ["第1巻の末尾に次巻を読みたくなる具体的な謎・危機を追加してください"]
+    }
+  ],
+  "suggestions": ["各巻のテーマが重複しないように見直してください"],
+  "revision_needed": true
+}
+```
+
 言語: {lang}

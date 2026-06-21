@@ -108,6 +108,11 @@
         }
       },
       "minItems": 1
+    },
+    "changes": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 200 },
+      "description": "修正内容のリスト。各要素は修正箇所と修正結果を簡潔に記述する"
     }
   }
 }

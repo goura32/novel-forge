@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanVolumesRevision",
+  "description": "シリーズ企画（各巻）の改訂結果",
+  "type": "object",
+  "required": ["planned_volumes", "changes"],
+  "properties": {
+    "planned_volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "premise"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 128, "description": "巻タイトル" },
+          "premise": { "type": "string", "maxLength": 200, "description": "巻のあらすじ" },
+          "theme": { "type": "string", "maxLength": 128, "description": "巻のテーマ" },
+          "emotional_arc": { "type": "string", "maxLength": 200, "description": "巻全体の感情の弧" },
+          "key_events": { "type": "array", "items": { "type": "string", "maxLength": 200 } },
+          "cliffhanger": { "type": "string", "maxLength": 200, "description": "次巻へのフック" }
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 200 },
+      "description": "修正内容のリスト"
+    }
+  }
+}
