@@ -6,7 +6,7 @@
   "properties": {
     "planned_volumes": {
       "type": "array",
-      "maxItems": 20,
+      "maxItems": 3,
       "items": {
         "type": "object",
         "properties": {
