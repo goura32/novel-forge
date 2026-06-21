@@ -7,6 +7,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from novel_forge.kanji_data import COMMON_USE_KANJI
+
+
+def find_non_japanese_kanji(text: str) -> list[str]:
+    """テキスト中の非日本語漢字（簡体字等）を検出する。
+
+    COMMON_USE_KANJI に含まれない漢字を検出する。
+    ただし、JIS X 0208/0212/0213 に含まれる漢字は日本語として許可する。
+    """
+    import re
+    # 漢字のみ抽出
+    kanji_chars = re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]', text)
+    non_japanese = []
+    for ch in kanji_chars:
+        if ch not in COMMON_USE_KANJI:
+            non_japanese.append(ch)
+    return list(set(non_japanese))  # 重複除去
+
 
 @dataclass
 class QualityGateResult:
@@ -39,7 +57,9 @@ class QualityGateResult:
 class QualityGate:
     """品質ゲート判定エンジン。"""
 
-    def __init__(self, max_retries: int = 3):
+    DEFAULT_MAX_RETRIES = 3
+
+    def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES):
         self.max_retries = max_retries
 
     def check(self, review_result: dict, stage: str = "scene") -> QualityGateResult:

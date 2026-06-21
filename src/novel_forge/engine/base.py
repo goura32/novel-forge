@@ -193,15 +193,6 @@ class NovelEngineBase:
         )
         path.write_text(content, encoding="utf-8")
 
-    def _save_review(self, review_dir: Path, name: str, data: Any, version: int | None = None) -> None:
-        """レビュー結果を review/ ディレクトリに保存する。"""
-        review_dir.mkdir(parents=True, exist_ok=True)
-        if version is not None and version > 0:
-            name = f"{name}_v{version}"
-        path = review_dir / f"{name}.json"
-        content = json.dumps(data, ensure_ascii=False, indent=2)
-        path.write_text(content, encoding="utf-8")
-
     def _load_path(self, vol_num: int, filename: str) -> dict:
         path = self._series_dir / f"vol{vol_num:02d}" / filename
         if not path.exists():

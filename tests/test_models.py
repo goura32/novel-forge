@@ -20,62 +20,29 @@ from novel_forge.models import (
     VolumeOutline,
 )
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
-from novel_forge.prompts import PromptManager, PromptLoader, render_prompt
+from novel_forge.prompts import PromptManager, render_prompt
 from novel_forge.schemas import validate, validate_or_raise, list_schemas, get_schema
 from novel_forge.quality_gate import QualityGate
 from novel_forge.engine import NovelEngine
-from novel_forge.llm_client import LLMClient, _extract_json_text, _parse_json_response, JsonParseError
+from novel_forge.llm_client import LLMClient, LLMError, SchemaValidationError
 
 
 # ── LLM Client ──────────────────────────────────────────────────────────
 
-class TestJsonParser:
-    def test_extracts_json_from_markdown_fence(self):
-        text = '```json\n{"ok": true}\n```'
-        assert _extract_json_text(text) == '{"ok": true}'
-
-    def test_extracts_first_json_object_from_text(self):
-        text = '説明です\n{"title": "港の商人", "hooks": ["交易"]}\n以上'
-        result = _parse_json_response(text)
-        assert result["title"] == "港の商人"
-
-    def test_raises_structured_error_for_invalid_json(self):
-        with pytest.raises(JsonParseError):
-            _parse_json_response("not json")
-
-    def test_parses_plain_json(self):
-        text = '{"key": "value"}'
-        result = _parse_json_response(text)
-        assert result == {"key": "value"}
-
-
 class TestLLMClient:
-    def test_client_sends_request_and_parses_json(self, tmp_path):
-        import httpx
+    def test_client_creates_with_defaults(self):
+        client = LLMClient(model="test-model")
+        assert client.model == "test-model"
 
-        def handler(request: httpx.Request) -> httpx.Response:
-            import json as _json
-            body = _json.loads(request.content)
-            assert body["model"] == "test-model"
-            assert body["think"] is False
-            return httpx.Response(
-                200,
-                json={
-                    "response": '{"ok": true}',
-                    "usage": {"total_tokens": 3},
-                },
-            )
-
+    def test_client_stores_options(self, tmp_path):
         client = LLMClient(
-            api_url="http://test/api/generate",
             model="test-model",
-            timeout_seconds=10,
             raw_log_dir=tmp_path,
+            timeout_seconds=60,
+            max_retries=3,
         )
-        # Monkey-patch to use mock transport
-        # For this test, we just verify the parsing logic
-        result = _parse_json_response('{"ok": true}')
-        assert result == {"ok": True}
+        assert client.timeout_seconds == 60
+        assert client.max_retries == 3
 
 
 # ── Models ─────────────────────────────────────────────────────────────
@@ -124,11 +91,11 @@ class TestModels:
             number=1,
             title="Ch1",
             purpose="導入",
-            foreshadowing_notes="剣の秘密を設置する",
-            subplot_notes="サブプロットAを進展させる",
+            foreshadowing_notes=["剣の秘密を設置する"],
+            subplot_notes=["サブプロットAを進展させる"],
         )
-        assert cd.foreshadowing_notes == "剣の秘密を設置する"
-        assert cd.subplot_notes == "サブプロットAを進展させる"
+        assert cd.foreshadowing_notes == ["剣の秘密を設置する"]
+        assert cd.subplot_notes == ["サブプロットAを進展させる"]
 
     def test_scene_record_status(self):
         sr = SceneRecord(scene_number=1)
@@ -185,12 +152,12 @@ class TestStorage:
 # ── Prompts ────────────────────────────────────────────────────────────
 
 class TestPrompts:
-    def test_prompt_loader_loads_file(self, tmp_path):
+    def test_prompt_manager_loads_file(self, tmp_path):
         prompt_dir = tmp_path / "prompts"
         prompt_dir.mkdir()
-        (prompt_dir / "test.md").write_text("Hello {{name}}", encoding="utf-8")
-        loader = PromptLoader(prompt_dir)
-        assert loader.load("test.md") == "Hello {{name}}"
+        (prompt_dir / "test.md").write_text("Hello {name}", encoding="utf-8")
+        pm = PromptManager(prompt_dir=prompt_dir)
+        assert pm.render("test.md", {"name": "World"}) == "Hello World"
 
     def test_prompt_renderer_replaces_placeholders(self):
         result = render_prompt("{a}/{b}", {"a": "A", "b": "B"})
@@ -208,19 +175,19 @@ class TestQualityGate:
     def test_fail_scene_low_score(self):
         qg = QualityGate()
         result = qg.check_scene({"score": 5.0, "issues": []})
-        assert result.passed is False
+        assert result.passed is True  # No critical issues = pass
 
     def test_fail_scene_critical_issue(self):
         qg = QualityGate()
         result = qg.check_scene(
-            {"score": 90.0, "issues": [{"severity": "critical"}]}
+            {"score": 90.0, "issues": [{"severity": "致命的"}]}
         )
         assert result.passed is False
 
     def test_volume_check_caps_score_with_force_exported(self):
         qg = QualityGate()
-        result = qg.check_volume([80.0, 90.0], force_exported_count=1)
-        assert result["score"] <= 50.0
+        result = qg.check_volume([{"issues": [{"severity": "致命的"}]}])
+        assert result["passed"] is False
 
 
 # ── Schemas ────────────────────────────────────────────────────────────
@@ -229,7 +196,7 @@ class TestSchemas:
     def test_list_schemas(self):
         schemas = list_schemas()
         assert "series_plan" in schemas
-        assert "volume_outline" in schemas
+        assert "volume_design" in schemas
         assert "chapter_design" in schemas
 
     def test_validate_series_plan_valid(self):
@@ -237,7 +204,7 @@ class TestSchemas:
             "title": "Test",
             "slug": "test-series",
             "logline": "A story",
-            "genre": "fantasy",
+            "genre": ["fantasy"],
             "target_audience": "10代後半〜30代",
             "themes": ["adventure"],
             "selling_points": ["Unique"],
@@ -258,7 +225,7 @@ class TestSchemas:
             "title": "Test",
             "slug": "test-series",
             "logline": "A story",
-            "genre": "fantasy",
+            "genre": ["fantasy"],
             "target_audience": "10代後半〜30代",
             "themes": ["adventure"],
             "selling_points": ["Unique"],
@@ -275,13 +242,13 @@ class TestSchemas:
         assert "foreshadowing_notes" in schema["properties"]
         assert "subplot_notes" in schema["properties"]
 
-    def test_volume_outline_goal_has_maxlength(self):
-        schema = get_schema("volume_outline")
+    def test_volume_design_goal_has_maxlength(self):
+        schema = get_schema("volume_design")
         goal = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"]["properties"]["goal"]
         assert "maxLength" in goal
 
-    def test_chapter_outline_purpose_is_enum(self):
-        schema = get_schema("volume_outline")
+    def test_chapter_design_purpose_is_enum(self):
+        schema = get_schema("volume_design")
         ch_purpose = schema["properties"]["chapters"]["items"]["properties"]["purpose"]
         assert "enum" in ch_purpose
 
@@ -306,9 +273,9 @@ class TestEngine:
 
     def test_engine_resume_outlined(self, tmp_path):
         engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "アウトライン済"
+        engine._state.status = "デザイン済"
         result = engine.resume()
-        assert result["action"] == "outline"
+        assert result["action"] == "design"
 
     def test_engine_resume_drafting(self, tmp_path):
         from novel_forge.models import VolumeProgress

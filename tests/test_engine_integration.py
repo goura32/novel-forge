@@ -23,7 +23,7 @@ from novel_forge.models import (
     VolumeOutline,
     VolumeProgress,
 )
-from novel_forge.prompts import PromptLoader, PromptManager
+from novel_forge.prompts import PromptManager, render_prompt
 from novel_forge.quality_gate import QualityGate
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.schemas import get_schema
@@ -75,7 +75,7 @@ class MockLLMClient:
 
         # Default responses per kind
         defaults = {
-            "series_plan": {
+            "series_plan_core": {
                 "title": "テストシリーズ",
                 "slug": "test-series",
                 "logline": "テストのあらすじ",
@@ -84,20 +84,22 @@ class MockLLMClient:
                 "themes": ["冒険", "成長"],
                 "selling_points": ["ユニークな世界観"],
                 "world": {"summary": "魔法の世界", "rules": ["魔法が存在する"]},
+            },
+            "series_plan_characters": {
                 "main_characters": [
                     {"name": "主人公", "role": "主人公", "arc": "成長"}
                 ],
+            },
+            "series_plan_volumes": {
                 "planned_volumes": [
                     {"title": "第1巻", "premise": "始まり"}
                 ],
             },
-            "series_plan_review": {
-                "score": 80.0,
+            "series_plan_core_review": {
                 "issues": [],
-                "strengths": ["良い"],
-                "recommendations": [],
+                "suggestions": [],
             },
-            "series_plan_revision": {
+            "series_plan_core_revision": {
                 "title": "テストシリーズ改訂",
                 "slug": "test-series-rev",
                 "logline": "テストのあらすじ改訂",
@@ -106,14 +108,26 @@ class MockLLMClient:
                 "themes": ["冒険", "成長"],
                 "selling_points": ["ユニークな世界観"],
                 "world": {"summary": "魔法の世界", "rules": ["魔法が存在する"]},
+            },
+            "series_plan_characters_review": {
+                "issues": [],
+                "suggestions": [],
+            },
+            "series_plan_characters_revision": {
                 "main_characters": [
-                    {"name": "主人公", "role": "主人公", "arc": "成長"}
-                ],
-                "planned_volumes": [
-                    {"title": "第1巻", "premise": "始まり"}
+                    {"name": "主人公", "role": "主人公", "arc": "成長改訂"}
                 ],
             },
-            "volume_outline": {
+            "series_plan_volumes_review": {
+                "issues": [],
+                "suggestions": [],
+            },
+            "series_plan_volumes_revision": {
+                "planned_volumes": [
+                    {"title": "第1巻改訂", "premise": "始まり改訂"}
+                ],
+            },
+            "volume_design": {
                 "chapters": [
                     {
                         "title": "プロローグ",
@@ -133,7 +147,7 @@ class MockLLMClient:
                     },
                 ],
             },
-            "chapter_outline": {
+            "chapter_design": {
                 "chapters": [
                     {"title": "プロローグ", "purpose": "導入"},
                     {"title": "転換", "purpose": "転換"},
@@ -141,7 +155,7 @@ class MockLLMClient:
                     {"title": "収束", "purpose": "収束"},
                 ],
             },
-            "scene_outline": {
+            "scene_design": {
                 "title": "出会い",
                 "goal": "主人公を紹介する",
                 "outcome": "主人公が旅立つ",
@@ -149,13 +163,13 @@ class MockLLMClient:
                 "pov": "主人公",
                 "characters": ["主人公"],
             },
-            "volume_outline_review": {
+            "volume_design_review": {
                 "score": 80.0,
                 "issues": [],
                 "strengths": ["良い構成"],
                 "recommendations": [],
             },
-            "volume_outline_revision": {
+            "volume_design_revision": {
                 "chapters": [
                     {
                         "title": "プロローグ改訂",
@@ -233,7 +247,7 @@ def mock_llm():
 @pytest.fixture
 def engine(tmp_workdir, mock_llm):
     """Create a NovelEngine with mock LLM."""
-    prompts = PromptManager(loader=PromptLoader(prompt_dir=tmp_workdir / "prompts"))
+    prompts = PromptManager(prompt_dir=tmp_workdir / "prompts")
     eng = NovelEngine(
         workdir=tmp_workdir,
         model="test-model",
@@ -275,7 +289,7 @@ def _make_review_response(score: float = 80.0, issues: list | None = None) -> di
     }
 
 
-def _make_outline_response(**overrides) -> dict:
+def _make_design_response(**overrides) -> dict:
     base = {
         "title": "第1巻",
         "premise": "始まりの物語",
@@ -310,7 +324,7 @@ class TestPlan:
         """plan() should save the review result."""
         engine.plan("テスト")
 
-        review_path = engine._series_dir / "series_plan_review.json"
+        review_path = engine._series_dir / "series_core_review.json"
         assert review_path.exists()
 
     def test_plan_calls_llm_for_generation_and_review(self, engine, mock_llm):
@@ -318,8 +332,8 @@ class TestPlan:
         engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan" in kinds
-        assert "series_plan_review" in kinds
+        assert "series_plan_core" in kinds
+        assert "series_plan_core_review" in kinds
 
     def test_plan_volume_numbers_assigned(self, engine, mock_llm):
         """Engine should auto-assign volume numbers."""
@@ -341,58 +355,61 @@ class TestPlan:
 # ── Plan review → revise loop ──────────────────────────────────────────
 
 class TestPlanReviewLoop:
-    def test_plan_revises_on_low_score(self, engine, mock_llm):
-        """Plan should be revised when review score < 7.0."""
-        # First review returns low score, second returns high
-        mock_llm.add_sequence("series_plan", _make_plan_response())
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=50))
-        mock_llm.add_sequence("series_plan_revision", _make_plan_response(title="改訂版"))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
-
-        result = engine.plan("テスト")
-
-        kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan_revision" in kinds
-        assert result["title"] == "改訂版"
-
     def test_plan_revises_on_critical_issues(self, engine, mock_llm):
         """Plan should be revised when there are critical issues."""
-        mock_llm.add_sequence("series_plan", _make_plan_response())
-        mock_llm.add_sequence("series_plan_review", _make_review_response(
-            score=80,
-            issues=[{"severity": "critical", "category": "test", "description": "問題"}]
-        ))
-        mock_llm.add_sequence("series_plan_revision", _make_plan_response(title="修正版"))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
+        mock_llm.add_sequence("series_plan_core", _make_plan_response())
+        mock_llm.add_sequence("series_plan_core_review", {
+            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
+            "suggestions": [],
+        })
+        mock_llm.add_sequence("series_plan_core_revision", _make_plan_response(title="修正版"))
+        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        # characters & volumes phases (pass immediately)
+        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         result = engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan_revision" in kinds
+        assert "series_plan_core_revision" in kinds
         assert result["title"] == "修正版"
 
     def test_plan_stops_after_3_retries(self, engine, mock_llm):
         """Plan revision should stop after 3 retries even if still failing."""
-        mock_llm.add_sequence("series_plan", _make_plan_response())
+        mock_llm.add_sequence("series_plan_core", _make_plan_response())
         for _ in range(4):  # 1 initial + 3 retries
-            mock_llm.add_sequence("series_plan_review", _make_review_response(score=30))
-            mock_llm.add_sequence("series_plan_revision", _make_plan_response())
+            mock_llm.add_sequence("series_plan_core_review", {
+                "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
+                "suggestions": [],
+            })
+            mock_llm.add_sequence("series_plan_core_revision", _make_plan_response())
+        # characters & volumes phases (pass immediately)
+        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         result = engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        revision_count = kinds.count("series_plan_revision")
+        revision_count = kinds.count("series_plan_core_revision")
         assert revision_count == 3
 
     def test_plan_no_revision_when_passing(self, engine, mock_llm):
-        """Plan should not be revised when score >= 7.0 and no critical issues."""
-        mock_llm.add_sequence("series_plan", _make_plan_response())
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
+        """Plan should not be revised when no critical issues."""
+        mock_llm.add_sequence("series_plan_core", _make_plan_response())
+        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         result = engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan_revision" not in kinds
+        assert "series_plan_core_revision" not in kinds
 
 
 # ── Outline tests ──────────────────────────────────────────────────────
@@ -404,12 +421,12 @@ class TestOutline:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        result = engine.outline(volume_number=1)
+        result = engine.design(volume_number=1)
 
         assert result["title"] == "第1巻"
-        assert engine.state.status == "アウトライン済"
+        assert engine.state.status == "デザイン済"
 
-        outline_path = engine._series_dir / "vol01" / "outline.json"
+        outline_path = engine._series_dir / "vol01" / "vol01.json"
         assert outline_path.exists()
 
     def test_outline_flattens_scenes(self, engine, mock_llm):
@@ -417,7 +434,7 @@ class TestOutline:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        result = engine.outline(volume_number=1)
+        result = engine.design(volume_number=1)
 
         # Scenes should be flat list with numbers
         assert "scenes" in result
@@ -430,7 +447,7 @@ class TestOutline:
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        result = engine.outline(volume_number=1)
+        result = engine.design(volume_number=1)
 
         for i, ch in enumerate(result["chapters"], 1):
             assert ch["number"] == i
@@ -439,54 +456,77 @@ class TestOutline:
 # ── Outline review → revise loop ──────────────────────────────────────
 
 class TestOutlineReviewLoop:
-    def test_outline_revises_on_low_score(self, engine, mock_llm):
-        """Outline should be revised when review score < 7.0."""
+    def test_outline_revises_on_critical_issues(self, engine, mock_llm):
+        """Design should be revised when there are critical issues."""
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        # Set default responses (outline generates multiple LLM calls)
-        mock_llm._responses["volume_outline"] = _make_outline_response()
-        mock_llm._responses["scene_outline"] = {
-            "title": "出会い",
-            "goal": "主人公を紹介する",
-            "outcome": "主人公が旅立つ",
-            "conflict": "葛藤なし",
-            "pov": "主人公",
-            "characters": ["主人公"],
+        # Set default responses (design generates multiple LLM calls)
+        mock_llm._responses["volume_design"] = _make_design_response()
+        mock_llm._responses["chapter_design"] = {
+            "number": 1, "title": "Ch1", "purpose": "導入",
+            "theme": "テーマ", "emotional_arc": "弧",
+            "foreshadowing_notes": [], "subplot_notes": [],
+            "scene_summaries": [], "characters": [],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=50)
-        mock_llm._responses["volume_outline_revision"] = _make_outline_response(title="改訂")
+        mock_llm._responses["scene_design"] = {
+            "title": "出会い", "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ", "conflict": "葛藤なし",
+            "pov": "主人公", "characters": ["主人公"],
+            "key_events": [], "setting": "", "emotional_arc": "",
+        }
+        mock_llm._responses["volume_design_review"] = {
+            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
+            "suggestions": [],
+        }
+        mock_llm._responses["volume_design_revision"] = _make_design_response(title="改訂")
+        # chapter/scene design reviews (pass)
+        mock_llm._responses["chapter_design_review"] = {"issues": [], "suggestions": []}
+        mock_llm._responses["chapter_design_revision"] = {
+            "number": 1, "title": "Ch1", "purpose": "導入",
+            "theme": "テーマ", "emotional_arc": "弧",
+        }
+        mock_llm._responses["scene_design_review"] = {"issues": [], "suggestions": []}
+        mock_llm._responses["scene_design_revision"] = {
+            "title": "出会い", "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ", "conflict": "葛藤なし",
+        }
         mock_llm._call_log.clear()
 
-        result = engine.outline(volume_number=1)
+        result = engine.design(volume_number=1)
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "volume_outline_revision" in kinds
+        assert "volume_design_revision" in kinds
         assert result["title"] == "改訂"
 
     def test_outline_stops_after_3_retries(self, engine, mock_llm):
-        """Outline revision should stop after 3 retries."""
+        """Design revision should stop after 3 retries."""
         engine.plan("テスト")
         mock_llm._call_log.clear()
 
-        # Set default responses (outline generates multiple LLM calls)
-        mock_llm._responses["volume_outline"] = _make_outline_response()
-        mock_llm._responses["scene_outline"] = {
-            "title": "出会い",
-            "goal": "主人公を紹介する",
-            "outcome": "主人公が旅立つ",
-            "conflict": "葛藤なし",
-            "pov": "主人公",
-            "characters": ["主人公"],
+        mock_llm._responses["volume_design"] = _make_design_response()
+        mock_llm._responses["chapter_design"] = {
+            "number": 1, "title": "Ch1", "purpose": "導入",
+            "theme": "テーマ", "emotional_arc": "弧",
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=30)
-        mock_llm._responses["volume_outline_revision"] = _make_outline_response()
+        mock_llm._responses["scene_design"] = {
+            "title": "出会い", "goal": "主人公を紹介する",
+            "outcome": "主人公が旅立つ", "conflict": "葛藤なし",
+        }
+        # Always return critical issues → triggers max retries
+        mock_llm._responses["volume_design_review"] = {
+            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
+            "suggestions": [],
+        }
+        mock_llm._responses["volume_design_revision"] = _make_design_response()
+        mock_llm._responses["chapter_design_review"] = {"issues": [], "suggestions": []}
+        mock_llm._responses["scene_design_review"] = {"issues": [], "suggestions": []}
         mock_llm._call_log.clear()
 
-        result = engine.outline(volume_number=1)
+        result = engine.design(volume_number=1)
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert kinds.count("volume_outline_revision") == 3
+        assert kinds.count("volume_design_revision") == 3
 
 
 # ── Write tests ────────────────────────────────────────────────────────
@@ -495,7 +535,7 @@ class TestWrite:
     def test_write_creates_scene_drafts(self, engine, mock_llm, tmp_workdir):
         """write() should create scene draft files."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         mock_llm._call_log.clear()
 
         results = engine.write(volume_number=1)
@@ -508,7 +548,7 @@ class TestWrite:
     def test_write_creates_chapter_files(self, engine, mock_llm, tmp_workdir):
         """write() should assemble chapter files from scenes."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         mock_llm._call_log.clear()
 
         engine.write(volume_number=1)
@@ -524,7 +564,7 @@ class TestWrite:
     def test_write_updates_volume_status(self, engine, mock_llm):
         """write() should set volume status to 初稿済."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         mock_llm._call_log.clear()
 
         engine.write(volume_number=1)
@@ -536,12 +576,12 @@ class TestWrite:
     def test_write_skips_completed_scenes(self, engine, mock_llm, tmp_workdir):
         """write() should skip scenes already marked as 修正済."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
 
         # Mark ALL scenes as completed
         vol = engine._current_volume()
         from novel_forge.models import SceneRecord
-        outline_path = engine._series_dir / "vol01" / "outline.json"
+        outline_path = engine._series_dir / "vol01" / "vol01.json"
         outline_dict = json.loads(outline_path.read_text(encoding="utf-8"))
         for sc in outline_dict.get("scenes", []):
             vol.scenes.append(SceneRecord(scene_number=sc["number"], status="修正済"))
@@ -564,7 +604,7 @@ class TestWrite:
     def test_write_calls_summarize_and_update_bible(self, engine, mock_llm):
         """write() should call summarize_and_update_bible after each scene."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         mock_llm._call_log.clear()
 
         engine.write(volume_number=1)
@@ -579,7 +619,7 @@ class TestExport:
     def test_export_creates_manuscript(self, engine, mock_llm, tmp_workdir):
         """export() should create manuscript file."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         engine.write(volume_number=1)
         mock_llm._call_log.clear()
 
@@ -591,7 +631,7 @@ class TestExport:
     def test_export_creates_metadata(self, engine, mock_llm, tmp_workdir):
         """export() should create metadata JSON."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         engine.write(volume_number=1)
         mock_llm._call_log.clear()
 
@@ -603,7 +643,7 @@ class TestExport:
     def test_export_creates_readiness_report(self, engine, mock_llm, tmp_workdir):
         """export() should create KDP readiness report."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         engine.write(volume_number=1)
         mock_llm._call_log.clear()
 
@@ -615,7 +655,7 @@ class TestExport:
     def test_export_sets_status_exported(self, engine, mock_llm):
         """export() should set status to 出力済."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         engine.write(volume_number=1)
         mock_llm._call_log.clear()
 
@@ -628,7 +668,7 @@ class TestExport:
     def test_export_forced_status(self, engine, mock_llm):
         """export() should set 強制出力済 if any scene was force-exported."""
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
         engine.write(volume_number=1)
 
         # Force one scene to 強制出力済
@@ -653,9 +693,9 @@ class TestResume:
 
     def test_resume_outlined(self, engine):
         """resume() should return 'outline' for アウトライン済 status."""
-        engine._state.status = "アウトライン済"
+        engine._state.status = "デザイン済"
         result = engine.resume()
-        assert result["action"] == "outline"
+        assert result["action"] == "design"
 
     def test_resume_drafting(self, engine):
         """resume() should return 'write' for 執筆中 volume status."""
@@ -672,7 +712,7 @@ class TestResume:
 
     def test_resume_drafting_takes_priority_over_outlined(self, engine):
         """When volume is 執筆中, resume should return 'write' even if state is アウトライン済."""
-        engine._state.status = "アウトライン済"
+        engine._state.status = "デザイン済"
         vol = VolumeProgress(volume_number=1, status="執筆中", current_chapter=0)
         engine._state.volumes.append(vol)
         result = engine.resume()
@@ -899,7 +939,7 @@ class TestBibleManager:
         from novel_forge.models import SubplotItem
         storage = BibleStorage(tmp_workdir)
         bible = Bible(subplots=[
-            SubplotItem(id="sp1", name="陰謀", status="in_progress", progress_note="進行中"),
+            SubplotItem(id="sp1", name="陰謀", status="進行中", progress_note="進行中"),
         ])
         storage.save(bible)
 
@@ -1066,8 +1106,8 @@ class TestBibleManager:
             "characters": [],
             "foreshadowing": [],
             "relationships": [
-                {"character_a": "A", "character_b": "B", "type": "友人",
-                 "change_direction": "improved", "trigger_event": "共闘"},
+                {"character_a": "A", "character_b": "B", "relationship_type": "友人",
+                 "change_direction": "改善", "trigger_event": "共闘"},
             ],
             "subplots": [],
             "glossary": [],
@@ -1091,7 +1131,7 @@ class TestBibleManager:
             "foreshadowing": [],
             "relationships": [],
             "subplots": [
-                {"id": "sp1", "name": "陰謀", "status": "in_progress", "progress_note": "進行中"},
+                {"id": "sp1", "name": "陰謀", "status": "進行中", "progress_note": "進行中"},
             ],
             "glossary": [],
             "world_rules": [],
@@ -1227,18 +1267,18 @@ class TestQualityGateBoundary:
         assert result.passed is True
 
     def test_score_just_below_70_fails(self):
-        """Score 69.9 should fail."""
+        """Score 69.9 with no issues should pass (severity-based)."""
         from novel_forge.quality_gate import QualityGate
         qg = QualityGate()
         result = qg.check_scene({"score": 69.9, "issues": []})
-        assert result.passed is False
+        assert result.passed is True  # No critical issues = pass
 
     def test_score_zero_fails(self):
-        """Score 0.0 should fail."""
+        """Score 0.0 with no issues should pass (severity-based)."""
         from novel_forge.quality_gate import QualityGate
         qg = QualityGate()
         result = qg.check_scene({"score": 0.0, "issues": []})
-        assert result.passed is False
+        assert result.passed is True  # No critical issues = pass
 
     def test_score_100_passes(self):
         """Score 100.0 should pass."""
@@ -1253,7 +1293,7 @@ class TestQualityGateBoundary:
         qg = QualityGate()
         result = qg.check_scene({
             "score": 100.0,
-            "issues": [{"severity": "critical", "description": "重大な問題"}]
+            "issues": [{"severity": "致命的", "description": "重大な問題"}]
         })
         assert result.passed is False
 
@@ -1273,7 +1313,7 @@ class TestQualityGateBoundary:
         qg = QualityGate()
         result = qg.check_scene({
             "score": 90.0,
-            "issues": [{"severity": "blocker", "description": "ブロッカー"}]
+            "issues": [{"severity": "致命的", "description": "ブロッカー"}]
         })
         assert result.passed is False
 
@@ -1281,22 +1321,23 @@ class TestQualityGateBoundary:
         """Volume with force_exported scenes should cap score at 50."""
         from novel_forge.quality_gate import QualityGate
         qg = QualityGate()
-        result = qg.check_volume([90.0, 95.0], force_exported_count=1)
-        assert result["score"] <= 50.0
+        # check_volume takes scene_results (list of dicts with issues)
+        result = qg.check_volume([{"issues": [{"severity": "致命的", "description": "強制出力"}]}])
+        assert result["passed"] is False
 
     def test_volume_check_no_force_exported(self):
-        """Volume without force_exported should average scores."""
+        """Volume without critical issues should pass."""
         from novel_forge.quality_gate import QualityGate
         qg = QualityGate()
-        result = qg.check_volume([80.0, 90.0], force_exported_count=0)
-        assert result["score"] == 85.0
+        result = qg.check_volume([{"issues": []}, {"issues": []}])
+        assert result["passed"] is True
 
     def test_volume_check_empty_scores(self):
-        """Volume with no scores should return 0."""
+        """Volume with no scenes should pass."""
         from novel_forge.quality_gate import QualityGate
         qg = QualityGate()
-        result = qg.check_volume([], force_exported_count=0)
-        assert result["score"] == 0.0
+        result = qg.check_volume([])
+        assert result["passed"] is True
 
 
 # ── Prompt input completeness tests ───────────────────────────────────
@@ -1306,32 +1347,43 @@ class TestPromptInputCompleteness:
 
     def test_series_plan_review_receives_world_rules(self, engine, mock_llm, tmp_workdir):
         """Series plan review should receive world rules in the plan text."""
-        mock_llm.add_sequence("series_plan", _make_plan_response(
+        mock_llm.add_sequence("series_plan_core", _make_plan_response(
             world={"summary": "魔法世界", "rules": ["魔法が存在する", "魔力には限りがある"]}
         ))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
+        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        # characters & volumes phases (pass immediately)
+        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         engine.plan("テスト")
 
-        # Find the series_plan_review call
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_review"]
+        # Find the series_plan_core_review call
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_core_review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
         assert "魔法が存在する" in review_prompt
 
     def test_series_plan_review_receives_character_arc(self, engine, mock_llm, tmp_workdir):
-        """Series plan review should receive character arc info."""
-        mock_llm.add_sequence("series_plan", _make_plan_response(
+        """Series plan core review should receive series plan context (no characters in core)."""
+        mock_llm.add_sequence("series_plan_core", _make_plan_response(
             main_characters=[{"name": "主人公", "role": "主人公", "arc": "成長から覚醒へ"}]
         ))
-        mock_llm.add_sequence("series_plan_review", _make_review_response(score=80))
+        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         engine.plan("テスト")
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_core_review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
-        assert "成長から覚醒へ" in review_prompt
+        # Core review should contain title and logline
+        assert "テストシリーズ" in review_prompt
+        assert "テストのあらすじ" in review_prompt
 
     def test_outline_review_receives_series_plan(self, engine, mock_llm, tmp_workdir):
         """Outline review should receive series plan context."""
@@ -1339,8 +1391,8 @@ class TestPromptInputCompleteness:
         mock_llm._call_log.clear()
 
         # Set default responses (outline generates multiple LLM calls)
-        mock_llm._responses["volume_outline"] = _make_outline_response()
-        mock_llm._responses["scene_outline"] = {
+        mock_llm._responses["volume_design"] = _make_design_response()
+        mock_llm._responses["scene_design"] = {
             "title": "出会い",
             "goal": "主人公を紹介する",
             "outcome": "主人公が旅立つ",
@@ -1348,12 +1400,12 @@ class TestPromptInputCompleteness:
             "pov": "主人公",
             "characters": ["主人公"],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=80)
+        mock_llm._responses["volume_design_review"] = _make_review_response(score=80)
         mock_llm._call_log.clear()
 
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "volume_outline_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "volume_design_review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
         # Should contain series plan info
@@ -1365,8 +1417,8 @@ class TestPromptInputCompleteness:
         mock_llm._call_log.clear()
 
         # Set default responses (outline generates multiple LLM calls)
-        mock_llm._responses["volume_outline"] = _make_outline_response()
-        mock_llm._responses["scene_outline"] = {
+        mock_llm._responses["volume_design"] = _make_design_response()
+        mock_llm._responses["scene_design"] = {
             "title": "出会い",
             "goal": "主人公を紹介する",
             "outcome": "主人公が旅立つ",
@@ -1374,12 +1426,12 @@ class TestPromptInputCompleteness:
             "pov": "主人公",
             "characters": ["主人公"],
         }
-        mock_llm._responses["volume_outline_review"] = _make_review_response(score=80)
+        mock_llm._responses["volume_design_review"] = _make_review_response(score=80)
         mock_llm._call_log.clear()
 
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "volume_outline_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "volume_design_review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
         assert "主人公を紹介する" in review_prompt
@@ -1389,12 +1441,12 @@ class TestPromptInputCompleteness:
         from novel_forge.models import SubplotItem
 
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
 
         # Add a subplot to bible
         bible = engine._bible_storage.load()
         bible.subplots.append(SubplotItem(
-            id="sp1", name="陰謀", status="in_progress", progress_note="進行中"
+            id="sp1", name="陰謀", status="進行中", progress_note="進行中"
         ))
         engine._bible_storage.save(bible)
 
@@ -1411,7 +1463,7 @@ class TestPromptInputCompleteness:
         from novel_forge.models import RelationshipItem
 
         engine.plan("テスト")
-        engine.outline(volume_number=1)
+        engine.design(volume_number=1)
 
         # Add a relationship to bible
         bible = engine._bible_storage.load()
@@ -1436,7 +1488,7 @@ class TestPromptInputCompleteness:
 class TestConfigGeneration:
     def test_ensure_config_creates_config(self, tmp_workdir, mock_llm):
         """plan() should auto-generate config.yaml if missing."""
-        prompts = PromptManager(loader=PromptLoader(prompt_dir=tmp_workdir / "prompts"))
+        prompts = PromptManager(prompt_dir=tmp_workdir / "prompts")
         eng = NovelEngine(
             workdir=tmp_workdir,
             model="test-model",
@@ -1454,7 +1506,7 @@ class TestConfigGeneration:
 
     def test_ensure_config_does_not_overwrite(self, tmp_workdir, mock_llm):
         """plan() should not overwrite existing config.yaml."""
-        prompts = PromptManager(loader=PromptLoader(prompt_dir=tmp_workdir / "prompts"))
+        prompts = PromptManager(prompt_dir=tmp_workdir / "prompts")
         eng = NovelEngine(
             workdir=tmp_workdir,
             model="test-model",
@@ -1470,3 +1522,139 @@ class TestConfigGeneration:
 
         content = config_path.read_text(encoding="utf-8")
         assert "custom: true" in content
+
+
+# ── File naming convention tests ─────────────────────────────────────────
+
+class TestFileNamingConvention:
+    """Tests for the new file naming convention:
+    - Target files: no suffix (series_core.json, vol01.json, vol01_ch01.json, vol01_ch01_sc01.json)
+    - Review files: _review suffix (series_core_review.json, vol01_review.json, ...)
+    - Revision files: _v1, _v2 suffix (series_core_v1.json, vol01_v1.json, ...)
+    """
+
+    def test_plan_saves_separate_phase_files(self, engine, mock_llm, tmp_workdir):
+        """plan() should save separate files for each phase."""
+        engine.plan("テスト")
+
+        series_dir = engine._series_dir
+        assert (series_dir / "series_core.json").exists()
+        assert (series_dir / "series_characters.json").exists()
+        assert (series_dir / "series_volumes.json").exists()
+        assert (series_dir / "series_plan.json").exists()  # merged
+
+    def test_plan_review_files_have_reviews_list(self, engine, mock_llm, tmp_workdir):
+        """Review files should contain a 'reviews' list with version info."""
+        engine.plan("テスト")
+
+        series_dir = engine._series_dir
+        for name in ["series_core_review.json", "series_characters_review.json", "series_volumes_review.json"]:
+            path = series_dir / name
+            assert path.exists(), f"{name} should exist"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            assert "reviews" in data, f"{name} should have 'reviews' key"
+            assert isinstance(data["reviews"], list)
+            for review in data["reviews"]:
+                assert "version" in review
+                assert "issues" in review
+                assert "suggestions" in review
+
+    def test_plan_review_first_entry_is_version_0(self, engine, mock_llm, tmp_workdir):
+        """First review entry should be version 0 (initial draft review)."""
+        engine.plan("テスト")
+
+        review_path = engine._series_dir / "series_core_review.json"
+        data = json.loads(review_path.read_text(encoding="utf-8"))
+        assert data["reviews"][0]["version"] == 0
+
+    def test_design_saves_vol_file(self, engine, mock_llm, tmp_workdir):
+        """design() should save vol01.json."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        vol_path = engine._series_dir / "vol01" / "vol01.json"
+        assert vol_path.exists()
+        data = json.loads(vol_path.read_text(encoding="utf-8"))
+        assert "chapters" in data
+        assert "scenes" in data
+
+    def test_design_saves_chapter_files(self, engine, mock_llm, tmp_workdir):
+        """design() should save separate chapter files in vol01_chXX directories."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        vol_dir = engine._series_dir / "vol01"
+        chapters = json.loads((vol_dir / "vol01.json").read_text(encoding="utf-8"))["chapters"]
+        for ch in chapters:
+            ch_num = ch["number"]
+            ch_dir = vol_dir / f"vol01_ch{ch_num:02d}"
+            assert ch_dir.is_dir(), f"vol01_ch{ch_num:02d}/ should exist"
+            ch_file = ch_dir / f"vol01_ch{ch_num:02d}.json"
+            assert ch_file.exists(), f"vol01_ch{ch_num:02d}.json should exist"
+            data = json.loads(ch_file.read_text(encoding="utf-8"))
+            assert data["number"] == ch_num
+
+    def test_design_saves_scene_files(self, engine, mock_llm, tmp_workdir):
+        """design() should save separate scene files in vol01_chXX_scXX directories."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        vol_dir = engine._series_dir / "vol01"
+        scenes = json.loads((vol_dir / "vol01.json").read_text(encoding="utf-8"))["scenes"]
+        for sc in scenes:
+            sc_num = sc["number"]
+            ch_num = sc["chapter_number"]
+            sc_dir = vol_dir / f"vol01_ch{ch_num:02d}" / f"vol01_ch{ch_num:02d}_sc{sc_num:02d}"
+            assert sc_dir.is_dir(), f"vol01_ch{ch_num:02d}_sc{sc_num:02d}/ should exist"
+            sc_file = sc_dir / f"vol01_ch{ch_num:02d}_sc{sc_num:02d}.json"
+            assert sc_file.exists()
+            data = json.loads(sc_file.read_text(encoding="utf-8"))
+            assert data["number"] == sc_num
+
+    def test_design_review_files_in_correct_dirs(self, engine, mock_llm, tmp_workdir):
+        """Review files should be saved in their respective directories."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        vol_dir = engine._series_dir / "vol01"
+        # Volume review
+        assert (vol_dir / "vol01_review.json").exists()
+        # Chapter reviews
+        chapters = json.loads((vol_dir / "vol01.json").read_text(encoding="utf-8"))["chapters"]
+        for ch in chapters:
+            ch_num = ch["number"]
+            ch_review = vol_dir / f"vol01_ch{ch_num:02d}" / f"vol01_ch{ch_num:02d}_review.json"
+            assert ch_review.exists(), f"vol01_ch{ch_num:02d}_review.json should exist"
+        # Scene reviews
+        scenes = json.loads((vol_dir / "vol01.json").read_text(encoding="utf-8"))["scenes"]
+        for sc in scenes:
+            sc_num = sc["number"]
+            ch_num = sc["chapter_number"]
+            sc_review = vol_dir / f"vol01_ch{ch_num:02d}" / f"vol01_ch{ch_num:02d}_sc{sc_num:02d}" / f"vol01_ch{ch_num:02d}_sc{sc_num:02d}_review.json"
+            assert sc_review.exists()
+
+    def test_design_review_has_reviews_list(self, engine, mock_llm, tmp_workdir):
+        """Design review files should contain a 'reviews' list."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        review_path = engine._series_dir / "vol01" / "vol01_review.json"
+        data = json.loads(review_path.read_text(encoding="utf-8"))
+        assert "reviews" in data
+        assert isinstance(data["reviews"], list)
+        assert data["reviews"][0]["version"] == 0
+
+    def test_no_legacy_design_json(self, engine, mock_llm, tmp_workdir):
+        """Old design.json should NOT be created."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        assert not (engine._series_dir / "vol01" / "design.json").exists()
+
+    def test_no_legacy_review_dir(self, engine, mock_llm, tmp_workdir):
+        """Old review/ directory should NOT be created."""
+        engine.plan("テスト")
+        engine.design(volume_number=1)
+
+        assert not (engine._series_dir / "vol01" / "review").exists()
+        assert not (engine._series_dir / "review").exists()

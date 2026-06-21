@@ -198,7 +198,7 @@ class BibleManager:
                 bible.subplots.append(SubplotItem(
                     id=sp_data.get("id", f"sp_{scene_number}"),
                     name=sp_data.get("name", ""),
-                    status=sp_data.get("status", "in_progress"),
+                    status=sp_data.get("status", "進行中"),
                     progress_note=sp_data.get("progress_note", ""),
                     related_characters=sp_data.get("related_characters", []),
                     related_foreshadowing_ids=sp_data.get("related_foreshadowing_ids", []),

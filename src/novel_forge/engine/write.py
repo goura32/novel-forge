@@ -16,7 +16,7 @@ class WriteMixin:
         import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
-        design_data = self._load_path(vol_num, "design.json")
+        design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
         design_obj = VolumeOutline(**design_data)
 
         # Deduplicate chapters
@@ -77,7 +77,7 @@ class WriteMixin:
                     continue
                 _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s")
                 result = self._scene_writer.write_scene(
-                    outline=design_obj,
+                    design_obj=design_obj,
                     chapter=chapter,
                     scene=scene,
                     record=record,

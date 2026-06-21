@@ -1,7 +1,7 @@
 """Tests for prompts.py — render_prompt uses {key} (single-brace) placeholders."""
 import pytest
 
-from novel_forge.prompts import render_prompt, PromptLoader, PromptManager
+from novel_forge.prompts import render_prompt, PromptManager
 
 
 class TestRenderPrompt:
@@ -41,13 +41,11 @@ class TestPromptManager:
         prompt_dir.mkdir()
         (prompt_dir / "test.md").write_text("{greeting} {name}", encoding="utf-8")
 
-        loader = PromptLoader(prompt_dir)
-        mgr = PromptManager(loader=loader)
+        mgr = PromptManager(prompt_dir=prompt_dir)
         result = mgr.render("test.md", {"greeting": "こんにちは", "name": "世界"})
         assert result == "こんにちは 世界"
 
     def test_render_missing_file_raises(self, tmp_path):
-        loader = PromptLoader(prompt_dir=tmp_path)
-        mgr = PromptManager(loader=loader)
+        mgr = PromptManager(prompt_dir=tmp_path)
         with pytest.raises(FileNotFoundError):
             mgr.render("nonexistent.md", {})
