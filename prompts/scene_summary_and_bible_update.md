@@ -42,7 +42,7 @@
   "foreshadowing": [
     {
       "description": "伏線の説明（200文字以内）",
-      "type": "setup"
+      "type": "設置"
     }
   ],
   "relationships": [
@@ -50,7 +50,7 @@
       "character_a": "キャラクターA",
       "character_b": "キャラクターB",
       "type": "関係の種類（64文字以内）",
-      "change_direction": "improved",
+      "change_direction": "改善",
       "trigger_event": "関係変化のきっかけ（200文字以内）"
     }
   ],
@@ -58,7 +58,7 @@
     {
       "id": "サブプロットID",
       "name": "サブプロット名（128文字以内）",
-      "status": "in_progress",
+      "status": "進行中",
       "progress_note": "進捗メモ（200文字以内）"
     }
   ],
@@ -77,8 +77,8 @@
 ```
 
 **注意**:
-- `foreshadowing[].type` は「setup」「resolution」から選択すること。
-- `relationships[].change_direction` は「improved」「worsened」「changed」「unchanged」から選択すること。
-- `subplots[].status` は「not_started」「in_progress」「completed」から選択すること。
+- `foreshadowing[].type` は「設置」「回収」から選択すること。
+- `relationships[].change_direction` は「改善」「悪化」「変化」「変化なし」から選択すること。
+- `subplots[].status` は「未着手」「進行中」「完了」から選択すること。
 
 言語: {lang}

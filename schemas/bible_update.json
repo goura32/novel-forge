@@ -1,97 +1,192 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "BibleUpdate",
-  "type": "object",
-  "properties": {
-    "foreshadowing": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "description": { "type": "string", "maxLength": 200 },
-          "type": { "type": "string", "enum": ["setup", "resolution"] },
-          "resolved": { "type": "boolean" },
-          "scene_number": { "type": "integer" }
-        }
-      }
-    },
-    "characters": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string", "maxLength": 64 },
-          "role": { "type": "string", "maxLength": 64 },
-          "personality": { "type": "string", "maxLength": 200 },
-          "appearance": { "type": "string", "maxLength": 200 },
-          "motivation": { "type": "string", "maxLength": 200 },
-          "arc": { "type": "string", "maxLength": 200 },
-          "state": { "type": "string", "maxLength": 200 },
-          "is_new": { "type": "boolean" }
-        }
-      }
-    },
-    "relationships": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "character_a": { "type": "string", "maxLength": 64 },
-          "character_b": { "type": "string", "maxLength": 64 },
-          "relationship_type": { "type": "string", "maxLength": 64 },
-          "change_direction": { "type": "string", "enum": ["improved", "worsened", "changed", "unchanged"] },
-          "trigger_event": { "type": "string", "maxLength": 200 }
-        }
-      }
-    },
-    "subplots": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string", "maxLength": 128 },
-          "status": { "type": "string", "enum": ["not_started", "in_progress", "completed"] },
-          "progress_note": { "type": "string", "maxLength": 200 }
-        }
-      }
-    },
-    "glossary": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "term": { "type": "string", "maxLength": 64 },
-          "definition": { "type": "string", "maxLength": 200 },
-          "is_new": { "type": "boolean" }
-        }
-      }
-    },
-    "world_rules": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "rule": { "type": "string", "maxLength": 200 },
-          "is_new": { "type": "boolean" }
-        }
-      }
-    },
-    "facts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "subject": { "type": "string" },
-          "predicate": { "type": "string" },
-          "object": { "type": "string" }
-        }
-      }
-    },
-    "continuity_notes": {
-      "type": "array",
-      "items": { "type": "string", "maxLength": 200 }
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "BibleUpdate",
+ "type": "object",
+ "properties": {
+  "foreshadowing": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "設置",
+       "回収"
+      ]
+     },
+     "resolved": {
+      "type": "boolean"
+     },
+     "scene_number": {
+      "type": "integer"
+     }
     }
+   }
+  },
+  "characters": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "role": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "personality": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "appearance": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "motivation": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "arc": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "state": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "is_new": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  "relationships": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "character_a": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "character_b": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "relationship_type": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "change_direction": {
+      "type": "string",
+      "enum": [
+       "改善",
+       "悪化",
+       "変化",
+       "変化なし"
+      ]
+     },
+     "trigger_event": {
+      "type": "string",
+      "maxLength": 200
+     }
+    }
+   }
+  },
+  "subplots": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 128
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "未着手",
+       "進行中",
+       "完了"
+      ]
+     },
+     "progress_note": {
+      "type": "string",
+      "maxLength": 200
+     }
+    }
+   }
+  },
+  "glossary": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "term": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "definition": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "is_new": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  "world_rules": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "rule": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "is_new": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  "facts": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "subject": {
+      "type": "string"
+     },
+     "predicate": {
+      "type": "string"
+     },
+     "object": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "continuity_notes": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "maxLength": 200
+   }
   }
+ }
 }

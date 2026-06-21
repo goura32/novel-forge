@@ -51,7 +51,7 @@ class RelationshipItem(BaseModel):
     character_b: str
     relationship_type: str = ""  # 敵対・協力・恋愛・師弟・家族・ライバル etc
     status: str = ""  # 良好・緊張・悪化・修復・変化中
-    change_direction: str = ""  # improved | worsened | changed | unchanged
+    change_direction: str = ""  # 改善 | 悪化 | 変化 | 変化なし
     trigger_event: str = ""
     scene_number: int = 0  # 変化が起きたシーン番号
 
@@ -59,7 +59,7 @@ class RelationshipItem(BaseModel):
 class SubplotItem(BaseModel):
     id: str
     name: str
-    status: str = Field(default="not_started", pattern="^(not_started|in_progress|completed)$")
+    status: str = Field(default="未着手", pattern="^(未着手|進行中|完了)$")
     progress_note: str = ""
     related_characters: list[str] = Field(default_factory=list)
     related_foreshadowing_ids: list[str] = Field(default_factory=list)

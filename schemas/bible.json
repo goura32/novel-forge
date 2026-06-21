@@ -1,189 +1,189 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Bible",
-  "type": "object",
-  "required": [
-    "characters",
-    "glossary",
-    "foreshadowing",
-    "world_rules",
-    "relationships",
-    "subplots"
-  ],
-  "properties": {
-    "characters": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 64,
-            "description": "キャラクター名"
-          },
-          "role": {
-            "type": "string",
-            "maxLength": 64,
-            "description": "役割"
-          },
-          "arc": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "成長軌跡"
-          },
-          "appearance": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "外見"
-          },
-          "personality": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "性格"
-          },
-          "motivation": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "動機・目的"
-          },
-          "state": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "状態"
-          }
-        }
-      }
-    },
-    "glossary": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "term",
-          "definition"
-        ],
-        "properties": {
-          "term": {
-            "type": "string",
-            "maxLength": 64,
-            "description": "用語"
-          },
-          "definition": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "定義"
-          }
-        }
-      }
-    },
-    "foreshadowing": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "description"
-        ],
-        "properties": {
-          "description": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "伏線の説明"
-          },
-          "resolved": {
-            "type": "boolean"
-          }
-        }
-      }
-    },
-    "world_rules": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "maxLength": 200,
-        "description": "世界のルール"
-      }
-    },
-    "relationships": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "character_a": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "character_b": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "relationship_type": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "status": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "change_direction": {
-            "type": "string",
-            "enum": [
-              "improved",
-              "worsened",
-              "changed",
-              "unchanged"
-            ]
-          },
-          "trigger_event": {
-            "type": "string",
-            "maxLength": 200
-          },
-          "scene_number": {
-            "type": "integer"
-          }
-        }
-      }
-    },
-    "subplots": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 128
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "not_started",
-              "in_progress",
-              "completed"
-            ]
-          },
-          "progress_note": {
-            "type": "string",
-            "maxLength": 200
-          },
-          "related_characters": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "related_foreshadowing_ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      }
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "Bible",
+ "type": "object",
+ "required": [
+  "characters",
+  "glossary",
+  "foreshadowing",
+  "world_rules",
+  "relationships",
+  "subplots"
+ ],
+ "properties": {
+  "characters": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "キャラクター名"
+     },
+     "role": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "役割"
+     },
+     "arc": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "成長軌跡"
+     },
+     "appearance": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "外見"
+     },
+     "personality": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "性格"
+     },
+     "motivation": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "動機・目的"
+     },
+     "state": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "状態"
+     }
     }
+   }
+  },
+  "glossary": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "term",
+     "definition"
+    ],
+    "properties": {
+     "term": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "用語"
+     },
+     "definition": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "定義"
+     }
+    }
+   }
+  },
+  "foreshadowing": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "description"
+    ],
+    "properties": {
+     "description": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "伏線の説明"
+     },
+     "resolved": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  "world_rules": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "maxLength": 200,
+    "description": "世界のルール"
+   }
+  },
+  "relationships": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "character_a": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "character_b": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "relationship_type": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "status": {
+      "type": "string",
+      "maxLength": 64
+     },
+     "change_direction": {
+      "type": "string",
+      "enum": [
+       "改善",
+       "悪化",
+       "変化",
+       "変化なし"
+      ]
+     },
+     "trigger_event": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "scene_number": {
+      "type": "integer"
+     }
+    }
+   }
+  },
+  "subplots": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 128
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "未着手",
+       "進行中",
+       "完了"
+      ]
+     },
+     "progress_note": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "related_characters": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "related_foreshadowing_ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    }
+   }
   }
+ }
 }
