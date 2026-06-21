@@ -168,6 +168,10 @@ class LLMClient:
                 return parsed
             except JsonParseError as e:
                 last_error = e
+                self._log.warning(
+                    "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
+                    kind, attempt + 1, self.max_retries, str(e)[:100],
+                )
                 self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
                 current_prompt = (
@@ -180,6 +184,10 @@ class LLMClient:
                 continue
             except SchemaValidationError as e:
                 last_error = e
+                self._log.warning(
+                    "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
+                    kind, attempt + 1, self.max_retries, str(e)[:100],
+                )
                 self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:200]
                 current_prompt = (
@@ -191,8 +199,16 @@ class LLMClient:
                 continue
             except LLMError as e:
                 last_error = e
+                self._log.warning(
+                    "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
+                    kind, attempt + 1, self.max_retries, str(e)[:100],
+                )
                 self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 continue
+        self._log.error(
+            "  [LLM FAILED] kind=%s attempts=%d error=%s",
+            kind, self.max_retries, str(last_error)[:100],
+        )
         self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
         raise last_error or LLMError("LLM request failed")
 

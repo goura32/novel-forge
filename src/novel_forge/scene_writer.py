@@ -179,7 +179,7 @@ class SceneWriter:
 
             if retry < self._quality.max_retries:
                 msg = f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count} retry={retry}/{self._quality.max_retries}"
-                self._log.info(msg)
+                self._log.warning(msg)
                 if log_fn:
                     log_fn(msg)
                 lang_issues = self._extract_language_issues(review)
