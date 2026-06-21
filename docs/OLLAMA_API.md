@@ -8,7 +8,7 @@
 API:      /api/chat（/generate ではない）
 think:    true（必須）
 format:   schema（JSON Schema オブジェクトを直接指定）
-stream:   false
+stream:   true（Ollama 0.30.10 では stream: false がタイムアウトするため stream: true を使用）
 num_ctx:  262144
 num_predict: -1（無制限）
 timeout:  3600秒
@@ -44,7 +44,7 @@ seed:     42（リトライ時にインクリメント）
 |---|---|---|---|
 | model | トップレベル | ✅ | |
 | messages | トップレベル | ✅ | OpenAI 形式 |
-| stream | トップレベル | ✅ | `false` 固定 |
+| stream | トップレベル | ✅ | `true` 固定（Ollama 0.30.10 では `false` がタイムアウトするため） |
 | think | トップレベル | ✅ | qwen3.6 では `true` を採用 |
 | format | トップレベル | schema使用時 | JSON schema オブジェクトを直接指定 |
 | options | トップレベル | ✅ | num_ctx, num_predict 等 |
@@ -96,12 +96,13 @@ seed:     42（リトライ時にインクリメント）
 
 ### 推奨構成
 ```
-/api/chat + think: true + format: schema + num_predict: 32768
+/api/chat + think: true + format: schema + num_predict: -1
 ```
 
 - `format=schema` + `think=true` で最も安定
 - 配列フィールドはプロンプトに「最低2つの要素を含める」と明示することで安定化
 - ネスト構造（depth 10）でも正しく適用可能
+- `num_predict: -1`（無制限）を推奨（Ollama 0.30.10 では thinking トークンの出力に長さ制限があるため）
 
 ### スキーマ設計ルール
 - 配列にすべき項目は配列を使用（curl で動作確認済み）

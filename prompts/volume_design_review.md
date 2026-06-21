@@ -67,7 +67,8 @@
       "affected_elements": ["要素1", "要素2"]
     }
   ],
-  "suggestions": ["改善提案1", "改善提案2"]
+  "suggestions": ["改善提案1", "改善提案2"],
+  "revision_needed": false
 }
 ```
 

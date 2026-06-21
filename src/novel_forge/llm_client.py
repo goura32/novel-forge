@@ -253,42 +253,30 @@ class LLMClient:
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str]:
         """Call Ollama API and return (raw_text, content, thinking).
 
-        raw_text: raw Ollama response text (NDJSON or single JSON)
-        content: extracted content (may be empty for thinking-only responses)
-        thinking: extracted thinking (may be empty if model doesn't use CoT)
+        raw_text: raw Ollama response text (NDJSON)
+        content: extracted content
+        thinking: extracted thinking
+
+        Ollama /api/chat always returns NDJSON stream, so we use
+        stream=True and read lines incrementally.
         """
-        try:
-            payload = {**payload, "stream": False}
-            resp = httpx.post(
-                self.api_url,
-                json=payload,
-                timeout=self.timeout_seconds,
-            )
+        stream_payload = {**payload, "stream": True}
+        lines: list[str] = []
+        with httpx.stream(
+            "POST",
+            self.api_url,
+            json=stream_payload,
+            timeout=self.timeout_seconds,
+        ) as resp:
             resp.raise_for_status()
-            text = resp.text.strip()
-            if "\n" in text:
-                result, thinking_combined = self._parse_ndjson(text)
-                # NDJSONパースで空の場合、単一行JSONとして再パースを試みる
-                if not result or not result.strip():
-                    try:
-                        data = json.loads(text)
-                        if "error" in data:
-                            raise LLMError(f"Ollama error: {data['error']}")
-                        result = data.get("message", {}).get("content", "")
-                        thinking_combined = data.get("message", {}).get("thinking", "")
-                    except json.JSONDecodeError:
-                        pass  # NDJSONパース失敗時はそのまま空
-            else:
-                data = json.loads(text)
-                if "error" in data:
-                    raise LLMError(f"Ollama error: {data['error']}")
-                result = data.get("message", {}).get("content", "")
-                thinking_combined = data.get("message", {}).get("thinking", "")
-            if not result or not result.strip():
-                raise LLMError("Ollama returned empty response")
-            return text, result, thinking_combined
-        except httpx.HTTPError as e:
-            raise LLMError(f"HTTP error: {e}") from e
+            for line in resp.iter_lines():
+                if line.strip():
+                    lines.append(line)
+        text = "\n".join(lines)
+        result, thinking_combined = self._parse_ndjson(text)
+        if not result or not result.strip():
+            raise LLMError("Ollama returned empty response")
+        return text, result, thinking_combined
 
     def _write_log(
         self,

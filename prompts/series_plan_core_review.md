@@ -56,7 +56,8 @@
       "description": "問題の説明"
     }
   ],
-  "suggestions": ["改善提案1"]
+  "suggestions": ["改善提案1"],
+  "revision_needed": false
 }
 ```
 

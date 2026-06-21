@@ -99,7 +99,7 @@ class PlanMixin:
             "series_plan_core_revision.md",
             {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_core_revision", system, user, get_schema("series_plan_core"))
+        return self._llm.complete_json("series_plan_core_revision", system, user, get_schema("series_plan_core_revision"))
 
     def _review_and_revise_plan_core(self, core: dict, system: str) -> dict:
         review = self._review_plan_core(core, system)
@@ -133,7 +133,7 @@ class PlanMixin:
             "series_plan_characters.md",
             {"world_summary": world_text, "world_rules": rules_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_characters", system, user, get_schema("series_plan_characters"))
+        return self._llm.complete_json("series_plan_characters", system, user, get_schema("series_plan_characters_revision"))
 
     def _review_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
         lines = ["世界観:", core.get("world", {}).get("summary", ""), "", "メインキャラクター:"]
@@ -154,7 +154,7 @@ class PlanMixin:
             "series_plan_characters_revision.md",
             {"current_characters": json.dumps(characters, ensure_ascii=False), "review": review_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_characters_revision", system, user, get_schema("series_plan_characters"))
+        return self._llm.complete_json("series_plan_characters_revision", system, user, get_schema("series_plan_characters_revision"))
 
     def _review_and_revise_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
         review = self._review_plan_characters(characters, core, system)
@@ -191,7 +191,7 @@ class PlanMixin:
             "series_plan_volumes.md",
             {"core_text": core_text, "characters_text": char_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_volumes", system, user, get_schema("series_plan_volumes"))
+        return self._llm.complete_json("series_plan_volumes", system, user, get_schema("series_plan_volumes_revision"))
 
     def _review_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
         lines = ["シリーズ核:", f"  タイトル: {core.get('title', '')}", f"  あらすじ: {core.get('logline', '')}", "", "各巻:"]
@@ -212,7 +212,7 @@ class PlanMixin:
             "series_plan_volumes_revision.md",
             {"current_volumes": json.dumps(volumes, ensure_ascii=False), "review": review_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_volumes_revision", system, user, get_schema("series_plan_volumes"))
+        return self._llm.complete_json("series_plan_volumes_revision", system, user, get_schema("series_plan_volumes_revision"))
 
     def _review_and_revise_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
         review = self._review_plan_volumes(volumes, core, characters, system)
