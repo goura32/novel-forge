@@ -183,7 +183,8 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_log(kind + "_json_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
+                # Save raw_text (not raw) so we can investigate parse failures
+                self._write_log(kind + "_json_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -199,7 +200,7 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_log(kind + "_schema_error", payload, raw, {"error": str(e), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
+                self._write_log(kind + "_schema_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -214,7 +215,7 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_log(kind + "_llm_error", payload, raw, {"error": str(e)}, thinking=thinking, elapsed=0.0, attempt=attempt)
+                self._write_log(kind + "_llm_error", payload, raw_text or "", {"error": str(e)}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 continue
         self._log.error(
             "  [LLM FAILED] kind=%s attempts=%d error=%s",
