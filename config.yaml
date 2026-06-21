@@ -24,7 +24,7 @@ llm:
   max_retries: 2
 
   # Ollama ホスト（OLLAMA_HOST 環境変数より優先）
-  # ollama_host: "ws1.local:11434"
+  ollama_host: "ws1.local:11434"
 
   # Ollama サンプリングオプション
   ollama_options:

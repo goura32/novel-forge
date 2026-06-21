@@ -163,7 +163,7 @@ class LLMClient:
                     kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset,
                 )
                 _call_start = time.time()
-                raw_text, raw, thinking = self._call_api(payload)
+                raw_text, raw, thinking, done_reason = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
                 self._log.debug(
                     "  [LLM DONE] kind=%s attempt=%d elapsed=%.1fs raw_len=%d",
@@ -252,33 +252,86 @@ class LLMClient:
                 thinking_parts.append(thinking)
         return "".join(parts), "".join(thinking_parts)
 
-    def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str]:
+    def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str]:
         """Call Ollama API and return (raw_text, content, thinking).
 
-        raw_text: raw Ollama response text (NDJSON)
-        content: extracted content
+        raw_text: raw Ollama response text (full JSON response body)
+        content: extracted content (JSON string from message.content)
         thinking: extracted thinking
 
-        Ollama /api/chat always returns NDJSON stream, so we use
-        stream=True and read lines incrementally.
+        Ollama /api/chat with stream=False returns a single JSON object.
         """
-        stream_payload = {**payload, "stream": True}
-        lines: list[str] = []
-        with httpx.stream(
-            "POST",
+        stream_payload = {**payload, "stream": False}
+        raw_bytes = b""
+        resp = httpx.post(
             self.api_url,
             json=stream_payload,
             timeout=self.timeout_seconds,
-        ) as resp:
-            resp.raise_for_status()
-            for line in resp.iter_lines():
-                if line.strip():
-                    lines.append(line)
-        text = "\n".join(lines)
-        result, thinking_combined = self._parse_ndjson(text)
-        if not result or not result.strip():
+        )
+        resp.raise_for_status()
+        raw_bytes = resp.content
+        raw_text = raw_bytes.decode("utf-8", errors="replace")
+        # Parse the single JSON response object
+        try:
+            resp_obj = json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            # Save raw response for debugging before raising
+            self._write_raw_log("_parse_response_error", raw_text, {"error": str(e)})
+            raise LLMError(f"Failed to parse Ollama response as JSON: {e}")
+        # Log done_reason for debugging
+        done_reason = resp_obj.get("done_reason", "")
+        if done_reason:
+            self._log.debug("  [LLM DONE_REASON] %s", done_reason)
+        if resp_obj.get("error"):
+            self._write_raw_log("_ollama_api_error", raw_text, {"error": resp_obj["error"]})
+            raise LLMError(f"Ollama error: {resp_obj['error']}")
+        # Save raw Ollama response for debugging
+        self._write_raw_log("_ollama_response", raw_text, resp_obj)
+        msg = resp_obj.get("message", {})
+        content = msg.get("content", "")
+        thinking = msg.get("thinking", "")
+        if not content or not content.strip():
             raise LLMError("Ollama returned empty response")
-        return text, result, thinking_combined
+        return raw_text, content, thinking, done_reason
+
+    def _write_raw_log(self, kind: str, raw_text: str, parsed: dict | None = None) -> None:
+        """Write raw Ollama response to file for debugging.
+        
+        This is always called (regardless of raw_log_enabled) for all LLM calls,
+        saving to a separate _raw directory under the workdir.
+        """
+        raw_dir = self.raw_log_dir
+        if not raw_dir:
+            return
+        try:
+            raw_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        idx = 0
+        while True:
+            suffix = f"_{idx:03d}" if idx > 0 else ""
+            log_path = raw_dir / f"{timestamp}_{kind}{suffix}.json"
+            if not log_path.exists():
+                break
+            idx += 1
+        try:
+            log_data = {
+                "kind": kind,
+                "timestamp": timestamp,
+                "model": self.model,
+                "raw_response": raw_text,
+            }
+            if parsed and not isinstance(parsed, dict):
+                log_data["parsed"] = str(parsed)[:500]
+            elif isinstance(parsed, dict) and "error" in parsed:
+                log_data["error_info"] = parsed
+            log_path.write_text(
+                json.dumps(log_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as e:
+            self._log.debug("  [RAW LOG WRITE FAILED] %s", e)
 
     def _write_log(
         self,

@@ -74,7 +74,7 @@ class NovelEngineBase:
             host = llm_cfg.get("ollama_host", None)
             api_url = None
             if host:
-                api_url = f"http://{host}/api/generate"
+                api_url = f"http://{host}/api/chat"
             llm_client = LLMClient(
                 api_url=api_url,
                 model=model,
