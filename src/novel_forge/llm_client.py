@@ -292,12 +292,12 @@ def _coerce_types(data: dict, schema: dict) -> dict:
             data[field] = items
 
         elif expected_type == "integer" and isinstance(value, (int, float)):
-            # Clamp to 0-100 for score fields
-            import math
+            # Validate range for score fields — out of range becomes 0
+            ivalue = int(round(value))
             if field == "score" or "score" in field.lower():
-                data[field] = max(0, min(100, int(round(value))))
+                data[field] = ivalue if 0 <= ivalue <= 100 else 0
             else:
-                data[field] = int(value)
+                data[field] = ivalue
 
         elif expected_type == "integer" and isinstance(value, str):
             # Try to parse string as integer
