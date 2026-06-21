@@ -23,6 +23,7 @@ KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足を
 | [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、SceneWriter、状態遷移） |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理（一覧、レビュー/改稿の分離ルール） |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | 用語集 |
+| [docs/OLLAMA_API.md](docs/OLLAMA_API.md) | Ollama API 仕様調査 |
 
 ---
 
@@ -47,21 +48,18 @@ uv run novel-forge probe-model
 ## クイックスタート
 
 ```bash
-# 1巻を一括実行
-uv run novel-forge complete "近未来東京 記憶探偵" --workdir ./work/series1
-
 # 段階的に進める
-uv run novel-forge plan    --workdir ./work/series1 --keywords "近未来東京 記憶探偵"
-uv run novel-forge outline --workdir ./work/series1
-uv run novel-forge write   --workdir ./work/series1
-uv run novel-forge export  --workdir ./work/series1
+uv run novel-forge plan    --workdir /mnt/hdd/novel --keywords "近未来東京 記憶探偵"
+uv run novel-forge design  --workdir /mnt/hdd/novel
+uv run novel-forge write   --workdir /mnt/hdd/novel
+uv run novel-forge export  --workdir /mnt/hdd/novel
 
 # 次巻へ進む
-uv run novel-forge outline --workdir ./work/series1 --volume 2
+uv run novel-forge design  --workdir /mnt/hdd/novel --volume 2
 
 # 中断・再開
-uv run novel-forge status  --workdir ./work/series1
-uv run novel-forge resume  --workdir ./work/series1
+uv run novel-forge status  --workdir /mnt/hdd/novel
+uv run novel-forge resume  --workdir /mnt/hdd/novel
 ```
 
 ## 主要機能
@@ -69,7 +67,7 @@ uv run novel-forge resume  --workdir ./work/series1
 | 機能 | 説明 | 人間介入 |
 |---|---|---|
 | シリーズ企画 | キーワードから世界観・キャラクター・構成案を生成 | 確認（暗黙承認） |
-| 巻アウトライン | 3フェーズ（章構成→章設計→シーン設計）で生成 | なし（LLM自律） |
+| 巻デザイン | 3フェーズ（章構成→章設計→シーン設計）で生成 | なし（LLM自律） |
 | シーン執筆 | Blackboard + Bible による継続性維持 | なし（LLM自律） |
 | 自律レビュー | 全工程 LLM が自己レビュー・改稿・品質ゲート | なし（LLM自律） |
 | Bible 管理 | キャラクター、伏線、関係性、サブプロットの自動追跡 | なし（LLM自律） |
@@ -79,19 +77,19 @@ uv run novel-forge resume  --workdir ./work/series1
 
 ## 排他制御
 
-同一シリーズ内では `plan` / `outline` / `write` / `export` / `resume` / `complete` は同時に実行できません。
+同一シリーズ内では `plan` / `design` / `write` / `export` / `resume` は同時に実行できません。
 
 - `series_dir/.lock` ファイルで排他制御
 - ロック保持プロセスが終了していたら自動回収（stale lock detection）
 - 5分以上経過したロックも stale として強制取得
-- `status` はロック不要（読み取り専用）+ ロック状態を表示
+- `status` はロック不要（読み取り専用）
 
 ```bash
 # 同時実行しようとすると即座にエラー
-$ novel-forge write -V 1 --workdir ./work/series1
+$ novel-forge write --workdir /mnt/hdd/novel
 ✗ Lock held by PID=12345 (active, 120s ago). Another process is running on this series.
   Wait for it to finish, or remove the lock file manually:
-  rm ./work/series1/.lock
+  rm /mnt/hdd/novel/.lock
 ```
 
 ## アーキテクチャ
@@ -100,13 +98,20 @@ $ novel-forge write -V 1 --workdir ./work/series1
 cli.py → engine/ → scene_writer.py
                     → context_builder.py
                     → bible_manager.py
+        → llm_client.py → json_parser.py
+        → quality_gate.py
+        → schemas.py
+        → storage.py
 ```
 
 - **CLI Interface** (`cli.py`): ユーザー対話、排他制御
-- **NovelEngine** (`engine/`): オーケストレーション層（plan/outline/write/export の順次制御）
+- **NovelEngine** (`engine/`): オーケストレーション層（Mixin パターン）
 - **SceneWriter** (`scene_writer.py`): シーン執筆パイプライン（draft/review/revise/summarize）
 - **ContextBuilder** (`context_builder.py`): コンテキスト構築（Bible + Blackboard）
 - **BibleManager** (`bible_manager.py`): Bible 管理（キャラクター、伏線、関係性、サブプロット）
+- **LLMClient** (`llm_client.py`): LLM API 通信（リトライ、ログ、タイムアウト）
+- **json_parser** (`json_parser.py`): JSON パース（8段階フォールバック）、型変換
+- **QualityGate** (`quality_gate.py`): シーン品質評価、レビュースコア再計算
 
 ## テスト
 

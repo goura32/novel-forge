@@ -10,14 +10,15 @@ think:    true（必須）
 format:   schema（JSON Schema オブジェクトを直接指定）
 stream:   false
 num_ctx:  262144
-num_predict: 32768
+num_predict: -1（無制限）
 timeout:  3600秒
+seed:     42（リトライ時にインクリメント）
 ```
 
 **理由:**
 - `format=schema` + `think=true` で最も安定した構造化出力
 - `think: false` は配列フィールドが空になる問題あり
-- `num_predict: 32768` で十分な出力長を確保
+- `num_predict: -1` で無制限出力（32768 も安定値）
 - `num_ctx: 262144` は qwen3.6:35b の最大コンテキスト長
 
 ## エンドポイント
