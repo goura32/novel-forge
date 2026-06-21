@@ -148,9 +148,8 @@ class LLMClient:
                 **api_options,
             },
         }
-        payload["format"] = "json"  # Always use "json"; schema validation is done in code, not by Ollama
+        payload["format"] = "json"
         payload["think"] = think_value
-
         last_error: Exception | None = None
         current_prompt = user_prompt
         raw_text, thinking = "", ""
@@ -269,63 +268,71 @@ class LLMClient:
         return "".join(parts), "".join(thinking_parts)
 
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str]:
-        """Call Ollama API and return (raw_text, content, thinking).
+        """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason).
 
-        raw_text: raw Ollama response text (full JSON response body)
-        content: extracted content (JSON string from message.content)
-        thinking: extracted thinking
-
-        Ollama /api/chat with stream=False returns a single JSON object.
+        Saves request before sending, logs progress during reception, saves response on completion.
         """
-        stream_payload = {**payload, "stream": False}
-        raw_bytes = b""
+        stream_payload = {**payload, "stream": True}
+        # Save request payload before sending
+        self._write_raw_log("_request", "", payload=stream_payload)
+        lines: list[str] = []
+        chunk_count = 0
+        total_bytes = 0
+        last_log_time = time.time()
         try:
-            resp = httpx.post(
+            with httpx.stream(
+                "POST",
                 self.api_url,
                 json=stream_payload,
                 timeout=self.timeout_seconds,
-            )
-            resp.raise_for_status()
-            raw_bytes = resp.content
+            ) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if line.strip():
+                        lines.append(line)
+                        chunk_count += 1
+                        total_bytes += len(line)
+                        # Log progress every 10 seconds
+                        now = time.time()
+                        if now - last_log_time >= 10:
+                            self._log.info(
+                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%.0fs",
+                                chunk_count, total_bytes, now - last_log_time,
+                            )
+                            last_log_time = now
         except httpx.TimeoutException:
-            # Timeout: save whatever partial data we have
-            self._write_raw_log("_timeout", raw_bytes.decode("utf-8", errors="replace"))
+            text = "\n".join(lines)
+            self._write_raw_log("_timeout", text)
             raise LLMError("Ollama request timed out")
         except httpx.HTTPStatusError as e:
             self._write_raw_log("_http_error", str(e))
             raise LLMError(f"Ollama HTTP error: {e}")
-        raw_text = raw_bytes.decode("utf-8", errors="replace")
-        # Parse the single JSON response object
-        try:
-            resp_obj = json.loads(raw_text)
-        except json.JSONDecodeError as e:
-            # Save raw response for debugging before raising
-            self._write_raw_log("_parse_response_error", raw_text, resp_obj={"error": str(e)})
-            raise LLMError(f"Failed to parse Ollama response as JSON: {e}")
-        # Log done_reason for debugging
-        done_reason = resp_obj.get("done_reason", "")
+        text = "\n".join(lines)
+        result, thinking_combined = self._parse_ndjson(text)
+        if not result or not result.strip():
+            self._write_raw_log("_empty_response", text, thinking=thinking_combined)
+            raise LLMError("Ollama returned empty response")
+        # Extract done_reason from last done chunk
+        done_reason = ""
+        for line in reversed(lines):
+            try:
+                chunk = json.loads(line)
+                if chunk.get("done"):
+                    done_reason = chunk.get("done_reason", "")
+                    break
+            except Exception:
+                pass
         if done_reason:
             self._log.debug("  [LLM DONE_REASON] %s", done_reason)
-        if resp_obj.get("error"):
-            self._write_raw_log("_ollama_api_error", raw_text, resp_obj={"error": resp_obj["error"]})
-            raise LLMError(f"Ollama error: {resp_obj['error']}")
-        # Save raw Ollama response for debugging (always, including length-truncated)
-        self._write_raw_log("_ollama_response", raw_text, thinking=resp_obj.get("message", {}).get("thinking", ""), resp_obj=resp_obj)
-        msg = resp_obj.get("message", {})
-        content = msg.get("content", "")
-        thinking = msg.get("thinking", "")
-        if not content or not content.strip():
-            # Empty content: still save raw, then raise
-            self._write_raw_log("_empty_content", raw_text, thinking=thinking, resp_obj=resp_obj)
-            raise LLMError("Ollama returned empty response")
-        return raw_text, content, thinking, done_reason
+        # Save raw response
+        self._write_raw_log("_ollama_response", text, thinking=thinking_combined)
+        return text, result, thinking_combined, done_reason
 
-    def _write_raw_log(self, kind: str, raw_text: str, thinking: str = "", resp_obj: dict | None = None) -> None:
-        """Write raw Ollama response to file, preserving everything as-is.
+    def _write_raw_log(self, kind: str, raw_text: str, thinking: str = "", resp_obj: dict | None = None, payload: dict | None = None) -> None:
+        """Write raw Ollama request/response to file, preserving everything as-is.
 
-        Saves the complete Ollama response including thinking tokens.
-        If payload exceeds 1MB, stores as .json.gz to save disk space.
-        Otherwise stores as plain .json for easy inspection.
+        Saves the complete Ollama request payload and response including thinking tokens.
+        Always stores as .json.gz for uniform compressed storage.
         """
         raw_dir = self.raw_log_dir
         if not raw_dir:
@@ -349,8 +356,18 @@ class LLMClient:
                 "timestamp": timestamp,
                 "pid": pid,
                 "model": self.model,
-                "raw_response": raw_text,
             }
+            # Save request payload (input) if provided
+            if payload:
+                log_data["request"] = {
+                    "system": payload.get("messages", [{}])[0].get("content", ""),
+                    "user": payload.get("messages", [{}])[1].get("content", "") if len(payload.get("messages", [])) > 1 else "",
+                    "options": payload.get("options", {}),
+                    "format": payload.get("format", "unspecified"),
+                    "think": payload.get("think"),
+                }
+            # Save raw response text (full Ollama JSON)
+            log_data["raw_response"] = raw_text
             # Save thinking as-is (truncate only if absurdly large > 10MB)
             if thinking:
                 if len(thinking) > 10_000_000:
@@ -367,7 +384,7 @@ class LLMClient:
                         resp_copy["message"]["thinking"] = "(see thinking field above)"
                 log_data["response"] = resp_copy
             json_bytes = json.dumps(log_data, ensure_ascii=False, indent=2).encode("utf-8")
-            # Always compress with gzip for uniform storage
+            # Always compress with gzip
             gz_path = log_path.with_suffix(".json.gz")
             with gzip.open(gz_path, "wb") as f:
                 f.write(json_bytes)
