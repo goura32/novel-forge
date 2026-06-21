@@ -174,6 +174,7 @@ class SceneRecord(BaseModel):
         pattern="^(計画中|初稿済|レビュー済|修正済|強制出力済|エラー)$",
     )
     quality_retries: int = Field(ge=0, default=0)
+    draft_version: int = Field(ge=1, default=1)  # 版番号（初稿=1, 修正=2, ...）
     quality_gate: QualityGateResult = Field(default_factory=QualityGateResult)
     design: SceneDesign | None = None
     draft_path: str = ""

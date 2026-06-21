@@ -46,6 +46,10 @@ class DesignMixin:
         self._state.status = "デザイン済"
         result["volume_number"] = vol_num
         self._save_path(vol_num, "design.json", result)
+        # レビュー結果を review/ に保存
+        review_dir = self._series_dir / f"vol{vol_num:02d}" / "review"
+        review_dir.mkdir(parents=True, exist_ok=True)
+        self._save_review(review_dir, "design_review", review)
         self._save()
         return result
 
@@ -397,6 +401,12 @@ class DesignMixin:
                     volume_title=volume_title, volume_premise=volume_premise,
                 )
             chapter_designs[i] = ch_design
+            # レビュー結果を review/ に保存
+            _series_dir = getattr(self, "_series_dir", None)
+            _save_review = getattr(self, "_save_review", None)
+            if _series_dir is not None and _save_review is not None:
+                review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
+                _save_review(review_dir, f"ch{i+1:02d}_design_review", review)
         return chapter_designs
 
     # ── Scene design review/revise ───────────────────────────────────────
@@ -484,6 +494,12 @@ class DesignMixin:
                 )
             all_scenes[i] = scene
             previous_outcome = scene.get("outcome", "")
+            # レビュー結果を review/ に保存
+            _series_dir = getattr(self, "_series_dir", None)
+            _save_review = getattr(self, "_save_review", None)
+            if _series_dir is not None and _save_review is not None:
+                review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
+                _save_review(review_dir, f"sc{scene.get('number', i+1):02d}_design_review", review)
         return all_scenes
 
     def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):

@@ -134,7 +134,11 @@ class SceneWriter:
         if log_fn:
             log_fn(f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}")
         record.status = "初稿済"
-        self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter.number)
+        record.draft_version = 1
+        draft_path = self.save_scene_draft(
+            ctx.vol_num, record.scene_number, draft_text, chapter.number, version=1
+        )
+        record.draft_path = draft_path
 
         # Review → Quality Gate → revise loop
         draft_text, record = self._run_review_loop(
@@ -186,10 +190,22 @@ class SceneWriter:
                 if lang_issues:
                     review["language_issues"] = lang_issues
                 draft_text = self._revise_scene(draft_text, review, ctx.lang)
-                self.save_scene_draft(ctx.vol_num, record.scene_number, draft_text, chapter_number)
+                record.draft_version += 1
+                draft_path = self.save_scene_draft(
+                    ctx.vol_num, record.scene_number, draft_text, chapter_number,
+                    version=record.draft_version,
+                )
+                record.draft_path = draft_path
             else:
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
+                # 強制出力も版付きで保存
+                record.draft_version += 1
+                draft_path = self.save_scene_draft(
+                    ctx.vol_num, record.scene_number, draft_text, chapter_number,
+                    version=record.draft_version,
+                )
+                record.draft_path = draft_path
                 msg = f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count}"
                 self._log.warning(msg)
                 if log_fn:
@@ -354,40 +370,67 @@ class SceneWriter:
     # ── scene draft I/O ──────────────────────────────────────────────
 
     def save_scene_draft(
-        self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1
-    ) -> None:
-        path = (
-            self._series_dir
-            / f"vol{vol_num:02d}"
-            / f"vol{vol_num:02d}_ch{chapter_number:02d}"
-            / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
-        )
-        path.parent.mkdir(parents=True, exist_ok=True)
+        self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1,
+        version: int = 1,
+    ) -> str:
+        """シーン本文を保存し、ファイルパスを返す。
+
+        版管理: version=1 → sc01_v1.md, version=2 → sc01_v2.md
+        最終版: version=0 → sc01.md（assemble_chapter で使用）
+        """
+        vol_dir = self._series_dir / f"vol{vol_num:02d}"
+        ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}"
+        ch_dir.mkdir(parents=True, exist_ok=True)
+
+        if version > 0:
+            fname = f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{version}.md"
+        else:
+            fname = f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
+        path = ch_dir / fname
         path.write_text(text, encoding="utf-8")
+        return str(path)
 
     def load_scene_draft(
         self, vol_num: int, scene_number: int, chapter_number: int = 1
     ) -> str:
-        path = (
+        """最新版のシーン本文を読み込む。v2 があれば v2 を、なければ v1 を返す。"""
+        ch_dir = (
             self._series_dir
             / f"vol{vol_num:02d}"
             / f"vol{vol_num:02d}_ch{chapter_number:02d}"
-            / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
         )
-        if path.exists():
+        if not ch_dir.exists():
+            return ""
+        # 最大バージョンを探す
+        max_version = 0
+        for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v*.md"):
+            try:
+                v = int(f.stem.split("_v")[-1])
+                if v > max_version:
+                    max_version = v
+            except ValueError:
+                pass
+        if max_version > 0:
+            path = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{max_version}.md"
             return path.read_text(encoding="utf-8")
+        # 旧形式（バージョンなし）も対応
+        legacy = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
+        if legacy.exists():
+            return legacy.read_text(encoding="utf-8")
         return ""
 
     # ── chapter assembly ─────────────────────────────────────────────
 
     def assemble_chapter(
         self, vol_num: int, chapter, scene_texts: list[str]
-    ) -> None:
+    ) -> str:
+        """章を組み立てて保存し、ファイルパスを返す。"""
         import re
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
-        ch_path = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}" / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
-        ch_path.parent.mkdir(parents=True, exist_ok=True)
-        # Remove scene markers like "シーンX（第Y章）:", "シーンX(第Y章):", "シーンX:" from the start
+        ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}"
+        ch_dir.mkdir(parents=True, exist_ok=True)
+        ch_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
+        # Remove scene markers
         cleaned_texts = []
         for text in scene_texts:
             cleaned = re.sub(r'^シーン\d+[\uff08\(]第\d+章[\uff08\)]\s*[：:]\s*', '', text.strip())
@@ -395,3 +438,4 @@ class SceneWriter:
             cleaned_texts.append(cleaned)
         content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(cleaned_texts)
         ch_path.write_text(content, encoding="utf-8")
+        return str(ch_path)

@@ -68,9 +68,10 @@ class ExportMixin:
         export_dir.mkdir(parents=True, exist_ok=True)
         chapters = []
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
-        # Collect chapter files from volXX_chXX/ subdirectories
+        # Collect chapter files: volXX_chXX/volXX_chXX.md
         chapter_files = sorted(
-            p for p in vol_dir.glob("vol*_ch*/*.md") if "_sc" not in p.name
+            p for p in vol_dir.glob("vol*_ch*/*.md")
+            if p.stem == p.parent.name  # ch01/ch01.md のみ（sc01_v1.md等を除外）
         )
         for ch_path in chapter_files:
             chapters.append(ch_path.read_text(encoding="utf-8"))
