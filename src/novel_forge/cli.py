@@ -413,7 +413,7 @@ def doctor(
             "messages": [{"role": "user", "content": "Reply with only: OK"}],
             "stream": True,
             "format": "json",
-            "options": {"think": False, "num_predict": 50},
+            "options": {"think": False, "num_predict": 500},
         }
         content_parts = []
         with httpx.stream(
@@ -450,7 +450,7 @@ def doctor(
             "messages": [{"role": "user", "content": "Reply with only: OK"}],
             "stream": True,
             "format": "json",
-            "options": {"think": True, "num_predict": 100},
+            "options": {"think": True, "num_predict": 500},
         }
         content_parts = []
         thinking_parts = []
@@ -480,7 +480,7 @@ def doctor(
         else:
             console.print(f"   [yellow]⚠ Empty content[/yellow]")
         if thinking:
-            console.print(f"   thinking: [{thinking[:200]}...][/green]")
+            console.print(f"   [green]thinking: [{thinking[:200]}...][/green]")
         else:
             console.print(f"   [dim]thinking: (none)[/dim]")
     except Exception as e:
