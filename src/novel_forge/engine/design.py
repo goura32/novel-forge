@@ -12,6 +12,21 @@ from novel_forge.schemas import get_schema
 class DesignMixin:
     """Volume design generation methods for NovelEngine."""
 
+    # Scene count estimates by chapter purpose
+    SCENE_COUNT_BY_PURPOSE: dict[str, int] = {
+        "導入": 2,
+        "展開": 3,
+        "転換": 3,
+        "クライマックス": 4,
+        "収束": 2,
+    }
+    DEFAULT_SCENE_COUNT: int = 3
+
+    @classmethod
+    def _estimate_scene_count(cls, purpose: str) -> int:
+        """Estimate number of scenes per chapter based on its role."""
+        return cls.SCENE_COUNT_BY_PURPOSE.get(purpose, cls.DEFAULT_SCENE_COUNT)
+
     def _save_design_reviews(
         self, vol_num: int, ch_num: int, sc_num: int | None, reviews: list[dict]
     ) -> None:
@@ -318,18 +333,6 @@ class DesignMixin:
             except (json.JSONDecodeError, OSError):
                 pass
         return {}
-
-    @staticmethod
-    def _estimate_scene_count(purpose: str) -> int:
-        """Estimate number of scenes per chapter based on its role."""
-        if purpose == "導入":
-            return 2
-        elif purpose == "クライマックス":
-            return 4
-        elif purpose == "収束":
-            return 2
-        else:  # 展開, 転換
-            return 3
 
     def _normalize_design_numbering(self, result):
         """章・シーンに通し番号を振り、フラットな構造に正規化する。"""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 import time
@@ -126,14 +127,18 @@ class NovelEngineBase:
         return result
 
     def _find_existing_series_dir(self) -> Path | None:
-        """Find existing series directory in workdir (for commands after plan)."""
+        """Find existing series directory in workdir (for commands after plan).
+
+        Looks for directories matching the pattern {YYYYMMDD_HHMMSS}_{slug}
+        that contain series_plan.json.
+        """
         # Check if workdir itself is the series directory
         if (self._workdir / "series_plan.json").exists():
             return self._workdir
         # Look for {timestamp}_{slug} pattern directories
+        pattern = re.compile(r"^\d{8}_\d{6}_")
         for d in sorted(self._workdir.iterdir(), reverse=True):
-            if d.is_dir() and "_" in d.name and not d.name.startswith("."):
-                # Check if it contains series_plan.json
+            if d.is_dir() and pattern.match(d.name):
                 if (d / "series_plan.json").exists():
                     return d
         return None

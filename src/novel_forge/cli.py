@@ -5,7 +5,7 @@ import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Any, Generator, Optional
 
 import typer
 from rich.console import Console
@@ -275,14 +275,21 @@ def complete(
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
         engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
-        console.print("[bold]Step 1/4: Plan[/bold]")
-        engine.plan(keywords)
-        console.print("[bold]Step 2/4: Design[/bold]")
-        engine.design(volume)
-        console.print("[bold]Step 3/4: Write[/bold]")
-        engine.write(volume)
-        console.print("[bold]Step 4/4: Export[/bold]")
-        result = engine.export(volume)
+        steps = [
+            ("Plan",   lambda: engine.plan(keywords)),
+            ("Design", lambda: engine.design(volume)),
+            ("Write",  lambda: engine.write(volume)),
+            ("Export", lambda: engine.export(volume)),
+        ]
+        result: dict[str, Any] | None = None
+        for i, (name, fn) in enumerate(steps, 1):
+            console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
+            try:
+                result = fn()
+            except Exception as e:
+                console.print(f"[red]✗ {name} failed: {e}[/red]")
+                raise SystemExit(1) from e
+        assert result is not None
         console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
 
 

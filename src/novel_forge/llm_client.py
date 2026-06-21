@@ -220,6 +220,34 @@ class LLMClient:
         self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
         raise last_error or LLMError("LLM request failed")
 
+    @staticmethod
+    def _parse_ndjson(text: str) -> tuple[str, str]:
+        """Parse NDJSON response into (content, thinking).
+
+        Each line is expected to be a JSON object with optional
+        message.content and message.thinking fields.
+        """
+        parts: list[str] = []
+        thinking_parts: list[str] = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "error" in chunk:
+                raise LLMError(f"Ollama error: {chunk['error']}")
+            msg = chunk.get("message", {})
+            content = msg.get("content", "")
+            if content:
+                parts.append(content)
+            thinking = msg.get("thinking", "")
+            if thinking and thinking not in thinking_parts:
+                thinking_parts.append(thinking)
+        return "".join(parts), "".join(thinking_parts)
+
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str]:
         """Call Ollama API and return (raw_text, content, thinking).
 
@@ -236,30 +264,8 @@ class LLMClient:
             )
             resp.raise_for_status()
             text = resp.text.strip()
-            thinking_combined = ""
             if "\n" in text:
-                # NDJSON: each line is a JSON object
-                parts: list[str] = []
-                thinking_parts: list[str] = []
-                for line in text.splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if "error" in chunk:
-                        raise LLMError(f"Ollama error: {chunk['error']}")
-                    msg = chunk.get("message", {})
-                    content = msg.get("content", "")
-                    if content:
-                        parts.append(content)
-                    thinking = msg.get("thinking", "")
-                    if thinking and thinking not in thinking_parts:
-                        thinking_parts.append(thinking)
-                result = "".join(parts)
-                thinking_combined = "".join(thinking_parts)
+                result, thinking_combined = self._parse_ndjson(text)
                 # Do NOT fall back to thinking content — it's English chain-of-thought
                 # that would contaminate Japanese output. Empty content = error.
             else:

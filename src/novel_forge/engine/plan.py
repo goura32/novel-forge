@@ -51,7 +51,7 @@ class PlanMixin:
         self._slug = result.get("slug", "")
         self._move_to_final_dir()
         self._scene_writer._series_dir = self._series_dir
-        self._ctx_builder._workdir = self._series_dir
+        self._ctx_builder._series_dir = self._series_dir
         self._bb_storage = BlackboardStorage(self._series_dir)
         self._bible_storage = BibleStorage(self._series_dir)
         self._bible_mgr = BibleManager(self._bible_storage)

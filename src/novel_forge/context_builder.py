@@ -17,18 +17,18 @@ class ContextBuilder:
 
     def __init__(
         self,
-        workdir: Path,
+        series_dir: Path,
         blackboard_storage: BlackboardStorage,
         bible_storage: BibleStorage,
     ):
-        self._workdir = workdir
+        self._series_dir = series_dir
         self._bb_storage = blackboard_storage
         self._bible_storage = bible_storage
 
     # ── series plan ──────────────────────────────────────────────────
 
     def get_series_plan_summary(self) -> str:
-        plan_path = self._workdir / "series_plan.json"
+        plan_path = self._series_dir / "series_plan.json"
         if not plan_path.exists():
             return ""
         data = json.loads(plan_path.read_text(encoding="utf-8"))
@@ -57,7 +57,7 @@ class ContextBuilder:
         return "\n".join(lines)
 
     def get_genre(self) -> str:
-        plan_path = self._workdir / "series_plan.json"
+        plan_path = self._series_dir / "series_plan.json"
         if plan_path.exists():
             data = json.loads(plan_path.read_text(encoding="utf-8"))
             return data.get("genre", "fantasy")

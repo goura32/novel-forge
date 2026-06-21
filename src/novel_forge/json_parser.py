@@ -245,7 +245,7 @@ def coerce_types(data: dict, schema: dict) -> dict:
         elif expected_type == "array" and not isinstance(value, list):
             data[key] = [value] if value else []
         elif expected_type == "object" and not isinstance(value, dict):
-            pass  # Can't coerce non-dict to dict
+            pass  # Cannot coerce non-dict to dict — skip to avoid data loss
 
     return data
 
