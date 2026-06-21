@@ -31,9 +31,8 @@
             "enum": [
               "opening_hook",
               "character_distinction",
-              "foreshadowing_consistency",
               "sensory_coverage",
-              "page_turner",
+              "scene_closure",
               "dialogue_naturalness",
               "tone_consistency",
               "scene_completeness",
@@ -79,9 +78,8 @@
             "enum": [
               "opening_hook",
               "character_distinction",
-              "foreshadowing_consistency",
               "sensory_coverage",
-              "page_turner",
+              "scene_closure",
               "dialogue_naturalness",
               "tone_consistency",
               "scene_completeness",
