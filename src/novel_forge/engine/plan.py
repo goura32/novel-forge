@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from typing import Any
@@ -246,6 +247,5 @@ class PlanMixin:
             slug = re.sub(r'[^a-z0-9-]', '', slug)
             if slug:
                 return slug[:200]
-        import hashlib
         h = hashlib.md5(title.encode()).hexdigest()[:12]
         return f"series-{h}"

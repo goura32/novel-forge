@@ -27,7 +27,7 @@ class SceneWriter:
     """Handles scene drafting, review, revision, and post-processing."""
 
     # Pre-compiled regex patterns for chapter assembly
-    _RE_SCENE_MARKER_FULL = re.compile(r'^シーン\d+[\uff08\(]第\d+章[\uff08\)]\s*[：:]\s*')
+    _RE_SCENE_MARKER_FULL = re.compile(r'^シーン\d+[\uff08\(]第\d+章[\uff09\)]\s*[：:]\s*')
     _RE_SCENE_MARKER_SIMPLE = re.compile(r'^シーン\d+\s*[：:]\s*')
 
     def __init__(
@@ -403,7 +403,11 @@ class SceneWriter:
     def load_scene_draft(
         self, vol_num: int, scene_number: int, chapter_number: int = 1
     ) -> str:
-        """最新版のシーン本文を読み込む。v2 があれば v2 を、なければ v1 を返す。"""
+        """最新版のシーン本文を読み込む。
+
+        優先順位: v2 > v1 > version=0（接尾辞なし）
+        assemble_chapter が生成した最終版（version=0）も読める。
+        """
         ch_dir = (
             self._series_dir
             / f"vol{vol_num:02d}"
@@ -411,7 +415,7 @@ class SceneWriter:
         )
         if not ch_dir.exists():
             return ""
-        # 最大バージョンを探す
+        # 1. 最大バージョン付きファイルを探す（v1, v2, ...）
         max_version = 0
         for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v*.md"):
             try:
@@ -423,6 +427,10 @@ class SceneWriter:
         if max_version > 0:
             path = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{max_version}.md"
             return path.read_text(encoding="utf-8")
+        # 2. version=0（接尾辞なし）ファイルを探す
+        plain = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
+        if plain.exists():
+            return plain.read_text(encoding="utf-8")
         return ""
 
     # ── chapter assembly ─────────────────────────────────────────────

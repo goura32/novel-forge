@@ -35,6 +35,10 @@ class NovelEngineBase:
     _CRITICAL = "重大"
     _MAJOR = "重要"
     _DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
+    _DEFAULT_NUM_PREDICT = -1
+    _DEFAULT_NUM_CTX = 262144
+    _DEFAULT_TIMEOUT = 3600
+    _DEFAULT_MAX_RETRIES = 2
 
     def __init__(
         self,
@@ -63,10 +67,10 @@ class NovelEngineBase:
             llm_cfg = cfg.get("llm", {})
             model = model or self._DEFAULT_MODEL
             model = llm_cfg.get("model", model)
-            timeout = llm_cfg.get("timeout_seconds", 600)
-            max_retries = llm_cfg.get("max_retries", 2)
-            num_predict = llm_cfg.get("num_predict", 65536)
-            num_ctx = llm_cfg.get("num_ctx", None)
+            timeout = llm_cfg.get("timeout_seconds", self._DEFAULT_TIMEOUT)
+            max_retries = llm_cfg.get("max_retries", self._DEFAULT_MAX_RETRIES)
+            num_predict = llm_cfg.get("num_predict", self._DEFAULT_NUM_PREDICT)
+            num_ctx = llm_cfg.get("num_ctx", self._DEFAULT_NUM_CTX)
             host = llm_cfg.get("ollama_host", None)
             api_url = None
             if host:
@@ -254,10 +258,10 @@ class NovelEngineBase:
         default_config = {
             "llm": {
                 "model": NovelEngineBase._DEFAULT_MODEL,
-                "num_predict": 16384,
-                "num_ctx": 65536,
-                "timeout_seconds": 3600,
-                "max_retries": 2,
+                "num_predict": NovelEngineBase._DEFAULT_NUM_PREDICT,
+                "num_ctx": NovelEngineBase._DEFAULT_NUM_CTX,
+                "timeout_seconds": NovelEngineBase._DEFAULT_TIMEOUT,
+                "max_retries": NovelEngineBase._DEFAULT_MAX_RETRIES,
                 "ollama_options": {
                     "temperature": 0.7,
                     "top_k": 20,

@@ -501,7 +501,12 @@ class DesignMixin:
             sev = issue.get("severity", "")
             cat = issue.get("category", "")
             desc = issue.get("description", "")
+            sug = issue.get("suggestion", "")
             lines.append(f"  [{sev}] {cat}: {desc}")
+            if sug:
+                lines.append(f"    提案: {sug}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
         review_text = "\n".join(lines)
         current = (
             f"シーンタイトル: {scene.get('title', '')}\n"
@@ -597,6 +602,8 @@ class DesignMixin:
             lines.append(f"  [{sev}] {cat}: {desc}")
             if sug:
                 lines.append(f"    提案: {sug}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
         review_text = "\n".join(lines)
 
         outline_text = self._build_design_outline(design_obj)

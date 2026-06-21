@@ -268,8 +268,16 @@ class LLMClient:
             text = resp.text.strip()
             if "\n" in text:
                 result, thinking_combined = self._parse_ndjson(text)
-                # Do NOT fall back to thinking content — it's English chain-of-thought
-                # that would contaminate Japanese output. Empty content = error.
+                # NDJSONパースで空の場合、単一行JSONとして再パースを試みる
+                if not result or not result.strip():
+                    try:
+                        data = json.loads(text)
+                        if "error" in data:
+                            raise LLMError(f"Ollama error: {data['error']}")
+                        result = data.get("message", {}).get("content", "")
+                        thinking_combined = data.get("message", {}).get("thinking", "")
+                    except json.JSONDecodeError:
+                        pass  # NDJSONパース失敗時はそのまま空
             else:
                 data = json.loads(text)
                 if "error" in data:
