@@ -11,7 +11,7 @@
 - **英字の人名・地名:** 日本語話者にとって馴染みのないものはカタカナ転記（John → ジョン）
 - **禁止パターン:** 英単語＋日本語の混在（例: 「扉をopenする」→「扉を開く」）
 - **簡体字・繁体字・ハングルは一切使わない**
-- **許可される技術用語:** CPU、GPU、SSD、USB、URL、HTML、RAM、ROM、DNS、VPN、SSH、FTP、API、SDK、LAN、WAN、GPS、LED、LCD、OLED、DNA、RNA、CT、MRI、X線、IoT、PC、AI、ICU
+- **許可される技術用語:** 一般的な技術略語（CPU, GPU, SSD, USB, URL, HTML, RAM, ROM, DNS, VPN, SSH, FTP, API, SDK, LAN, WAN, GPS, LED, LCD, OLED, DNA, RNA, CT, MRI, X線, IoT, PC, AI, ICU 等) は英語のまま許可
 - **許可されるフィールド:** `slug` のみローマ字のハイフン区切りパス（32文字以内）
 
 出力されるすべてのテキスト（小説本文・JSON value を問わず）に {lang} 以外の言語を含めてはならない。
