@@ -300,54 +300,6 @@ class DesignMixin:
         result["scenes"] = flat_scenes
         return result
 
-    def _recalc_review_score(self, review: dict) -> dict:
-        """Python側でレビュースコアを再計算し、LLMの計算ミスを修正する。
-
-        ルール:
-        1. 各サブスコアの平均を計算
-        2. critical issue があれば score ≤ 50
-        3. major issue が3つ以上あれば score ≤ 65
-        4. minor only であれば score ≥ 70
-        """
-        subs = ["structural_validity", "scene_coherence", "pace_analysis", "character_arc_review"]
-        scores = []
-        for key in subs:
-            sub = review.get(key, {})
-            s = sub.get("score", 0)
-            if isinstance(s, (int, float)) and 0 <= s <= 100:
-                scores.append(int(s))
-            else:
-                scores.append(0)
-
-        if scores:
-            avg = round(sum(scores) / len(scores))
-        else:
-            avg = 0
-
-        # 深刻度による上限/下限
-        issues = review.get("issues", [])
-        has_critical = any(i.get("severity") in ("critical", "blocker") for i in issues)
-        major_count = sum(1 for i in issues if i.get("severity") == "major")
-
-        if has_critical:
-            avg = min(avg, 50)
-        elif major_count >= 3:
-            avg = min(avg, 65)
-        elif not has_critical and major_count == 0:
-            avg = max(avg, 70)
-
-        review["score"] = avg
-
-        # force_breakdown を追加（デバッグ用）
-        review["_score_breakdown"] = {
-            "sub_scores": {k: review.get(k, {}).get("score", 0) for k in subs},
-            "average": round(sum(scores) / len(scores)) if scores else 0,
-            "capped": avg,
-            "has_critical": has_critical,
-            "major_count": major_count,
-        }
-        return review
-
     def _review_design(self, design_obj, series_plan, previous_design=""):
         system = self._prompts.render("system.md", {"lang": self._lang})
         lines = [f"シリーズ企画: {series_plan}", ""]

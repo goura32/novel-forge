@@ -5,11 +5,11 @@
   "type": "object",
   "required": ["volume_uniqueness", "series_flow", "cliffhanger", "theme_consistency", "score", "issues", "suggestions"],
   "properties": {
-    "volume_uniqueness": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "series_flow": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "cliffhanger": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "theme_consistency": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "総合評価スコア" },
+    "volume_uniqueness": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "series_flow": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "cliffhanger": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "theme_consistency": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "総合評価スコア（0-100の整数）" },
     "issues": { "type": "array", "items": { "type": "object", "required": ["severity", "category", "description"], "properties": { "severity": { "type": "string", "enum": ["critical", "major", "minor"] }, "category": { "type": "string", "maxLength": 64 }, "description": { "type": "string", "maxLength": 500 } } } },
     "suggestions": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
   }

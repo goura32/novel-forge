@@ -5,11 +5,11 @@
   "type": "object",
   "required": ["consistency", "differentiation", "growth_arc", "world_fit", "score", "issues", "suggestions"],
   "properties": {
-    "consistency": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "differentiation": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "growth_arc": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "world_fit": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
-    "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "総合評価スコア" },
+    "consistency": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "differentiation": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "growth_arc": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "world_fit": { "type": "object", "required": ["score"], "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 100 } } },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "総合評価スコア（0-100の整数）" },
     "issues": { "type": "array", "items": { "type": "object", "required": ["severity", "category", "description"], "properties": { "severity": { "type": "string", "enum": ["critical", "major", "minor"] }, "category": { "type": "string", "maxLength": 64 }, "description": { "type": "string", "maxLength": 500 } } } },
     "suggestions": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
   }

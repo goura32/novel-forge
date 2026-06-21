@@ -94,6 +94,7 @@ class PlanMixin:
 
     def _review_and_revise_plan_core(self, core: dict, system: str) -> dict:
         review = self._review_plan_core(core, system)
+        review = self._recalc_review_score(review)
         for retry in range(3):
             score = review.get("score", 0)
             critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
@@ -103,6 +104,7 @@ class PlanMixin:
             _sys.stderr.write(f"  [CORE REVIEW] score={score} critical={len(critical)} retry={retry+1}/3\n")
             core = self._revise_plan_core(core, review, system)
             review = self._review_plan_core(core, system)
+            review = self._recalc_review_score(review)
         return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
@@ -139,6 +141,7 @@ class PlanMixin:
 
     def _review_and_revise_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
         review = self._review_plan_characters(characters, core, system)
+        review = self._recalc_review_score(review)
         for retry in range(3):
             score = review.get("score", 0)
             critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
@@ -148,6 +151,7 @@ class PlanMixin:
             _sys.stderr.write(f"  [CHAR REVIEW] score={score} critical={len(critical)} retry={retry+1}/3\n")
             characters = self._revise_plan_characters(characters, review, system)
             review = self._review_plan_characters(characters, core, system)
+            review = self._recalc_review_score(review)
         return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
@@ -187,6 +191,7 @@ class PlanMixin:
 
     def _review_and_revise_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
         review = self._review_plan_volumes(volumes, core, characters, system)
+        review = self._recalc_review_score(review)
         for retry in range(3):
             score = review.get("score", 0)
             critical = [i for i in review.get("issues", []) if i.get("severity") == "critical"]
@@ -196,6 +201,7 @@ class PlanMixin:
             _sys.stderr.write(f"  [VOL REVIEW] score={score} critical={len(critical)} retry={retry+1}/3\n")
             volumes = self._revise_plan_volumes(volumes, review, system)
             review = self._review_plan_volumes(volumes, core, characters, system)
+            review = self._recalc_review_score(review)
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────
