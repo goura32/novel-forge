@@ -98,6 +98,7 @@ class PlanMixin:
 
     def _review_and_revise_plan_core(self, core: dict, system: str) -> dict:
         review = self._review_plan_core(core, system)
+        all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
@@ -113,9 +114,10 @@ class PlanMixin:
             # 修正版を版番号付きで保存
             self._save_path(0, "series_core.json", core, version=retry + 1)
             review = self._review_plan_core(core, system)
-        # レビュー結果を保存
+            all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
+        # レビュー結果を保存（全履歴）
         review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_core_review", review)
+        self._save_review(review_dir, "series_core_review", {"reviews": all_reviews})
         return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
@@ -152,6 +154,7 @@ class PlanMixin:
 
     def _review_and_revise_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
         review = self._review_plan_characters(characters, core, system)
+        all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
@@ -167,9 +170,10 @@ class PlanMixin:
             # 修正版を版番号付きで保存
             self._save_path(0, "series_characters.json", characters, version=retry + 1)
             review = self._review_plan_characters(characters, core, system)
-        # レビュー結果を保存
+            all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
+        # レビュー結果を保存（全履歴）
         review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_characters_review", review)
+        self._save_review(review_dir, "series_characters_review", {"reviews": all_reviews})
         return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
@@ -209,6 +213,7 @@ class PlanMixin:
 
     def _review_and_revise_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
         review = self._review_plan_volumes(volumes, core, characters, system)
+        all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
@@ -224,9 +229,10 @@ class PlanMixin:
             # 修正版を版番号付きで保存
             self._save_path(0, "series_volumes.json", volumes, version=retry + 1)
             review = self._review_plan_volumes(volumes, core, characters, system)
-        # レビュー結果を保存
+            all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
+        # レビュー結果を保存（全履歴）
         review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_volumes_review", review)
+        self._save_review(review_dir, "series_volumes_review", {"reviews": all_reviews})
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────

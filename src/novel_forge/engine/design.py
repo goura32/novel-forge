@@ -25,6 +25,7 @@ class DesignMixin:
         review = self._review_design(result, series_plan, previous_design)
 
         # Review → Revise loop (max 3 retries)
+        all_volume_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
@@ -42,6 +43,7 @@ class DesignMixin:
             # 修正版を版番号付きで保存
             self._save_path(vol_num, f"vol{vol_num:02d}.json", result, version=retry + 1)
             review = self._review_design(result, series_plan, previous_design)
+            all_volume_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
 
         vol = self._current_volume()
         vol.status = "デザイン済"
@@ -61,7 +63,7 @@ class DesignMixin:
         # レビュー結果を保存
         review_dir = self._series_dir / f"vol{vol_num:02d}" / "review"
         review_dir.mkdir(parents=True, exist_ok=True)
-        self._save_review(review_dir, f"vol{vol_num:02d}_review", review)
+        self._save_review(review_dir, f"vol{vol_num:02d}_review", {"reviews": all_volume_reviews})
         self._save()
         return result
 
@@ -394,6 +396,7 @@ class DesignMixin:
                 ch_design, ch_info, series_plan, vol_num, system,
                 volume_title=volume_title, volume_premise=volume_premise,
             )
+            ch_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
             for retry in range(2):
                 blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
                 critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
@@ -423,13 +426,14 @@ class DesignMixin:
                     ch_design, ch_info, series_plan, vol_num, system,
                     volume_title=volume_title, volume_premise=volume_premise,
                 )
+                ch_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
             chapter_designs[i] = ch_design
-            # レビュー結果を review/ に保存
+            # レビュー結果を review/ に保存（全履歴）
             _series_dir = getattr(self, "_series_dir", None)
             _save_review = getattr(self, "_save_review", None)
             if _series_dir is not None and _save_review is not None:
                 review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
-                _save_review(review_dir, f"vol{vol_num:02d}_ch{i+1:02d}_review", review)
+                _save_review(review_dir, f"vol{vol_num:02d}_ch{i+1:02d}_review", {"reviews": ch_reviews})
         return chapter_designs
 
     # ── Scene design review/revise ───────────────────────────────────────
@@ -496,6 +500,7 @@ class DesignMixin:
                 volume_title=volume_title, volume_premise=volume_premise,
                 previous_outcome=previous_outcome,
             )
+            sc_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
             for retry in range(2):
                 blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
                 critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
@@ -528,14 +533,15 @@ class DesignMixin:
                     volume_title=volume_title, volume_premise=volume_premise,
                     previous_outcome=previous_outcome,
                 )
+                sc_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
             all_scenes[i] = scene
             previous_outcome = scene.get("outcome", "")
-            # レビュー結果を review/ に保存
+            # レビュー結果を review/ に保存（全履歴）
             _series_dir = getattr(self, "_series_dir", None)
             _save_review = getattr(self, "_save_review", None)
             if _series_dir is not None and _save_review is not None:
                 review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
-                _save_review(review_dir, f"vol{vol_num:02d}_ch{scene.get('chapter_number', 0):02d}_sc{scene.get('number', i+1):02d}_review", review)
+                _save_review(review_dir, f"vol{vol_num:02d}_ch{scene.get('chapter_number', 0):02d}_sc{scene.get('number', i+1):02d}_review", {"reviews": sc_reviews})
         return all_scenes
 
     def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):

@@ -413,10 +413,6 @@ class SceneWriter:
         if max_version > 0:
             path = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{max_version}.md"
             return path.read_text(encoding="utf-8")
-        # 旧形式（バージョンなし）も対応
-        legacy = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
-        if legacy.exists():
-            return legacy.read_text(encoding="utf-8")
         return ""
 
     # ── chapter assembly ─────────────────────────────────────────────
