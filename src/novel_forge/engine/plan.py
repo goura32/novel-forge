@@ -93,14 +93,23 @@ class PlanMixin:
         return self._llm.complete_json("series_plan_core_revision", system, user, get_schema("series_plan_core"))
 
     def _review_and_revise_plan_core(self, core: dict, system: str) -> dict:
-        return self._review_and_revise(
-            core,
-            lambda item, sys: self._review_plan_core(item, sys),
-            lambda item, review, sys: self._revise_plan_core(item, review, sys),
-            system,
-            max_retries=3,
-            label="CORE REVIEW",
-        )
+        review = self._review_plan_core(core, system)
+        for retry in range(3):
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            if not revision_needed:
+                break
+            self._log.warning(
+                "  [CORE REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
+                len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
+            )
+            core = self._revise_plan_core(core, review, system)
+            # 修正版を版番号付きで保存
+            self._save_path(0, "series_plan.json", core, version=retry + 1)
+            review = self._review_plan_core(core, system)
+        return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
 
@@ -135,14 +144,24 @@ class PlanMixin:
         return self._llm.complete_json("series_plan_characters_revision", system, user, get_schema("series_plan_characters"))
 
     def _review_and_revise_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
-        return self._review_and_revise(
-            characters,
-            lambda item, sys: self._review_plan_characters(item, core, sys),
-            lambda item, review, sys: self._revise_plan_characters(item, review, sys),
-            system,
-            max_retries=3,
-            label="CHAR REVIEW",
-        )
+        review = self._review_plan_characters(characters, core, system)
+        for retry in range(3):
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            if not revision_needed:
+                break
+            self._log.warning(
+                "  [CHAR REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
+                len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
+            )
+            characters = self._revise_plan_characters(characters, review, system)
+            # Save revision with version number (merge into partial result)
+            partial = {**core, **characters}
+            self._save_path(0, "series_plan.json", partial, version=retry + 1)
+            review = self._review_plan_characters(characters, core, system)
+        return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
 
@@ -180,14 +199,24 @@ class PlanMixin:
         return self._llm.complete_json("series_plan_volumes_revision", system, user, get_schema("series_plan_volumes"))
 
     def _review_and_revise_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
-        return self._review_and_revise(
-            volumes,
-            lambda item, sys: self._review_plan_volumes(item, core, characters, sys),
-            lambda item, review, sys: self._revise_plan_volumes(item, review, sys),
-            system,
-            max_retries=3,
-            label="VOL REVIEW",
-        )
+        review = self._review_plan_volumes(volumes, core, characters, system)
+        for retry in range(3):
+            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
+            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
+            major_issues = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
+            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            if not revision_needed:
+                break
+            self._log.warning(
+                "  [VOL REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
+                len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
+            )
+            volumes = self._revise_plan_volumes(volumes, review, system)
+            # Save revision with version number (merge all phases)
+            partial = {**core, **characters, **volumes}
+            self._save_path(0, "series_plan.json", partial, version=retry + 1)
+            review = self._review_plan_volumes(volumes, core, characters, system)
+        return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────
 

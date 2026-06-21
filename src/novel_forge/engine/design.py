@@ -39,6 +39,8 @@ class DesignMixin:
                     len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
                 )
             result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
+            # 修正版を版番号付きで保存
+            self._save_path(vol_num, "design.json", result, version=retry + 1)
             review = self._review_design(result, series_plan, previous_design)
 
         vol = self._current_volume()
@@ -396,6 +398,15 @@ class DesignMixin:
                         i + 1, len(blocker), len(critical), len(major), retry + 1,
                     )
                 ch_design = self._revise_chapter_design(ch_design, review, system)
+                # design.json を読み直して chapters 部分を更新し、版番号付きで保存
+                try:
+                    design_path = self._series_dir / f"vol{vol_num:02d}" / "design.json"
+                    if design_path.exists():
+                        current_design = json.loads(design_path.read_text(encoding="utf-8"))
+                        current_design["chapters"] = chapter_designs
+                        self._save_path(vol_num, "design.json", current_design, version=i + 1)
+                except Exception:
+                    pass
                 review = self._review_chapter_design(
                     ch_design, ch_info, series_plan, vol_num, system,
                     volume_title=volume_title, volume_premise=volume_premise,
@@ -487,6 +498,15 @@ class DesignMixin:
                         i + 1, len(blocker), len(critical), len(major), retry + 1,
                     )
                 scene = self._revise_scene_design(scene, review, system)
+                # design.json を読み直して scenes 部分を更新し、版番号付きで保存
+                try:
+                    design_path = self._series_dir / f"vol{vol_num:02d}" / "design.json"
+                    if design_path.exists():
+                        current_design = json.loads(design_path.read_text(encoding="utf-8"))
+                        current_design["scenes"] = all_scenes
+                        self._save_path(vol_num, "design.json", current_design, version=i + 1)
+                except Exception:
+                    pass
                 review = self._review_scene_design(
                     scene, ch_info, series_plan, vol_num, system,
                     volume_title=volume_title, volume_premise=volume_premise,

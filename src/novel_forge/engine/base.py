@@ -174,7 +174,13 @@ class NovelEngineBase:
         self._state.volumes.append(vol)
         return vol
 
-    def _save_path(self, vol_num: int, filename: str, data: Any) -> None:
+    def _save_path(self, vol_num: int, filename: str, data: Any, version: int | None = None) -> None:
+        """Save data to path. If version is given, append _v{N} before extension."""
+        if version is not None and version > 0:
+            # Insert _v{N} before extension: design.json → design_v1.json
+            stem = Path(filename).stem
+            suffix = Path(filename).suffix
+            filename = f"{stem}_v{version}{suffix}"
         if vol_num == 0:
             path = self._series_dir / filename
         else:
@@ -187,9 +193,11 @@ class NovelEngineBase:
         )
         path.write_text(content, encoding="utf-8")
 
-    def _save_review(self, review_dir: Path, name: str, data: Any) -> None:
+    def _save_review(self, review_dir: Path, name: str, data: Any, version: int | None = None) -> None:
         """レビュー結果を review/ ディレクトリに保存する。"""
         review_dir.mkdir(parents=True, exist_ok=True)
+        if version is not None and version > 0:
+            name = f"{name}_v{version}"
         path = review_dir / f"{name}.json"
         content = json.dumps(data, ensure_ascii=False, indent=2)
         path.write_text(content, encoding="utf-8")
