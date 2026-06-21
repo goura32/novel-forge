@@ -120,8 +120,7 @@ class PlanMixin:
             review = self._review_plan_core(core, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        review_path = self._series_dir / f"series_core_review.json"
-        review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._save_path(0, "series_core_review.json", {"reviews": all_reviews})
         return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
@@ -176,8 +175,7 @@ class PlanMixin:
             review = self._review_plan_characters(characters, core, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        review_path = self._series_dir / f"series_characters_review.json"
-        review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._save_path(0, "series_characters_review.json", {"reviews": all_reviews})
         return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
@@ -235,8 +233,7 @@ class PlanMixin:
             review = self._review_plan_volumes(volumes, core, characters, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        review_path = self._series_dir / f"series_volumes_review.json"
-        review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._save_path(0, "series_volumes_review.json", {"reviews": all_reviews})
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────

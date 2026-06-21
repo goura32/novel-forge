@@ -117,6 +117,23 @@ def _resolve_series_dir(workdir: Path) -> Path:
     return workdir  # not yet planned; lock will be acquired later
 
 
+def _format_lock_status(series_dir: Path) -> tuple[str, str] | None:
+    """Format lock status for display. Returns (style, text) or None."""
+    lock_path = series_dir / _LOCK_FILE_NAME
+    if not lock_path.exists():
+        return None
+    try:
+        lock_pid = int(lock_path.read_text().strip())
+        age = time.time() - lock_path.stat().st_mtime
+        alive = _is_process_alive(lock_pid)
+        if alive:
+            return ("bold", f"🔒 lock: PID={lock_pid} (active, {age:.0f}s ago)")
+        else:
+            return ("dim", f"🔒 lock: PID={lock_pid} (stale, {age:.0f}s ago)")
+    except (ValueError, OSError):
+        return ("dim", "🔒 lock: corrupted")
+
+
 def _engine(
     workdir: Path = Path("."),
     model: str = DEFAULT_MODEL,
@@ -220,18 +237,10 @@ def status(
         table.add_row(k, str(v))
     # Check lock status
     series_dir = _resolve_series_dir(workdir)
-    lock_path = series_dir / _LOCK_FILE_NAME
-    if lock_path.exists():
-        try:
-            lock_pid = int(lock_path.read_text().strip())
-            age = time.time() - lock_path.stat().st_mtime
-            alive = _is_process_alive(lock_pid)
-            if alive:
-                table.add_row("🔒 lock", f"PID={lock_pid} (active, {age:.0f}s ago)")
-            else:
-                table.add_row("🔒 lock", f"PID={lock_pid} (stale, {age:.0f}s ago)")
-        except (ValueError, OSError):
-            table.add_row("🔒 lock", "corrupted")
+    lock_info = _format_lock_status(series_dir)
+    if lock_info:
+        style, text = lock_info
+        table.add_row(f"[{style}]{text}[/{style}]")
     console.print(table)
 
 

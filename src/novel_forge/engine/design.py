@@ -399,7 +399,12 @@ class DesignMixin:
             sev = issue.get("severity", "")
             cat = issue.get("category", "")
             desc = issue.get("description", "")
+            sug = issue.get("suggestion", "")
             lines.append(f"  [{sev}] {cat}: {desc}")
+            if sug:
+                lines.append(f"    提案: {sug}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
         review_text = "\n".join(lines)
         current = (
             f"章タイトル: {ch_design.get('title', '')}\n"
@@ -569,6 +574,19 @@ class DesignMixin:
             self._save_design_reviews(vol_num, scene.get("chapter_number", 0), scene.get("number", i + 1), sc_reviews)
         return all_scenes
 
+    @staticmethod
+    def _build_design_outline(design_obj) -> str:
+        """Build a text outline from a design object for review/revise prompts."""
+        lines = [f"巻タイトル: {design_obj.get('title', '')}", f"前提: {design_obj.get('premise', '')}", ""]
+        for ch in design_obj.get("chapters", []):
+            lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
+            for sc in design_obj.get("scenes", []):
+                if sc.get("chapter_number") == ch["number"]:
+                    lines.append(f"  シーン{sc['number']}: {sc['title']}")
+                    lines.append(f"    目標: {sc.get('goal', '')[:100]}")
+                    lines.append(f"    結果: {sc.get('outcome', '')[:100]}")
+        return "\n".join(lines)
+
     def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
@@ -581,13 +599,7 @@ class DesignMixin:
                 lines.append(f"    提案: {sug}")
         review_text = "\n".join(lines)
 
-        outline_lines = [f"巻タイトル: {design_obj.get('title', '')}", f"前提: {design_obj.get('premise', '')}", ""]
-        for ch in design_obj.get("chapters", []):
-            outline_lines.append(f"第{ch['number']}章: {ch['title']}（{ch.get('purpose', '')}）")
-            for sc in design_obj.get("scenes", []):
-                if sc.get("chapter_number") == ch["number"]:
-                    outline_lines.append(f"  シーン{sc['number']}: {sc['title']}")
-        outline_text = "\n".join(outline_lines)
+        outline_text = self._build_design_outline(design_obj)
 
         user = self._prompts.render(
             "volume_design_revision.md",

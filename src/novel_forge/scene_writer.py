@@ -297,8 +297,9 @@ class SceneWriter:
 
     # ── revise ───────────────────────────────────────────────────────
 
-    def _revise_scene(self, draft_text: str, review: dict, lang: str) -> str:
-        system = self._prompts.render("system.md", {"lang": lang})
+    @staticmethod
+    def _build_review_text(review: dict) -> str:
+        """Build a human-readable review text from a review dict."""
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -316,7 +317,11 @@ class SceneWriter:
             lines.append(f"  簡体字問題: {', '.join(review['kanji_issues'])}")
         if review.get("language_issues"):
             lines.append(f"  言語問題: {'; '.join(review['language_issues'])}")
-        review_text = "\n".join(lines)
+        return "\n".join(lines)
+
+    def _revise_scene(self, draft_text: str, review: dict, lang: str) -> str:
+        system = self._prompts.render("system.md", {"lang": lang})
+        review_text = self._build_review_text(review)
         user = self._prompts.render(
             "scene_revision.md",
             {

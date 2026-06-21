@@ -34,11 +34,12 @@ class NovelEngineBase:
     _BLOCKER = "致命的"
     _CRITICAL = "重大"
     _MAJOR = "重要"
+    _DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
 
     def __init__(
         self,
         workdir: Path,
-        model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
+        model: str | None = None,
         lang: str = "ja",
         llm_client: LLMClient | None = None,
         prompt_manager: PromptManager | None = None,
@@ -60,6 +61,7 @@ class NovelEngineBase:
         cfg = config if config is not None else load_config()
         if llm_client is None:
             llm_cfg = cfg.get("llm", {})
+            model = model or self._DEFAULT_MODEL
             model = llm_cfg.get("model", model)
             timeout = llm_cfg.get("timeout_seconds", 600)
             max_retries = llm_cfg.get("max_retries", 2)
@@ -251,7 +253,7 @@ class NovelEngineBase:
         # Fallback: create minimal config with defaults
         default_config = {
             "llm": {
-                "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+                "model": NovelEngineBase._DEFAULT_MODEL,
                 "num_predict": 16384,
                 "num_ctx": 65536,
                 "timeout_seconds": 3600,
