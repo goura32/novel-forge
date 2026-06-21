@@ -106,8 +106,7 @@ class LLMClient:
                 if key.endswith(".context_length") and isinstance(val, (int, float)):
                     return int(val)
         except Exception as e:
-            import sys
-            print(f"[LLMClient] Warning: could not detect max context length: {e}", file=sys.stderr)
+            self._log.warning("Could not detect max context length: %s", e)
         return 32768
 
     def complete_json(

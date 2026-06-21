@@ -6,6 +6,10 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, ValidationError
 
+from novel_forge.logging_config import get_logger
+
+_log = get_logger("novel_forge.schemas")
+
 _SCHEMA_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
 
 _SCHEMA_BY_NAME: dict[str, dict[str, Any]] = {}
@@ -15,11 +19,8 @@ def _load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMA_BY_NAME:
         path = _SCHEMA_DIR / f"{name}.json"
         if not path.exists():
-            import sys as _sys
             available = sorted(p.stem for p in _SCHEMA_DIR.glob("*.json"))
-            _sys.stderr.write(f"  [SCHEMA ERROR] Schema not found: {path}\n")
-            _sys.stderr.write(f"  [SCHEMA ERROR] Requested: '{name}'\n")
-            _sys.stderr.write(f"  [SCHEMA ERROR] Available schemas: {available}\n")
+            _log.error("Schema not found: %s (requested: '%s', available: %s)", path, name, available)
             raise FileNotFoundError(f"Schema not found: {path}")
         with open(path, encoding="utf-8") as f:
             _SCHEMA_BY_NAME[name] = json.load(f)
