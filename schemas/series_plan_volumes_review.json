@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanVolumesReview",
+  "description": "シリーズ企画（各巻）の自己レビュー結果",
+  "type": "object",
+  "required": ["volume_uniqueness", "series_flow", "cliffhanger", "theme_consistency", "score", "issues", "suggestions"],
+  "properties": {
+    "volume_uniqueness": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "series_flow": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "cliffhanger": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "theme_consistency": { "type": "object", "required": ["score"], "properties": { "score": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "総合評価スコア" },
+    "issues": { "type": "array", "items": { "type": "object", "required": ["severity", "category", "description"], "properties": { "severity": { "type": "string", "enum": ["critical", "major", "minor"] }, "category": { "type": "string", "maxLength": 64 }, "description": { "type": "string", "maxLength": 500 } } } },
+    "suggestions": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
+  }
+}
