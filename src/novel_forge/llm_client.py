@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -147,7 +148,7 @@ class LLMClient:
                 **api_options,
             },
         }
-        payload["format"] = schema if schema else "json"
+        payload["format"] = "json"  # Always use "json"; schema validation is done in code, not by Ollama
         payload["think"] = think_value
 
         last_error: Exception | None = None
@@ -334,10 +335,11 @@ class LLMClient:
         except Exception:
             return
         timestamp = time.strftime("%Y%m%d_%H%M%S")
+        pid = os.getpid()
         idx = 0
         while True:
             suffix = f"_{idx:03d}" if idx > 0 else ""
-            log_path = raw_dir / f"{timestamp}_{kind}{suffix}.json"
+            log_path = raw_dir / f"{timestamp}_pid{pid}_{kind}{suffix}.json"
             if not log_path.exists():
                 break
             idx += 1
@@ -345,6 +347,7 @@ class LLMClient:
             log_data: dict[str, Any] = {
                 "kind": kind,
                 "timestamp": timestamp,
+                "pid": pid,
                 "model": self.model,
                 "raw_response": raw_text,
             }
