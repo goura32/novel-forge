@@ -13,4 +13,21 @@
 3. **クライフハンガー**: 次巻への引きがあるか
 4. **テーマの一貫性**: シリーズのテーマと各巻のテーマが整合しているか
 
+## 出力スキーマ
+`series_plan_volumes_review.json` に適合する JSON を出力すること。
+
+**重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
+
+```json
+{
+  "volume_uniqueness": {"score": 85},
+  "series_flow": {"score": 80},
+  "cliffhanger": {"score": 75},
+  "theme_consistency": {"score": 90},
+  "score": 82,
+  "issues": [],
+  "suggestions": ["改善提案1"]
+}
+```
+
 言語: {lang}

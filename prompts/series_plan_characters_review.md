@@ -13,4 +13,21 @@
 3. **成長弧**: 各キャラクターに成長の方向性があるか
 4. **世界観適合**: キャラクターが世界観に適合しているか
 
+## 出力スキーマ
+`series_plan_characters_review.json` に適合する JSON を出力すること。
+
+**重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
+
+```json
+{
+  "consistency": {"score": 85},
+  "differentiation": {"score": 90},
+  "growth_arc": {"score": 80},
+  "world_fit": {"score": 75},
+  "score": 82,
+  "issues": [],
+  "suggestions": ["改善提案1"]
+}
+```
+
 言語: {lang}

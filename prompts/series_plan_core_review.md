@@ -13,4 +13,21 @@
 3. **ジャンル適合**: ジャンルは適切か、競合と差別化されているか
 4. **世界観の独自性**: オリジナルか、一貫したルールがあるか
 
+## 出力スキーマ
+`series_plan_core_review.json` に適合する JSON を出力すること。
+
+**重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
+
+```json
+{
+  "title_power": {"memorable": true, "searchable": true, "score": 85},
+  "logline_quality": {"clear": true, "compelling": true, "score": 80},
+  "genre_fit": {"appropriate": true, "differentiated": true, "score": 75},
+  "world_uniqueness": {"original": true, "consistent": true, "score": 90},
+  "score": 82,
+  "issues": [],
+  "suggestions": ["改善提案1"]
+}
+```
+
 言語: {lang}

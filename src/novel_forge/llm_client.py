@@ -291,6 +291,21 @@ def _coerce_types(data: dict, schema: dict) -> dict:
             items = [x.strip() for x in re.split(r"[,\n。]", value) if x.strip()]
             data[field] = items
 
+        elif expected_type == "integer" and isinstance(value, (int, float)):
+            # Clamp to 0-100 for score fields
+            import math
+            if field == "score" or "score" in field.lower():
+                data[field] = max(0, min(100, int(round(value))))
+            else:
+                data[field] = int(value)
+
+        elif expected_type == "integer" and isinstance(value, str):
+            # Try to parse string as integer
+            try:
+                data[field] = int(float(value))
+            except (ValueError, OverflowError):
+                data[field] = 0
+
         elif expected_type == "object" and isinstance(value, dict):
             # Recurse into nested objects
             nested_required = field_schema.get("required", [])
