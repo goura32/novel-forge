@@ -1,4 +1,4 @@
-"""Volume outline generation — outline, orchestrate_outline, _review_outline, _revise_outline."""
+"""Volume design generation — outline, orchestrate_design, _review_design, _revise_design."""
 
 from __future__ import annotations
 
@@ -9,20 +9,20 @@ from novel_forge.models import VolumeOutline
 from novel_forge.schemas import get_schema
 
 
-class OutlineMixin:
-    """Volume outline generation methods for NovelEngine."""
+class DesignMixin:
+    """Volume design generation methods for NovelEngine."""
 
-    def outline(self, volume_number: int | None = None) -> dict[str, Any]:
+    def design(self, volume_number: int | None = None) -> dict[str, Any]:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._ctx_builder.get_series_plan_summary()
         genre = self._ctx_builder.get_genre()
-        schema = get_schema("volume_outline")
-        previous_outline = self._get_previous_volume_outline(vol_num)
+        schema = get_schema("volume_design")
+        previous_design = self._get_previous_volume_design(vol_num)
 
-        result = self.orchestrate_outline(series_plan, genre, vol_num, system, schema, previous_outline)
-        review = self._review_outline(result, series_plan, previous_outline)
+        result = self.orchestrate_design(series_plan, genre, vol_num, system, schema, previous_design)
+        review = self._review_design(result, series_plan, previous_design)
         review = self._recalc_review_score(review)
 
         # Review → Revise loop (max 3 retries)
@@ -32,24 +32,24 @@ class OutlineMixin:
             if score >= 70 and len(critical_issues) == 0:
                 break
             import sys as _sys
-            _sys.stderr.write(f"  [OUTLINE REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3\n")
-            result = self._revise_outline(result, review, series_plan, genre, vol_num, system, schema, previous_outline)
-            review = self._review_outline(result, series_plan, previous_outline)
+            _sys.stderr.write(f"  [DESIGN REVIEW] score={score}, critical={len(critical_issues)}, retry={retry+1}/3\n")
+            result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
+            review = self._review_design(result, series_plan, previous_design)
             review = self._recalc_review_score(review)
 
         vol = self._current_volume()
-        vol.status = "アウトライン済"
-        self._state.status = "アウトライン済"
+        vol.status = "デザイン済"
+        self._state.status = "デザイン済"
         result["volume_number"] = vol_num
-        self._save_path(vol_num, "outline.json", result)
+        self._save_path(vol_num, "design.json", result)
         self._save()
         return result
 
-    def _get_previous_volume_outline(self, vol_num: int) -> str:
+    def _get_previous_volume_design(self, vol_num: int) -> str:
         """Get the outline summary of the previous volume, if it exists."""
         if vol_num <= 1:
             return ""
-        prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / "outline.json"
+        prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / "design.json"
         if not prev_path.exists():
             raise RuntimeError(
                 f"前巻（第{vol_num - 1}巻）のアウトラインが存在しません: {prev_path}\n"
@@ -76,13 +76,13 @@ class OutlineMixin:
     # ── Phase 1: Volume design (chapter structure) ───────────────────────
 
     def _generate_volume_design(self, series_plan: str, genre: str, vol_num: int,
-                                     system: str, previous_outline: str) -> list[dict]:
+                                     system: str, previous_design: str) -> list[dict]:
         """Phase 1: Generate chapter structure (titles + purposes)."""
         chapter_schema = get_schema("volume_design")
         user = self._prompts.render(
             "volume_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
-             "lang": self._lang, "previous_outline": previous_outline},
+             "lang": self._lang, "previous_design": previous_design},
         )
         chapters_result = self._llm.complete_json("volume_design", system, user, chapter_schema)
 
@@ -100,13 +100,13 @@ class OutlineMixin:
 
     def _generate_chapter_designs(self, chapters_list: list[dict], series_plan: str,
                                    vol_num: int, system: str,
-                                   previous_outline: str,
+                                   previous_design: str,
                                    volume_title: str = "",
                                    volume_premise: str = "") -> list[dict]:
         """Phase 2: Generate detailed design for each chapter."""
         chapter_designs = []
         previous_chapter_outcome = ""
-        prev_summary = previous_outline[:500] if previous_outline else ""
+        prev_summary = previous_design[:500] if previous_design else ""
 
         for ch_idx, ch in enumerate(chapters_list, 1):
             ch_title = ch.get("title", f"第{ch_idx}章")
@@ -140,14 +140,14 @@ class OutlineMixin:
 
     def _generate_scene_designs(self, chapters_list: list[dict], chapter_designs: list[dict],
                                   series_plan: str, vol_num: int, system: str,
-                                  previous_outline: str,
+                                  previous_design: str,
                                   volume_title: str = "",
                                   volume_premise: str = "") -> list[dict]:
         """Phase 3: Generate scene-by-scene outlines for each chapter."""
         all_scenes = []
         scene_counter = 1
         previous_outcome = ""
-        prev_summary = previous_outline[:500] if previous_outline else ""
+        prev_summary = previous_design[:500] if previous_design else ""
 
         for ch_idx, ch in enumerate(chapters_list, 1):
             ch_title = ch.get("title", f"第{ch_idx}章")
@@ -197,7 +197,7 @@ class OutlineMixin:
 
     # ── Main outline orchestrator ──────────────────────────────────────
 
-    def orchestrate_outline(self, series_plan, genre, vol_num, system, schema, previous_outline=""):
+    def orchestrate_design(self, series_plan, genre, vol_num, system, schema, previous_design=""):
         """Multi-phase outline generation with per-chapter and per-scene review loops."""
         plan_data = self._get_plan_data()
         volume_title = f"第{vol_num}巻"
@@ -211,12 +211,12 @@ class OutlineMixin:
 
         # Phase 1: Volume design (chapter structure)
         chapters_list = self._generate_volume_design(
-            series_plan, genre, vol_num, system, previous_outline
+            series_plan, genre, vol_num, system, previous_design
         )
 
         # Phase 2: Chapter designs + review/revise loop
         chapter_designs = self._generate_chapter_designs(
-            chapters_list, series_plan, vol_num, system, previous_outline,
+            chapters_list, series_plan, vol_num, system, previous_design,
             volume_title=volume_title, volume_premise=volume_premise,
         )
         chapter_designs = self._review_and_revise_chapter_designs(
@@ -226,7 +226,7 @@ class OutlineMixin:
 
         # Phase 3: Scene designs + review/revise loop
         all_scenes = self._generate_scene_designs(
-            chapters_list, chapter_designs, series_plan, vol_num, system, previous_outline,
+            chapters_list, chapter_designs, series_plan, vol_num, system, previous_design,
             volume_title=volume_title, volume_premise=volume_premise,
         )
         all_scenes = self._review_and_revise_scene_designs(
@@ -257,7 +257,7 @@ class OutlineMixin:
             "chapters": chapters_with_scenes,
             "scenes": all_scenes,
         }
-        return self._normalize_outline_numbering(result)
+        return self._normalize_design_numbering(result)
 
     def _get_plan_data(self) -> dict:
         """Load series plan data from disk."""
@@ -283,7 +283,7 @@ class OutlineMixin:
         else:  # 展開, 転換
             return 3
 
-    def _normalize_outline_numbering(self, result):
+    def _normalize_design_numbering(self, result):
         """章・シーンに通し番号を振り、フラットな構造に正規化する。"""
         flat_chapters = []
         flat_scenes = []
@@ -348,11 +348,11 @@ class OutlineMixin:
         }
         return review
 
-    def _review_outline(self, outline, series_plan, previous_outline=""):
+    def _review_design(self, outline, series_plan, previous_design=""):
         system = self._prompts.render("system.md", {"lang": self._lang})
         lines = [f"シリーズ企画: {series_plan}", ""]
-        if previous_outline:
-            lines.append(previous_outline)
+        if previous_design:
+            lines.append(previous_design)
             lines.append("")
         lines.extend([f"巻タイトル: {outline.get('title', '未設定')}", f"前提: {outline.get('premise', '未設定')}", ""])
         for ch in outline.get("chapters", []):
@@ -363,9 +363,9 @@ class OutlineMixin:
                     lines.append(f"    目標: {sc.get('goal', '')[:100]}")
                     lines.append(f"    結果: {sc.get('outcome', '')[:100]}")
         outline_text = "\n".join(lines)
-        user = self._prompts.render("volume_outline_review.md", {"outline": outline_text, "lang": self._lang})
-        schema = get_schema("volume_outline_review")
-        return self._llm.complete_json("volume_outline_review", system, user, schema)
+        user = self._prompts.render("volume_design_review.md", {"outline": outline_text, "lang": self._lang})
+        schema = get_schema("volume_design_review")
+        return self._llm.complete_json("volume_design_review", system, user, schema)
 
     # ── Chapter design review/revise ─────────────────────────────────────
 
@@ -518,7 +518,7 @@ class OutlineMixin:
             previous_outcome = scene.get("outcome", "")
         return all_scenes
 
-    def _revise_outline(self, outline, review, series_plan, genre, vol_num, system, schema, previous_outline=""):
+    def _revise_design(self, outline, review, series_plan, genre, vol_num, system, schema, previous_design=""):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -539,12 +539,12 @@ class OutlineMixin:
         outline_text = "\n".join(outline_lines)
 
         user = self._prompts.render(
-            "volume_outline_revision.md",
+            "volume_design_revision.md",
             {"current_outline": outline_text, "review": review_text, "series_plan": series_plan,
-             "lang": self._lang, "previous_outline": previous_outline},
+             "lang": self._lang, "previous_design": previous_design},
         )
         try:
-            result = self._llm.complete_json("volume_outline_revision", system, user, schema)
+            result = self._llm.complete_json("volume_design_revision", system, user, schema)
         except Exception:
             # LLMがスキーマ違反の出力をした場合（title/premise欠落など）→ フォールバック
             result = {
@@ -558,4 +558,4 @@ class OutlineMixin:
             result["title"] = outline.get("title") or f"第{vol_num}巻"
         if not result.get("premise"):
             result["premise"] = outline.get("premise") or ""
-        return self._normalize_outline_numbering(result)
+        return self._normalize_design_numbering(result)

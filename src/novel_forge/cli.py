@@ -144,19 +144,19 @@ def plan(
 
 
 @app.command()
-def outline(
+def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option("qwen3.6:35b-a3b-mtp-q4_K_M", "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
-    """Generate a volume outline."""
+    """Generate a volume design (chapter/scene structure)."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
         engine = _engine(workdir, model, lang, verbose=verbose)
-        result = engine.outline(volume)
-        console.print(f"[green]✓[/green] Volume {volume} outline generated")
+        result = engine.design(volume)
+        console.print(f"[green]✓[/green] Volume {volume} design generated")
 
 
 @app.command()
@@ -241,8 +241,8 @@ def resume(
         console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
         if action == "write":
             engine.write(volume)
-        elif action == "outline":
-            engine.outline(volume)
+        elif action == "design":
+            engine.design(volume)
         elif action == "export":
             engine.export(volume)
         elif action == "plan":
@@ -265,8 +265,8 @@ def complete(
         engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose)
         console.print("[bold]Step 1/4: Plan[/bold]")
         engine.plan(keywords)
-        console.print("[bold]Step 2/4: Outline[/bold]")
-        engine.outline(volume)
+        console.print("[bold]Step 2/4: Design[/bold]")
+        engine.design(volume)
         console.print("[bold]Step 3/4: Write[/bold]")
         engine.write(volume)
         console.print("[bold]Step 4/4: Export[/bold]")

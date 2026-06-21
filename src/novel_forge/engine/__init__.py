@@ -1,21 +1,21 @@
 """NovelForge engine package — split from monolithic engine.py."""
 
 from .base import NovelEngineBase
-from .plan import PlanMixin
-from .outline import OutlineMixin
-from .write import WriteMixin
+from .design import DesignMixin
 from .export import ExportMixin
+from .plan import PlanMixin
+from .write import WriteMixin
 
 
 # Combined class: MRO resolves NovelEngineBase first, then mixins
 class NovelEngine(
     NovelEngineBase,
     PlanMixin,
-    OutlineMixin,
+    DesignMixin,
     WriteMixin,
     ExportMixin,
 ):
-    """NovelEngine — combines base + plan + outline + write + export mixins."""
+    """NovelEngine — combines base + plan + design + write + export mixins."""
     pass
 
 

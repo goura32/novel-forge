@@ -187,7 +187,7 @@ class VolumeProgress(BaseModel):
     volume_number: int = Field(ge=1)
     status: str = Field(
         default="計画中",
-        pattern="^(計画中|アウトライン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
+        pattern="^(計画中|デザイン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )
     word_count: int = Field(ge=0, default=0)
     target_word_count: int = Field(ge=0, default=80000)
@@ -203,7 +203,7 @@ class ProjectState(BaseModel):
     volumes: list[VolumeProgress] = Field(default_factory=list)
     status: str = Field(
         default="計画中",
-        pattern="^(計画中|アウトライン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
+        pattern="^(計画中|デザイン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )
 
 
