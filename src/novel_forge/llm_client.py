@@ -152,9 +152,9 @@ class LLMClient:
 
         last_error: Exception | None = None
         current_prompt = user_prompt
-        raw = ""
-        thinking = ""
+        raw_text, thinking = "", ""
         for attempt in range(self.max_retries):
+            raw_text, thinking = "", ""
             try:
                 payload["messages"][1]["content"] = current_prompt
                 # Increment seed on each retry to get different output
@@ -184,7 +184,7 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                # Save raw_text (not raw) so we can investigate parse failures
+                # Save raw_text so we can investigate parse failures
                 self._write_raw_log(kind + "_json_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
                 self._write_log(kind + "_json_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
@@ -213,18 +213,30 @@ class LLMClient:
                 )
                 continue
             except LLMError as e:
+                # LLMError from _call_api (timeout, HTTP error, etc.) — retry
                 last_error = e
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_log(kind + "_llm_error", payload, raw_text or "", {"error": str(e)}, thinking=thinking, elapsed=0.0, attempt=attempt)
+                self._write_raw_log(kind + "_llm_error", raw_text, thinking=thinking, resp_obj={"error": str(e)})
                 continue
+            except Exception as e:
+                # Catch-all: save raw data for any unexpected error
+                last_error = e
+                self._log.warning(
+                    "  [LLM ERROR] kind=%s attempt=%d/%d error=%s",
+                    kind, attempt + 1, self.max_retries, str(e)[:200],
+                )
+                self._write_raw_log(kind + "_unexpected_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "error_type": type(e).__name__})
+                raise
+        # All retries exhausted — save last raw data
+        self._write_raw_log(kind + "_all_retries_failed", raw_text, thinking=thinking, resp_obj={"last_error": str(last_error)[:500] if last_error else ""})
+        self._write_log(kind + "_FAILED", payload, raw_text, {"error": str(last_error), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
         self._log.error(
             "  [LLM FAILED] kind=%s attempts=%d error=%s",
             kind, self.max_retries, str(last_error)[:100],
         )
-        self._write_log(kind + "_FAILED", payload, raw, {"error": str(last_error), "raw_preview": raw[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
         raise last_error or LLMError("LLM request failed")
 
     @staticmethod
