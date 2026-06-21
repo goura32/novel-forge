@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import time
 from pathlib import Path
@@ -184,6 +185,7 @@ class LLMClient:
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
                 # Save raw_text (not raw) so we can investigate parse failures
+                self._write_raw_log(kind + "_json_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
                 self._write_log(kind + "_json_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
                 current_prompt = (
@@ -200,6 +202,7 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
+                self._write_raw_log(kind + "_schema_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
                 self._write_log(kind + "_schema_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:200]
                 current_prompt = (
@@ -263,42 +266,53 @@ class LLMClient:
         """
         stream_payload = {**payload, "stream": False}
         raw_bytes = b""
-        resp = httpx.post(
-            self.api_url,
-            json=stream_payload,
-            timeout=self.timeout_seconds,
-        )
-        resp.raise_for_status()
-        raw_bytes = resp.content
+        try:
+            resp = httpx.post(
+                self.api_url,
+                json=stream_payload,
+                timeout=self.timeout_seconds,
+            )
+            resp.raise_for_status()
+            raw_bytes = resp.content
+        except httpx.TimeoutException:
+            # Timeout: save whatever partial data we have
+            self._write_raw_log("_timeout", raw_bytes.decode("utf-8", errors="replace"))
+            raise LLMError("Ollama request timed out")
+        except httpx.HTTPStatusError as e:
+            self._write_raw_log("_http_error", str(e))
+            raise LLMError(f"Ollama HTTP error: {e}")
         raw_text = raw_bytes.decode("utf-8", errors="replace")
         # Parse the single JSON response object
         try:
             resp_obj = json.loads(raw_text)
         except json.JSONDecodeError as e:
             # Save raw response for debugging before raising
-            self._write_raw_log("_parse_response_error", raw_text, {"error": str(e)})
+            self._write_raw_log("_parse_response_error", raw_text, resp_obj={"error": str(e)})
             raise LLMError(f"Failed to parse Ollama response as JSON: {e}")
         # Log done_reason for debugging
         done_reason = resp_obj.get("done_reason", "")
         if done_reason:
             self._log.debug("  [LLM DONE_REASON] %s", done_reason)
         if resp_obj.get("error"):
-            self._write_raw_log("_ollama_api_error", raw_text, {"error": resp_obj["error"]})
+            self._write_raw_log("_ollama_api_error", raw_text, resp_obj={"error": resp_obj["error"]})
             raise LLMError(f"Ollama error: {resp_obj['error']}")
-        # Save raw Ollama response for debugging
-        self._write_raw_log("_ollama_response", raw_text, resp_obj)
+        # Save raw Ollama response for debugging (always, including length-truncated)
+        self._write_raw_log("_ollama_response", raw_text, thinking=resp_obj.get("message", {}).get("thinking", ""), resp_obj=resp_obj)
         msg = resp_obj.get("message", {})
         content = msg.get("content", "")
         thinking = msg.get("thinking", "")
         if not content or not content.strip():
+            # Empty content: still save raw, then raise
+            self._write_raw_log("_empty_content", raw_text, thinking=thinking, resp_obj=resp_obj)
             raise LLMError("Ollama returned empty response")
         return raw_text, content, thinking, done_reason
 
-    def _write_raw_log(self, kind: str, raw_text: str, parsed: dict | None = None) -> None:
-        """Write raw Ollama response to file for debugging.
-        
-        This is always called (regardless of raw_log_enabled) for all LLM calls,
-        saving to a separate _raw directory under the workdir.
+    def _write_raw_log(self, kind: str, raw_text: str, thinking: str = "", resp_obj: dict | None = None) -> None:
+        """Write raw Ollama response to file, preserving everything as-is.
+
+        Saves the complete Ollama response including thinking tokens.
+        If payload exceeds 1MB, stores as .json.gz to save disk space.
+        Otherwise stores as plain .json for easy inspection.
         """
         raw_dir = self.raw_log_dir
         if not raw_dir:
@@ -316,20 +330,32 @@ class LLMClient:
                 break
             idx += 1
         try:
-            log_data = {
+            log_data: dict[str, Any] = {
                 "kind": kind,
                 "timestamp": timestamp,
                 "model": self.model,
                 "raw_response": raw_text,
             }
-            if parsed and not isinstance(parsed, dict):
-                log_data["parsed"] = str(parsed)[:500]
-            elif isinstance(parsed, dict) and "error" in parsed:
-                log_data["error_info"] = parsed
-            log_path.write_text(
-                json.dumps(log_data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            # Save thinking as-is (truncate only if absurdly large > 10MB)
+            if thinking:
+                if len(thinking) > 10_000_000:
+                    log_data["thinking"] = thinking[:5_000_000] + f"\n... [truncated, total {len(thinking)} chars]"
+                else:
+                    log_data["thinking"] = thinking
+            # Save parsed response object (without raw_response to avoid duplication)
+            if resp_obj:
+                resp_copy = {k: v for k, v in resp_obj.items() if k != "message"}
+                if "message" in resp_obj:
+                    msg = resp_obj["message"]
+                    resp_copy["message"] = {k: v for k, v in msg.items() if k != "thinking"}
+                    if msg.get("thinking"):
+                        resp_copy["message"]["thinking"] = "(see thinking field above)"
+                log_data["response"] = resp_copy
+            json_bytes = json.dumps(log_data, ensure_ascii=False, indent=2).encode("utf-8")
+            # Always compress with gzip for uniform storage
+            gz_path = log_path.with_suffix(".json.gz")
+            with gzip.open(gz_path, "wb") as f:
+                f.write(json_bytes)
         except Exception as e:
             self._log.debug("  [RAW LOG WRITE FAILED] %s", e)
 

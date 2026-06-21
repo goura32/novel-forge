@@ -78,7 +78,7 @@ class NovelEngineBase:
             llm_client = LLMClient(
                 api_url=api_url,
                 model=model,
-                raw_log_dir=self._series_dir / "raw_logs",
+                raw_log_dir=Path(workdir) / "_raw_logs",
                 raw_log_enabled=self._raw_log_enabled,
                 timeout_seconds=timeout,
                 max_retries=max_retries,
