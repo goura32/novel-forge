@@ -100,6 +100,11 @@ class LLMClient:
         self.num_predict = num_predict
         self._ollama_options = ollama_options or {}
         self._log = get_logger("novel_forge.llm")
+        if self._ollama_options.get("think", False):
+            print(
+                "⚠ think=True is enabled — qwen3.6 thinking models may return empty "
+                "content with format='json'. Consider think=False for production use."
+            )
 
     def _detect_max_ctx(self) -> int:
         """Ollama /api/show からモデルの context_length を取得する。"""
