@@ -59,7 +59,8 @@ class DesignMixin:
         previous_design = self._get_previous_volume_design(vol_num)
 
         result = self.orchestrate_design(series_plan, genre, vol_num, system, schema, previous_design)
-        review = self._review_design(result, series_plan, previous_design)
+        seed_offset = 0
+        review = self._review_design(result, series_plan, previous_design, seed_offset=seed_offset)
 
         # Review → Revise loop (max 3 retries)
         all_volume_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
@@ -76,10 +77,11 @@ class DesignMixin:
                     "  [DESIGN REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
                     len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
                 )
-            result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
+            seed_offset += 1
+            result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design, seed_offset=seed_offset)
             # 修正版を版番号付きで保存
             self._save_path(vol_num, f"vol{vol_num:02d}.json", result, version=retry + 1)
-            review = self._review_design(result, series_plan, previous_design)
+            review = self._review_design(result, series_plan, previous_design, seed_offset=seed_offset)
             all_volume_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
 
         vol = self._current_volume()
@@ -351,7 +353,7 @@ class DesignMixin:
         result["scenes"] = flat_scenes
         return result
 
-    def _review_design(self, design_obj, series_plan, previous_design=""):
+    def _review_design(self, design_obj, series_plan, previous_design="", seed_offset: int = 0):
         system = self._prompts.render("system.md", {"lang": self._lang})
         lines = [f"シリーズ企画: {series_plan}", ""]
         if previous_design:
@@ -368,12 +370,12 @@ class DesignMixin:
         outline_text = "\n".join(lines)
         user = self._prompts.render("volume_design_review.md", {"design": outline_text, "lang": self._lang})
         schema = get_schema("volume_design_review")
-        return self._llm.complete_json("volume_design_review", system, user, schema)
+        return self._llm.complete_json("volume_design_review", system, user, schema, seed_offset=seed_offset)
 
     # ── Chapter design review/revise ─────────────────────────────────────
 
     def _review_chapter_design(self, ch_design, ch_info, series_plan, vol_num, system,
-                                volume_title="", volume_premise=""):
+                                volume_title="", volume_premise="", seed_offset: int = 0):
         user = self._prompts.render(
             "chapter_design_review.md",
             {
@@ -391,9 +393,9 @@ class DesignMixin:
                 "lang": self._lang,
             },
         )
-        return self._llm.complete_json("chapter_design_review", system, user, get_schema("chapter_design_review"))
+        return self._llm.complete_json("chapter_design_review", system, user, get_schema("chapter_design_review"), seed_offset=seed_offset)
 
-    def _revise_chapter_design(self, ch_design, review, system):
+    def _revise_chapter_design(self, ch_design, review, system, seed_offset: int = 0):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -426,6 +428,7 @@ class DesignMixin:
         """Review and revise each chapter design (max 2 retries per chapter)."""
         for i, ch_design in enumerate(chapter_designs):
             ch_info = chapters_list[i] if i < len(chapters_list) else {}
+            seed_offset = 0
             review = self._review_chapter_design(
                 ch_design, ch_info, series_plan, vol_num, system,
                 volume_title=volume_title, volume_premise=volume_premise,
@@ -444,7 +447,8 @@ class DesignMixin:
                         "  [CH REVIEW] ch=%d blocker=%d critical=%d major=%d retry=%d/2",
                         i + 1, len(blocker), len(critical), len(major), retry + 1,
                     )
-                ch_design = self._revise_chapter_design(ch_design, review, system)
+                seed_offset += 1
+                ch_design = self._revise_chapter_design(ch_design, review, system, seed_offset=seed_offset)
                 # 章デザインの修正版を版番号付きで保存
                 ch_dir = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{i+1:02d}"
                 ch_dir.mkdir(parents=True, exist_ok=True)
@@ -471,7 +475,7 @@ class DesignMixin:
     # ── Scene design review/revise ───────────────────────────────────────
 
     def _review_scene_design(self, scene, ch_info, series_plan, vol_num, system,
-                              volume_title="", volume_premise="", previous_outcome=""):
+                              volume_title="", volume_premise="", previous_outcome="", seed_offset: int = 0):
         user = self._prompts.render(
             "scene_design_review.md",
             {
@@ -493,9 +497,9 @@ class DesignMixin:
                 "lang": self._lang,
             },
         )
-        return self._llm.complete_json("scene_design_review", system, user, get_schema("scene_design_review"))
+        return self._llm.complete_json("scene_design_review", system, user, get_schema("scene_design_review"), seed_offset=seed_offset)
 
-    def _revise_scene_design(self, scene, review, system):
+    def _revise_scene_design(self, scene, review, system, seed_offset: int = 0):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -532,10 +536,11 @@ class DesignMixin:
         for i, scene in enumerate(all_scenes):
             ch_idx = scene.get("chapter_number", 1) - 1
             ch_info = chapters_list[ch_idx] if ch_idx < len(chapters_list) else {}
+            seed_offset = 0
             review = self._review_scene_design(
                 scene, ch_info, series_plan, vol_num, system,
                 volume_title=volume_title, volume_premise=volume_premise,
-                previous_outcome=previous_outcome,
+                previous_outcome=previous_outcome, seed_offset=seed_offset,
             )
             sc_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
             for retry in range(2):
@@ -551,7 +556,8 @@ class DesignMixin:
                         "  [SC REVIEW] sc=%d blocker=%d critical=%d major=%d retry=%d/2",
                         i + 1, len(blocker), len(critical), len(major), retry + 1,
                     )
-                scene = self._revise_scene_design(scene, review, system)
+                seed_offset += 1
+                scene = self._revise_scene_design(scene, review, system, seed_offset=seed_offset)
                 # シーン設計の修正版を版番号付きで保存
                 sc_num = scene.get("number", i + 1)
                 ch_num = scene.get("chapter_number", 0)
@@ -592,7 +598,7 @@ class DesignMixin:
                     lines.append(f"    結果: {sc.get('outcome', '')[:100]}")
         return "\n".join(lines)
 
-    def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):
+    def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design="", seed_offset: int = 0):
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             sev = issue.get("severity", "")
@@ -614,7 +620,7 @@ class DesignMixin:
              "lang": self._lang, "previous_design": previous_design},
         )
         try:
-            result = self._llm.complete_json("volume_design_revision", system, user, schema)
+            result = self._llm.complete_json("volume_design_revision", system, user, schema, seed_offset=seed_offset)
         except Exception:
             # LLMがスキーマ違反の出力をした場合（title/premise欠落など）→ フォールバック
             result = {

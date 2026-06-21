@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
@@ -283,8 +283,8 @@ class NovelEngineBase:
     def _review_and_revise(
         self,
         item: dict,
-        review_fn,
-        revise_fn,
+        review_fn: Callable,
+        revise_fn: Callable,
         system: str,
         max_retries: int = 3,
         label: str = "",
@@ -293,13 +293,14 @@ class NovelEngineBase:
 
         Args:
             item: The object to review/revise (modified in place).
-            review_fn: Callable(item, system) -> review dict.
-            revise_fn: Callable(item, review, system) -> revised item dict.
+            review_fn: Callable(item, system, seed_offset) -> review dict.
+            revise_fn: Callable(item, review, system, seed_offset) -> revised item dict.
             system: System prompt string.
             max_retries: Maximum number of review/revise cycles.
             label: Label for stderr logging.
         """
-        review = review_fn(item, system)
+        seed_offset = 0
+        review = review_fn(item, system, seed_offset=seed_offset)
         for retry in range(max_retries):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
@@ -312,6 +313,7 @@ class NovelEngineBase:
                 label, len(blocker_issues), len(critical_issues), len(major_issues),
                 retry + 1, max_retries,
             )
-            item = revise_fn(item, review, system)
-            review = review_fn(item, system)
+            seed_offset += 1
+            item = revise_fn(item, review, system, seed_offset=seed_offset)
+            review = review_fn(item, system, seed_offset=seed_offset)
         return item

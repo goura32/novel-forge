@@ -169,10 +169,11 @@ class SceneWriter:
         log_fn=None,
     ) -> tuple[str, SceneRecord]:
         """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
+        seed_offset = 0
         for retry in range(self._quality.max_retries + 1):
             review = self._review_scene(
                 draft_text, design_obj, scene, ctx.lang, ctx.build_context_fn,
-                ctx.get_outline_summary_fn,
+                ctx.get_outline_summary_fn, seed_offset=seed_offset,
             )
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
@@ -194,7 +195,8 @@ class SceneWriter:
                 lang_issues = self._extract_language_issues(review)
                 if lang_issues:
                     review["language_issues"] = lang_issues
-                draft_text = self._revise_scene(draft_text, review, ctx.lang)
+                seed_offset += 1
+                draft_text = self._revise_scene(draft_text, review, ctx.lang, seed_offset=seed_offset)
                 record.draft_version += 1
                 draft_path = self.save_scene_draft(
                     ctx.vol_num, record.scene_number, draft_text, chapter_number,
@@ -251,6 +253,7 @@ class SceneWriter:
         lang: str,
         build_context_fn,
         get_outline_summary_fn,
+        seed_offset: int = 0,
     ) -> dict:
         system = self._prompts.render("system.md", {"lang": lang})
         user = self._prompts.render(
@@ -269,7 +272,7 @@ class SceneWriter:
         # Retry up to 3 times on failure (timeout, parse error, etc.)
         for attempt in range(3):
             try:
-                result = self._llm.complete_json("scene_review", system, user, schema)
+                result = self._llm.complete_json("scene_review", system, user, schema, seed_offset=seed_offset)
                 if "revision_needed" not in result:
                     result["revision_needed"] = self._auto_revision_needed(result)
                 self._log.info("  [REVIEW DONE] revision_needed=%s", result.get("revision_needed"))
@@ -319,7 +322,7 @@ class SceneWriter:
             lines.append(f"  言語問題: {'; '.join(review['language_issues'])}")
         return "\n".join(lines)
 
-    def _revise_scene(self, draft_text: str, review: dict, lang: str) -> str:
+    def _revise_scene(self, draft_text: str, review: dict, lang: str, seed_offset: int = 0) -> str:
         system = self._prompts.render("system.md", {"lang": lang})
         review_text = self._build_review_text(review)
         user = self._prompts.render(
@@ -331,7 +334,7 @@ class SceneWriter:
             },
         )
         schema = get_schema("scene_revision")
-        result = self._llm.complete_json("scene_revision", system, user, schema)
+        result = self._llm.complete_json("scene_revision", system, user, schema, seed_offset=seed_offset)
         return result.get("content", draft_text)
 
     # ── summarize → blackboard update ───────────────────────────────
