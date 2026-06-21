@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
 import time
 from contextlib import contextmanager
@@ -282,6 +283,18 @@ def complete(
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Run the full pipeline: plan → design → write → export."""
+    # Signal handler for graceful shutdown on SIGTERM/SIGINT
+    _shutdown_requested = False
+
+    def _signal_handler(signum, frame):
+        nonlocal _shutdown_requested
+        _shutdown_requested = True
+        sig_name = signal.Signals(signum).name
+        console.print(f"\n[yellow]⚠ Received {sig_name} — shutting down after current step...[/yellow]")
+
+    original_handler = signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
         engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
@@ -292,13 +305,20 @@ def complete(
             ("Export", lambda: engine.export(volume)),
         ]
         result: dict[str, Any] | None = None
-        for i, (name, fn) in enumerate(steps, 1):
-            console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
-            try:
-                result = fn()
-            except Exception as e:
-                console.print(f"[red]✗ {name} failed: {e}[/red]")
-                raise SystemExit(1) from e
+        try:
+            for i, (name, fn) in enumerate(steps, 1):
+                if _shutdown_requested:
+                    console.print("[yellow]Shutdown requested — stopping before next step[/yellow]")
+                    break
+                console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
+                try:
+                    result = fn()
+                except Exception as e:
+                    console.print(f"[red]✗ {name} failed: {e}[/red]")
+                    raise SystemExit(1) from e
+        finally:
+            signal.signal(signal.SIGTERM, original_handler)
+            signal.signal(signal.SIGINT, signal.default_int_handler)
         assert result is not None
         console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
 
