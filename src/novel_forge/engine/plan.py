@@ -116,8 +116,8 @@ class PlanMixin:
             review = self._review_plan_core(core, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_core_review", {"reviews": all_reviews})
+        review_path = self._series_dir / f"series_core_review.json"
+        review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
         return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
@@ -172,8 +172,9 @@ class PlanMixin:
             review = self._review_plan_characters(characters, core, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_characters_review", {"reviews": all_reviews})
+        # レビュー結果を保存（全履歴）
+        review_path = self._series_dir / f"series_characters_review.json"
+        review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
         return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
@@ -231,8 +232,9 @@ class PlanMixin:
             review = self._review_plan_volumes(volumes, core, characters, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_volumes_review", {"reviews": all_reviews})
+        # レビュー結果を保存（全履歴）
+        review_path = self._series_dir / f"series_volumes_review.json"
+        review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────
