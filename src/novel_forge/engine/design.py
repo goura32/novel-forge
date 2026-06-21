@@ -40,7 +40,7 @@ class DesignMixin:
                 )
             result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
             # 修正版を版番号付きで保存
-            self._save_path(vol_num, "design.json", result, version=retry + 1)
+            self._save_path(vol_num, f"vol{vol_num:02d}_design.json", result, version=retry + 1)
             review = self._review_design(result, series_plan, previous_design)
 
         vol = self._current_volume()
@@ -51,7 +51,7 @@ class DesignMixin:
         # レビュー結果を review/ に保存
         review_dir = self._series_dir / f"vol{vol_num:02d}" / "review"
         review_dir.mkdir(parents=True, exist_ok=True)
-        self._save_review(review_dir, "design_review", review)
+        self._save_review(review_dir, f"vol{vol_num:02d}_design_review", review)
         self._save()
         return result
 
@@ -404,7 +404,8 @@ class DesignMixin:
                     if design_path.exists():
                         current_design = json.loads(design_path.read_text(encoding="utf-8"))
                         current_design["chapters"] = chapter_designs
-                        self._save_path(vol_num, "design.json", current_design, version=i + 1)
+                        ver = vol_num * 100 + i + 1
+                        self._save_path(vol_num, f"vol{vol_num:02d}_design.json", current_design, version=ver)
                 except Exception:
                     pass
                 review = self._review_chapter_design(
@@ -417,7 +418,7 @@ class DesignMixin:
             _save_review = getattr(self, "_save_review", None)
             if _series_dir is not None and _save_review is not None:
                 review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
-                _save_review(review_dir, f"ch{i+1:02d}_design_review", review)
+                _save_review(review_dir, f"vol{vol_num:02d}_ch{i+1:02d}_design_review", review)
         return chapter_designs
 
     # ── Scene design review/revise ───────────────────────────────────────
@@ -504,7 +505,8 @@ class DesignMixin:
                     if design_path.exists():
                         current_design = json.loads(design_path.read_text(encoding="utf-8"))
                         current_design["scenes"] = all_scenes
-                        self._save_path(vol_num, "design.json", current_design, version=i + 1)
+                        ver = vol_num * 1000 + i + 1
+                        self._save_path(vol_num, f"vol{vol_num:02d}_design.json", current_design, version=ver)
                 except Exception:
                     pass
                 review = self._review_scene_design(
@@ -519,7 +521,7 @@ class DesignMixin:
             _save_review = getattr(self, "_save_review", None)
             if _series_dir is not None and _save_review is not None:
                 review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
-                _save_review(review_dir, f"sc{scene.get('number', i+1):02d}_design_review", review)
+                _save_review(review_dir, f"vol{vol_num:02d}_sc{scene.get('number', i+1):02d}_design_review", review)
         return all_scenes
 
     def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):

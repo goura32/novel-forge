@@ -109,6 +109,9 @@ class PlanMixin:
             # 修正版を版番号付きで保存
             self._save_path(0, "series_plan.json", core, version=retry + 1)
             review = self._review_plan_core(core, system)
+        # レビュー結果を保存
+        review_dir = self._series_dir / "review"
+        self._save_review(review_dir, "series_plan_core_review", review)
         return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
@@ -161,6 +164,9 @@ class PlanMixin:
             partial = {**core, **characters}
             self._save_path(0, "series_plan.json", partial, version=retry + 1)
             review = self._review_plan_characters(characters, core, system)
+        # レビュー結果を保存
+        review_dir = self._series_dir / "review"
+        self._save_review(review_dir, "series_plan_characters_review", review)
         return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
@@ -216,6 +222,9 @@ class PlanMixin:
             partial = {**core, **characters, **volumes}
             self._save_path(0, "series_plan.json", partial, version=retry + 1)
             review = self._review_plan_volumes(volumes, core, characters, system)
+        # レビュー結果を保存
+        review_dir = self._series_dir / "review"
+        self._save_review(review_dir, "series_plan_volumes_review", review)
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────
