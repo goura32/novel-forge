@@ -19,6 +19,7 @@ console = Console()
 
 DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
 _LOCK_FILE_NAME = ".lock"
+_STATE_FILE_NAME = ".novel_forge_state"
 _LOCK_TIMEOUT_SECONDS = 300  # 5 min stale lock threshold
 
 
@@ -283,19 +284,42 @@ def complete(
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Run the full pipeline: plan → design → write → export."""
-    # Signal handler for graceful shutdown on SIGTERM/SIGINT
+    import json as _json
+
+    series_dir = _resolve_series_dir(workdir)
+
+    # --- State file helpers ---
+    state_path = series_dir / _STATE_FILE_NAME
+
+    def _write_state(step: str, status: str) -> None:
+        try:
+            state = {
+                "step": step,
+                "status": status,
+                "model": model,
+                "lang": lang,
+                "pid": os.getpid(),
+                "updated_at": time.time(),
+            }
+            state_path.write_text(_json.dumps(state, ensure_ascii=False, indent=2))
+        except OSError:
+            pass
+
+    # --- Signal handler ---
     _shutdown_requested = False
+    _current_step = "init"
 
     def _signal_handler(signum, frame):
         nonlocal _shutdown_requested
         _shutdown_requested = True
         sig_name = signal.Signals(signum).name
         console.print(f"\n[yellow]⚠ Received {sig_name} — shutting down after current step...[/yellow]")
+        _write_state(_current_step, f"interrupted_by_{sig_name}")
 
-    original_handler = signal.signal(signal.SIGTERM, _signal_handler)
-    signal.signal(signal.SIGINT, _signal_handler)
+    original_sigterm = signal.signal(signal.SIGTERM, _signal_handler)
+    original_sigint = signal.signal(signal.SIGINT, _signal_handler)
 
-    series_dir = _resolve_series_dir(workdir)
+    _write_state("init", "running")
     with _series_lock(series_dir):
         engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
         steps = [
@@ -310,15 +334,22 @@ def complete(
                 if _shutdown_requested:
                     console.print("[yellow]Shutdown requested — stopping before next step[/yellow]")
                     break
+                _current_step = name
+                _write_state(name, "running")
                 console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
                 try:
                     result = fn()
                 except Exception as e:
                     console.print(f"[red]✗ {name} failed: {e}[/red]")
+                    _write_state(name, f"failed: {e}")
                     raise SystemExit(1) from e
+                _write_state(name, "completed")
         finally:
-            signal.signal(signal.SIGTERM, original_handler)
-            signal.signal(signal.SIGINT, signal.default_int_handler)
+            signal.signal(signal.SIGTERM, original_sigterm)
+            signal.signal(signal.SIGINT, original_sigint)
+            if result is not None:
+                _write_state("done", "completed")
+            # If interrupted or failed, state already written above
         assert result is not None
         console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
 
