@@ -103,19 +103,27 @@ class NovelEngineBase:
         """Series output directory.
         During plan(): uses temp dir /tmp/novel-forge-{pid}/
         After plan(): uses {workdir}/{timestamp}_{slug}/
-        If slug is not set, tries to find existing series dir in workdir."""
+        If slug is not set, tries to find existing series dir in workdir.
+        Result is cached after first call.
+        """
+        if hasattr(self, "_cached_series_dir"):
+            return self._cached_series_dir
         if not self._slug:
             # Check if there's an existing series directory (from previous plan)
             existing = self._find_existing_series_dir()
             if existing:
+                self._cached_series_dir = existing
                 return existing
             # Before plan(): use temp directory
             if not hasattr(self, "_tmp_dir"):
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
+            self._cached_series_dir = self._tmp_dir
             return self._tmp_dir
         # After plan(): use final directory
         folder_name = self._slug.replace("-", "_")
-        return self._workdir / f"{self._timestamp}_{folder_name}"
+        result = self._workdir / f"{self._timestamp}_{folder_name}"
+        self._cached_series_dir = result
+        return result
 
     def _find_existing_series_dir(self) -> Path | None:
         """Find existing series directory in workdir (for commands after plan)."""
@@ -159,6 +167,9 @@ class NovelEngineBase:
                         shutil.move(str(item), str(dest))
                 # Remove temp dir recursively (in case any items couldn't be moved)
                 shutil.rmtree(self._tmp_dir, ignore_errors=True)
+        # Invalidate cache so next _series_dir access uses final dir
+        if hasattr(self, "_cached_series_dir"):
+            del self._cached_series_dir
 
     # ── helpers ───────────────────────────────────────────────────────
 

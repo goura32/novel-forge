@@ -12,6 +12,27 @@ from novel_forge.schemas import get_schema
 class DesignMixin:
     """Volume design generation methods for NovelEngine."""
 
+    def _save_design_reviews(
+        self, vol_num: int, ch_num: int, sc_num: int | None, reviews: list[dict]
+    ) -> None:
+        """Save review results to the appropriate directory.
+
+        Args:
+            vol_num: Volume number.
+            ch_num: Chapter number.
+            sc_num: Scene number (None for chapter-level reviews).
+            reviews: List of review dicts with version/issues/suggestions.
+        """
+        base = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{ch_num:02d}"
+        if sc_num is not None:
+            base = base / f"vol{vol_num:02d}_ch{ch_num:02d}_sc{sc_num:02d}"
+        base.mkdir(parents=True, exist_ok=True)
+        review_path = base / f"vol{vol_num:02d}_ch{ch_num:02d}"
+        if sc_num is not None:
+            review_path = base / f"vol{vol_num:02d}_ch{ch_num:02d}_sc{sc_num:02d}"
+        review_path = review_path.with_name(review_path.name + "_review.json")
+        review_path.write_text(json.dumps({"reviews": reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
+
     def design(self, volume_number: int | None = None) -> dict[str, Any]:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
@@ -436,13 +457,7 @@ class DesignMixin:
                 )
                 ch_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
             chapter_designs[i] = ch_design
-            # レビュー結果を章ディレクトリに保存（全履歴）
-            _series_dir = getattr(self, "_series_dir", None)
-            if _series_dir is not None:
-                ch_review_dir = _series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{i+1:02d}"
-                ch_review_dir.mkdir(parents=True, exist_ok=True)
-                ch_review_path = ch_review_dir / f"vol{vol_num:02d}_ch{i+1:02d}_review.json"
-                ch_review_path.write_text(json.dumps({"reviews": ch_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._save_design_reviews(vol_num, i + 1, None, ch_reviews)
         return chapter_designs
 
     # ── Scene design review/revise ───────────────────────────────────────
@@ -548,13 +563,7 @@ class DesignMixin:
                 sc_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
             all_scenes[i] = scene
             previous_outcome = scene.get("outcome", "")
-            # レビュー結果をシーンリレクトリに保存（全履歴）
-            _series_dir = getattr(self, "_series_dir", None)
-            if _series_dir is not None:
-                sc_review_dir = _series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{scene.get('chapter_number', 0):02d}" / f"vol{vol_num:02d}_ch{scene.get('chapter_number', 0):02d}_sc{scene.get('number', i+1):02d}"
-                sc_review_dir.mkdir(parents=True, exist_ok=True)
-                sc_review_path = sc_review_dir / f"vol{vol_num:02d}_ch{scene.get('chapter_number', 0):02d}_sc{scene.get('number', i+1):02d}_review.json"
-                sc_review_path.write_text(json.dumps({"reviews": sc_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._save_design_reviews(vol_num, scene.get("chapter_number", 0), scene.get("number", i + 1), sc_reviews)
         return all_scenes
 
     def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):

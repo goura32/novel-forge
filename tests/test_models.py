@@ -195,7 +195,7 @@ class TestQualityGate:
 class TestSchemas:
     def test_list_schemas(self):
         schemas = list_schemas()
-        assert "series_plan" in schemas
+        assert "series_plan_core" in schemas
         assert "volume_design" in schemas
         assert "chapter_design" in schemas
 
@@ -209,15 +209,13 @@ class TestSchemas:
             "themes": ["adventure"],
             "selling_points": ["Unique"],
             "world": {"summary": "Magic world", "rules": ["magic exists"]},
-            "main_characters": [{"name": "Hero", "role": "主人公", "arc": "growth"}],
-            "planned_volumes": [{"number": 1, "title": "Vol1", "premise": "Beginning"}],
         }
-        errors = validate("series_plan", data)
+        errors = validate("series_plan_core", data)
         assert len(errors) == 0
 
     def test_validate_series_plan_invalid(self):
         data = {"title": "Test"}
-        errors = validate("series_plan", data)
+        errors = validate("series_plan_core", data)
         assert len(errors) > 0
 
     def test_validate_or_raise(self):
@@ -230,10 +228,8 @@ class TestSchemas:
             "themes": ["adventure"],
             "selling_points": ["Unique"],
             "world": {"summary": "Magic world", "rules": ["magic exists"]},
-            "main_characters": [{"name": "Hero", "role": "主人公", "arc": "growth"}],
-            "planned_volumes": [{"number": 1, "title": "Vol1", "premise": "Beginning"}],
         }
-        validate_or_raise("series_plan", data)  # Should not raise
+        validate_or_raise("series_plan_core", data)  # Should not raise
 
     def test_chapter_design_schema_has_new_fields(self):
         schema = get_schema("chapter_design")

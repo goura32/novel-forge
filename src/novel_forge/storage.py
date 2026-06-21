@@ -37,7 +37,7 @@ class StateStorage:
             self._backup_path.write_text(
                 self._state_path.read_text(encoding="utf-8"), encoding="utf-8"
             )
-        data = json.loads(state.model_dump_json())
+        data = state.model_dump()
         content = json.dumps(data, ensure_ascii=False, indent=2)
         fd, tmp_path = tempfile.mkstemp(
             dir=str(self._state_path.parent), suffix=".tmp"
@@ -67,7 +67,7 @@ class BlackboardStorage:
 
     def save(self, blackboard: Blackboard) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = json.loads(blackboard.model_dump_json())
+        data = blackboard.model_dump()
         content = json.dumps(data, ensure_ascii=False, indent=2)
         fd, tmp_path = tempfile.mkstemp(dir=str(self._path.parent), suffix=".tmp")
         try:
@@ -95,7 +95,7 @@ class BibleStorage:
 
     def save(self, bible: Bible) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = json.loads(bible.model_dump_json())
+        data = bible.model_dump()
         content = json.dumps(data, ensure_ascii=False, indent=2)
         fd, tmp_path = tempfile.mkstemp(dir=str(self._path.parent), suffix=".tmp")
         try:

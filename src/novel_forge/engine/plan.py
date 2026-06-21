@@ -45,6 +45,9 @@ class PlanMixin:
 
         self._state.series_title = result.get("title", "")
         self._state.status = "計画中"
+        # Clear _series_dir cache before setting slug so final dir is computed fresh
+        if hasattr(self, "_cached_series_dir"):
+            del self._cached_series_dir
         self._slug = result.get("slug", "")
         self._move_to_final_dir()
         self._scene_writer._series_dir = self._series_dir
@@ -172,7 +175,6 @@ class PlanMixin:
             review = self._review_plan_characters(characters, core, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
         # レビュー結果を保存（全履歴）
-        # レビュー結果を保存（全履歴）
         review_path = self._series_dir / f"series_characters_review.json"
         review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
         return characters
@@ -231,7 +233,6 @@ class PlanMixin:
             self._save_path(0, "series_volumes.json", volumes, version=retry + 1)
             review = self._review_plan_volumes(volumes, core, characters, system)
             all_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
-        # レビュー結果を保存（全履歴）
         # レビュー結果を保存（全履歴）
         review_path = self._series_dir / f"series_volumes_review.json"
         review_path.write_text(json.dumps({"reviews": all_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")

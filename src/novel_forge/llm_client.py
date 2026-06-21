@@ -61,6 +61,15 @@ def _try_import_yaml():
 
 
 class LLMClient:
+    """LLM client for Ollama API."""
+
+    # Map kind prefix to log subdirectory
+    PHASE_MAP: dict[str, str] = {
+        "series": "plan",
+        "chapter": "design",
+        "scene": "write",
+        "volume": "design",
+    }
     def __init__(
         self,
         api_url: str | None = None,
@@ -281,14 +290,8 @@ class LLMClient:
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         # Organize logs by phase: plan/design/write/error
-        PHASE_MAP = {
-            "series": "plan",
-            "chapter": "design",
-            "scene": "write",
-            "volume": "design",
-        }
         kind_prefix = kind.split("_")[0]
-        phase = PHASE_MAP.get(kind_prefix, "other")
+        phase = LLMClient.PHASE_MAP.get(kind_prefix, "other")
         sub_dir = self.raw_log_dir / phase
         sub_dir.mkdir(exist_ok=True)
         idx = 0

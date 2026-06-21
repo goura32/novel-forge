@@ -64,6 +64,7 @@ class WriteMixin:
             )
         for chapter in design_obj.chapters:
             chapter_scenes: list[str] = []
+            chapter_scene_numbers: list[int] = []
             ch_scenes = [s for s in design_obj.scenes if s.chapter_number == chapter.number]
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
@@ -73,6 +74,7 @@ class WriteMixin:
                             vol_num, scene.number, chapter.number
                         )
                     )
+                    chapter_scene_numbers.append(scene.number)
                     _progress(scene.number, f"スキップ(済)")
                     continue
                 _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s")
@@ -101,6 +103,7 @@ class WriteMixin:
                     vol_num, scene.number, chapter.number
                 )
                 chapter_scenes.append(draft_text)
+                chapter_scene_numbers.append(scene.number)
                 # Post-scene: summarize + bible update (1 LLM call)
                 _log(f"  [SUMMARY START] vol{vol_num} ch{chapter.number} sc{scene.number}\n")
                 self._scene_writer.summarize_and_update_bible(
@@ -115,7 +118,7 @@ class WriteMixin:
                 if _save:
                     _save()
 
-            self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes)
+            self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes, chapter_scene_numbers)
 
         vol.status = "初稿済"
         _state = getattr(self, "_state", None)

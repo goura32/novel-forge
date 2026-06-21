@@ -220,20 +220,20 @@ class SceneWriter:
         """Determine revision_needed from issues when LLM omits the field.
 
         Mirrors the rule documented in scene_review schema:
-        - blocker or critical issue → True
-        - 2+ major issues → True
-        - minor only or no issues → False
-        - single major → False
+        - 致命的 or 重大 issue → True
+        - 2+ 重要 issues → True
+        - 軽微 only or no issues → False
+        - single 重要 → False
         """
         issues = review.get("issues", [])
         if not issues:
             return False
         blocker_critical = sum(
-            1 for i in issues if i.get("severity") in ("blocker", "critical")
+            1 for i in issues if i.get("severity") in ("致命的", "重大")
         )
         if blocker_critical > 0:
             return True
-        major_count = sum(1 for i in issues if i.get("severity") == "major")
+        major_count = sum(1 for i in issues if i.get("severity") == "重要")
         return major_count >= 2
 
     # ── review ───────────────────────────────────────────────────────
@@ -418,13 +418,36 @@ class SceneWriter:
     # ── chapter assembly ─────────────────────────────────────────────
 
     def assemble_chapter(
-        self, vol_num: int, chapter, scene_texts: list[str]
+        self, vol_num: int, chapter, scene_texts: list[str], scene_numbers: list[int] | None = None
     ) -> str:
-        """章を組み立てて保存し、ファイルパスを返す。"""
+        """章を組み立てて保存し、ファイルパスを返す。
+
+        各シーンの最終版を version=0（接尾辞なし）でも保存する。
+        scene_numbers: 各シーンの番号リスト。None の場合は 1, 2, ... を仮定。
+        """
         import re
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
         ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}"
         ch_dir.mkdir(parents=True, exist_ok=True)
+
+        # 各シーンの最終版を version=0 で保存
+        if scene_numbers is None:
+            scene_numbers = list(range(1, len(scene_texts) + 1))
+        for sc_num, text in zip(scene_numbers, scene_texts):
+            # 最新版の v*.md を探して、その内容で version=0 を保存
+            max_version = 0
+            for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v*.md"):
+                try:
+                    v = int(f.stem.split("_v")[-1])
+                    if v > max_version:
+                        max_version = v
+                except ValueError:
+                    pass
+            if max_version > 0:
+                latest = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v{max_version}.md"
+                final_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}.md"
+                final_path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
+
         ch_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
         # Remove scene markers
         cleaned_texts = []
