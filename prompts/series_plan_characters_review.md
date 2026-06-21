@@ -37,9 +37,41 @@
 **スコア計算**: 各 dimension を 0-100 で評価し、平均を `score` とする。減点要素1つにつき 15 点減点。
 
 **甘つけ防止**: 80 点以上は本当に優れた場合のみ。70-84 点が合格ライン。減点要素が1つでもある場合は 80 点以上にしない。
-
 ## 出力
+
 `series_plan_characters_review.json` スキーマに適合する JSON を出力すること。
+
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+
+```json
+{
+  "consistency": {
+    "score": 50
+  },
+  "differentiation": {
+    "score": 50
+  },
+  "growth_arc": {
+    "score": 50
+  },
+  "world_fit": {
+    "score": 50
+  },
+  "score": 50,
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "カテゴリ名",
+      "description": "問題の説明"
+    }
+  ],
+  "suggestions": ["改善提案1"]
+}
+```
+
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `issues[].severity` は「critical」「major」「minor」から選択すること。
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。
 

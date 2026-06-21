@@ -71,6 +71,49 @@
 
 `scene_design_review.json` スキーマに適合する JSON を出力すること。
 
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+
+```json
+{
+  "goal_outcome_coherence": {
+    "goal_clear": false,
+    "outcome_follows": false,
+    "connects_to_next": false,
+    "score": 50
+  },
+  "conflict_quality": {
+    "conflict_exists": false,
+    "conflict_meaningful": false,
+    "score": 50
+  },
+  "pov_character_consistency": {
+    "pov_clear": false,
+    "character_actions_consistent": false,
+    "score": 50
+  },
+  "setting_event_completeness": {
+    "setting_clear": false,
+    "key_events_sufficient": false,
+    "score": 50
+  },
+  "score": 50,
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "カテゴリ名",
+      "description": "問題の説明",
+      "affected_elements": ["要素1"]
+    }
+  ],
+  "suggestions": ["改善提案1"]
+}
+```
+
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].category` は評価カテゴリ名から選択すること。
+
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。
 
 言語: {lang}

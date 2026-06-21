@@ -53,9 +53,51 @@
 **スコア計算**: 各 dimension を 0-100 で評価し、平均を `score` とする。減点要素1つにつき 15 点減点。
 
 **甘つけ防止**: 80 点以上は本当に優れた場合のみ。70-84 点が合格ライン。減点要素が1つでもある場合は 80 点以上にしない。
-
 ## 出力
+
 `chapter_design_review.json` スキーマに適合する JSON を出力すること。
+
+**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+
+```json
+{
+  "role_validity": {
+    "purpose_clear": false,
+    "fits_volume_arc": false,
+    "score": 50
+  },
+  "theme_coherence": {
+    "theme_clear": false,
+    "consistent_with_series": false,
+    "score": 50
+  },
+  "emotional_arc_quality": {
+    "arc_exists": false,
+    "arc_believable": false,
+    "score": 50
+  },
+  "scene_distribution": {
+    "count_appropriate": false,
+    "coverage_sufficient": false,
+    "score": 50
+  },
+  "score": 50,
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "カテゴリ名",
+      "description": "問題の説明",
+      "affected_elements": ["要素1"]
+    }
+  ],
+  "suggestions": ["改善提案1"]
+}
+```
+
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].category` は評価カテゴリ名から選択すること。
 
 **重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
 
