@@ -14,7 +14,7 @@ class WriteMixin:
         import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
-        outline_data = self._load_path(vol_num, "outline.json")
+        outline_data = self._load_path(vol_num, "design.json")
         outline = VolumeOutline(**outline_data)
 
         # Deduplicate chapters

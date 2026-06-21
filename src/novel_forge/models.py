@@ -107,7 +107,7 @@ class ChapterDesign(BaseModel):
     characters: list[str] = Field(default_factory=list)
 
 
-# ── 巻アウトライン ─────────────────────────────────────────────────────
+# ── 巻デザイン ─────────────────────────────────────────────────────
 
 class SceneOutline(BaseModel):
     number: int = Field(ge=1)

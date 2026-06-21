@@ -7,7 +7,7 @@
 ## 入力
 
 - シーン本文: `{scene}`
-- 巻アウトライン: `{outline}`
+- 巻アウトライン: `{design}`
 - コンテキスト: `{context}`
 - 進行中のサブプロット: `{subplots}`
 - キャラクター関係性: `{relationships}`

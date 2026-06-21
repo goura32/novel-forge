@@ -41,8 +41,8 @@ class ExportMixin:
             return {"action": "write", "status": vol.status}
         if self._state.status == "計画中":
             return {"action": "plan", "status": self._state.status}
-        if self._state.status == "アウトライン済":
-            return {"action": "outline", "status": self._state.status}
+        if self._state.status == "デザイン済":
+            return {"action": "design", "status": self._state.status}
         if self._state.status in ("出力済", "強制出力済"):
             return {"action": "export", "status": self._state.status}
         return {"action": "plan", "status": self._state.status}

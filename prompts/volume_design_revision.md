@@ -6,10 +6,10 @@
 
 ## 入力
 
-- 現在のデザイン: `{current_outline}`
+- 現在のデザイン: `{current_design}`
 - レビュー結果: `{review}`
 - シリーズ企画: `{series_plan}`
-- 前巻デザイン: `{previous_outline}`（第1巻の場合は空文字列）
+- 前巻デザイン: `{previous_design}`（第1巻の場合は空文字列）
 
 ## 修正指摘
 
@@ -26,7 +26,7 @@
 
 ## 出力
 
-修正後の巻デザインを JSON で出力すること。`volume_outline.json` スキーマに適合する JSON とすること。
+修正後の巻デザインを JSON で出力すること。`volume_design.json` スキーマに適合する JSON とすること。
 
 **以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 

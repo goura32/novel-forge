@@ -259,7 +259,7 @@ def complete(
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
-    """Run the full pipeline: plan → outline → write → export."""
+    """Run the full pipeline: plan → design → write → export."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
         engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose)

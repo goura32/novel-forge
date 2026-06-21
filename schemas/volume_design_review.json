@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OutlineReview",
-  "description": "巻アウトラインの自己レビュー結果",
+  "description": "巻デザインの自己レビュー結果",
   "type": "object",
   "required": [
     "structural_validity",

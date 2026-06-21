@@ -537,12 +537,12 @@ class LLMClient:
             return
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        # Organize logs by phase: plan/outline/write/error
+        # Organize logs by phase: plan/design/write/error
         PHASE_MAP = {
             "series": "plan",
-            "chapter": "outline",
+            "chapter": "design",
             "scene": "write",
-            "volume": "outline",
+            "volume": "design",
         }
         kind_prefix = kind.split("_")[0]
         phase = PHASE_MAP.get(kind_prefix, "other")

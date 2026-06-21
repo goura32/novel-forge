@@ -1,4 +1,4 @@
-"""Volume design generation — outline, orchestrate_design, _review_design, _revise_design."""
+"""Volume design generation — design, orchestrate_design, _review_design, _revise_design."""
 
 from __future__ import annotations
 
@@ -46,18 +46,18 @@ class DesignMixin:
         return result
 
     def _get_previous_volume_design(self, vol_num: int) -> str:
-        """Get the outline summary of the previous volume, if it exists."""
+        """Get the design summary of the previous volume, if it exists."""
         if vol_num <= 1:
             return ""
         prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / "design.json"
         if not prev_path.exists():
             raise RuntimeError(
-                f"前巻（第{vol_num - 1}巻）のアウトラインが存在しません: {prev_path}\n"
-                f"第{vol_num}巻のアウトラインを生成するには、先に第{vol_num - 1}巻のアウトラインを生成してください。"
+                f"前巻（第{vol_num - 1}巻）のデザインが存在しません: {prev_path}\n"
+                f"第{vol_num}巻のデザインを生成するには、先に第{vol_num - 1}巻のデザインを生成してください。"
             )
         try:
             data = json.loads(prev_path.read_text(encoding="utf-8"))
-            lines = [f"前巻（第{vol_num - 1}巻）アウトライン:",
+            lines = [f"前巻（第{vol_num - 1}巻）デザイン:",
                      f"  タイトル: {data.get('title', '')}",
                      f"  前提: {data.get('premise', '')}", ""]
             for ch in data.get("chapters", []):
@@ -70,7 +70,7 @@ class DesignMixin:
             return "\n".join(lines)
         except (json.JSONDecodeError, KeyError) as e:
             raise RuntimeError(
-                f"前巻（第{vol_num - 1}巻）のアウトライン読み込みに失敗しました: {e}"
+                f"前巻（第{vol_num - 1}巻）のデザイン読み込みに失敗しました: {e}"
             ) from e
 
     # ── Phase 1: Volume design (chapter structure) ───────────────────────
@@ -143,7 +143,7 @@ class DesignMixin:
                                   previous_design: str,
                                   volume_title: str = "",
                                   volume_premise: str = "") -> list[dict]:
-        """Phase 3: Generate scene-by-scene outlines for each chapter."""
+        """Phase 3: Generate scene-by-scene designs for each chapter."""
         all_scenes = []
         scene_counter = 1
         previous_outcome = ""
@@ -195,10 +195,10 @@ class DesignMixin:
 
         return all_scenes
 
-    # ── Main outline orchestrator ──────────────────────────────────────
+    # ── Main design orchestrator ──────────────────────────────────────
 
     def orchestrate_design(self, series_plan, genre, vol_num, system, schema, previous_design=""):
-        """Multi-phase outline generation with per-chapter and per-scene review loops."""
+        """Multi-phase design generation with per-chapter and per-scene review loops."""
         plan_data = self._get_plan_data()
         volume_title = f"第{vol_num}巻"
         volume_premise = ""
@@ -363,7 +363,7 @@ class DesignMixin:
                     lines.append(f"    目標: {sc.get('goal', '')[:100]}")
                     lines.append(f"    結果: {sc.get('outcome', '')[:100]}")
         outline_text = "\n".join(lines)
-        user = self._prompts.render("volume_design_review.md", {"outline": outline_text, "lang": self._lang})
+        user = self._prompts.render("volume_design_review.md", {"design": outline_text, "lang": self._lang})
         schema = get_schema("volume_design_review")
         return self._llm.complete_json("volume_design_review", system, user, schema)
 
@@ -540,7 +540,7 @@ class DesignMixin:
 
         user = self._prompts.render(
             "volume_design_revision.md",
-            {"current_outline": outline_text, "review": review_text, "series_plan": series_plan,
+            {"current_design": outline_text, "review": review_text, "series_plan": series_plan,
              "lang": self._lang, "previous_design": previous_design},
         )
         try:
