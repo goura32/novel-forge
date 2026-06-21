@@ -40,10 +40,11 @@
 
 - `title`: タイトル
 - `subtitle`: サブタイトル
-- `author`: 著者名（デフォルト: "NovelForge"）
+- `series_name`: シリーズ名
 - `description`: 商品説明（100〜500字）
 - `keywords`: 検索キーワード（最大7件）
 - `categories`: KDPカテゴリ
-- `language`: 言語
-- `is_adult`: アダルトコンテンツフラグ
-- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**
+- `back_cover_text`: 裏表紙テキスト
+- `target_audience`: ターゲット読者
+- `content_warnings`: コンテンツ警告
+- `author_note`: 著者ノート

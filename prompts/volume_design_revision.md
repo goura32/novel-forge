@@ -62,6 +62,5 @@
 - `chapters[].scenes[].goal` は `State: ... | Action: ...` 形式で記述すること。
 - `number` と `chapter_number` は engine で機械採番されるため含めないこと。
 - **配列フィールド（`characters`, `key_events`）は必ず2つ以上の要素を含めること。空配列にしないこと。**
-- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。**
 
 言語: {lang}

@@ -61,13 +61,11 @@
 
 ## 出力項目
 
-- `prompt`: 画像生成プロンプト（英語）
+- `title`: タイトル
+- `visual_elements`: ビジュアル要素（subject, background, items）
+- `style`: スタイル指定（genre, tone, color_palette, composition）
 - `negative_prompt`: ネガティブプロンプト
-- `style`: スタイル指定
-- `aspect_ratio`: アスペクト比
-- `title_text`: タイトルテキスト
-- `author_text`: 著者名
-- **JSONの文字列値内に改行（`\n`）を含めないこと。長い文章は1行で記述すること。改行が必要な場合は `\n` と記述すること。**
+- `metadata`: メタデータ（series_name, volume_number, target_audience）
 
 ## プロンプト設計方針
 

@@ -24,6 +24,5 @@
 - `planned_volumes` は最低1個以上
 - `key_events` は最低1個以上
 - `cliffhanger` は最終巻以外必須
-- JSONの文字列値内に改行を含めないこと
 
 言語: {lang}
