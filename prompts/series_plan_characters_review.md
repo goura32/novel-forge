@@ -60,7 +60,7 @@
   "score": 50,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "カテゴリ名",
       "description": "問題の説明"
     }
@@ -71,7 +71,7 @@
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。
 
@@ -79,10 +79,10 @@
 
 `revision_needed` は以下の条件のいずれかに該当する場合のみ `true` とすること:
 
-- `critical` issue が1つでもある → `true`
-- `major` issue が2つ以上ある → `true`
-- `minor` issue のみ、または issue なし → `false`
-- `major` issue が1つだけ → `false`
+- 「重大」 issue が1つでもある → `true`
+- 「重要」 issue が2つ以上ある → `true`
+- 「軽微」 issue のみ、または issue なし → `false`
+- 「重要」 issue が1つだけ → `false`
 
 `revision_needed` は JSON のトップレベルフィールドとして出力すること。
 
@@ -99,14 +99,14 @@
   "score": 60,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "consistency",
       "description": "キャラクターの行動が設定と矛盾している",
       "affected_elements": ["九条涼"],
       "suggestion": [{"before": "涼の矛盾する行動", "after": "性格設定に整合した行動"}]
     },
     {
-      "severity": "major",
+      "severity": "重要",
       "category": "differentiation",
       "description": "主人公とヒロインの性格が似すぎて差別化が不十分",
       "affected_elements": ["九条涼", "レイナ"],

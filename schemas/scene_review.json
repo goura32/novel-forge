@@ -67,10 +67,10 @@
           "severity": {
             "type": "string",
             "enum": [
-              "minor",
-              "major",
-              "critical",
-              "blocker"
+              "軽微",
+              "重要",
+              "重大",
+              "致命的"
             ]
           },
           "category": {

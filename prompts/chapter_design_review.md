@@ -84,7 +84,7 @@
   "score": 50,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "カテゴリ名",
       "description": "問題の説明",
       "affected_elements": ["要素1"]
@@ -96,14 +96,14 @@
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 - `issues[].category` は評価カテゴリ名から選択すること。
 - `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
 **suggestion 出力例:**
 ```json
 {
-  "severity": "major",
+  "severity": "重要",
   "category": "scene_distribution",
   "description": "シーン数が章の役割に比べて不足している",
   "affected_elements": ["第3章"],

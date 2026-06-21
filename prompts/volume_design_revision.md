@@ -12,10 +12,10 @@
 ## 修正指摘
 
 ### 修正順序（厳守）
-1. `severity` が `blocker` の issue を最優先で修正すること
-2. `severity` が `critical` の issue を必ず修正すること
-3. `severity` が `major` の issue を可能な限り修正すること
-4. `severity` が `minor` の issue は余力があれば修正すること
+1. `severity` が `致命的` の issue を最優先で修正すること
+2. `severity` が `重大` の issue を必ず修正すること
+3. `severity` が `重要` の issue を可能な限り修正すること
+4. `severity` が `軽微` の issue は余力があれば修正すること
 
 ### 修正時の必須処理
 - レビュー結果の `issues` 配列に含まれる**すべての issue** を確認すること

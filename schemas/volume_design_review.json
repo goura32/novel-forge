@@ -151,9 +151,9 @@
           "severity": {
             "type": "string",
             "enum": [
-              "critical",
-              "major",
-              "minor"
+              "重大",
+              "重要",
+              "軽微"
             ]
           },
           "category": {

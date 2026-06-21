@@ -27,9 +27,9 @@
 
 ## 深刻度
 
-- `critical`: 物語の根幹に関わる（論理的破綻、致命的な矛盾）
-- `major`: 品質に大きく影響する（ペースの崩れ、キャラクターの不自然な行動）
-- `minor`: 改善点としては望ましいが必須ではない
+- 「重大」: 物語の根幹に関わる（論理的破綻、致命的な矛盾）
+- 「重要」: 品質に大きく影響する（ペースの崩れ、キャラクターの不自然な行動）
+- 「軽微」: 改善点としては望ましいが必須ではない
 
 ## スコアリングガイド
 
@@ -40,8 +40,8 @@
 **スコア計算**: 4つのサブスコア（structural_validity / scene_coherence / pace_analysis / character_arc_review）の平均を `score` とする。
 
 **上限制限**:
-- `critical` issue がある場合: score 最大 50
-- `major` issue が3つ以上ある場合: score 最大 65
+- 「重大」 issue がある場合: score 最大 50
+- 「重要」 issue が3つ以上ある場合: score 最大 65
 
 **甘つけ防止**: 80 点以上は本当に優れた場合のみ。70-84 点が合格ライン。
 
@@ -81,7 +81,7 @@
   "score": 82,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "カテゴリ名（64文字以内）",
       "description": "問題の説明（500文字以内）",
       "affected_elements": ["要素1", "要素2"]
@@ -96,13 +96,13 @@
 - `structural_validity.score` は 0〜100 の数値。
 - `pace_analysis` の ratio は 0〜100 の数値。合計が 100 に収まるようにすること。
 - `character_arc_review.arc_believability` は 0〜100 の数値。
-- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 - `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
 **suggestion 出力例:**
 ```json
 {
-  "severity": "critical",
+  "severity": "重大",
   "category": "structural_validity",
   "description": "収束の章が欠落している",
   "affected_elements": ["第5章"],

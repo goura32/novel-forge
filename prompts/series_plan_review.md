@@ -55,7 +55,7 @@
   "score": 85,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "カテゴリ名",
       "description": "問題の説明",
       "suggestion": ["改善提案1", "改善提案2"]
@@ -68,13 +68,13 @@
 
 **注意**:
 - 上記テンプレートのキー名（score, issues, strengths, recommendations）は変更しないこと。
-- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 - `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
 **suggestion 出力例:**
 ```json
 {
-  "severity": "critical",
+  "severity": "重大",
   "category": "language_purity",
   "description": "シーン本文に英語が混入している",
   "suggestion": [{"before": "weapon を構えた", "after": "兵器を構えた"}, {"before": "gaze を向けた", "after": "視線を注いだ"}]

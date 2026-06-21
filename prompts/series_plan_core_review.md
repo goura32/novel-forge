@@ -65,7 +65,7 @@
   "score": 50,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "カテゴリ名",
       "description": "問題の説明"
     }
@@ -76,7 +76,7 @@
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 
 **重要**: すべての `score` フィールドは **0-100の整数** で出力すること。小数点や100を超える値は禁止。
 
@@ -86,10 +86,10 @@
 
 `revision_needed` は以下の条件のいずれかに該当する場合のみ `true` とすること:
 
-- `critical` issue が1つでもある → `true`
-- `major` issue が2つ以上ある → `true`
-- `minor` issue のみ、または issue なし → `false`
-- `major` issue が1つだけ → `false`
+- 「重大」 issue が1つでもある → `true`
+- 「重要」 issue が2つ以上ある → `true`
+- 「軽微」 issue のみ、または issue なし → `false`
+- 「重要」 issue が1つだけ → `false`
 
 `revision_needed` は JSON のトップレベルフィールドとして出力すること。
 
@@ -106,14 +106,14 @@
   "score": 65,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "world_consistency",
       "description": "第3巻の前提がシリーズの世界観ルールと矛盾している",
       "affected_elements": ["第3巻"],
       "suggestion": [{"before": "第3巻の前提（矛盾する内容）", "after": "世界観ルールに整合した前提"}]
     },
     {
-      "severity": "major",
+      "severity": "重要",
       "category": "logline_quality",
       "description": "タイトルが直球的で印象に残りにくい",
       "suggestion": [{"before": "現在のタイトル", "after": "具体的なイメージを喚起するタイトル"}]

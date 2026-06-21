@@ -62,10 +62,10 @@
 
 ## 改稿要否（revision_needed）の判定
 
-- `critical` issue が1つでもある → `true`
-- `major` issue が2つ以上ある → `true`
-- `minor` issue のみ、または issue なし → `false`
-- `major` issue が1つだけ → `false`
+- 「重大」 issue が1つでもある → `true`
+- 「重要」 issue が2つ以上ある → `true`
+- 「軽微」 issue のみ、または issue なし → `false`
+- 「重要」 issue が1つだけ → `false`
 
 ## 出力
 
@@ -99,7 +99,7 @@
   "score": 50,
   "issues": [
     {
-      "severity": "critical",
+      "severity": "重大",
       "category": "カテゴリ名",
       "description": "問題の説明",
       "affected_elements": ["要素1"]
@@ -111,14 +111,14 @@
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- `issues[].severity` は「critical」「major」「minor」から選択すること。
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 - `issues[].category` は評価カテゴリ名から選択すること。
 - `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
 **suggestion 出力例:**
 ```json
 {
-  "severity": "critical",
+  "severity": "重大",
   "category": "goal_outcome_coherence",
   "description": "シーンの結果が次のシーンの目標に繋がっていない",
   "affected_elements": ["シーン3"],

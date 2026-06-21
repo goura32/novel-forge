@@ -27,9 +27,9 @@
           "severity": {
             "type": "string",
             "enum": [
-              "critical",
-              "major",
-              "minor"
+              "重大",
+              "重要",
+              "軽微"
             ],
             "description": "問題の重大度。critical=言語制約違反や致命的欠陥、major=改善必須、minor=任意改善"
           },
