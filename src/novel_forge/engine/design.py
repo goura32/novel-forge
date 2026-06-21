@@ -40,18 +40,28 @@ class DesignMixin:
                 )
             result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design)
             # 修正版を版番号付きで保存
-            self._save_path(vol_num, f"vol{vol_num:02d}_design.json", result, version=retry + 1)
+            self._save_path(vol_num, f"vol{vol_num:02d}.json", result, version=retry + 1)
             review = self._review_design(result, series_plan, previous_design)
 
         vol = self._current_volume()
         vol.status = "デザイン済"
         self._state.status = "デザイン済"
         result["volume_number"] = vol_num
-        self._save_path(vol_num, "design.json", result)
-        # レビュー結果を review/ に保存
+        # 巻デザインを保存
+        self._save_path(vol_num, f"vol{vol_num:02d}.json", result)
+        # 章デザインを個別保存
+        for ch in result.get("chapters", []):
+            ch_num = ch.get("number", 0)
+            self._save_path(vol_num, f"vol{vol_num:02d}_ch{ch_num:02d}.json", ch)
+        # シーン設計を個別保存
+        for sc in result.get("scenes", []):
+            sc_num = sc.get("number", 0)
+            ch_num = sc.get("chapter_number", 0)
+            self._save_path(vol_num, f"vol{vol_num:02d}_ch{ch_num:02d}_sc{sc_num:02d}.json", sc)
+        # レビュー結果を保存
         review_dir = self._series_dir / f"vol{vol_num:02d}" / "review"
         review_dir.mkdir(parents=True, exist_ok=True)
-        self._save_review(review_dir, f"vol{vol_num:02d}_design_review", review)
+        self._save_review(review_dir, f"vol{vol_num:02d}_review", review)
         self._save()
         return result
 
@@ -59,7 +69,7 @@ class DesignMixin:
         """Get the design summary of the previous volume, if it exists."""
         if vol_num <= 1:
             return ""
-        prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / "design.json"
+        prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / f"vol{vol_num - 1:02d}.json"
         if not prev_path.exists():
             raise RuntimeError(
                 f"前巻（第{vol_num - 1}巻）のデザインが存在しません: {prev_path}\n"
@@ -398,14 +408,15 @@ class DesignMixin:
                         i + 1, len(blocker), len(critical), len(major), retry + 1,
                     )
                 ch_design = self._revise_chapter_design(ch_design, review, system)
-                # design.json を読み直して chapters 部分を更新し、版番号付きで保存
+                # 章デザインの修正版を版番号付きで保存
+                self._save_path(vol_num, f"vol{vol_num:02d}_ch{i+1:02d}.json", ch_design, version=retry + 1)
+                # 巻デザインの chapters 部分も更新
                 try:
-                    design_path = self._series_dir / f"vol{vol_num:02d}" / "design.json"
-                    if design_path.exists():
-                        current_design = json.loads(design_path.read_text(encoding="utf-8"))
-                        current_design["chapters"] = chapter_designs
-                        ver = vol_num * 100 + i + 1
-                        self._save_path(vol_num, f"vol{vol_num:02d}_design.json", current_design, version=ver)
+                    vol_path = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}.json"
+                    if vol_path.exists():
+                        current = json.loads(vol_path.read_text(encoding="utf-8"))
+                        current["chapters"] = chapter_designs
+                        self._save_path(vol_num, f"vol{vol_num:02d}.json", current)
                 except Exception:
                     pass
                 review = self._review_chapter_design(
@@ -418,7 +429,7 @@ class DesignMixin:
             _save_review = getattr(self, "_save_review", None)
             if _series_dir is not None and _save_review is not None:
                 review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
-                _save_review(review_dir, f"vol{vol_num:02d}_ch{i+1:02d}_design_review", review)
+                _save_review(review_dir, f"vol{vol_num:02d}_ch{i+1:02d}_review", review)
         return chapter_designs
 
     # ── Scene design review/revise ───────────────────────────────────────
@@ -499,14 +510,17 @@ class DesignMixin:
                         i + 1, len(blocker), len(critical), len(major), retry + 1,
                     )
                 scene = self._revise_scene_design(scene, review, system)
-                # design.json を読み直して scenes 部分を更新し、版番号付きで保存
+                # シーン設計の修正版を版番号付きで保存
+                sc_num = scene.get("number", i + 1)
+                ch_num = scene.get("chapter_number", 0)
+                self._save_path(vol_num, f"vol{vol_num:02d}_ch{ch_num:02d}_sc{sc_num:02d}.json", scene, version=retry + 1)
+                # 巻デザインの scenes 部分も更新
                 try:
-                    design_path = self._series_dir / f"vol{vol_num:02d}" / "design.json"
-                    if design_path.exists():
-                        current_design = json.loads(design_path.read_text(encoding="utf-8"))
-                        current_design["scenes"] = all_scenes
-                        ver = vol_num * 1000 + i + 1
-                        self._save_path(vol_num, f"vol{vol_num:02d}_design.json", current_design, version=ver)
+                    vol_path = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}.json"
+                    if vol_path.exists():
+                        current = json.loads(vol_path.read_text(encoding="utf-8"))
+                        current["scenes"] = all_scenes
+                        self._save_path(vol_num, f"vol{vol_num:02d}.json", current)
                 except Exception:
                     pass
                 review = self._review_scene_design(
@@ -521,7 +535,7 @@ class DesignMixin:
             _save_review = getattr(self, "_save_review", None)
             if _series_dir is not None and _save_review is not None:
                 review_dir = _series_dir / f"vol{vol_num:02d}" / "review"
-                _save_review(review_dir, f"vol{vol_num:02d}_sc{scene.get('number', i+1):02d}_design_review", review)
+                _save_review(review_dir, f"vol{vol_num:02d}_ch{scene.get('chapter_number', 0):02d}_sc{scene.get('number', i+1):02d}_review", review)
         return all_scenes
 
     def _revise_design(self, design_obj, review, series_plan, genre, vol_num, system, schema, previous_design=""):

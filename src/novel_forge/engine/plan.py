@@ -55,6 +55,10 @@ class PlanMixin:
         self._scene_writer._bb_storage = self._bb_storage
         self._scene_writer._bible_storage = self._bible_storage
         self._scene_writer._bible_mgr = self._bible_mgr
+        # 各phase別ファイル + 統合ファイルを保存
+        self._save_path(0, "series_core.json", core)
+        self._save_path(0, "series_characters.json", characters)
+        self._save_path(0, "series_volumes.json", volumes)
         self._save_path(0, "series_plan.json", result)
         self._save()
         return result
@@ -107,11 +111,11 @@ class PlanMixin:
             )
             core = self._revise_plan_core(core, review, system)
             # 修正版を版番号付きで保存
-            self._save_path(0, "series_plan.json", core, version=retry + 1)
+            self._save_path(0, "series_core.json", core, version=retry + 1)
             review = self._review_plan_core(core, system)
         # レビュー結果を保存
         review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_plan_core_review", review)
+        self._save_review(review_dir, "series_core_review", review)
         return core
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
@@ -160,13 +164,12 @@ class PlanMixin:
                 len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
             )
             characters = self._revise_plan_characters(characters, review, system)
-            # Save revision with version number (merge into partial result)
-            partial = {**core, **characters}
-            self._save_path(0, "series_plan.json", partial, version=retry + 1)
+            # 修正版を版番号付きで保存
+            self._save_path(0, "series_characters.json", characters, version=retry + 1)
             review = self._review_plan_characters(characters, core, system)
         # レビュー結果を保存
         review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_plan_characters_review", review)
+        self._save_review(review_dir, "series_characters_review", review)
         return characters
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
@@ -218,13 +221,12 @@ class PlanMixin:
                 len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
             )
             volumes = self._revise_plan_volumes(volumes, review, system)
-            # Save revision with version number (merge all phases)
-            partial = {**core, **characters, **volumes}
-            self._save_path(0, "series_plan.json", partial, version=retry + 1)
+            # 修正版を版番号付きで保存
+            self._save_path(0, "series_volumes.json", volumes, version=retry + 1)
             review = self._review_plan_volumes(volumes, core, characters, system)
         # レビュー結果を保存
         review_dir = self._series_dir / "review"
-        self._save_review(review_dir, "series_plan_volumes_review", review)
+        self._save_review(review_dir, "series_volumes_review", review)
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────
