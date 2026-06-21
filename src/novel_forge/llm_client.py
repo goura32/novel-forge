@@ -126,6 +126,7 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         schema: dict[str, Any] | None = None,
+        seed_offset: int = 0,
     ) -> dict[str, Any]:
         # Separate ollama_options into API-level and options-level
         # "think" is an API-level parameter, not part of options
@@ -156,10 +157,10 @@ class LLMClient:
             try:
                 payload["messages"][1]["content"] = current_prompt
                 # Increment seed on each retry to get different output
-                payload["options"]["seed"] = 42 + attempt
+                payload["options"]["seed"] = 42 + attempt + seed_offset
                 self._log.debug(
                     "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d",
-                    kind, attempt + 1, self.max_retries, self.model, 42 + attempt,
+                    kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset,
                 )
                 _call_start = time.time()
                 raw_text, raw, thinking = self._call_api(payload)
