@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -199,6 +200,7 @@ class NovelEngineBase:
                         shutil.move(str(item), str(dest))
                 # Remove temp dir recursively (in case any items couldn't be moved)
                 shutil.rmtree(self._tmp_dir, ignore_errors=True)
+            self._log.info(f"Moved to final dir: {final_dir}")
         # Invalidate cache so next _series_dir access uses final dir
         if hasattr(self, "_cached_series_dir"):
             del self._cached_series_dir
