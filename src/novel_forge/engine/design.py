@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from novel_forge.models import VolumeOutline
@@ -52,6 +53,8 @@ class DesignMixin:
     def design(self, volume_number: int | None = None) -> dict[str, Any]:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
+        slug = getattr(self, "_slug", "?")
+        self._log.info(f"Design started: volume={vol_num} slug='{slug}' PID={os.getpid()}")
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._ctx_builder.get_series_plan_summary()
         genre = self._ctx_builder.get_genre()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from novel_forge.logging_config import console
@@ -16,6 +17,8 @@ class WriteMixin:
         import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
+        slug = getattr(self, "_slug", "?")
+        self._log.info(f"Write started: volume={vol_num} slug='{slug}' PID={os.getpid()}")
         design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
         design_obj = VolumeOutline(**design_data)
 

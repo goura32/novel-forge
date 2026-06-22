@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,8 @@ class ExportMixin:
     def export(self, volume_number: int | None = None) -> dict[str, Any]:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
+        slug = getattr(self, "_slug", "?")
+        self._log.info(f"Export started: volume={vol_num} slug='{slug}' PID={os.getpid()}")
         vol = self._current_volume()
 
         bb = self._bb_storage.load()
