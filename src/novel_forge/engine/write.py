@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+import time
 from typing import Any
 
 from novel_forge.logging_config import console
@@ -14,11 +14,10 @@ class WriteMixin:
     """Scene writing methods for NovelEngine."""
 
     def write(self, volume_number: int | None = None, log_fn=None) -> list[dict[str, Any]]:
-        import time as _time
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         slug = getattr(self, "_slug", "?")
-        self._log.info(f"Write started: volume={vol_num} slug='{slug}' PID={os.getpid()}")
+        self._log.info(f"Write started: volume={vol_num} slug='{slug}'")
         design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
         design_obj = VolumeOutline(**design_data)
 
@@ -36,7 +35,7 @@ class WriteMixin:
         # Count total scenes
         total_scenes = len(design_obj.scenes)
         done_scenes = 0
-        start_time = _time.time()
+        start_time = time.time()
 
         def _log(msg: str):
             """Write to both logger and optional log callback."""
@@ -49,7 +48,7 @@ class WriteMixin:
         def _progress(scene_num: int, status: str):
             nonlocal done_scenes
             done_scenes += 1
-            elapsed = _time.time() - start_time
+            elapsed = time.time() - start_time
             avg = elapsed / done_scenes if done_scenes > 0 else 0
             remaining = avg * (total_scenes - done_scenes)
             elapsed_str = f"{int(elapsed // 60)}m {int(elapsed % 60)}s"
@@ -80,7 +79,7 @@ class WriteMixin:
                     chapter_scene_numbers.append(scene.number)
                     _progress(scene.number, f"スキップ(済)")
                     continue
-                _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s")
+                _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={time.time()-start_time:.0f}s")
                 result = self._scene_writer.write_scene(
                     design_obj=design_obj,
                     chapter=chapter,
@@ -116,7 +115,7 @@ class WriteMixin:
                     self._bible_mgr.to_text,
                 )
                 _log(f"  [SUMMARY END] vol{vol_num} ch{chapter.number} sc{scene.number}")
-                _log(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={_time.time()-start_time:.0f}s")
+                _log(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={time.time()-start_time:.0f}s")
                 _save = getattr(self, "_save", None)
                 if _save:
                     _save()
@@ -130,4 +129,5 @@ class WriteMixin:
         _save = getattr(self, "_save", None)
         if _save:
             _save()
+        self._log.info(f"Write finished: volume={vol_num} slug='{slug}' scenes={total_scenes}")
         return results

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +16,7 @@ class ExportMixin:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         slug = getattr(self, "_slug", "?")
-        self._log.info(f"Export started: volume={vol_num} slug='{slug}' PID={os.getpid()}")
+        self._log.info(f"Export started: volume={vol_num} slug='{slug}'")
         vol = self._current_volume()
 
         bb = self._bb_storage.load()
@@ -32,6 +31,7 @@ class ExportMixin:
             vol.status = "強制出力済"
         self._state.status = vol.status
         self._save()
+        self._log.info(f"Export finished: volume={vol_num} slug='{slug}'")
         return {
             "manuscript_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_manuscript.md"),
             "metadata_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_metadata.json"),

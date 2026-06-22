@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 from novel_forge.models import VolumeOutline
@@ -54,7 +53,7 @@ class DesignMixin:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         slug = getattr(self, "_slug", "?")
-        self._log.info(f"Design started: volume={vol_num} slug='{slug}' PID={os.getpid()}")
+        self._log.info(f"Design started: volume={vol_num} slug='{slug}'")
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._ctx_builder.get_series_plan_summary()
         genre = self._ctx_builder.get_genre()
@@ -112,6 +111,7 @@ class DesignMixin:
         vol_review_path = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_review.json"
         vol_review_path.write_text(json.dumps({"reviews": all_volume_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
         self._save()
+        self._log.info(f"Design finished: volume={vol_num} slug='{slug}'")
         return result
 
     def _get_previous_volume_design(self, vol_num: int) -> str:
@@ -464,8 +464,8 @@ class DesignMixin:
                         current = json.loads(vol_path.read_text(encoding="utf-8"))
                         current["chapters"] = chapter_designs
                         self._save_path(vol_num, f"vol{vol_num:02d}.json", current)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self._log.debug("  [CH REVIEW] vol design update skipped: %s", e)
                 review = self._review_chapter_design(
                     ch_design, ch_info, series_plan, vol_num, system,
                     volume_title=volume_title, volume_premise=volume_premise,

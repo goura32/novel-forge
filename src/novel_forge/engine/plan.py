@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from typing import Any
 
@@ -18,7 +17,7 @@ class PlanMixin:
 
     def plan(self, keywords: str) -> dict[str, Any]:
         """3-phase series plan: core → characters → volumes, each with review/revise."""
-        self._log.info(f"Plan started: keywords='{keywords}' PID={os.getpid()}")
+        self._log.info(f"Plan started: keywords='{keywords}'")
         self._ensure_config()
         system = self._prompts.render("system.md", {"lang": self._lang})
 
@@ -72,6 +71,7 @@ class PlanMixin:
         self._save_path(0, "series_volumes.json", volumes)
         self._save_path(0, "series_plan.json", result)
         self._save()
+        self._log.info(f"Plan finished: slug='{self._slug}'")
         return result
 
     # ── Phase 1: Core ────────────────────────────────────────────────────

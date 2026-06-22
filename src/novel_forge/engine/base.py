@@ -297,7 +297,7 @@ class NovelEngineBase:
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
         except Exception:
-            pass  # Non-critical: engine works with code defaults
+            self._log.debug("config.yaml creation skipped (non-critical)")
 
     def _review_and_revise(
         self,

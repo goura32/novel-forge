@@ -38,10 +38,10 @@ def setup_logging(
 
     # フォーマッタ
     file_fmt = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        "%(asctime)s [PID %(process)d] [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    stderr_fmt = logging.Formatter("[%(levelname)s] %(message)s")
+    stderr_fmt = logging.Formatter("[PID %(process)d] [%(levelname)s] %(message)s")
 
     # ハンドラ1: ログファイル（常に DEBUG 以上）
     if log_file is not None:
