@@ -575,8 +575,8 @@ class DesignMixin:
                         current = json.loads(vol_path.read_text(encoding="utf-8"))
                         current["scenes"] = all_scenes
                         self._save_path(vol_num, f"vol{vol_num:02d}.json", current)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self._log.debug("  [SC REVIEW] vol design update skipped: %s", e)
                 review = self._review_scene_design(
                     scene, ch_info, series_plan, vol_num, system,
                     volume_title=volume_title, volume_premise=volume_premise,
@@ -624,8 +624,8 @@ class DesignMixin:
         )
         try:
             result = self._llm.complete_json("volume_design_revision", system, user, schema, seed_offset=seed_offset)
-        except Exception:
-            # LLMがスキーマ違反の出力をした場合（title/premise欠落など）→ フォールバック
+        except Exception as e:
+            self._log.warning("  [DESIGN REVISE] LLM failed, using fallback: %s", e)
             result = {
                 "title": design_obj.get("title") or f"第{vol_num}巻",
                 "premise": design_obj.get("premise") or "",

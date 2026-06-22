@@ -220,29 +220,6 @@ class SceneWriter:
 
         return draft_text, record
 
-    # ── helpers ──────────────────────────────────────────────────────
-
-    @staticmethod
-    def _auto_revision_needed(review: dict) -> bool:
-        """Determine revision_needed from issues when LLM omits the field.
-
-        Mirrors the rule documented in scene_review schema:
-        - 致命的 or 重大 issue → True
-        - 2+ 重要 issues → True
-        - 軽微 only or no issues → False
-        - single 重要 → False
-        """
-        issues = review.get("issues", [])
-        if not issues:
-            return False
-        blocker_critical = sum(
-            1 for i in issues if i.get("severity") in ("致命的", "重大")
-        )
-        if blocker_critical > 0:
-            return True
-        major_count = sum(1 for i in issues if i.get("severity") == "重要")
-        return major_count >= 2
-
     # ── review ───────────────────────────────────────────────────────
 
     def _review_scene(
