@@ -39,23 +39,34 @@ novel-forge/
 │   ├── scene_summary_and_bible_update.md
 │   ├── kdp_metadata.md
 │   └── cover_prompt.md
-├── schemas/                      # JSON Schema 定義
+├── schemas/                      # JSON Schema 定義（28ファイル）
 │   ├── series_plan_core.json
 │   ├── series_plan_core_review.json
+│   ├── series_plan_core_revision.json
 │   ├── series_plan_characters.json
 │   ├── series_plan_characters_review.json
+│   ├── series_plan_characters_revision.json
 │   ├── series_plan_volumes.json
 │   ├── series_plan_volumes_review.json
+│   ├── series_plan_volumes_revision.json
 │   ├── volume_design.json
 │   ├── volume_design_review.json
+│   ├── volume_design_revision.json
 │   ├── chapter_design.json
 │   ├── chapter_design_review.json
+│   ├── chapter_design_revision.json
 │   ├── scene_design.json
 │   ├── scene_design_review.json
+│   ├── scene_design_revision.json
 │   ├── scene_draft.json
 │   ├── scene_review.json
 │   ├── scene_revision.json
+│   ├── scene_summary.json
 │   ├── scene_summary_and_bible_update.json
+│   ├── bible.json
+│   ├── bible_update.json
+│   ├── blackboard.json
+│   ├── kdp_metadata.json
 │   └── cover_prompt.json
 ├── src/
 │   └── novel_forge/
@@ -111,6 +122,8 @@ novel-forge/
 
 ## 3. 設定ファイル (config.yaml)
 
+`config.yaml` は作業ディレクトリに自動生成されます。存在しない場合はコード内のデフォルト値が使用されます。
+
 ```yaml
 llm:
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
@@ -118,10 +131,11 @@ llm:
   num_ctx: 262144
   timeout_seconds: 3600
   max_retries: 2
-  ollama_host: "ws1.local:11434"
   ollama_options:
     think: true
 ```
+
+> **注意**: `ollama_host` は環境に応じて設定してください。デフォルトではリモートホストに接続します。
 
 ## 4. 永続化
 
@@ -266,4 +280,4 @@ uv run pytest tests/ -x -q
 
 ---
 
-*Last updated: 2026-06-21*
+*Last updated: 2026-08-07*

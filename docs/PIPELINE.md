@@ -65,6 +65,21 @@ uv run novel-forge resume                          # 中断した工程から再
 | `status` | 現在の進捗と文字数を表示 |
 | `resume` | 中断した工程から再開 |
 
+### ログ出力
+
+全フェーズの開始・終了時に構造化ログが出力されます。
+
+```
+2026-08-07 12:00:00 [PID 12345] [INFO] novel_forge.engine: Plan started: keywords='...'
+2026-08-07 12:00:00 [PID 12345] [INFO] novel_forge.engine: Plan finished: slug='...'
+2026-08-07 12:00:00 [PID 12346] [INFO] novel_forge.engine: Design started: volume=1 slug='...'
+2026-08-07 12:00:00 [PID 12346] [INFO] novel_forge.engine: Design finished: volume=1 slug='...'
+```
+
+- ログファイル: `series_dir/novel_forge.log`
+- フォーマット: `%(asctime)s [PID %(process)d] [%(levelname)s] %(name)s: %(message)s`
+- 各フェーズの開始・終了時に `info` ログ、レビュー失敗時に `warning` ログ
+
 ### 2.1 エンジン構成（Mixin パターン）
 
 ```python
@@ -320,4 +335,4 @@ Scene status:
 
 ---
 
-*Last updated: 2026-06-21*
+*Last updated: 2026-08-07*

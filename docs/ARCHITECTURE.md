@@ -113,32 +113,31 @@ MRO (Method Resolution Order): `NovelEngineBase` → `PlanMixin` → `DesignMixi
 
 ## 4. レビュー・修正ループ
 
-全工程のレビュー・修正ループは `NovelEngineBase._review_and_revise()` に共通化されています。
+全工程のレビュー・修正ループは `NovelEngineBase._review_and_revise()` と、Plan フェーズの各 `_review_and_revise_plan_*()` に実装されています。
 
-```python
-def _review_and_revise(
-    self,
-    item: dict,
-    review_fn,    # (item, system) -> review dict
-    revise_fn,    # (item, review, system) -> revised item dict
-    system: str,
-    max_retries: int = 3,
-    label: str = "",
-) -> dict:
-```
+**Plan フェーズ**では各工程（core/characters/volumes）が独立した review/revise ループを持ちます。レビュー修正はプロンプトが変わるため `seed: 42` で十分に多様性が確保されます。リトライ時のみ `attempt` インクリメントで seed が変わります。
 
-**フロー:**
+**Design フェーズ**では `NovelEngineBase._review_and_revise()` を共用し、`seed_offset` パラメータでリトライ時の seed 多様性を確保します。
+
+**Write フェーズ**では `SceneWriter._run_review_loop()` が品質ゲートと連動して自動改稿を実行します。
+
+フロー:
 1. `review_fn(item, system)` でレビュー実行
 2. `recalc_review_score(review)` でスコア再計算
 3. `score >= 70` かつ `critical` issue が0なら合格
 4. 不合格なら `revise_fn(item, review, system)` で修正 → 再レビュー
 5. 最大 `max_retries` 回繰り返し
 
-**レビュースコア再計算ルール (`quality_gate.recalc_review_score`):**
+**レビュースコア再計算ルール (`quality_gate.recalc_review_score`)**:
 - サブスコアの平均をベーススコアとする
 - `critical` issue があれば score ≤ 50
 - `major` issue が3つ以上あれば score ≤ 65
 - `minor` only なら score ≥ 70
+
+**Plan フェーズの必須フィールド判定（2026-08-07 更新）**:
+- 主要フィールド（name, role, personality, motivation, flaw, growth）欠落 → `重大`
+- 補足フィールド（gender, age, occupation, appearance, background, arc）欠落 → `重要`
+- 補足フィールドはレビューで修正を促しつつ、即座に「重大」で再生成しない
 
 ---
 
@@ -350,4 +349,4 @@ LLM の出力をスキーマに合わせて型変換:
 
 ---
 
-*Last updated: 2026-06-21*
+*Last updated: 2026-08-07*
