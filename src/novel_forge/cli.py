@@ -490,5 +490,26 @@ def doctor(
     console.print("[bold]Done.[/bold]")
 
 
+def _cleanup_stale_locks(workdir: Path) -> None:
+    """Remove stale lock files from the workdir and series subdirectories.
+
+    Called at startup to handle locks left behind by killed/crashed processes.
+    """
+    # Check workdir itself
+    for lock_path in [workdir / _LOCK_FILE_NAME, *workdir.glob(f"*/{_LOCK_FILE_NAME}")]:
+        if not lock_path.exists():
+            continue
+        try:
+            lock_pid = int(lock_path.read_text().strip())
+        except (ValueError, OSError):
+            lock_path.unlink(missing_ok=True)
+            console.print(f"[dim]⚠ Removed corrupted lock: {lock_path}[/dim]")
+            continue
+        if lock_pid <= 0 or not _is_process_alive(lock_pid):
+            lock_path.unlink(missing_ok=True)
+            console.print(f"[dim]⚠ Removed stale lock (PID={lock_pid}): {lock_path}[/dim]")
+
+
 if __name__ == "__main__":
+    _cleanup_stale_locks(Path.cwd())
     app()
