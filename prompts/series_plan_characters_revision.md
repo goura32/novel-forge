@@ -46,22 +46,28 @@
     {
       "name": "キャラクター名",
       "role": "主人公",
-      "arc": "成長の方向性（200文字以内）",
+      "arc": "成長の方向性（300文字以内）",
       "gender": "男性",
       "age": "28歳",
       "occupation": "職業",
-      "personality": "性格",
+      "personality": "性格（500文字以内）",
       "appearance": "外見",
-      "background": "経歴",
-      "motivation": "動機",
-      "flaw": "欠点",
-      "growth": "成長の方向性（第1巻での状態→第2巻での変化→第3巻での到達点を具体的に記述。空欄不可）"
+      "background": "経歴（500文字以内）",
+      "motivation": "動機（500文字以内）",
+      "flaw": "欠点（500文字以内）",
+      "growth": "成長の方向性（500文字以内）"
     }
   ],
-  "changes": ["修正内容1", "修正内容2"]
+  "changes": [
+    {"before": "修正前のテキスト", "after": "修正後のテキスト"},
+    {"before": "修正前のテキスト2", "after": "修正後のテキスト2"}
+  ]
 }
 ```
 
-言語: {lang}
+**注意**:
+- `changes` の各要素は `before`（修正前）と `after`（修正後）を含む **オブジェクト** であること。文字列は禁止。
+- `personality`, `background`, `motivation`, `flaw`, `growth` の `maxLength` は500文字。
+- `arc` の `maxLength` は300文字。
 
 **重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。
