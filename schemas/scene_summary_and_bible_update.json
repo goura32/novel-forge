@@ -5,7 +5,6 @@
   "properties": {
     "summary": {
       "type": "string",
-      "maxLength": 2000,
       "description": "シーンの要約"
     },
     "facts": {
@@ -33,8 +32,7 @@
     "continuity_notes": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       }
     },
     "characters": {
@@ -43,32 +41,25 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "role": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "personality": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "appearance": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "motivation": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "arc": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "state": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "is_new": {
             "type": "boolean"
@@ -82,8 +73,7 @@
         "type": "object",
         "properties": {
           "description": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "type": {
             "type": "string",
@@ -101,16 +91,13 @@
         "type": "object",
         "properties": {
           "character_a": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "character_b": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "type": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "change_direction": {
             "type": "string",
@@ -122,8 +109,7 @@
             ]
           },
           "trigger_event": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           }
         }
       }
@@ -137,8 +123,7 @@
             "type": "string"
           },
           "name": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "status": {
             "type": "string",
@@ -149,8 +134,7 @@
             ]
           },
           "progress_note": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           }
         }
       }
@@ -161,12 +145,10 @@
         "type": "object",
         "properties": {
           "term": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "definition": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           }
         }
       }
@@ -177,8 +159,7 @@
         "type": "object",
         "properties": {
           "rule": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           }
         }
       }

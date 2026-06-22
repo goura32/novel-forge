@@ -31,9 +31,7 @@
             "description": "目的語"
           },
           "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
+            "type": "number"
           }
         }
       }
@@ -41,8 +39,7 @@
     "scene_summaries": {
       "type": "object",
       "additionalProperties": {
-        "type": "string",
-        "maxLength": 1000
+        "type": "string"
       },
       "description": "シーン要約の辞書。キーはシーン番号（文字列）、値は要約"
     },
@@ -50,7 +47,6 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 200,
         "description": "連続性メモ"
       }
     }

@@ -16,42 +16,36 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
-      "description": "シリーズのタイトル（500文字以内）"
+      "description": "シリーズのタイトル（想定: 500文字）"
     },
     "logline": {
       "type": "string",
-      "maxLength": 500,
-      "description": "シリーズのあらすじ（500文字以内）"
+      "description": "シリーズのあらすじ（想定: 500文字）"
     },
     "genre": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
-      "description": "ジャンル（各64文字以内）"
+      "description": "ジャンル（各想定: 64文字）"
     },
     "target_audience": {
       "type": "string",
-      "maxLength": 500,
-      "description": "ターゲット読者（500文字以内）"
+      "description": "ターゲット読者（想定: 500文字）"
     },
     "themes": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
-      "description": "テーマ（各128文字以内）"
+      "description": "テーマ（各想定: 128文字）"
     },
     "selling_points": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
-      "description": "売りポイント（各200文字以内）"
+      "description": "売りポイント（各想定: 200文字）"
     },
     "world": {
       "type": "object",
@@ -62,16 +56,14 @@
       "properties": {
         "summary": {
           "type": "string",
-          "maxLength": 1000,
-          "description": "世界観の概要（1000文字以内）"
+          "description": "世界観の概要（想定: 1000文字）"
         },
         "rules": {
           "type": "array",
           "items": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
-          "description": "世界観のルール（各200文字以内）"
+          "description": "世界観のルール（各想定: 200文字）"
         }
       }
     },
@@ -86,12 +78,10 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 500,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 500,
             "description": "修正後のテキスト"
           }
         }

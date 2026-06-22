@@ -10,17 +10,15 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
-      "description": "巻タイトル（500文字以内）"
+      "description": "巻タイトル（想定: 500文字）"
     },
     "premise": {
       "type": "string",
-      "maxLength": 500,
-      "description": "巻の前提（500文字以内）"
+      "description": "巻の前提（想定: 500文字）"
     },
     "chapters": {
       "type": "array",
-      "maxItems": 12,
+      "description": "章のリスト。1巻あたり4-8章が標準。3章以下は短すぎ、10章以上は長すぎ。",
       "items": {
         "type": "object",
         "required": [
@@ -30,7 +28,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "maxLength": 500,
             "description": "章タイトル"
           },
           "purpose": {
@@ -46,7 +43,7 @@
           },
           "scenes": {
             "type": "array",
-            "maxItems": 8,
+            "description": "シーンのリスト。1章あたり2-4シーンが標準。",
             "items": {
               "type": "object",
               "required": [
@@ -57,57 +54,47 @@
               "properties": {
                 "title": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "シーンタイトル"
                 },
                 "goal": {
                   "type": "string",
-                  "maxLength": 800,
                   "description": "State: 状況 | Action: 行動"
                 },
                 "outcome": {
                   "type": "string",
-                  "maxLength": 800,
                   "description": "シーン終了時の結果"
                 },
                 "conflict": {
                   "type": "string",
-                  "maxLength": 600,
                   "description": "障害・対立"
                 },
                 "pov": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "視点人物"
                 },
                 "characters": {
                   "type": "array",
                   "items": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                   },
                   "description": "登場人物"
                 },
                 "key_events": {
                   "type": "array",
                   "items": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                   },
                   "description": "主要イベント"
                 },
                 "setting": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "舞台設定"
                 }
               }
-            },
-            "minItems": 1
+            }
           }
         }
-      },
-      "minItems": 1
+      }
     },
     "changes": {
       "type": "array",
@@ -120,12 +107,10 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正後のテキスト"
           }
         }

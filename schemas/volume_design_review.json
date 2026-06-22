@@ -60,23 +60,16 @@
       ],
       "properties": {
         "introduction_ratio": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100
+          "type": "number"
         },
         "development_ratio": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100
+          "type": "number"
         },
         "climax_ratio": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100
+          "type": "number"
         },
         "pacing_comment": {
           "type": "string",
-          "maxLength": 1000,
           "description": "ペースのコメント"
         }
       }
@@ -93,9 +86,7 @@
           "type": "boolean"
         },
         "arc_believability": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100
+          "type": "number"
         },
         "supporting_chars_used": {
           "type": "boolean"
@@ -123,19 +114,16 @@
           },
           "category": {
             "type": "string",
-            "maxLength": 500,
             "description": "問題のカテゴリ名"
           },
           "description": {
             "type": "string",
-            "maxLength": 1000,
             "description": "問題の説明"
           },
           "affected_elements": {
             "type": "array",
             "items": {
-              "type": "string",
-              "maxLength": 500
+              "type": "string"
             }
           },
           "suggestion": {
@@ -149,12 +137,10 @@
               "properties": {
                 "before": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "修正前のテキスト（該当箇所を引用）"
                 },
                 "after": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "修正後のテキスト"
                 }
               }
@@ -168,7 +154,6 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 1000,
         "description": "改善提案"
       }
     }

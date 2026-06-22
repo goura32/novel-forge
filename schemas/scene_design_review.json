@@ -124,19 +124,16 @@
           },
           "category": {
             "type": "string",
-            "maxLength": 500,
             "description": "問題のカテゴリ名"
           },
           "description": {
             "type": "string",
-            "maxLength": 1000,
             "description": "問題の説明"
           },
           "affected_elements": {
             "type": "array",
             "items": {
-              "type": "string",
-              "maxLength": 500
+              "type": "string"
             }
           },
           "suggestion": {
@@ -150,12 +147,10 @@
               "properties": {
                 "before": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "修正前のテキスト（該当箇所を引用）"
                 },
                 "after": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "修正後のテキスト"
                 }
               }
@@ -169,7 +164,6 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 1000,
         "description": "改善提案"
       }
     }

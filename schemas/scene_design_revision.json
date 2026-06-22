@@ -11,54 +11,45 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
-      "description": "シーンタイトル（500文字以内）"
+      "description": "シーンタイトル（想定: 500文字）"
     },
     "goal": {
       "type": "string",
-      "maxLength": 800,
-      "description": "State: 状況 | Action: 行動（800文字以内）"
+      "description": "State: 状況 | Action: 行動（想定: 800文字）"
     },
     "outcome": {
       "type": "string",
-      "maxLength": 800,
-      "description": "シーン終了時の結果（800文字以内）"
+      "description": "シーン終了時の結果（想定: 800文字）"
     },
     "conflict": {
       "type": "string",
-      "maxLength": 600,
-      "description": "障害・対立（600文字以内）"
+      "description": "障害・対立（想定: 600文字）"
     },
     "pov": {
       "type": "string",
-      "maxLength": 500,
-      "description": "視点人物（500文字以内）"
+      "description": "視点人物（想定: 500文字）"
     },
     "characters": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
-      "description": "登場人物（各64文字以内）"
+      "description": "登場人物（各想定: 64文字）"
     },
     "key_events": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
-      "description": "主要イベント（各200文字以内）"
+      "description": "主要イベント（各想定: 200文字）"
     },
     "setting": {
       "type": "string",
-      "maxLength": 500,
-      "description": "舞台設定（500文字以内）"
+      "description": "舞台設定（想定: 500文字）"
     },
     "emotional_arc": {
       "type": "string",
-      "maxLength": 500,
-      "description": "感情の弧（500文字以内）"
+      "description": "感情の弧（想定: 500文字）"
     },
     "changes": {
       "type": "array",
@@ -71,12 +62,10 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正後のテキスト"
           }
         }

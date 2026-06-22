@@ -8,16 +8,15 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
       "description": "巻タイトル"
     },
     "premise": {
       "type": "string",
-      "maxLength": 1000,
       "description": "巻の前提"
     },
     "chapters": {
       "type": "array",
+      "description": "章のリスト。1巻あたり4-8章が標準。3章以下は短すぎ、10章以上は長すぎ。",
       "items": {
         "type": "object",
         "required": [
@@ -26,8 +25,7 @@
         ],
         "properties": {
           "title": {
-            "type": "string",
-            "maxLength": 500
+            "type": "string"
           },
           "purpose": {
             "type": "string",
@@ -42,6 +40,7 @@
           },
           "scenes": {
             "type": "array",
+            "description": "シーンのリスト。1章あたり2-4シーンが標準。",
             "items": {
               "type": "object",
               "required": [
@@ -51,52 +50,42 @@
               ],
               "properties": {
                 "title": {
-                  "type": "string",
-                  "maxLength": 500
+                  "type": "string"
                 },
                 "pov": {
-                  "type": "string",
-                  "maxLength": 500
+                  "type": "string"
                 },
                 "goal": {
-                  "type": "string",
-                  "maxLength": 800
+                  "type": "string"
                 },
                 "conflict": {
-                  "type": "string",
-                  "maxLength": 600
+                  "type": "string"
                 },
                 "outcome": {
-                  "type": "string",
-                  "maxLength": 800
+                  "type": "string"
                 },
                 "characters": {
                   "type": "array",
                   "items": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                   }
                 },
                 "key_events": {
                   "type": "array",
                   "items": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                   },
                   "description": "主要イベント"
                 },
                 "setting": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "舞台設定"
                 }
               }
-            },
-            "minItems": 1
+            }
           }
         }
-      },
-      "minItems": 1
+      }
     }
   },
   "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"

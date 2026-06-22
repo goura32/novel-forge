@@ -10,48 +10,40 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
       "description": "シーンタイトル"
     },
     "goal": {
       "type": "string",
-      "maxLength": 800,
       "description": "シーン開始時の状況と主人公の行動"
     },
     "outcome": {
       "type": "string",
-      "maxLength": 800,
       "description": "シーン終了時の実際の結果"
     },
     "conflict": {
       "type": "string",
-      "maxLength": 600,
       "description": "シーン内の障害・対立"
     },
     "pov": {
       "type": "string",
-      "maxLength": 500,
       "description": "視点人物"
     },
     "characters": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
       "description": "登場人物"
     },
     "key_events": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 500
+        "type": "string"
       },
       "description": "主要イベント"
     },
     "setting": {
       "type": "string",
-      "maxLength": 500,
       "description": "舞台設定"
     }
   },

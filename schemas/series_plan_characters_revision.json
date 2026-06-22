@@ -20,8 +20,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "maxLength": 500,
-            "description": "キャラクター名（フルネーム、500文字以内）"
+            "description": "キャラクター名（フルネーム、想定: 500文字）"
           },
           "role": {
             "type": "string",
@@ -29,53 +28,42 @@
           },
           "arc": {
             "type": "string",
-            "maxLength": 600,
-            "description": "シリーズを通じた成長・変化（600文字以内）"
+            "description": "シリーズを通じた成長・変化（想定: 600文字）"
           },
           "age": {
             "type": "string",
-            "maxLength": 500,
-            "description": "年齢（例: 28歳、500文字以内）"
+            "description": "年齢（例: 28歳、想定: 500文字）"
           },
           "occupation": {
             "type": "string",
-            "maxLength": 500,
-            "description": "職業・立場（500文字以内）"
+            "description": "職業・立場（想定: 500文字）"
           },
           "personality": {
             "type": "string",
-            "maxLength": 1000,
-            "description": "性格・特徴（1000文字以内）"
+            "description": "性格・特徴（想定: 1000文字）"
           },
           "appearance": {
             "type": "string",
-            "maxLength": 500,
-            "description": "外見的特徴（500文字以内）"
+            "description": "外見的特徴（想定: 500文字）"
           },
           "background": {
             "type": "string",
-            "maxLength": 1000,
-            "description": "過去・経歴（1000文字以内）"
+            "description": "過去・経歴（想定: 1000文字）"
           },
           "motivation": {
             "type": "string",
-            "maxLength": 1000,
-            "description": "動機・目標（1000文字以内）"
+            "description": "動機・目標（想定: 1000文字）"
           },
           "flaw": {
             "type": "string",
-            "maxLength": 1000,
-            "description": "欠点・弱み（1000文字以内）"
+            "description": "欠点・弱み（想定: 1000文字）"
           },
           "growth": {
             "type": "string",
-            "maxLength": 1000,
-            "description": "成長の方向性（1000文字以内）"
+            "description": "成長の方向性（想定: 1000文字）"
           }
         }
       },
-      "minItems": 2,
-      "maxItems": 10,
       "description": "メインキャラクター（2-5人）"
     },
     "changes": {
@@ -89,12 +77,10 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正後のテキスト"
           }
         }

@@ -11,7 +11,6 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
       "description": "章タイトル"
     },
     "purpose": {
@@ -27,27 +26,23 @@
     },
     "theme": {
       "type": "string",
-      "maxLength": 600,
       "description": "章のテーマ"
     },
     "emotional_arc": {
       "type": "string",
-      "maxLength": 600,
       "description": "感情の弧"
     },
     "foreshadowing_notes": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 600
+        "type": "string"
       },
       "description": "伏線メモのリスト"
     },
     "subplot_notes": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 600
+        "type": "string"
       },
       "description": "サブプロットメモのリスト"
     }

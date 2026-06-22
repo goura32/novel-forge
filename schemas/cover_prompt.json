@@ -27,7 +27,6 @@
           "properties": {
             "description": {
               "type": "string",
-              "maxLength": 500,
               "description": "ビジュアルの詳細説明（英語の画像生成プロンプト用）"
             },
             "characters": {
@@ -40,12 +39,10 @@
                 ],
                 "properties": {
                   "name": {
-                    "type": "string",
-                    "maxLength": 64
+                    "type": "string"
                   },
                   "appearance": {
-                    "type": "string",
-                    "maxLength": 200
+                    "type": "string"
                   }
                 }
               }
@@ -57,12 +54,10 @@
           "properties": {
             "setting": {
               "type": "string",
-              "maxLength": 300,
               "description": "背景の場面説明"
             },
             "atmosphere": {
               "type": "string",
-              "maxLength": 200,
               "description": "雰囲気（暗い、明るい、幻想的等）"
             }
           }
@@ -77,17 +72,14 @@
             ],
             "properties": {
               "name": {
-                "type": "string",
-                "maxLength": 64
+                "type": "string"
               },
               "significance": {
-                "type": "string",
-                "maxLength": 200
+                "type": "string"
               }
             }
           },
-          "description": "物語を象徴するアイテム・モチーフ",
-          "minItems": 1
+          "description": "物語を象徴するアイテム・モチーフ"
         }
       }
     },
@@ -96,23 +88,18 @@
       "properties": {
         "genre": {
           "type": "string",
-          "maxLength": 64,
           "description": "ジャンル"
         },
         "tone": {
           "type": "string",
-          "maxLength": 64,
           "description": "トーン（ダーク、ライト、エピック等）"
         },
         "color_palette": {
           "type": "array",
           "items": {
-            "type": "string",
-            "maxLength": 32
+            "type": "string"
           },
-          "description": "カラーパレット（3〜5色）",
-          "minItems": 3,
-          "maxItems": 5
+          "description": "カラーパレット（3〜5色）"
         },
         "composition": {
           "type": "string",
@@ -129,23 +116,19 @@
     },
     "negative_prompt": {
       "type": "string",
-      "maxLength": 500,
       "description": "画像生成時に除外したい要素"
     },
     "metadata": {
       "type": "object",
       "properties": {
         "series_name": {
-          "type": "string",
-          "maxLength": 128
+          "type": "string"
         },
         "volume_number": {
-          "type": "integer",
-          "minimum": 1
+          "type": "integer"
         },
         "target_audience": {
-          "type": "string",
-          "maxLength": 50
+          "type": "string"
         }
       }
     }

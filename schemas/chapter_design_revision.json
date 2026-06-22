@@ -12,8 +12,7 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 500,
-      "description": "章タイトル（500文字以内）"
+      "description": "章タイトル（想定: 500文字）"
     },
     "purpose": {
       "type": "string",
@@ -28,29 +27,25 @@
     },
     "theme": {
       "type": "string",
-      "maxLength": 600,
-      "description": "章のテーマ（600文字以内）"
+      "description": "章のテーマ（想定: 600文字）"
     },
     "emotional_arc": {
       "type": "string",
-      "maxLength": 600,
-      "description": "感情の弧（600文字以内）"
+      "description": "感情の弧（想定: 600文字）"
     },
     "foreshadowing_notes": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 600
+        "type": "string"
       },
-      "description": "伏線メモ（各300文字以内）"
+      "description": "伏線メモ（各想定: 300文字）"
     },
     "subplot_notes": {
       "type": "array",
       "items": {
-        "type": "string",
-        "maxLength": 600
+        "type": "string"
       },
-      "description": "サブプロットメモ（各300文字以内）"
+      "description": "サブプロットメモ（各想定: 300文字）"
     },
     "changes": {
       "type": "array",
@@ -63,12 +58,10 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 1000,
             "description": "修正後のテキスト"
           }
         }

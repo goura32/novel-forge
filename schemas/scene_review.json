@@ -44,7 +44,6 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 1000,
             "description": "問題の説明"
           },
           "suggestion": {
@@ -58,12 +57,10 @@
               "properties": {
                 "before": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "修正前のテキスト（該当箇所を引用）"
                 },
                 "after": {
                   "type": "string",
-                  "maxLength": 500,
                   "description": "修正後のテキスト"
                 }
               }
