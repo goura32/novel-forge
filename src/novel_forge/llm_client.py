@@ -190,8 +190,8 @@ class LLMClient:
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
                 # Save raw_text so we can investigate parse failures
-                self._write_raw_log(kind + "_json_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
-                self._write_log(kind + "_json_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
+                self._write_raw_log(kind + "_json_err", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
+                self._write_log(kind + "_json_err", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -207,8 +207,8 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_raw_log(kind + "_schema_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
-                self._write_log(kind + "_schema_error", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
+                self._write_raw_log(kind + "_schema_err", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
+                self._write_log(kind + "_schema_err", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -224,7 +224,7 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_raw_log(kind + "_llm_error", raw_text, thinking=thinking, resp_obj={"error": str(e)})
+                self._write_raw_log(kind + "_llm_err", raw_text, thinking=thinking, resp_obj={"error": str(e)})
                 continue
             except Exception as e:
                 # Catch-all: save raw data for any unexpected error
@@ -233,11 +233,11 @@ class LLMClient:
                     "  [LLM ERROR] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:200],
                 )
-                self._write_raw_log(kind + "_unexpected_error", raw_text, thinking=thinking, resp_obj={"error": str(e), "error_type": type(e).__name__})
+                self._write_raw_log(kind + "_err", raw_text, thinking=thinking, resp_obj={"error": str(e), "error_type": type(e).__name__})
                 raise
         # All retries exhausted — save last raw data
-        self._write_raw_log(kind + "_all_retries_failed", raw_text, thinking=thinking, resp_obj={"last_error": str(last_error)[:500] if last_error else ""})
-        self._write_log(kind + "_FAILED", payload, raw_text, {"error": str(last_error), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
+        self._write_raw_log(kind + "_failed", raw_text, thinking=thinking, resp_obj={"last_error": str(last_error)[:500] if last_error else ""})
+        self._write_log(kind + "_failed", payload, raw_text, {"error": str(last_error), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
         self._log.error(
             "  [LLM FAILED] kind=%s attempts=%d error=%s",
             kind, self.max_retries, str(last_error)[:100],
@@ -279,7 +279,7 @@ class LLMClient:
         """
         stream_payload = {**payload, "stream": True}
         # Save request payload before sending
-        self._write_raw_log("_request", "", payload=stream_payload)
+        self._write_raw_log("_req", "", payload=stream_payload)
         lines: list[str] = []
         chunk_count = 0
         total_bytes = 0
@@ -310,12 +310,12 @@ class LLMClient:
             self._write_raw_log("_timeout", text)
             raise LLMError("Ollama request timed out")
         except httpx.HTTPStatusError as e:
-            self._write_raw_log("_http_error", str(e))
+            self._write_raw_log("_http_err", str(e))
             raise LLMError(f"Ollama HTTP error: {e}")
         text = "\n".join(lines)
         result, thinking_combined = self._parse_ndjson(text)
         if not result or not result.strip():
-            self._write_raw_log("_empty_response", text, thinking=thinking_combined)
+            self._write_raw_log("_empty", text, thinking=thinking_combined)
             raise LLMError("Ollama returned empty response")
         # Extract done_reason from last done chunk
         done_reason = ""
@@ -330,7 +330,7 @@ class LLMClient:
         if done_reason:
             self._log.debug("  [LLM DONE_REASON] %s", done_reason)
         # Save raw response
-        self._write_raw_log("_ollama_response", text, thinking=thinking_combined)
+        self._write_raw_log("_resp", text, thinking=thinking_combined)
         return text, result, thinking_combined, done_reason
 
     def _write_raw_log(self, kind: str, raw_text: str, thinking: str = "", resp_obj: dict | None = None, payload: dict | None = None) -> None:
