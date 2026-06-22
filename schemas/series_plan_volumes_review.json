@@ -1,95 +1,95 @@
 {
- "$schema": "https://json-schema.org/draft/2020-12/schema",
- "title": "SeriesPlanVolumesReview",
- "description": "シリーズ企画（各巻）の自己レビュー結果",
- "type": "object",
- "required": [
-  "volume_uniqueness",
-  "series_flow",
-  "cliffhanger",
-  "theme_consistency",
-  "issues",
-  "suggestions"
- ],
- "properties": {
-  "volume_uniqueness": {
-   "type": "object",
-   "required": [],
-   "properties": {}
-  },
-  "series_flow": {
-   "type": "object",
-   "required": [],
-   "properties": {}
-  },
-  "cliffhanger": {
-   "type": "object",
-   "required": [],
-   "properties": {}
-  },
-  "theme_consistency": {
-   "type": "object",
-   "required": [],
-   "properties": {}
-  },
-  "issues": {
-   "type": "array",
-   "items": {
-    "type": "object",
-    "required": [
-     "severity",
-     "category",
-     "description"
-    ],
-    "properties": {
-     "severity": {
-      "type": "string",
-      "enum": [
-       "重大",
-       "重要",
-       "軽微"
-      ]
-     },
-     "category": {
-      "type": "string",
-      "maxLength": 64
-     },
-     "description": {
-      "type": "string",
-      "maxLength": 500
-     },
-     "suggestion": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanVolumesReview",
+  "description": "シリーズ企画（各巻）の自己レビュー結果",
+  "type": "object",
+  "required": [
+    "volume_uniqueness",
+    "series_flow",
+    "cliffhanger",
+    "theme_consistency",
+    "issues",
+    "suggestions"
+  ],
+  "properties": {
+    "volume_uniqueness": {
+      "type": "object",
+      "required": [],
+      "properties": {}
+    },
+    "series_flow": {
+      "type": "object",
+      "required": [],
+      "properties": {}
+    },
+    "cliffhanger": {
+      "type": "object",
+      "required": [],
+      "properties": {}
+    },
+    "theme_consistency": {
+      "type": "object",
+      "required": [],
+      "properties": {}
+    },
+    "issues": {
       "type": "array",
       "items": {
-       "type": "object",
-       "required": [
-        "before",
-        "after"
-       ],
-       "properties": {
-        "before": {
-         "type": "string",
-         "maxLength": 200,
-         "description": "修正前のテキスト（該当箇所を引用）"
-        },
-        "after": {
-         "type": "string",
-         "maxLength": 200,
-         "description": "修正後のテキスト"
+        "type": "object",
+        "required": [
+          "severity",
+          "category",
+          "description"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "重大",
+              "重要",
+              "軽微"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "suggestion": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "before",
+                "after"
+              ],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "修正前のテキスト（該当箇所を引用）"
+                },
+                "after": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "修正後のテキスト"
+                }
+              }
+            },
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+          }
         }
-       }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
-     }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 1000
+      }
     }
-   }
-  },
-  "suggestions": {
-   "type": "array",
-   "items": {
-    "type": "string",
-    "maxLength": 500
-   }
   }
- }
 }

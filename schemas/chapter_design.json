@@ -2,36 +2,53 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ChapterDesign",
   "type": "object",
-  "required": ["title", "purpose", "theme", "emotional_arc"],
+  "required": [
+    "title",
+    "purpose",
+    "theme",
+    "emotional_arc"
+  ],
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 128,
+      "maxLength": 500,
       "description": "章タイトル"
     },
     "purpose": {
       "type": "string",
-      "enum": ["導入", "展開", "転換", "クライマックス", "収束"],
+      "enum": [
+        "導入",
+        "展開",
+        "転換",
+        "クライマックス",
+        "収束"
+      ],
       "description": "章の役割。物語全体におけるこの章の機能。"
     },
     "theme": {
       "type": "string",
-      "maxLength": 300,
+      "maxLength": 600,
       "description": "章のテーマ"
     },
     "emotional_arc": {
       "type": "string",
-      "maxLength": 300,
+      "maxLength": 600,
       "description": "感情の弧"
     },
     "foreshadowing_notes": {
       "type": "array",
-      "items": {"type": "string", "maxLength": 300},
+      "items": {
+        "type": "string",
+        "maxLength": 600
+      },
       "description": "伏線メモのリスト"
     },
     "subplot_notes": {
       "type": "array",
-      "items": {"type": "string", "maxLength": 300},
+      "items": {
+        "type": "string",
+        "maxLength": 600
+      },
       "description": "サブプロットメモのリスト"
     }
   },

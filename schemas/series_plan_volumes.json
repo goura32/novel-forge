@@ -6,43 +6,43 @@
   "properties": {
     "planned_volumes": {
       "type": "array",
-      "maxItems": 3,
+      "maxItems": 6,
       "items": {
         "type": "object",
         "properties": {
           "title": {
             "type": "string",
-            "maxLength": 128,
-            "description": "巻タイトル（128文字以内）"
+            "maxLength": 500,
+            "description": "巻タイトル（500文字以内）"
           },
           "premise": {
             "type": "string",
-            "maxLength": 500,
-            "description": "巻のあらすじ（500文字以内）"
+            "maxLength": 1000,
+            "description": "巻のあらすじ（1000文字以内）"
           },
           "theme": {
             "type": "string",
-            "maxLength": 300,
-            "description": "巻のテーマ（300文字以内）"
+            "maxLength": 600,
+            "description": "巻のテーマ（600文字以内）"
           },
           "emotional_arc": {
             "type": "string",
-            "maxLength": 200,
-            "description": "巻全体の感情の弧（200文字以内）"
+            "maxLength": 500,
+            "description": "巻全体の感情の弧（500文字以内）"
           },
           "key_events": {
             "type": "array",
             "items": {
               "type": "string",
-              "maxLength": 200
+              "maxLength": 500
             },
             "minItems": 1,
             "description": "巻内の主要イベント（1個以上、各200文字以内）"
           },
           "cliffhanger": {
             "type": "string",
-            "maxLength": 500,
-            "description": "次巻へのフック（最終巻以外必須、500文字以内）"
+            "maxLength": 1000,
+            "description": "次巻へのフック（最終巻以外必須、1000文字以内）"
           }
         }
       },

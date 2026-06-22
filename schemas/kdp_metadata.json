@@ -11,18 +11,18 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 128,
-      "description": "タイトル（128文字以内）"
+      "maxLength": 500,
+      "description": "タイトル（500文字以内）"
     },
     "subtitle": {
       "type": "string",
-      "maxLength": 128,
-      "description": "サブタイトル（128文字以内）"
+      "maxLength": 500,
+      "description": "サブタイトル（500文字以内）"
     },
     "series_name": {
       "type": "string",
-      "maxLength": 128,
-      "description": "シリーズ名（128文字以内）"
+      "maxLength": 500,
+      "description": "シリーズ名（500文字以内）"
     },
     "description": {
       "type": "string",
@@ -31,47 +31,47 @@
     },
     "back_cover_text": {
       "type": "string",
-      "maxLength": 1000,
-      "description": "裏表紙テキスト（1000文字以内）"
+      "maxLength": 2000,
+      "description": "裏表紙テキスト（2000文字以内）"
     },
     "target_audience": {
       "type": "string",
-      "maxLength": 50,
-      "description": "ターゲット読者（50文字以内）"
+      "maxLength": 500,
+      "description": "ターゲット読者（500文字以内）"
     },
     "keywords": {
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 32,
+        "maxLength": 500,
         "description": "キーワード"
       },
-      "maxItems": 7,
+      "maxItems": 14,
       "description": "検索キーワード（最大7件、各32文字以内）"
     },
     "categories": {
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 64,
+        "maxLength": 500,
         "description": "カテゴリ"
       },
       "minItems": 1,
-      "maxItems": 2,
+      "maxItems": 5,
       "description": "KDPカテゴリ（1-2件、各64文字以内）"
     },
     "content_warnings": {
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 64,
+        "maxLength": 500,
         "description": "コンテンツ警告"
       }
     },
     "author_note": {
       "type": "string",
-      "maxLength": 500,
-      "description": "著者ノート（500文字以内）"
+      "maxLength": 1000,
+      "description": "著者ノート（1000文字以内）"
     }
   }
 }

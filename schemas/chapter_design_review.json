@@ -1,154 +1,154 @@
 {
- "$schema": "https://json-schema.org/draft/2020-12/schema",
- "title": "ChapterDesignReview",
- "description": "章設計の自己レビュー結果",
- "type": "object",
- "required": [
-  "role_validity",
-  "theme_coherence",
-  "emotional_arc_quality",
-  "scene_distribution",
-  "issues",
-  "suggestions"
- ],
- "properties": {
-  "role_validity": {
-   "type": "object",
-   "required": [
-    "purpose_clear",
-    "fits_volume_arc"
-   ],
-   "properties": {
-    "purpose_clear": {
-     "type": "boolean",
-     "description": "章の役割（導入/展開/転換/クライマックス/収束）が明確か"
-    },
-    "fits_volume_arc": {
-     "type": "boolean",
-     "description": "巻全体の弧線の中で章の位置づけが適切か"
-    }
-   }
-  },
-  "theme_coherence": {
-   "type": "object",
-   "required": [
-    "theme_clear",
-    "consistent_with_series"
-   ],
-   "properties": {
-    "theme_clear": {
-     "type": "boolean",
-     "description": "章のテーマが明確か"
-    },
-    "consistent_with_series": {
-     "type": "boolean",
-     "description": "シリーズのテーマと矛盾がないか"
-    }
-   }
-  },
-  "emotional_arc_quality": {
-   "type": "object",
-   "required": [
-    "arc_exists",
-    "arc_believable"
-   ],
-   "properties": {
-    "arc_exists": {
-     "type": "boolean",
-     "description": "感情の弧が存在するか"
-    },
-    "arc_believable": {
-     "type": "boolean",
-     "description": "感情の弧が自然で説得力があるか"
-    }
-   }
-  },
-  "scene_distribution": {
-   "type": "object",
-   "required": [
-    "count_appropriate",
-    "coverage_sufficient"
-   ],
-   "properties": {
-    "count_appropriate": {
-     "type": "boolean",
-     "description": "シーン数が章の役割に適切か"
-    },
-    "coverage_sufficient": {
-     "type": "boolean",
-     "description": "シーンで章のテーマを十分にカバーしているか"
-    }
-   }
-  },
-  "issues": {
-   "type": "array",
-   "items": {
-    "type": "object",
-    "required": [
-     "severity",
-     "category",
-     "description",
-     "affected_elements"
-    ],
-    "properties": {
-     "severity": {
-      "type": "string",
-      "enum": [
-       "重大",
-       "重要",
-       "軽微"
-      ]
-     },
-     "category": {
-      "type": "string",
-      "maxLength": 64,
-      "description": "問題のカテゴリ名"
-     },
-     "description": {
-      "type": "string",
-      "maxLength": 500,
-      "description": "問題の説明"
-     },
-     "affected_elements": {
-      "type": "array",
-      "items": {
-       "type": "string",
-       "maxLength": 128
-      }
-     },
-     "suggestion": {
-      "type": "array",
-      "items": {
-       "type": "object",
-       "required": [
-        "before",
-        "after"
-       ],
-       "properties": {
-        "before": {
-         "type": "string",
-         "maxLength": 200,
-         "description": "修正前のテキスト（該当箇所を引用）"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterDesignReview",
+  "description": "章設計の自己レビュー結果",
+  "type": "object",
+  "required": [
+    "role_validity",
+    "theme_coherence",
+    "emotional_arc_quality",
+    "scene_distribution",
+    "issues",
+    "suggestions"
+  ],
+  "properties": {
+    "role_validity": {
+      "type": "object",
+      "required": [
+        "purpose_clear",
+        "fits_volume_arc"
+      ],
+      "properties": {
+        "purpose_clear": {
+          "type": "boolean",
+          "description": "章の役割（導入/展開/転換/クライマックス/収束）が明確か"
         },
-        "after": {
-         "type": "string",
-         "maxLength": 200,
-         "description": "修正後のテキスト"
+        "fits_volume_arc": {
+          "type": "boolean",
+          "description": "巻全体の弧線の中で章の位置づけが適切か"
         }
-       }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
-     }
+      }
+    },
+    "theme_coherence": {
+      "type": "object",
+      "required": [
+        "theme_clear",
+        "consistent_with_series"
+      ],
+      "properties": {
+        "theme_clear": {
+          "type": "boolean",
+          "description": "章のテーマが明確か"
+        },
+        "consistent_with_series": {
+          "type": "boolean",
+          "description": "シリーズのテーマと矛盾がないか"
+        }
+      }
+    },
+    "emotional_arc_quality": {
+      "type": "object",
+      "required": [
+        "arc_exists",
+        "arc_believable"
+      ],
+      "properties": {
+        "arc_exists": {
+          "type": "boolean",
+          "description": "感情の弧が存在するか"
+        },
+        "arc_believable": {
+          "type": "boolean",
+          "description": "感情の弧が自然で説得力があるか"
+        }
+      }
+    },
+    "scene_distribution": {
+      "type": "object",
+      "required": [
+        "count_appropriate",
+        "coverage_sufficient"
+      ],
+      "properties": {
+        "count_appropriate": {
+          "type": "boolean",
+          "description": "シーン数が章の役割に適切か"
+        },
+        "coverage_sufficient": {
+          "type": "boolean",
+          "description": "シーンで章のテーマを十分にカバーしているか"
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity",
+          "category",
+          "description",
+          "affected_elements"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "重大",
+              "重要",
+              "軽微"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "問題のカテゴリ名"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "問題の説明"
+          },
+          "affected_elements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "suggestion": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "before",
+                "after"
+              ],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "修正前のテキスト（該当箇所を引用）"
+                },
+                "after": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "修正後のテキスト"
+                }
+              }
+            },
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+          }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 1000,
+        "description": "改善提案"
+      }
     }
-   }
-  },
-  "suggestions": {
-   "type": "array",
-   "items": {
-    "type": "string",
-    "maxLength": 500,
-    "description": "改善提案"
-   }
   }
- }
 }

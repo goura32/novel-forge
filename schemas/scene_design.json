@@ -2,46 +2,56 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SceneDesign",
   "type": "object",
-  "required": ["title", "goal", "outcome"],
+  "required": [
+    "title",
+    "goal",
+    "outcome"
+  ],
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 128,
+      "maxLength": 500,
       "description": "シーンタイトル"
     },
     "goal": {
       "type": "string",
-      "maxLength": 400,
+      "maxLength": 800,
       "description": "シーン開始時の状況と主人公の行動"
     },
     "outcome": {
       "type": "string",
-      "maxLength": 400,
+      "maxLength": 800,
       "description": "シーン終了時の実際の結果"
     },
     "conflict": {
       "type": "string",
-      "maxLength": 300,
+      "maxLength": 600,
       "description": "シーン内の障害・対立"
     },
     "pov": {
       "type": "string",
-      "maxLength": 64,
+      "maxLength": 500,
       "description": "視点人物"
     },
     "characters": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 64 },
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      },
       "description": "登場人物"
     },
     "key_events": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 200 },
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      },
       "description": "主要イベント"
     },
     "setting": {
       "type": "string",
-      "maxLength": 200,
+      "maxLength": 500,
       "description": "舞台設定"
     }
   },

@@ -11,34 +11,34 @@
   "properties": {
     "title": {
       "type": "string",
-      "maxLength": 128,
-      "description": "シーンタイトル（128文字以内）"
+      "maxLength": 500,
+      "description": "シーンタイトル（500文字以内）"
     },
     "goal": {
       "type": "string",
-      "maxLength": 400,
-      "description": "State: 状況 | Action: 行動（400文字以内）"
+      "maxLength": 800,
+      "description": "State: 状況 | Action: 行動（800文字以内）"
     },
     "outcome": {
       "type": "string",
-      "maxLength": 400,
-      "description": "シーン終了時の結果（400文字以内）"
+      "maxLength": 800,
+      "description": "シーン終了時の結果（800文字以内）"
     },
     "conflict": {
       "type": "string",
-      "maxLength": 300,
-      "description": "障害・対立（300文字以内）"
+      "maxLength": 600,
+      "description": "障害・対立（600文字以内）"
     },
     "pov": {
       "type": "string",
-      "maxLength": 64,
-      "description": "視点人物（64文字以内）"
+      "maxLength": 500,
+      "description": "視点人物（500文字以内）"
     },
     "characters": {
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 64
+        "maxLength": 500
       },
       "description": "登場人物（各64文字以内）"
     },
@@ -46,19 +46,19 @@
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 200
+        "maxLength": 500
       },
       "description": "主要イベント（各200文字以内）"
     },
     "setting": {
       "type": "string",
-      "maxLength": 200,
-      "description": "舞台設定（200文字以内）"
+      "maxLength": 500,
+      "description": "舞台設定（500文字以内）"
     },
     "emotional_arc": {
       "type": "string",
-      "maxLength": 200,
-      "description": "感情の弧（200文字以内）"
+      "maxLength": 500,
+      "description": "感情の弧（500文字以内）"
     },
     "changes": {
       "type": "array",
@@ -71,12 +71,12 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 500,
+            "maxLength": 1000,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 500,
+            "maxLength": 1000,
             "description": "修正後のテキスト"
           }
         }
