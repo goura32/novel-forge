@@ -94,7 +94,7 @@ class PlanMixin:
         user = self._prompts.render("series_plan_core_review.md", {"plan_text": plan_text, "lang": self._lang})
         return self._llm.complete_json("series_plan_core_review", system, user, get_schema("series_plan_core_review"))
 
-    def _revise_plan_core(self, core: dict, review: dict, system: str) -> dict:
+    def _revise_plan_core(self, core: dict, review: dict, system: str, seed_offset: int = 0) -> dict:
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
@@ -105,11 +105,12 @@ class PlanMixin:
             "series_plan_core_revision.md",
             {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_core_revision", system, user, get_schema("series_plan_core_revision"))
+        return self._llm.complete_json("series_plan_core_revision", system, user, get_schema("series_plan_core_revision"), seed_offset=seed_offset)
 
     def _review_and_revise_plan_core(self, core: dict, system: str) -> dict:
         review = self._review_plan_core(core, system)
         all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
+        seed_offset = 0
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
@@ -121,7 +122,8 @@ class PlanMixin:
                 "  [CORE REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
                 len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
             )
-            core = self._revise_plan_core(core, review, system)
+            seed_offset += 1
+            core = self._revise_plan_core(core, review, system, seed_offset=seed_offset)
             # 修正版を版番号付きで保存
             self._save_path(0, "series_core.json", core, version=retry + 1)
             review = self._review_plan_core(core, system)
@@ -203,7 +205,7 @@ class PlanMixin:
         user = self._prompts.render("series_plan_characters_review.md", {"characters": char_text, "lang": self._lang})
         return self._llm.complete_json("series_plan_characters_review", system, user, get_schema("series_plan_characters_review"))
 
-    def _revise_plan_characters(self, characters: dict, review: dict, system: str) -> dict:
+    def _revise_plan_characters(self, characters: dict, review: dict, system: str, seed_offset: int = 0) -> dict:
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
@@ -214,11 +216,12 @@ class PlanMixin:
             "series_plan_characters_revision.md",
             {"current_characters": json.dumps(characters, ensure_ascii=False), "review": review_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_characters_revision", system, user, get_schema("series_plan_characters_revision"))
+        return self._llm.complete_json("series_plan_characters_revision", system, user, get_schema("series_plan_characters_revision"), seed_offset=seed_offset)
 
     def _review_and_revise_plan_characters(self, characters: dict, core: dict, system: str) -> dict:
         review = self._review_plan_characters(characters, core, system)
         all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
+        seed_offset = 0
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
@@ -230,7 +233,8 @@ class PlanMixin:
                 "  [CHAR REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
                 len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
             )
-            characters = self._revise_plan_characters(characters, review, system)
+            seed_offset += 1
+            characters = self._revise_plan_characters(characters, review, system, seed_offset=seed_offset)
             # 修正版を版番号付きで保存
             self._save_path(0, "series_characters.json", characters, version=retry + 1)
             review = self._review_plan_characters(characters, core, system)
@@ -261,7 +265,7 @@ class PlanMixin:
         user = self._prompts.render("series_plan_volumes_review.md", {"volumes": vol_text, "lang": self._lang})
         return self._llm.complete_json("series_plan_volumes_review", system, user, get_schema("series_plan_volumes_review"))
 
-    def _revise_plan_volumes(self, volumes: dict, review: dict, system: str) -> dict:
+    def _revise_plan_volumes(self, volumes: dict, review: dict, system: str, seed_offset: int = 0) -> dict:
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
             lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
@@ -272,11 +276,12 @@ class PlanMixin:
             "series_plan_volumes_revision.md",
             {"current_volumes": json.dumps(volumes, ensure_ascii=False), "review": review_text, "lang": self._lang},
         )
-        return self._llm.complete_json("series_plan_volumes_revision", system, user, get_schema("series_plan_volumes_revision"))
+        return self._llm.complete_json("series_plan_volumes_revision", system, user, get_schema("series_plan_volumes_revision"), seed_offset=seed_offset)
 
     def _review_and_revise_plan_volumes(self, volumes: dict, core: dict, characters: dict, system: str) -> dict:
         review = self._review_plan_volumes(volumes, core, characters, system)
         all_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
+        seed_offset = 0
         for retry in range(3):
             blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
             critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
@@ -288,7 +293,8 @@ class PlanMixin:
                 "  [VOL REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
                 len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
             )
-            volumes = self._revise_plan_volumes(volumes, review, system)
+            seed_offset += 1
+            volumes = self._revise_plan_volumes(volumes, review, system, seed_offset=seed_offset)
             # 修正版を版番号付きで保存
             self._save_path(0, "series_volumes.json", volumes, version=retry + 1)
             review = self._review_plan_volumes(volumes, core, characters, system)

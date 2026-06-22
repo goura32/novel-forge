@@ -54,7 +54,7 @@
       "theme": "巻のテーマ",
       "emotional_arc": "巻全体の感情の弧",
       "key_events": ["巻内の主要イベント"],
-      "cliffhanger": "次巻へのフック（最終巻以外必須）"
+      "cliffhanger": "次巻へのフック"
     }
   ]
 }

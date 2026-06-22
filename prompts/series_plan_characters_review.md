@@ -9,8 +9,9 @@
 ## 評価基準
 
 0. **必須フィールドの完全性** (`missing_field`)
-   - 各キャラクターに以下の必須フィールドがすべて含まれているか確認すること: name, role, arc, gender, age, occupation, personality, appearance, background, motivation, flaw, growth
-   - **欠落フィールドがある場合**: severity=「重大」で issue を出力すること。category は `missing_field` とする
+   - 各キャラクターに以下の必須フィールドがすべて含まれているか確認すること: name, role, personality, motivation, flaw, growth
+   - **主要フィールド**（name, role, personality, motivation, flaw, growth）が欠落している場合: severity=「重大」
+   - **補足フィールド**（gender, age, occupation, appearance, background, arc）が欠落している場合: severity=「重要」
    - **出力例**: `{"severity": "重大", "category": "missing_field", "description": "キャラクター「霧島 鈴音」に必須フィールド「growth」が欠落しています。成長の方向性を追加してください。", "affected_elements": ["霧島 鈴音"], "suggestion": [{"before": "(欠落)", "after": "成長の方向性の具体的な記述"}]}`
    - すべてのフィールドが埋まっている場合は、このカテゴリの issue を出力しないこと
 

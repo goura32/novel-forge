@@ -10,7 +10,9 @@
 
 0. **必須フィールドの完全性** (`missing_field`)
    - 以下の必須フィールドがすべて含まれているか確認すること: title, logline, genre, themes, selling_points, world (summary + rules), target_audience
-   - **欠落フィールドがある場合**: severity=「重大」で issue を出力すること。category は `missing_field` とする
+   - **主要フィールド**（title, logline, genre, world）が欠落している場合: severity=「重大」
+   - **補足フィールド**（themes, selling_points, target_audience）が欠落している場合: severity=「重要」
+   - **欠落フィールドがある場合**: 該当する severity で issue を出力すること。category は `missing_field` とする
    - すべてのフィールドが埋まっている場合は、このカテゴリの issue を出力しないこと
 
 1. **タイトルの力** (`title_power`)
