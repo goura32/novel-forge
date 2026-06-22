@@ -13,7 +13,7 @@
     },
     "premise": {
       "type": "string",
-      "maxLength": 200,
+      "maxLength": 500,
       "description": "巻の前提"
     },
     "chapters": {
@@ -60,15 +60,15 @@
                 },
                 "goal": {
                   "type": "string",
-                  "maxLength": 200
+                  "maxLength": 400
                 },
                 "conflict": {
                   "type": "string",
-                  "maxLength": 200
+                  "maxLength": 300
                 },
                 "outcome": {
                   "type": "string",
-                  "maxLength": 200
+                  "maxLength": 400
                 },
                 "characters": {
                   "type": "array",
@@ -76,6 +76,19 @@
                     "type": "string",
                     "maxLength": 64
                   }
+                },
+                "key_events": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "description": "主要イベント"
+                },
+                "setting": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "舞台設定"
                 }
               }
             },

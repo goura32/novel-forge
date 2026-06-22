@@ -10,6 +10,7 @@
   "properties": {
     "planned_volumes": {
       "type": "array",
+      "description": "各巻の計画（3巻固定）",
       "items": {
         "type": "object",
         "required": [
@@ -20,34 +21,35 @@
           "title": {
             "type": "string",
             "maxLength": 128,
-            "description": "巻タイトル"
+            "description": "巻タイトル（128文字以内）"
           },
           "premise": {
             "type": "string",
-            "maxLength": 200,
-            "description": "巻のあらすじ"
+            "maxLength": 500,
+            "description": "巻のあらすじ（500文字以内）"
           },
           "theme": {
             "type": "string",
-            "maxLength": 128,
-            "description": "巻のテーマ"
+            "maxLength": 300,
+            "description": "巻のテーマ（300文字以内）"
           },
           "emotional_arc": {
             "type": "string",
             "maxLength": 200,
-            "description": "巻全体の感情の弧"
+            "description": "巻全体の感情の弧（200文字以内）"
           },
           "key_events": {
             "type": "array",
             "items": {
               "type": "string",
               "maxLength": 200
-            }
+            },
+            "description": "巻内の主要イベント（各200文字以内）"
           },
           "cliffhanger": {
             "type": "string",
-            "maxLength": 200,
-            "description": "次巻へのフック"
+            "maxLength": 500,
+            "description": "次巻へのフック（最終巻以外必須、500文字以内）"
           }
         }
       }
@@ -63,12 +65,12 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "修正後のテキスト"
           }
         }

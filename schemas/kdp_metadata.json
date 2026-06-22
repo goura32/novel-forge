@@ -12,32 +12,32 @@
     "title": {
       "type": "string",
       "maxLength": 128,
-      "description": "タイトル"
+      "description": "タイトル（128文字以内）"
     },
     "subtitle": {
       "type": "string",
       "maxLength": 128,
-      "description": "サブタイトル"
+      "description": "サブタイトル（128文字以内）"
     },
     "series_name": {
       "type": "string",
       "maxLength": 128,
-      "description": "シリーズ名"
+      "description": "シリーズ名（128文字以内）"
     },
     "description": {
       "type": "string",
       "maxLength": 2000,
-      "description": "商品説明"
+      "description": "商品説明（2000文字以内）"
     },
     "back_cover_text": {
       "type": "string",
       "maxLength": 1000,
-      "description": "裏表紙テキスト"
+      "description": "裏表紙テキスト（1000文字以内）"
     },
     "target_audience": {
       "type": "string",
       "maxLength": 50,
-      "description": "ターゲット読者"
+      "description": "ターゲット読者（50文字以内）"
     },
     "keywords": {
       "type": "array",
@@ -46,7 +46,8 @@
         "maxLength": 32,
         "description": "キーワード"
       },
-      "maxItems": 7
+      "maxItems": 7,
+      "description": "検索キーワード（最大7件、各32文字以内）"
     },
     "categories": {
       "type": "array",
@@ -56,7 +57,8 @@
         "description": "カテゴリ"
       },
       "minItems": 1,
-      "maxItems": 2
+      "maxItems": 2,
+      "description": "KDPカテゴリ（1-2件、各64文字以内）"
     },
     "content_warnings": {
       "type": "array",
@@ -69,7 +71,7 @@
     "author_note": {
       "type": "string",
       "maxLength": 500,
-      "description": "著者ノート"
+      "description": "著者ノート（500文字以内）"
     }
   }
 }

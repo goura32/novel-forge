@@ -17,37 +17,41 @@
     "title": {
       "type": "string",
       "maxLength": 128,
-      "description": "シリーズのタイトル"
+      "description": "シリーズのタイトル（128文字以内）"
     },
     "logline": {
       "type": "string",
       "maxLength": 200,
-      "description": "シリーズのあらすじ"
+      "description": "シリーズのあらすじ（200文字以内）"
     },
     "genre": {
       "type": "array",
       "items": {
         "type": "string",
         "maxLength": 64
-      }
+      },
+      "description": "ジャンル（各64文字以内）"
     },
     "target_audience": {
       "type": "string",
-      "maxLength": 128
+      "maxLength": 128,
+      "description": "ターゲット読者（128文字以内）"
     },
     "themes": {
       "type": "array",
       "items": {
         "type": "string",
         "maxLength": 128
-      }
+      },
+      "description": "テーマ（各128文字以内）"
     },
     "selling_points": {
       "type": "array",
       "items": {
         "type": "string",
         "maxLength": 200
-      }
+      },
+      "description": "売りポイント（各200文字以内）"
     },
     "world": {
       "type": "object",
@@ -58,14 +62,16 @@
       "properties": {
         "summary": {
           "type": "string",
-          "maxLength": 500
+          "maxLength": 500,
+          "description": "世界観の概要（500文字以内）"
         },
         "rules": {
           "type": "array",
           "items": {
             "type": "string",
             "maxLength": 200
-          }
+          },
+          "description": "世界観のルール（各200文字以内）"
         }
       }
     },

@@ -13,7 +13,7 @@
     "title": {
       "type": "string",
       "maxLength": 128,
-      "description": "章タイトル"
+      "description": "章タイトル（128文字以内）"
     },
     "purpose": {
       "type": "string",
@@ -24,17 +24,17 @@
         "クライマックス",
         "収束"
       ],
-      "description": "章の役割"
+      "description": "章の役割（「導入」「展開」「転換」「クライマックス」「収束」から選択）"
     },
     "theme": {
       "type": "string",
       "maxLength": 300,
-      "description": "章のテーマ"
+      "description": "章のテーマ（300文字以内）"
     },
     "emotional_arc": {
       "type": "string",
       "maxLength": 300,
-      "description": "感情の弧"
+      "description": "感情の弧（300文字以内）"
     },
     "foreshadowing_notes": {
       "type": "array",
@@ -42,7 +42,7 @@
         "type": "string",
         "maxLength": 300
       },
-      "description": "伏線メモ"
+      "description": "伏線メモ（各300文字以内）"
     },
     "subplot_notes": {
       "type": "array",
@@ -50,7 +50,7 @@
         "type": "string",
         "maxLength": 300
       },
-      "description": "サブプロットメモ"
+      "description": "サブプロットメモ（各300文字以内）"
     },
     "changes": {
       "type": "array",
@@ -63,12 +63,12 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "修正後のテキスト"
           }
         }

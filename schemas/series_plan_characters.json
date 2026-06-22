@@ -12,78 +12,57 @@
           "name": {
             "type": "string",
             "maxLength": 64,
-            "description": "キャラクター名（フルネーム）"
+            "description": "キャラクター名（フルネーム、64文字以内）"
           },
           "role": {
             "type": "string",
-            "enum": [
-              "主人公",
-              "ヒロイン",
-              "相棒",
-              "敵対者",
-              "師匠",
-              "仲間"
-            ],
-            "description": "役割"
-          },
-          "arc": {
-            "type": "string",
-            "maxLength": 300,
-            "description": "シリーズを通じた成長・変化"
-          },
-          "gender": {
-            "type": "string",
-            "enum": [
-              "男性",
-              "女性",
-              "その他"
-            ],
-            "description": "性別"
-          },
-          "age": {
-            "type": "string",
-            "maxLength": 32,
-            "description": "年齢（例: 28歳）"
-          },
-          "occupation": {
-            "type": "string",
-            "maxLength": 128,
-            "description": "職業・立場"
+            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間等）"
           },
           "personality": {
             "type": "string",
-            "maxLength": 300,
-            "description": "性格・特徴"
-          },
-          "appearance": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "外見的特徴"
-          },
-          "background": {
-            "type": "string",
-            "maxLength": 300,
-            "description": "過去・経歴"
+            "maxLength": 500,
+            "description": "性格・特徴（500文字以内）"
           },
           "motivation": {
             "type": "string",
             "maxLength": 500,
-            "description": "動機・目標"
+            "description": "動機・目標（500文字以内）"
           },
           "flaw": {
             "type": "string",
             "maxLength": 500,
-            "description": "欠点・弱み"
+            "description": "欠点・弱み（500文字以内）"
           },
-          "growth": {
+          "arc": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "シリーズを通じた成長・変化（300文字以内）"
+          },
+          "age": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "年齢（例: 28歳、32文字以内）"
+          },
+          "occupation": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "職業・立場（128文字以内）"
+          },
+          "appearance": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "外見的特徴（200文字以内）"
+          },
+          "background": {
             "type": "string",
             "maxLength": 500,
-            "description": "成長の方向性"
+            "description": "過去・経歴（500文字以内）"
           }
         }
       },
       "minItems": 2,
-      "maxItems": 5
+      "maxItems": 5,
+      "description": "メインキャラクター（2-5人）"
     }
   },
   "required": [

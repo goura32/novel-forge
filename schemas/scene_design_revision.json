@@ -12,27 +12,27 @@
     "title": {
       "type": "string",
       "maxLength": 128,
-      "description": "シーンタイトル"
+      "description": "シーンタイトル（128文字以内）"
     },
     "goal": {
       "type": "string",
       "maxLength": 400,
-      "description": "シーン開始時の状況と主人公の行動"
+      "description": "State: 状況 | Action: 行動（400文字以内）"
     },
     "outcome": {
       "type": "string",
       "maxLength": 400,
-      "description": "シーン終了時の実際の結果"
+      "description": "シーン終了時の結果（400文字以内）"
     },
     "conflict": {
       "type": "string",
       "maxLength": 300,
-      "description": "シーン内の障害・対立"
+      "description": "障害・対立（300文字以内）"
     },
     "pov": {
       "type": "string",
       "maxLength": 64,
-      "description": "視点人物"
+      "description": "視点人物（64文字以内）"
     },
     "characters": {
       "type": "array",
@@ -40,7 +40,7 @@
         "type": "string",
         "maxLength": 64
       },
-      "description": "登場人物"
+      "description": "登場人物（各64文字以内）"
     },
     "key_events": {
       "type": "array",
@@ -48,17 +48,17 @@
         "type": "string",
         "maxLength": 200
       },
-      "description": "主要イベント"
+      "description": "主要イベント（各200文字以内）"
     },
     "setting": {
       "type": "string",
       "maxLength": 200,
-      "description": "舞台設定"
+      "description": "舞台設定（200文字以内）"
     },
     "emotional_arc": {
       "type": "string",
       "maxLength": 200,
-      "description": "感情の弧"
+      "description": "感情の弧（200文字以内）"
     },
     "changes": {
       "type": "array",
@@ -71,12 +71,12 @@
         "properties": {
           "before": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "修正前のテキスト"
           },
           "after": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "修正後のテキスト"
           }
         }
