@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from novel_forge.models import VolumeOutline
 from novel_forge.schemas import get_schema
 
+if TYPE_CHECKING:
+    from novel_forge.engine.base import NovelEngineBase
+else:
+    NovelEngineBase = object
 
-class DesignMixin:
+
+class DesignMixin(NovelEngineBase):  # type: ignore[misc]
     """Volume design generation methods for NovelEngine."""
 
     # Scene count estimates by chapter purpose

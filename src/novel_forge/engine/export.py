@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from novel_forge.models import SceneRecord  # used in type hints elsewhere
 
+if TYPE_CHECKING:
+    from novel_forge.engine.base import NovelEngineBase
+else:
+    NovelEngineBase = object
 
-class ExportMixin:
+
+class ExportMixin(NovelEngineBase):  # type: ignore[misc]
     """Export, resume, status methods for NovelEngine."""
 
     def export(self, volume_number: int | None = None) -> dict[str, Any]:

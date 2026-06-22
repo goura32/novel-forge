@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from novel_forge.logging_config import console
 
 from novel_forge.models import VolumeOutline, SceneWriteContext
 
+if TYPE_CHECKING:
+    from novel_forge.engine.base import NovelEngineBase
+else:
+    NovelEngineBase = object
 
-class WriteMixin:
+
+class WriteMixin(NovelEngineBase):  # type: ignore[misc]
     """Scene writing methods for NovelEngine."""
 
     def write(self, volume_number: int | None = None, log_fn=None) -> list[dict[str, Any]]:

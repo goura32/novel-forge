@@ -5,14 +5,19 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
+if TYPE_CHECKING:
+    from novel_forge.engine.base import NovelEngineBase
+else:
+    NovelEngineBase = object
 
-class PlanMixin:
+
+class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     """Series plan generation methods for NovelEngine."""
 
     def plan(self, keywords: str) -> dict[str, Any]:
