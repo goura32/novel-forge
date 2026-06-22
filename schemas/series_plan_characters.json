@@ -67,12 +67,12 @@
           },
           "motivation": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "動機・目標"
           },
           "flaw": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "欠点・弱み"
           },
           "growth": {
