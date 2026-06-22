@@ -44,26 +44,42 @@
 ```json
 {
   "consistency": {
+    "score": 85,
+    "summary": "設定と行動が一貫している。ただし年齢に合わない言動が一部見られる。",
+    "details": "キャラクター「九条涼」の行動は性格設定と整合している。"
   },
   "differentiation": {
+    "score": 90,
+    "summary": "各キャラクターは明確に差別化されている。",
+    "details": "口調・行動パターン・価値観に独自性がある。"
   },
   "growth_arc": {
+    "score": 75,
+    "summary": "成長の方向性は概ね明確だが、一部キャラクターの成長が唐突。",
+    "details": "「霧島鈴音」の成長弧に具体的な転換点を追加するとよい。"
   },
   "world_fit": {
+    "score": 88,
+    "summary": "世界観に自然に適合している。",
+    "details": "遺伝子都市の設定と各キャラクターの役割が整合している。"
   },
   "issues": [
     {
       "severity": "重大",
-      "category": "カテゴリ名",
-      "description": "問題の説明"
+      "category": "consistency",
+      "description": "キャラクターの行動が設定と矛盾している",
+      "affected_elements": ["九条涼"],
+      "suggestion": [{"before": "涼の矛盾する行動", "after": "性格設定に整合した行動"}]
     }
   ],
-  "suggestions": ["改善提案1"]
+  "suggestions": ["キャラクター間の対立軸をより明確にしてください"],
+  "revision_needed": true
 }
 ```
 
 **注意**:
-- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `consistency`, `differentiation`, `growth_arc`, `world_fit` は **オブジェクト** で出力すること。文字列は禁止。
+- 各オブジェクトには `score` (0-100), `summary` (評価の要約), `details` (具体例) を含めること。
 - `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。

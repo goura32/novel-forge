@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
+SCHEMA_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
 
 
 def validate_schemas() -> list[str]:

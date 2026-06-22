@@ -50,26 +50,42 @@
 ```json
 {
   "volume_uniqueness": {
+    "score": 85,
+    "summary": "各巻は明確に異なるテーマ・目的を持っている。",
+    "details": "第1巻は入門編、第2巻は対立編、第3巻は解決編と段階的な構成。"
   },
   "series_flow": {
+    "score": 80,
+    "summary": "巻間の連続性は概ね自然。ただし第2巻から第3巻の変化がやや急激。",
+    "details": "第1巻のクライフハンガーが第2巻の冒頭に繋がしている。"
   },
   "cliffhanger": {
+    "score": 75,
+    "summary": "第1巻・第2巻のクライフハンガーは良好。最終巻は不要。",
+    "details": "第2巻末尾の次巻への引きをさらに強化できる。"
   },
   "theme_consistency": {
+    "score": 88,
+    "summary": "シリーズテーマと各巻のテーマは整合している。",
+    "details": "各巻が「遺伝子」というテーマを異なる角度で深めている。"
   },
   "issues": [
     {
       "severity": "重大",
-      "category": "カテゴリ名",
-      "description": "問題の説明"
+      "category": "theme_consistency",
+      "description": "第2巻のテーマがシリーズテーマと乖離している",
+      "affected_elements": ["第2巻"],
+      "suggestion": [{"before": "第2巻のテーマ（乖離する内容）", "after": "シリーズテーマに整合したテーマ"}]
     }
   ],
-  "suggestions": ["改善提案1"]
+  "suggestions": ["各巻のテーマが重複しないように見直してください"],
+  "revision_needed": true
 }
 ```
 
 **注意**:
-- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- `volume_uniqueness`, `series_flow`, `cliffhanger`, `theme_consistency` は **オブジェクト** で出力すること。文字列は禁止。
+- 各オブジェクトには `score` (0-100), `summary` (評価の要約), `details` (具体例) を含めること。
 - `issues[].severity` は「重大」「重要」「軽微」から選択すること。
 
 **必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。

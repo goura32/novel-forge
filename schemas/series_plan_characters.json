@@ -77,7 +77,7 @@
           },
           "growth": {
             "type": "string",
-            "maxLength": 200,
+            "maxLength": 500,
             "description": "成長の方向性"
           }
         }
