@@ -24,18 +24,21 @@ _STATE_FILE_NAME = ".novel_forge_state"
 _LOCK_TIMEOUT_SECONDS = 300  # 5 min stale lock threshold
 
 
-def _acquire_lock(series_dir: Path, timeout: float = 10.0) -> Path:
+def _acquire_lock(series_dir: Path, timeout: float | None = None) -> Path:
     """Acquire an exclusive lock for a series directory.
 
     Uses a .lock file containing the current PID. If a stale lock is detected
-    (process no longer alive, or lock older than _LOCK_TIMEOUT_SECONDS), it is
-    overwritten. Otherwise, raises an error immediately.
+    (process no longer alive), it is overwritten. Otherwise, waits up to
+    ``timeout`` seconds (default: _LOCK_TIMEOUT_SECONDS).
 
     Caller is responsible for releasing the lock via _release_lock().
     """
+    if timeout is None:
+        timeout = _LOCK_TIMEOUT_SECONDS
     lock_path = series_dir / _LOCK_FILE_NAME
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + timeout
+    last_msg = time.monotonic()
     while True:
         try:
             # O_CREAT | O_EXCL ensures atomic creation
@@ -55,24 +58,20 @@ def _acquire_lock(series_dir: Path, timeout: float = 10.0) -> Path:
                 console.print(f"[yellow]⚠ Stale lock (PID={lock_pid}) detected, removing.[/yellow]")
                 lock_path.unlink(missing_ok=True)
                 continue
-            # Check age — if too old, treat as stale
-            try:
-                mtime = lock_path.stat().st_mtime
-                age = time.time() - mtime
-            except OSError:
-                age = 0
-            if age > _LOCK_TIMEOUT_SECONDS:
-                console.print(f"[yellow]⚠ Lock age {age:.0f}s > {_LOCK_TIMEOUT_SECONDS}s, removing.[/yellow]")
-                lock_path.unlink(missing_ok=True)
-                continue
             if time.monotonic() >= deadline:
                 console.print(
-                    f"[red]✗ Lock held by PID={lock_pid} (age {age:.0f}s). "
+                    f"[red]✗ Lock held by PID={lock_pid} (waited {timeout:.0f}s). "
                     f"Another process is running on this series.[/red]"
                 )
                 console.print("[dim]Wait for it to finish, or remove the lock file manually:[/dim]")
                 console.print(f"  rm {lock_path}")
                 sys.exit(1)
+            # Progress message every 5 seconds
+            now = time.monotonic()
+            if now - last_msg >= 5.0:
+                waited = now - (deadline - timeout)
+                console.print(f"[dim]⏳ Waiting for lock (PID={lock_pid}, waited {waited:.0f}s)...[/dim]")
+                last_msg = now
             time.sleep(0.5)
 
 
@@ -162,12 +161,10 @@ def plan(
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Generate a series plan from keywords."""
-    series_dir = _resolve_series_dir(workdir)
-    with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
-        result = engine.plan(keywords)
-        console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
-        console.print(f"  [dim]Output: {engine._series_dir}[/dim]")
+    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
+    result = engine.plan(keywords)
+    console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
+    console.print(f"  [dim]Output: {engine._series_dir}[/dim]")
 
 
 @app.command()
@@ -321,35 +318,41 @@ def complete(
     original_sigint = signal.signal(signal.SIGINT, _signal_handler)
 
     _write_state("init", "running")
-    with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
-        steps = [
-            ("Plan",   lambda: engine.plan(keywords)),
-            ("Design", lambda: engine.design(volume)),
-            ("Write",  lambda: engine.write(volume)),
-            ("Export", lambda: engine.export(volume)),
-        ]
-        result: dict[str, Any] | None = None
-        try:
-            for i, (name, fn) in enumerate(steps, 1):
-                if _shutdown_requested:
-                    console.print("[yellow]Shutdown requested — stopping before next step[/yellow]")
-                    break
-                _current_step = name
-                _write_state(name, "running")
-                console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
-                try:
+    engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
+    steps = [
+        ("Plan",   lambda: engine.plan(keywords)),
+        ("Design", lambda: engine.design(volume)),
+        ("Write",  lambda: engine.write(volume)),
+        ("Export", lambda: engine.export(volume)),
+    ]
+    result: dict[str, Any] | None = None
+    try:
+        for i, (name, fn) in enumerate(steps, 1):
+            if _shutdown_requested:
+                console.print("[yellow]Shutdown requested — stopping before next step[/yellow]")
+                break
+            _current_step = name
+            _write_state(name, "running")
+            console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
+            try:
+                # Plan はロック不要（新規シリーズ作成）。
+                # Design/Write/Export は既存シリーズに対して排他制御。
+                if name == "Plan":
                     result = fn()
-                except Exception as e:
-                    console.print(f"[red]✗ {name} failed: {e}[/red]")
-                    _write_state(name, f"failed: {e}")
-                    raise SystemExit(1) from e
-                _write_state(name, "completed")
-        finally:
-            signal.signal(signal.SIGTERM, original_sigterm)
-            signal.signal(signal.SIGINT, original_sigint)
-            if result is not None:
-                _write_state("done", "completed")
+                else:
+                    series_dir = _resolve_series_dir(workdir)
+                    with _series_lock(series_dir):
+                        result = fn()
+            except Exception as e:
+                console.print(f"[red]✗ {name} failed: {e}[/red]")
+                _write_state(name, f"failed: {e}")
+                raise SystemExit(1) from e
+            _write_state(name, "completed")
+    finally:
+        signal.signal(signal.SIGTERM, original_sigterm)
+        signal.signal(signal.SIGINT, original_sigint)
+        if result is not None:
+            _write_state("done", "completed")
             # If interrupted or failed, state already written above
         assert result is not None
         console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
