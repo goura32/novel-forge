@@ -55,8 +55,13 @@ class NovelEngineBase:
         self._workdir = workdir
         self._lang = lang
         self._verbose = verbose
-        self._slug: str = ""
+        self._slug = ""
         self._raw_log_enabled = raw_log_enabled
+
+        # Initialize logging (verbose controls stderr level)
+        log_file = Path(workdir) / "novel_forge.log"
+        setup_logging(log_file=log_file if raw_log_enabled else None, verbose=verbose)
+
         self._log = get_logger("novel_forge.engine")
         self._storage = StateStorage(self._series_dir)
         self._bb_storage = BlackboardStorage(self._series_dir)
