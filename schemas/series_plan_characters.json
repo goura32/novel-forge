@@ -83,7 +83,7 @@
         }
       },
       "minItems": 2,
-      "maxItems": 5,
+      "maxItems": 5
     }
   },
   "required": [
