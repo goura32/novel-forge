@@ -8,6 +8,8 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+
+from novel_forge.validate_schemas import validate_schemas
 from typing import Any, Callable
 
 import yaml
@@ -61,6 +63,16 @@ class NovelEngineBase:
         # Initialize logging (verbose controls stderr level)
         log_file = Path(workdir) / "novel_forge.log"
         setup_logging(log_file=log_file if raw_log_enabled else None, verbose=verbose)
+
+        # Validate all schema files are parseable — fail fast before any LLM call
+        schema_errors = validate_schemas()
+        if schema_errors:
+            for err in schema_errors:
+                print(f"✗ Schema error: {err}")
+            raise SystemExit(
+                f"Schema validation failed — {len(schema_errors)} file(s) have errors. "
+                "Fix schema files before running."
+            )
 
         self._log = get_logger("novel_forge.engine")
         self._storage = StateStorage(self._series_dir)
