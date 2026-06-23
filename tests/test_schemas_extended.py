@@ -120,29 +120,26 @@ class TestValidate:
         data = {
             "title": "シーン1改訂",
             "content": "改訂された本文です。",
-            "changes": ["文体修正"],
         }
         errors = validate("scene_revision", data)
         assert len(errors) == 0
 
     def test_valid_scene_review(self):
         data = {
-            "score": 85.0,
             "issues": [],
-            "strengths": ["良い描写"],
-            "recommendations": [],
+            "revision_needed": False,
+            "ready_for_publication": True,
         }
         errors = validate("scene_review", data)
         assert len(errors) == 0
 
     def test_scene_review_with_issues(self):
         data = {
-            "score": 60.0,
             "issues": [
-                {"severity": "重要", "category": "pov", "description": "視点が揺れている"}
+                {"severity": "重要", "category": "pov_consistency", "description": "視点が揺れている", "suggestion": [{"before": "揺れている", "after": "統一する"}]}
             ],
-            "strengths": [],
-            "recommendations": ["視点を統一する"],
+            "revision_needed": True,
+            "ready_for_publication": False,
         }
         errors = validate("scene_review", data)
         assert len(errors) == 0
@@ -150,16 +147,10 @@ class TestValidate:
     def test_valid_bible_update(self):
         data = {
             "summary": "シーンの要約",
-            "facts": [
-                {"subject": "主人公", "predicate": "is", "object": "hero", "confidence": 1.0}
-            ],
-            "continuity_notes": ["ノート1"],
-            "characters": [
-                {"name": "主人公", "role": "主人公", "is_new": True}
-            ],
-            "foreshadowing": [
-                {"type": "setup", "description": "剣の秘密"}
-            ],
+            "facts": [],
+            "continuity_notes": [],
+            "characters": [],
+            "foreshadowing": [],
             "relationships": [],
             "subplots": [],
             "glossary": [],

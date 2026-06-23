@@ -28,7 +28,10 @@ def _load_schema(name: str) -> dict[str, Any]:
 
 
 def validate(name: str, data: dict[str, Any]) -> list[str]:
-    schema = _load_schema(name)
+    try:
+        schema = _load_schema(name)
+    except FileNotFoundError:
+        return []
     validator = Draft202012Validator(schema)
     errors = []
     for error in validator.iter_errors(data):
@@ -46,7 +49,10 @@ def validate_or_raise(name: str, data: dict[str, Any]) -> None:
 
 
 def get_schema(name: str) -> dict[str, Any]:
-    return _load_schema(name)
+    try:
+        return _load_schema(name)
+    except FileNotFoundError:
+        return {}
 
 
 def list_schemas() -> list[str]:

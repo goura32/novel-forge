@@ -151,7 +151,7 @@ class LLMClient:
         current_prompt = user_prompt
         self._current_kind = kind
         raw_text, thinking = "", ""
-        for attempt in range(self.max_retries):
+        for attempt in range(max(self.max_retries, 1)):
             raw_text, thinking = "", ""
             try:
                 payload["messages"][1]["content"] = current_prompt
