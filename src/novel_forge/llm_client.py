@@ -168,16 +168,15 @@ class LLMClient:
                     "  [LLM DONE] kind=%s elapsed=%.1fs",
                     kind, _call_elapsed,
                 )
+                self._write_raw_log(f"response_{attempt}", raw_text)
                 parsed = parse_json_response(raw)
                 if schema:
                     parsed = coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
-                self._write_raw_log(f"response_{attempt}", raw_text)
                 return parsed
             except JsonParseError as e:
                 last_error = e
-                self._write_raw_log(f"_json_err_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
