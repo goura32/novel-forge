@@ -156,6 +156,7 @@ class LLMClient:
             try:
                 payload["messages"][1]["content"] = current_prompt
                 payload["options"]["seed"] = 42 + attempt + seed_offset
+                self._write_raw_log(f"request_{attempt}", json.dumps(payload, ensure_ascii=False))
                 self._log.debug(
                     "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d",
                     kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset,
@@ -255,7 +256,6 @@ class LLMClient:
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str]:
         """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason)."""
         stream_payload = {**payload, "stream": True}
-        self._write_raw_log("request", json.dumps(stream_payload, ensure_ascii=False))
         lines: list[str] = []
         chunk_count = 0
         total_bytes = 0

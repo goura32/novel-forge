@@ -121,7 +121,7 @@ LLM呼び出しの生データを `_raw_logs/{phase}/{pid}_{kind}/` に gzip 保
 
 | イベント | ファイル名 | 内容 |
 |---|---|---|
-| LLM呼び出し前 | `req.json.gz` | リクエストペイロード |
+| LLM呼び出し前 (attempt N) | `request_N.json.gz` | リクエストペイロード |
 | 成功時 (attempt N) | `response_N.json.gz` | 成功したLLM出力 |
 | JSONパースエラー時 (attempt N) | `_json_err_N.json.gz` | 不正なJSONの出力 |
 | スキーマエラー時 (attempt N) | `_schema_err_N.json.gz` | スキーマ不一致の出力 |
