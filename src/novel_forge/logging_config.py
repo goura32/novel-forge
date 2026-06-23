@@ -22,12 +22,14 @@ console = Console()
 def setup_logging(
     log_file: Path | None = None,
     verbose: bool = False,
+    log_level: str = "DEBUG",
 ) -> logging.Logger:
     """ロギングを設定する。
 
     Args:
         log_file: ログファイルパス。指定した場合のみファイルに記録。
         verbose: True の場合、stderr にもデバッグレベルで出力。
+        log_level: ログファイルのレベル。DEBUG/INFO/WARNING/ERROR/CRITICAL。
 
     Returns:
         設定済みのルートロガー。
@@ -43,11 +45,11 @@ def setup_logging(
     )
     stderr_fmt = logging.Formatter("[PID %(process)d] [%(levelname)s] %(message)s")
 
-    # ハンドラ1: ログファイル（常に DEBUG 以上）
+    # ハンドラ1: ログファイル（指定されたレベル以上）
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         fh = logging.FileHandler(str(log_file), encoding="utf-8")
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(getattr(logging, log_level.upper(), logging.DEBUG))
         fh.setFormatter(file_fmt)
         logger.addHandler(fh)
 

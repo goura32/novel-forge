@@ -133,7 +133,7 @@ class ContextBuilder:
                 )
             )
         if bible.subplots:
-            active_subplots = [sp for sp in bible.subplots if sp.status != "completed"]
+            active_subplots = [sp for sp in bible.subplots if sp.status not in ("completed", "完了")]
             if active_subplots:
                 parts.append(
                     "## サブプロット\n"

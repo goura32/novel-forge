@@ -32,8 +32,9 @@
 - 複数の変更がある場合は、すべての変更を配列要素として列挙すること
 - 各要素は100字以内に収めること
 
-## 出力スキーマ
-`series_plan_volumes_revision.json` に適合する JSON を出力すること。
+## 出力
+
+`schemas/series_plan_volumes_revision.json` に適合する JSON を出力すること。
 
 ```json
 {
@@ -47,7 +48,7 @@
       "cliffhanger": "次巻へのフック"
     }
   ],
-  "changes": ["修正内容1", "修正内容2"]
+  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
 }
 ```
 

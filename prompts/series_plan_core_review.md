@@ -35,6 +35,13 @@
    - **減点要素**: ルール同士が矛盾している、ルールが不明確
    - **高評価要素**: ルールが明確で一貫している
 
+## 改稿要否（revision_needed）の判定
+
+- 「重大」 issue が1つでもある → `true`
+- 「重要」 issue が2つ以上ある → `true`
+- 「軽微」 issue のみ、または issue なし → `false`
+- 「重要」 issue が1つだけ → `false`
+
 ## 出力
 
 `series_plan_core_review.json` スキーマに適合する JSON を出力すること。
@@ -60,30 +67,21 @@
     {
       "severity": "重大",
       "category": "カテゴリ名",
-      "description": "問題の説明"
+      "description": "問題の説明",
+      "suggestion": [{"before": "修正前", "after": "修正後"}]
     }
   ],
-  "suggestions": ["改善提案1"],
   "revision_needed": false
 }
 ```
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- **すべてのフィールドを必ず出力すること。省略禁止。** スキーマに存在するすべてのキーに対応する値を記述すること。
 - `issues[].severity` は「重大」「重要」「軽微」から選択すること。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
 
-**必須**: スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう問題かを記述すること。
-
-## 改稿要否（revision_needed）の判定
-
-`revision_needed` は以下の条件のいずれかに該当する場合のみ `true` とすること:
-
-- 「重大」 issue が1つでもある → `true`
-- 「重要」 issue が2つ以上ある → `true`
-- 「軽微」 issue のみ、または issue なし → `false`
-- 「重要」 issue が1つだけ → `false`
-
-`revision_needed` は JSON のトップレベルフィールドとして出力すること。
+**必須**: issue がない場合でも、`issues` には空配列ではなく、改善点を記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう改善できるかを記述すること。
 
 ## issues 出力ルール（厳守）
 
@@ -110,7 +108,6 @@
       "suggestion": [{"before": "現在のタイトル", "after": "具体的なイメージを喚起するタイトル"}]
     }
   ],
-  "suggestions": ["全体的にタイトルの印象力を強化してください"],
   "revision_needed": true
 }
 ```

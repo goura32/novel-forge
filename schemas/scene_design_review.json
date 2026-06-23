@@ -10,7 +10,7 @@
     "setting_event_completeness",
     "scene_diversity",
     "issues",
-    "suggestions"
+    "revision_needed"
   ],
   "properties": {
     "goal_outcome_coherence": {
@@ -22,16 +22,13 @@
       ],
       "properties": {
         "goal_clear": {
-          "type": "boolean",
-          "description": "シーンの目標が明確か"
+          "type": "boolean"
         },
         "outcome_follows": {
-          "type": "boolean",
-          "description": "結果が目標から自然に導かれるか"
+          "type": "boolean"
         },
         "connects_to_next": {
-          "type": "boolean",
-          "description": "結果が次のシーンの目標に繋がるか"
+          "type": "boolean"
         }
       }
     },
@@ -43,12 +40,10 @@
       ],
       "properties": {
         "conflict_exists": {
-          "type": "boolean",
-          "description": "葛藤が存在するか"
+          "type": "boolean"
         },
         "conflict_meaningful": {
-          "type": "boolean",
-          "description": "葛藤が物語に意味を持つか"
+          "type": "boolean"
         }
       }
     },
@@ -60,12 +55,10 @@
       ],
       "properties": {
         "pov_clear": {
-          "type": "boolean",
-          "description": "POVが明確か"
+          "type": "boolean"
         },
         "character_actions_consistent": {
-          "type": "boolean",
-          "description": "キャラクターの行動が設定と矛盾しないか"
+          "type": "boolean"
         }
       }
     },
@@ -77,29 +70,25 @@
       ],
       "properties": {
         "setting_clear": {
-          "type": "boolean",
-          "description": "舞台設定が明確か"
+          "type": "boolean"
         },
         "key_events_sufficient": {
-          "type": "boolean",
-          "description": "主要イベントが十分か"
+          "type": "boolean"
         }
       }
     },
     "scene_diversity": {
       "type": "object",
       "required": [
-        "diverse_from_previous",
+        "differs_from_previous",
         "story_progresses"
       ],
       "properties": {
-        "diverse_from_previous": {
-          "type": "boolean",
-          "description": "前シーンと異なる出来事・感情・葛藤を持っているか"
+        "differs_from_previous": {
+          "type": "boolean"
         },
         "story_progresses": {
-          "type": "boolean",
-          "description": "シーン間で物語が前進しているか"
+          "type": "boolean"
         }
       }
     },
@@ -160,12 +149,9 @@
         }
       }
     },
-    "suggestions": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "改善提案"
-      }
+    "revision_needed": {
+      "type": "boolean",
+      "description": "改稿が必要かどうか。重大 issue がある場合、または重要 issue が2つ以上ある場合に true。軽微 issue のみ、issue なし、重要 1つの場合は false。"
     }
   }
 }

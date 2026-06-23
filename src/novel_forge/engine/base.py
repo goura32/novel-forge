@@ -9,11 +9,10 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from typing import Any, Callable
 
 from novel_forge.validate_schemas import validate_schemas
 from typing import Any, Callable
-
-import yaml
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
@@ -31,9 +30,58 @@ from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.logging_config import setup_logging, get_logger, console
 
 
+_OLLAMA_OPTION_KEYS = [
+    "temperature",
+    "top_k",
+    "top_p",
+    "repeat_penalty",
+    "presence_penalty",
+    "frequency_penalty",
+    "num_ctx",
+    "num_predict",
+    "seed",
+    "stop",
+    "tfs_z",
+    "typical_p",
+    "mirostat",
+    "mirostat_tau",
+    "mirostat_eta",
+    "penalize_newline",
+]
+
+
+def _build_ollama_options(llm_cfg: dict) -> dict:
+    """config.yaml から ollama options 辞書を構築する。
+
+    ollama_options が明示されていればそれを基準にし、
+    llm 直下の個別パラメータで上書きする。
+    """
+    options = dict(llm_cfg.get("ollama_options") or {})
+    for key in _OLLAMA_OPTION_KEYS:
+        if key in llm_cfg and llm_cfg[key] is not None:
+            options[key] = llm_cfg[key]
+    # think は Ollama API レベルのパラメータだが、
+    # LLMClient が ollama_options から読み取るため、ここで含める
+    if "think" in llm_cfg:
+        options["think"] = llm_cfg["think"]
+    return options
+
+
+def _is_process_alive(pid: int) -> bool:
+    """Check if a process with the given PID exists."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
 class NovelEngineBase:
     """Base class for NovelEngine — __init__, helpers, state management."""
 
+    _signal_cleanup: Any = None
     _BLOCKER = "致命的"
     _CRITICAL = "重大"
     _MAJOR = "重要"
@@ -52,18 +100,29 @@ class NovelEngineBase:
         prompt_manager: PromptManager | None = None,
         config: dict[str, Any] | None = None,
         max_review_retries: int | None = None,
-        verbose: bool = False,
-        raw_log_enabled: bool = False,
+        verbose: bool | None = None,
+        raw_log_enabled: bool | None = None,
+        phase: str = "",
     ):
         self._workdir = workdir
+        self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
-        self._verbose = verbose
-        self._slug = ""
-        self._raw_log_enabled = raw_log_enabled
 
-        # Initialize logging (verbose controls stderr level)
+        # config.yaml 読み込み（1回のみ）
+        cfg = config if config is not None else load_config()
+
+        # logging 設定: CLI引数 > config.yaml > デフォルト
+        log_cfg = cfg.get("logging", {})
+        self._verbose = verbose if verbose is not None else log_cfg.get("verbose", False)
+        self._raw_log_enabled = raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
+        self._log_level = log_cfg.get("log_level", "DEBUG")
+        self._slug = ""
+        self._phase = phase
+
+        # Initialize logging
+        # ログ出力先はフェーズに関係なく workdir に統一
         log_file = Path(workdir) / "novel_forge.log"
-        setup_logging(log_file=log_file if raw_log_enabled else None, verbose=verbose)
+        setup_logging(log_file=log_file, verbose=self._verbose, log_level=self._log_level)
 
         # Validate all schema files are parseable — fail fast before any LLM call
         schema_errors = validate_schemas()
@@ -80,7 +139,18 @@ class NovelEngineBase:
         self._bb_storage = BlackboardStorage(self._series_dir)
         self._bible_storage = BibleStorage(self._series_dir)
 
-        cfg = config if config is not None else load_config()
+        # 古いロックファイルの自動削除
+        lock_path = Path(workdir) / ".lock"
+        if lock_path.exists():
+            try:
+                lock_pid = int(lock_path.read_text().strip())
+                if not _is_process_alive(lock_pid):
+                    lock_path.unlink(missing_ok=True)
+                    console.print(f"[dim]⚠ Removed stale lock (PID={lock_pid}): {lock_path}[/dim]")
+            except (ValueError, OSError):
+                lock_path.unlink(missing_ok=True)
+                console.print(f"[dim]⚠ Removed corrupted lock: {lock_path}[/dim]")
+
         if llm_client is None:
             llm_cfg = cfg.get("llm", {})
             model = model or self._DEFAULT_MODEL
@@ -98,11 +168,12 @@ class NovelEngineBase:
                 model=model,
                 raw_log_dir=Path(workdir) / "_raw_logs",
                 raw_log_enabled=self._raw_log_enabled,
+                phase=phase,
                 timeout_seconds=timeout,
                 max_retries=max_retries,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
-                ollama_options=llm_cfg.get("ollama_options"),
+                ollama_options=_build_ollama_options(llm_cfg),
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
@@ -263,50 +334,15 @@ class NovelEngineBase:
         vol.scenes.append(record)
         return record
 
-    def _ensure_config(self) -> None:
-        """Generate config.yaml from template if it doesn't exist in workdir."""
-        config_path = self._workdir / "config.yaml"
-        if config_path.exists():
-            return
-        # Look for template in project root (parent of src/)
-        template = Path(__file__).resolve().parent.parent.parent / "config.yaml"
-        if template.exists():
-            shutil.copy2(template, config_path)
-            return
-        # Fallback: create minimal config with defaults
-        default_config = {
-            "llm": {
-                "model": NovelEngineBase._DEFAULT_MODEL,
-                "num_predict": NovelEngineBase._DEFAULT_NUM_PREDICT,
-                "num_ctx": NovelEngineBase._DEFAULT_NUM_CTX,
-                "timeout_seconds": NovelEngineBase._DEFAULT_TIMEOUT,
-                "max_retries": NovelEngineBase._DEFAULT_MAX_RETRIES,
-                "ollama_options": {
-                    "temperature": 0.7,
-                    "top_k": 20,
-                    "top_p": 0.80,
-                    "repeat_penalty": 1.0,
-                    "presence_penalty": 1.5,
-                },
-            },
-            "quality": {
-                "max_review_retries": 2,
-            },
-        }
-        try:
-            with open(config_path, "w", encoding="utf-8") as f:
-                yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
-        except Exception:
-            self._log.debug("config.yaml creation skipped (non-critical)")
-
     def _review_and_revise(
         self,
         item: dict,
         review_fn: Callable,
         revise_fn: Callable,
         system: str,
-        max_retries: int = 3,
+        max_retries: int | None = None,
         label: str = "",
+        on_revise: Callable | None = None,
     ) -> dict:
         """Generic review → revise loop.
 
@@ -317,7 +353,12 @@ class NovelEngineBase:
             system: System prompt string.
             max_retries: Maximum number of review/revise cycles.
             label: Label for stderr logging.
+            on_revise: Optional callback(revised_item, version) called after each revision.
         """
+        if max_retries is None:
+            max_retries = self._quality.max_retries
+        if max_retries < 1:
+            raise ValueError(f"max_retries must be >= 1, got {max_retries}")
         seed_offset = 0
         review = review_fn(item, system, seed_offset=seed_offset)
         for retry in range(max_retries):
@@ -333,6 +374,8 @@ class NovelEngineBase:
                 retry + 1, max_retries,
             )
             seed_offset += 1
-            item = revise_fn(item, review, system, seed_offset=seed_offset)
+            item = revise_fn(item, review, system)
+            if on_revise:
+                on_revise(item, retry + 1)
             review = review_fn(item, system, seed_offset=seed_offset)
         return item

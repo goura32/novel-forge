@@ -36,6 +36,13 @@
 - 「重要」: 品質に大きく影響する（ペースの崩れ、キャラクターの不自然な行動）
 - 「軽微」: 改善点としては望ましいが必須ではない
 
+## 改稿要否（revision_needed）の判定
+
+- 「重大」 issue が1つでもある → `true`
+- 「重要」 issue が2つ以上ある → `true`
+- 「軽微」 issue のみ、または issue なし → `false`
+- 「重要」 issue が1つだけ → `false`
+
 ## 出力スキーマ
 
 `volume_design_review.json` に適合する JSON を出力すること。
@@ -70,16 +77,17 @@
       "severity": "重大",
       "category": "カテゴリ名（64文字以内）",
       "description": "問題の説明（500文字以内）",
-      "affected_elements": ["要素1", "要素2"]
+      "affected_elements": ["要素1", "要素2"],
+      "suggestion": [{"before": "修正前", "after": "修正後"}]
     }
   ],
-  "suggestions": ["改善提案1", "改善提案2"],
   "revision_needed": false
 }
 ```
 
 **注意**:
 - 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- **すべてのフィールドを必ず出力すること。省略禁止。** スキーマに存在するすべてのキーに対応する値を記述すること。
 - `pace_analysis` の ratio は 0〜100 の数値。合計が 100 に収まるようにすること。
 - `character_arc_review.arc_believability` は 0〜100 の数値。
 - `issues[].severity` は「重大」「重要」「軽微」から選択すること。
@@ -95,3 +103,5 @@
   "suggestion": [{"before": "第5章のpurpose「転換」", "after": "第5章のpurpose「収束」"}]
 }
 ```
+
+言語: {lang}

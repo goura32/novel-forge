@@ -8,29 +8,24 @@
     "series_flow",
     "cliffhanger",
     "theme_consistency",
-    "issues",
-    "suggestions"
+    "issues"
   ],
   "properties": {
     "volume_uniqueness": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "巻の独自性の評価コメント"
     },
     "series_flow": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "シリーズ全体の流れの評価コメント"
     },
     "cliffhanger": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "クライフハンガーの評価コメント"
     },
     "theme_consistency": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "テーマの一貫性の評価コメント"
     },
     "issues": {
       "type": "array",
@@ -78,12 +73,6 @@
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
         }
-      }
-    },
-    "suggestions": {
-      "type": "array",
-      "items": {
-        "type": "string"
       }
     }
   }

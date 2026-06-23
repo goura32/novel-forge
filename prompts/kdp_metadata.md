@@ -18,16 +18,16 @@
 
 ```json
 {
-  "title": "タイトル（128文字以内）",
-  "subtitle": "サブタイトル（128文字以内）",
-  "series_name": "シリーズ名（128文字以内）",
-  "description": "商品説明（2000文字以内）",
-  "back_cover_text": "裏表紙テキスト（1000文字以内）",
-  "target_audience": "ターゲット読者（50文字以内）",
+  "title": "タイトル",
+  "subtitle": "サブタイトル",
+  "series_name": "シリーズ名",
+  "description": "商品説明",
+  "back_cover_text": "裏表紙テキスト",
+  "target_audience": "ターゲット読者",
   "keywords": ["キーワード1", "キーワード2", "キーワード3"],
   "categories": ["カテゴリ1", "カテゴリ2"],
   "content_warnings": ["警告1"],
-  "author_note": "著者ノート（500文字以内）"
+  "author_note": "著者ノート"
 }
 ```
 

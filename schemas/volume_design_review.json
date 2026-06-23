@@ -8,8 +8,7 @@
     "scene_coherence",
     "pace_analysis",
     "character_arc_review",
-    "issues",
-    "suggestions"
+    "issues"
   ],
   "properties": {
     "structural_validity": {
@@ -148,13 +147,6 @@
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
         }
-      }
-    },
-    "suggestions": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "改善提案"
       }
     }
   }

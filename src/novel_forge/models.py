@@ -20,8 +20,8 @@ class Blackboard(BaseModel):
     facts: list[Fact] = Field(default_factory=list)
     scene_summaries: dict[str, str] = Field(default_factory=dict)
     continuity_notes: list[str] = Field(default_factory=list)
-    subplots: list[SubplotItem] = Field(default_factory=list)
-    timeline: list[dict[str, Any]] = Field(default_factory=list)  # [{"event": str, "scene_number": int, "timestamp": str}]
+    subplots: list["SubplotItem"] = Field(default_factory=list)
+    timeline: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # ── 設定資料集（Bible）────────────────────────────────────────────────
@@ -49,11 +49,11 @@ class ForeshadowingItem(BaseModel):
 class RelationshipItem(BaseModel):
     character_a: str
     character_b: str
-    relationship_type: str = ""  # 敵対・協力・恋愛・師弟・家族・ライバル etc
-    status: str = ""  # 良好・緊張・悪化・修復・変化中
-    change_direction: str = ""  # 改善 | 悪化 | 変化 | 変化なし
+    relationship_type: str = ""
+    status: str = ""
+    change_direction: str = ""
     trigger_event: str = ""
-    scene_number: int = 0  # 変化が起きたシーン番号
+    scene_number: int = 0
 
 
 class SubplotItem(BaseModel):
@@ -174,7 +174,7 @@ class SceneRecord(BaseModel):
         pattern="^(計画中|初稿済|レビュー済|修正済|強制出力済|エラー)$",
     )
     quality_retries: int = Field(ge=0, default=0)
-    draft_version: int = Field(ge=1, default=1)  # 版番号（初稿=1, 修正=2, ...）
+    draft_version: int = Field(ge=1, default=1)
     quality_gate: QualityGateResult = Field(default_factory=QualityGateResult)
     design: SceneDesign | None = None
     draft_path: str = ""
@@ -224,3 +224,5 @@ class SceneWriteContext(BaseModel):
     get_scene_summary_fn: Any = None      # (scene) -> str
     get_bible_text_fn: Any = None         # () -> str
     load_scene_draft_fn: Any = None       # (vol_num: int, scene_number: int, chapter_number: int = 1) -> str
+
+Blackboard.model_rebuild()

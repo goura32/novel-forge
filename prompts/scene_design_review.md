@@ -94,15 +94,19 @@
     "setting_clear": false,
     "key_events_sufficient": false,
   },
+  "scene_diversity": {
+    "differs_from_previous": false,
+    "story_progresses": false,
+  },
   "issues": [
     {
       "severity": "重大",
       "category": "カテゴリ名",
       "description": "問題の説明",
-      "affected_elements": ["要素1"]
+      "affected_elements": ["要素1"],
+      "suggestion": [{"before": "修正前", "after": "修正後"}]
     }
   ],
-  "suggestions": ["改善提案1"],
   "revision_needed": false
 }
 ```
@@ -125,6 +129,6 @@
 }
 ```
 
-**必須**: 各評価カテゴリの `score` は 0-100 の範囲で出力すること。0が最低、100が最高。総合評価の `score` も 0-100 の範囲で出力すること。スコアが 85 未満の場合、必ず `issues` に具体的な問題点を記述すること。問題点がない場合は、改善点を `suggestions` に記述すること。「問題なし」「良好」等の記述は禁止。
+**必須**: issue がない場合でも、`issues` には空配列ではなく、改善点を記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう改善できるかを記述すること。
 
 言語: {lang}

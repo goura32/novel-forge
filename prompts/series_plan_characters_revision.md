@@ -37,8 +37,9 @@
 - 複数の変更がある場合は、すべての変更を配列要素として列挙すること
 - 各要素は100字以内に収めること
 
-## 出力スキーマ
-`series_plan_characters_revision.json` に適合する JSON を出力すること。
+## 出力
+
+`schemas/series_plan_characters_revision.json` に適合する JSON を出力すること。
 
 ```json
 {
@@ -46,28 +47,26 @@
     {
       "name": "キャラクター名",
       "role": "主人公",
-      "arc": "成長の方向性（300文字以内）",
+      "arc": "成長の方向性",
       "gender": "男性",
       "age": "28歳",
       "occupation": "職業",
-      "personality": "性格（500文字以内）",
+      "personality": "性格",
       "appearance": "外見",
-      "background": "経歴（500文字以内）",
-      "motivation": "動機（500文字以内）",
-      "flaw": "欠点（500文字以内）",
-      "growth": "成長の方向性（500文字以内）"
+      "background": "経歴",
+      "motivation": "動機",
+      "flaw": "欠点",
+      "growth": "成長の方向性"
     }
   ],
   "changes": [
-    {"before": "修正前のテキスト", "after": "修正後のテキスト"},
-    {"before": "修正前のテキスト2", "after": "修正後のテキスト2"}
+    {"before": "修正前のテキスト", "after": "修正後のテキスト"}
   ]
 }
 ```
 
 **注意**:
 - `changes` の各要素は `before`（修正前）と `after`（修正後）を含む **オブジェクト** であること。文字列は禁止。
-- `personality`, `background`, `motivation`, `flaw`, `growth` の `maxLength` は500文字。
-- `arc` の `maxLength` は300文字。
+- 複数の変更がある場合は、すべての変更を配列要素として列挙すること。
 
 **重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。

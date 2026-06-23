@@ -9,6 +9,28 @@ from typing import Any
 from novel_forge.models import ProjectState, Blackboard, Bible
 
 
+def _atomic_write(path: Path, content: str) -> None:
+    """ファイルをアトミックに書き込む。書き込み中のクラッシュによる破損を防ぐ。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    try:
+        os.write(fd, content.encode("utf-8"))
+        os.close(fd)
+        fd = -1
+        os.rename(tmp_path, path)
+    except Exception:
+        if fd >= 0:
+            os.close(fd)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+
+def _model_to_json(model: Any) -> str:
+    """PydanticモデルをJSON文字列に変換する。"""
+    return json.dumps(model.model_dump(), ensure_ascii=False, indent=2)
+
+
 class StateStorage:
     def __init__(self, workdir: Path):
         self._workdir = workdir
@@ -31,28 +53,11 @@ class StateStorage:
             return ProjectState(workdir=str(self._workdir))
 
     def save(self, state: ProjectState) -> None:
-        self._workdir.mkdir(parents=True, exist_ok=True)
-        self._state_path.parent.mkdir(parents=True, exist_ok=True)
         if self._state_path.exists():
             self._backup_path.write_text(
                 self._state_path.read_text(encoding="utf-8"), encoding="utf-8"
             )
-        data = state.model_dump()
-        content = json.dumps(data, ensure_ascii=False, indent=2)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(self._state_path.parent), suffix=".tmp"
-        )
-        try:
-            os.write(fd, content.encode("utf-8"))
-            os.close(fd)
-            fd = -1
-            os.rename(tmp_path, self._state_path)
-        except Exception:
-            if fd >= 0:
-                os.close(fd)
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
+        _atomic_write(self._state_path, _model_to_json(state))
 
 
 class BlackboardStorage:
@@ -66,21 +71,7 @@ class BlackboardStorage:
         return Blackboard(**data)
 
     def save(self, blackboard: Blackboard) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = blackboard.model_dump()
-        content = json.dumps(data, ensure_ascii=False, indent=2)
-        fd, tmp_path = tempfile.mkstemp(dir=str(self._path.parent), suffix=".tmp")
-        try:
-            os.write(fd, content.encode("utf-8"))
-            os.close(fd)
-            fd = -1
-            os.rename(tmp_path, self._path)
-        except Exception:
-            if fd >= 0:
-                os.close(fd)
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
+        _atomic_write(self._path, _model_to_json(blackboard))
 
 
 class BibleStorage:
@@ -94,18 +85,4 @@ class BibleStorage:
         return Bible(**data)
 
     def save(self, bible: Bible) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = bible.model_dump()
-        content = json.dumps(data, ensure_ascii=False, indent=2)
-        fd, tmp_path = tempfile.mkstemp(dir=str(self._path.parent), suffix=".tmp")
-        try:
-            os.write(fd, content.encode("utf-8"))
-            os.close(fd)
-            fd = -1
-            os.rename(tmp_path, self._path)
-        except Exception:
-            if fd >= 0:
-                os.close(fd)
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
+        _atomic_write(self._path, _model_to_json(bible))

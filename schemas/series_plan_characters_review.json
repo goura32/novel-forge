@@ -8,29 +8,24 @@
     "differentiation",
     "growth_arc",
     "world_fit",
-    "issues",
-    "suggestions"
+    "issues"
   ],
   "properties": {
     "consistency": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "設定一貫性の評価コメント"
     },
     "differentiation": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "キャラクター差別化の評価コメント"
     },
     "growth_arc": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "成長弧の評価コメント"
     },
     "world_fit": {
-      "type": "object",
-      "required": [],
-      "properties": {}
+      "type": "string",
+      "description": "世界観適合の評価コメント"
     },
     "issues": {
       "type": "array",
@@ -78,12 +73,6 @@
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
         }
-      }
-    },
-    "suggestions": {
-      "type": "array",
-      "items": {
-        "type": "string"
       }
     }
   }

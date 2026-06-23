@@ -46,7 +46,7 @@
   "key_events": ["イベント1"],
   "setting": "舞台設定",
   "emotional_arc": "感情の弧",
-  "changes": ["修正内容1", "修正内容2"]
+  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
 }
 ```
 

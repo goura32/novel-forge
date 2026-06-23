@@ -7,7 +7,6 @@ from .plan import PlanMixin
 from .write import WriteMixin
 
 
-# Combined class: MRO resolves NovelEngineBase first, then mixins
 class NovelEngine(
     NovelEngineBase,
     PlanMixin,

@@ -5,6 +5,7 @@
   "type": "object",
   "required": [
     "title",
+    "slug",
     "logline",
     "genre",
     "target_audience",
@@ -17,6 +18,10 @@
     "title": {
       "type": "string",
       "description": "シリーズのタイトル（想定: 500文字）"
+    },
+    "slug": {
+      "type": "string",
+      "description": "シリーズのスラグ（ローマ字ハイフン区切り、32文字以内）"
     },
     "logline": {
       "type": "string",

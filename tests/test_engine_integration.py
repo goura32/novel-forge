@@ -52,6 +52,7 @@ class MockLLMClient:
         system_prompt: str,
         user_prompt: str,
         schema: dict[str, Any] | None = None,
+        seed_offset: int = 0,
     ) -> dict[str, Any]:
         self._call_count += 1
         self._call_log.append((kind, user_prompt))

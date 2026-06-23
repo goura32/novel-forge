@@ -141,14 +141,48 @@ def _engine(
     model: str = DEFAULT_MODEL,
     lang: str = "ja",
     max_review_retries: int | None = None,
-    verbose: bool = False,
-    raw_log: bool = False,
+    verbose: bool | None = None,
+    raw_log: bool | None = None,
+    phase: str = "",
 ) -> NovelEngine:
-    return NovelEngine(
+    engine = NovelEngine(
         workdir=workdir, model=model, lang=lang,
         max_review_retries=max_review_retries, verbose=verbose,
         raw_log_enabled=raw_log,
+        phase=phase,
     )
+
+    # シグナルハンドラを登録（全コマンドで共通）
+    _shutdown_requested = False
+    _current_step = "init"
+
+    def _signal_handler(signum, frame):
+        nonlocal _shutdown_requested
+        _shutdown_requested = True
+        sig_name = signal.Signals(signum).name
+        engine._log.warning(f"Received {sig_name} — shutting down after current step")
+        console.print(f"\n[yellow]⚠ Received {sig_name} — shutting down after current step...[/yellow]")
+        try:
+            state_path = engine._series_dir / ".novel_forge_state"
+            import json as _json
+            state = {
+                "step": _current_step,
+                "status": f"interrupted_by_{sig_name}",
+                "model": model,
+                "lang": lang,
+                "pid": os.getpid(),
+                "updated_at": time.time(),
+            }
+            state_path.write_text(_json.dumps(state, ensure_ascii=False, indent=2))
+        except Exception:
+            pass
+
+    original_sigterm = signal.signal(signal.SIGTERM, _signal_handler)
+    original_sigint = signal.signal(signal.SIGINT, _signal_handler)
+
+    engine._signal_cleanup = (original_sigterm, original_sigint)
+
+    return engine
 
 
 @app.command()
@@ -161,7 +195,7 @@ def plan(
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Generate a series plan from keywords."""
-    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
+    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="plan")
     result = engine.plan(keywords)
     console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
     console.print(f"  [dim]Output: {engine._series_dir}[/dim]")
@@ -179,7 +213,7 @@ def design(
     """Generate a volume design (chapter/scene structure)."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="design")
         result = engine.design(volume)
         console.print(f"[green]✓[/green] Volume {volume} design generated")
 
@@ -197,7 +231,7 @@ def write(
     """Write scene drafts."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
+        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="write")
         results = engine.write(volume)
         console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -214,7 +248,7 @@ def export(
     """Export manuscript for KDP."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="export")
         result = engine.export(volume)
         console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
 
@@ -228,7 +262,7 @@ def status(
     raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Show current project status."""
-    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
+    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="status")
     s = engine.status()
     table = Table(title="NovelForge Status")
     table.add_column("Key", style="bold")
@@ -256,7 +290,7 @@ def resume(
     """Resume from the last interrupted phase."""
     series_dir = _resolve_series_dir(workdir)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log)
+        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="resume")
         result = engine.resume()
         action = result["action"]
         console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
@@ -318,7 +352,7 @@ def complete(
     original_sigint = signal.signal(signal.SIGINT, _signal_handler)
 
     _write_state("init", "running")
-    engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log)
+    engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="complete")
     steps = [
         ("Plan",   lambda: engine.plan(keywords)),
         ("Design", lambda: engine.design(volume)),

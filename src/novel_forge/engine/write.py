@@ -22,7 +22,9 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         slug = getattr(self, "_slug", "?")
-        self._log.info(f"Write started: volume={vol_num} slug='{slug}'")
+        series_title = getattr(self, "_state", None)
+        series_title = series_title.series_title if series_title else "?"
+        self._log.info(f"Write started: series='{series_title}' volume={vol_num} slug='{slug}'")
         design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
         design_obj = VolumeOutline(**design_data)
 
@@ -40,39 +42,38 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         # Count total scenes
         total_scenes = len(design_obj.scenes)
         done_scenes = 0
+        skipped_scenes = 0
         start_time = time.time()
 
-        def _log(msg: str):
-            """Write to both logger and optional log callback."""
-            _logger = getattr(self, "_log", None)
-            if _logger is not None:
-                _logger.info(msg.rstrip())
-            if log_fn:
-                log_fn(msg.rstrip())
-
         def _progress(scene_num: int, status: str):
-            nonlocal done_scenes
-            done_scenes += 1
+            nonlocal done_scenes, skipped_scenes
             elapsed = time.time() - start_time
-            avg = elapsed / done_scenes if done_scenes > 0 else 0
-            remaining = avg * (total_scenes - done_scenes)
+            if status.startswith("スキップ"):
+                skipped_scenes += 1
+            else:
+                done_scenes += 1
+            completed = done_scenes + skipped_scenes
+            avg = elapsed / completed if completed > 0 else 0
+            remaining = avg * (total_scenes - completed)
             elapsed_str = f"{int(elapsed // 60)}m {int(elapsed % 60)}s"
             remaining_str = f"{int(remaining // 60)}m {int(remaining % 60)}s"
-            pct = done_scenes / total_scenes * 100 if total_scenes > 0 else 0
+            pct = completed / total_scenes * 100 if total_scenes > 0 else 0
             bar_len = 20
-            filled = int(bar_len * done_scenes / total_scenes) if total_scenes > 0 else 0
+            filled = int(bar_len * completed / total_scenes) if total_scenes > 0 else 0
             bar = "█" * filled + "░" * (bar_len - filled)
             console.print(
                 f"  [{bar}] {pct:5.1f}% "
-                f"({done_scenes}/{total_scenes}) "
+                f"({completed}/{total_scenes}) "
                 f"{status} "
                 f"経過: {elapsed_str} "
                 f"残り推定: {remaining_str}"
             )
+
         for chapter in design_obj.chapters:
             chapter_scenes: list[str] = []
             chapter_scene_numbers: list[int] = []
             ch_scenes = [s for s in design_obj.scenes if s.chapter_number == chapter.number]
+            self._log.info(f"  [CHAPTER START] vol{vol_num} ch{chapter.number} title='{chapter.title}' scenes={len(ch_scenes)}")
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("修正済", "強制出力済"):
@@ -82,9 +83,9 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
                         )
                     )
                     chapter_scene_numbers.append(scene.number)
-                    _progress(scene.number, f"スキップ(済)")
+                    _progress(scene.number, "スキップ(済)")
                     continue
-                _log(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} t={time.time()-start_time:.0f}s")
+                self._log.info(f"  [SCENE START] vol{vol_num} ch{chapter.number} sc{scene.number} title='{scene.title}'")
                 result = self._scene_writer.write_scene(
                     design_obj=design_obj,
                     chapter=chapter,
@@ -112,20 +113,21 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
                 chapter_scenes.append(draft_text)
                 chapter_scene_numbers.append(scene.number)
                 # Post-scene: summarize + bible update (1 LLM call)
-                _log(f"  [SUMMARY START] vol{vol_num} ch{chapter.number} sc{scene.number}\n")
+                self._log.info(f"  [SUMMARY START] vol{vol_num} ch{chapter.number} sc{scene.number}")
                 self._scene_writer.summarize_and_update_bible(
                     record.scene_number,
                     draft_text,
                     self._lang,
                     self._bible_mgr.to_text,
                 )
-                _log(f"  [SUMMARY END] vol{vol_num} ch{chapter.number} sc{scene.number}")
-                _log(f"  [SCENE END] vol{vol_num} ch{chapter.number} sc{scene.number} t={time.time()-start_time:.0f}s")
+                self._log.info(f"  [SUMMARY END] vol{vol_num} ch{chapter.number} sc{scene.number}")
+                _progress(scene.number, f"完了")
                 _save = getattr(self, "_save", None)
                 if _save:
                     _save()
 
             self._scene_writer.assemble_chapter(vol_num, chapter, chapter_scenes, chapter_scene_numbers)
+            self._log.info(f"  [CHAPTER END] vol{vol_num} ch{chapter.number} title='{chapter.title}'")
 
         vol.status = "初稿済"
         _state = getattr(self, "_state", None)
@@ -134,5 +136,6 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         _save = getattr(self, "_save", None)
         if _save:
             _save()
-        self._log.info(f"Write finished: volume={vol_num} slug='{slug}' scenes={total_scenes}")
+        elapsed_total = time.time() - start_time
+        self._log.info(f"Write finished: series='{series_title}' volume={vol_num} slug='{slug}' scenes={total_scenes} done={done_scenes} skipped={skipped_scenes} elapsed={int(elapsed_total)}s")
         return results

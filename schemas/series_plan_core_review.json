@@ -8,8 +8,7 @@
     "logline_quality",
     "genre_fit",
     "world_consistency",
-    "issues",
-    "suggestions"
+    "issues"
   ],
   "properties": {
     "title_power": {
@@ -106,12 +105,6 @@
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
         }
-      }
-    },
-    "suggestions": {
-      "type": "array",
-      "items": {
-        "type": "string"
       }
     }
   }

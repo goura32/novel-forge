@@ -170,7 +170,7 @@ class SceneWriter:
     ) -> tuple[str, SceneRecord]:
         """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
         seed_offset = 0
-        for retry in range(self._quality.max_retries + 1):
+        for retry in range(self._quality.max_retries):
             review = self._review_scene(
                 draft_text, design_obj, scene, ctx.lang, ctx.build_context_fn,
                 ctx.get_outline_summary_fn, seed_offset=seed_offset,

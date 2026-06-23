@@ -58,7 +58,9 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         slug = getattr(self, "_slug", "?")
-        self._log.info(f"Design started: volume={vol_num} slug='{slug}'")
+        series_title = getattr(self, "_state", None)
+        series_title = series_title.series_title if series_title else "?"
+        self._log.info(f"Design started: series='{series_title}' volume={vol_num} slug='{slug}'")
         system = self._prompts.render("system.md", {"lang": self._lang})
         series_plan = self._ctx_builder.get_series_plan_summary()
         genre = self._ctx_builder.get_genre()
@@ -66,30 +68,19 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         previous_design = self._get_previous_volume_design(vol_num)
 
         result = self.orchestrate_design(series_plan, genre, vol_num, system, schema, previous_design)
-        seed_offset = 0
-        review = self._review_design(result, series_plan, previous_design, seed_offset=seed_offset)
-
-        # Review → Revise loop (max 3 retries)
-        all_volume_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
-        for retry in range(3):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
-            major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
-            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
-            if not revision_needed:
-                break
-            _log = getattr(self, "_log", None)
-            if _log is not None:
-                _log.warning(
-                    "  [DESIGN REVIEW] blocker=%d critical=%d major=%d retry=%d/3",
-                    len(blocker_issues), len(critical_issues), len(major_issues), retry + 1,
-                )
-            seed_offset += 1
-            result = self._revise_design(result, review, series_plan, genre, vol_num, system, schema, previous_design, seed_offset=seed_offset)
-            # 修正版を版番号付きで保存
-            self._save_path(vol_num, f"vol{vol_num:02d}.json", result, version=retry + 1)
-            review = self._review_design(result, series_plan, previous_design, seed_offset=seed_offset)
-            all_volume_reviews.append({"version": retry + 1, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
+        all_volume_reviews = []
+        def _on_revise(revised, version):
+            self._save_path(vol_num, f"vol{vol_num:02d}.json", revised, version=version)
+            review = self._review_design(revised, series_plan, previous_design, seed_offset=version)
+            all_volume_reviews.append({"version": version, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])})
+        result = self._review_and_revise(
+            item=result,
+            review_fn=lambda item, sys, seed_offset=0: self._review_design(item, series_plan, previous_design, seed_offset=seed_offset),
+            revise_fn=lambda item, review, sys, seed_offset=0: self._revise_design(item, review, series_plan, genre, vol_num, sys, schema, previous_design, seed_offset=seed_offset),
+            system=system,
+            label="DESIGN REVIEW",
+            on_revise=_on_revise,
+        )
 
         vol = self._current_volume()
         vol.status = "デザイン済"
@@ -116,7 +107,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         vol_review_path = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_review.json"
         vol_review_path.write_text(json.dumps({"reviews": all_volume_reviews}, ensure_ascii=False, indent=2), encoding="utf-8")
         self._save()
-        self._log.info(f"Design finished: volume={vol_num} slug='{slug}'")
+        self._log.info(f"Design finished: series='{series_title}' volume={vol_num} slug='{slug}'")
         return result
 
     def _get_previous_volume_design(self, vol_num: int) -> str:
@@ -125,10 +116,11 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
             return ""
         prev_path = self._series_dir / f"vol{vol_num - 1:02d}" / f"vol{vol_num - 1:02d}.json"
         if not prev_path.exists():
-            raise RuntimeError(
-                f"前巻（第{vol_num - 1}巻）のデザインが存在しません: {prev_path}\n"
-                f"第{vol_num}巻のデザインを生成するには、先に第{vol_num - 1}巻のデザインを生成してください。"
+            self._log.warning(
+                "  前巻（第%d巻）のデザインが存在しません: %s。第%d巻のデザインを生成するには、先に前巻のデザインを生成してください。",
+                vol_num - 1, prev_path, vol_num,
             )
+            return ""
         try:
             data = json.loads(prev_path.read_text(encoding="utf-8"))
             lines = [f"前巻（第{vol_num - 1}巻）デザイン:",
@@ -185,6 +177,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         for ch_idx, ch in enumerate(chapters_list, 1):
             ch_title = ch.get("title", f"第{ch_idx}章")
             ch_purpose = ch.get("purpose", "展開")
+            self._log.info(f"  [CH DESIGN START] ch{ch_idx}/{len(chapters_list)} title='{ch_title}' purpose='{ch_purpose}'")
 
             user = self._prompts.render(
                 "chapter_design.md",
@@ -207,6 +200,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
             design_result["title"] = ch_title
             chapter_designs.append(design_result)
             previous_chapter_outcome = design_result.get("emotional_arc", "")
+            self._log.info(f"  [CH DESIGN END] ch{ch_idx}/{len(chapters_list)} title='{ch_title}'")
 
         return chapter_designs
 
@@ -231,6 +225,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
             ch_scene_count = self._estimate_scene_count(ch_purpose)
 
             for sc_idx in range(ch_scene_count):
+                self._log.info(f"  [SC DESIGN START] ch{ch_idx} sc{sc_idx + 1}/{ch_scene_count}")
                 scene_number = scene_counter
                 total_scenes = len(all_scenes) + ch_scene_count
 
@@ -265,6 +260,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
                 all_scenes.append(scene_result)
 
                 previous_outcome = scene_result.get("outcome", "")
+                self._log.info(f"  [SC DESIGN END] ch{ch_idx} sc{sc_idx + 1}/{ch_scene_count}")
                 scene_counter += 1
 
         return all_scenes
@@ -287,6 +283,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         chapters_list = self._generate_volume_design(
             series_plan, genre, vol_num, system, previous_design
         )
+        self._log.info(f"  [DESIGN PROGRESS] vol{vol_num}: {len(chapters_list)} chapters generated")
 
         # Phase 2: Chapter designs + review/revise loop
         chapter_designs = self._generate_chapter_designs(
@@ -303,6 +300,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
             chapters_list, chapter_designs, series_plan, vol_num, system, previous_design,
             volume_title=volume_title, volume_premise=volume_premise,
         )
+        self._log.info(f"  [DESIGN PROGRESS] vol{vol_num}: {len(all_scenes)} scenes generated")
         all_scenes = self._review_and_revise_scene_designs(
             all_scenes, chapters_list, chapter_designs, series_plan, vol_num, system,
             volume_title=volume_title, volume_premise=volume_premise,
@@ -433,16 +431,18 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
 
     def _review_and_revise_chapter_designs(self, chapter_designs, chapters_list, series_plan,
                                             vol_num, system, volume_title="", volume_premise=""):
-        """Review and revise each chapter design (max 2 retries per chapter)."""
+        """Review and revise each chapter design."""
+        total = len(chapter_designs)
         for i, ch_design in enumerate(chapter_designs):
             ch_info = chapters_list[i] if i < len(chapters_list) else {}
             seed_offset = 0
+            self._log.info(f"  [CH DESIGN START] ch{i+1}/{total} title='{ch_info.get('title', '?')}' purpose='{ch_info.get('purpose', '?')}'")
             review = self._review_chapter_design(
                 ch_design, ch_info, series_plan, vol_num, system,
                 volume_title=volume_title, volume_premise=volume_premise,
             )
             ch_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
-            for retry in range(2):
+            for retry in range(self._quality.max_retries):
                 blocker = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
                 critical = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
                 major = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
@@ -541,9 +541,11 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
                                           volume_title="", volume_premise=""):
         """Review and revise each scene design (max 2 retries per scene)."""
         previous_outcome = ""
+        total = len(all_scenes)
         for i, scene in enumerate(all_scenes):
             ch_idx = scene.get("chapter_number", 1) - 1
             ch_info = chapters_list[ch_idx] if ch_idx < len(chapters_list) else {}
+            self._log.info(f"  [SC DESIGN START] sc{i+1}/{total} ch{scene.get('chapter_number', '?')} title='{scene.get('title', '?')}'")
             seed_offset = 0
             review = self._review_scene_design(
                 scene, ch_info, series_plan, vol_num, system,
@@ -551,7 +553,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
                 previous_outcome=previous_outcome, seed_offset=seed_offset,
             )
             sc_reviews = [{"version": 0, "issues": review.get("issues", []), "suggestions": review.get("suggestions", [])}]
-            for retry in range(2):
+            for retry in range(self._quality.max_retries):
                 blocker = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
                 critical = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
                 major = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]

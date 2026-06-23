@@ -45,28 +45,28 @@
 
 ```json
 {
-  "title": "巻タイトル（128文字以内）",
-  "premise": "巻の前提（200文字以内）",
+  "title": "巻タイトル",
+  "premise": "巻の前提",
   "chapters": [
     {
-      "title": "章タイトル（128文字以内）",
+      "title": "章タイトル",
       "purpose": "導入",
       "scenes": [
         {
-          "title": "シーンタイトル（128文字以内）",
-          "goal": "State: 状況 | Action: 行動（200文字以内）",
-          "outcome": "シーン終了時の結果（200文字以内）",
-          "conflict": "障害・対立（200文字以内）",
-          "pov": "視点人物（64文字以内）",
+          "title": "シーンタイトル",
+          "goal": "State: 状況 | Action: 行動",
+          "outcome": "シーン終了時の結果",
+          "conflict": "障害・対立",
+          "pov": "視点人物",
           "characters": ["登場人物1", "登場人物2"],
           "key_events": ["主要イベント1"],
-          "setting": "舞台設定（200文字以内）",
-          "emotional_arc": "感情の弧（200文字以内）"
+          "setting": "舞台設定",
+          "emotional_arc": "感情の弧"
         }
       ]
     }
   ],
-  "changes": ["修正内容1", "修正内容2"]
+  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
 }
 ```
 

@@ -9,9 +9,11 @@
 | `--workdir` | `-w` | `.` | 作業ディレクトリ |
 | `--volume` | `-V` | `1` | 処理対象の巻番号 |
 | `--model` | `-m` | 設定ファイル or デフォルト | LLM モデル名 |
-| `--lang` | | `ja` | 出力言語 |
-| `--max-retries` | | `2` | シーン品質ゲート最大リトライ回数 |
-| `--verbose` | `-v` | `false` | 詳細出力 |
+|| `--lang` | | `ja` | 出力言語 |
+|| `--max-retries` | | `2` | シーン品質ゲート最大リトライ回数 |
+|| `--verbose` | `-v` | `false` | 詳細出力 |
+| `--raw-log` | | `false` | LLM生データを `_raw_logs/` に gzip 保存 |
+| | | | (`config.yaml` の `logging` セクションで既定値を設定可能) |
 
 ### 1.2 排他制御
 
@@ -44,6 +46,8 @@ uv run novel-forge design --volume 2
 ```bash
 uv run novel-forge plan          --keywords "..."   # シリーズ企画
 uv run novel-forge design                         # 巻デザイン
+uv run novel-forge list                           # シリーズ一覧
+uv run novel-forge show <slug>                    # シリーズ詳細
 uv run novel-forge write                           # シーン執筆
 uv run novel-forge export                          # KDP 向け出力
 uv run novel-forge status                          # 進捗確認
@@ -68,17 +72,61 @@ uv run novel-forge resume                          # 中断した工程から再
 ### ログ出力
 
 全フェーズの開始・終了時に構造化ログが出力されます。
+LLM呼び出し中は60秒ごとに進捗ログ（chunks, bytes, elapsed）が出力されます。
 
-```
-2026-08-07 12:00:00 [PID 12345] [INFO] novel_forge.engine: Plan started: keywords='...'
+``` 2026-08-07 12:00:00 [PID 12345] [INFO] novel_forge.engine: Plan started: keywords='...'
 2026-08-07 12:00:00 [PID 12345] [INFO] novel_forge.engine: Plan finished: slug='...'
 2026-08-07 12:00:00 [PID 12346] [INFO] novel_forge.engine: Design started: volume=1 slug='...'
 2026-08-07 12:00:00 [PID 12346] [INFO] novel_forge.engine: Design finished: volume=1 slug='...'
+2026-08-07 12:05:00 [PID 12346] [INFO] novel_forge.llm:   [LLM PROGRESS] chunks=1234 bytes=567890 elapsed=00:05:00
 ```
 
 - ログファイル: `series_dir/novel_forge.log`
 - フォーマット: `%(asctime)s [PID %(process)d] [%(levelname)s] %(name)s: %(message)s`
 - 各フェーズの開始・終了時に `info` ログ、レビュー失敗時に `warning` ログ
+- LLM呼び出し中は60秒ごとに `[LLM PROGRESS]` ログ（経過時間は `HH:MM:SS` 形式）
+
+### 設定ファイル (config.yaml)
+
+```yaml
+llm:
+  model: "qwen3.6:35b-a3b-mtp-q4_K_M"
+  num_predict: -1             # トークン上限（-1=無制限）
+  num_ctx: 262144            # コンテキスト長（null=Ollama自動検出）
+  timeout_seconds: 3600      # LLM応答待ちタイムアウト（秒）
+  max_retries: 5             # LLM呼び出し最大リトライ回数
+  ollama_host: "ws1.local:11434"
+  think: true                # 思考モード（qwen3.6で有効）
+  # 以下は省略可能（Ollamaデフォルト値が使用される）
+  # temperature: 0.85
+  # top_k: 20
+  # top_p: 0.80
+  # repeat_penalty: 1.0
+  # presence_penalty: 0.0
+  # frequency_penalty: 0.0
+  # seed: 42
+  # stop: []
+  # tfs_z: 1.0
+  # typical_p: 1.0
+  # mirostat: 0
+  # mirostat_tau: 5.0
+  # mirostat_eta: 0.1
+  # penalize_newline: true
+  # num_threads: 0
+  # ollama_options:  # 個別パラメータの上書き（個別パラメータより優先）
+  #   temperature: 0.85
+  #   top_k: 20
+```
+logging:
+  verbose: true       # stderr に DEBUG レベルで出力
+  raw_log: true       # _raw_logs/ に LLM 生データを gzip 保存
+  log_level: "DEBUG"   # ログファイルのレベル
+
+quality:
+  max_review_retries: 2
+```
+
+優先順位: CLI引数 (`--verbose`, `--raw-log`) > config.yaml > デフォルト値
 
 ### 2.1 エンジン構成（Mixin パターン）
 

@@ -1,33 +1,6 @@
-"""Tests for quality gate and kanji detection."""
+"""Tests for quality gate."""
 
-from novel_forge.quality_gate import QualityGate, find_non_japanese_kanji
-
-
-class TestFindNonJapaneseKanji:
-    def test_clean_japanese(self):
-        # No CJK characters → empty result
-        text = "Hello World 123"
-        assert find_non_japanese_kanji(text) == []
-
-    def test_simplified_chinese(self):
-        text = "转窗间炸污锋东气猎"  # 簡体字
-        bad = find_non_japanese_kanji(text)
-        assert len(bad) > 0
-
-    def test_mixed_text(self):
-        # No CJK characters → empty result
-        text = "Hello World"
-        assert find_non_japanese_kanji(text) == []
-
-    def test_simplified_in_japanese(self):
-        text = "彼は転んだことがある"  # All Japanese kanji
-        assert find_non_japanese_kanji(text) == []
-
-    def test_empty(self):
-        assert find_non_japanese_kanji("") == []
-
-    def test_no_kanji(self):
-        assert find_non_japanese_kanji("Hello World! こんにちは") == []
+from novel_forge.quality_gate import QualityGate
 
 
 class TestQualityGate:

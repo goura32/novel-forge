@@ -1,6 +1,6 @@
 # NovelForge
 
-**NovelForge** は、ローカル Ollama モデルを使って小説シリーズを企画・構成・執筆・レビュー・改稿・出力する Python CLI ツールです。
+**NovelForge** は、Ollama モデルを使って小説シリーズを企画・構成・執筆・レビュー・改稿・出力する Python CLI ツールです。
 
 KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足をツール側で補う設計にしています。**シリーズ > 巻 > 章 > シーン** の階層で制作を管理します。
 
@@ -22,8 +22,11 @@ KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足を
 | [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、設定ファイル） |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、SceneWriter、状態遷移） |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理（一覧、レビュー/改稿の分離ルール） |
+| [docs/TEMPLATE_SCHEMA_CONTRACT.md](docs/TEMPLATE_SCHEMA_CONTRACT.md) | テンプレート/スキーマ分離の方針 |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | 用語集 |
 | [docs/OLLAMA_API.md](docs/OLLAMA_API.md) | Ollama API 仕様調査 |
+| [docs/raw_log_format.md](docs/raw_log_format.md) | RAWログフォーマット |
+| [docs/schema_maintenance.md](docs/schema_maintenance.md) | スキーマファイル修正時の再発防止チェックリスト |
 
 ---
 

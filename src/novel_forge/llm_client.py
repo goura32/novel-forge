@@ -9,7 +9,6 @@ from typing import Any
 
 import httpx
 
-
 from novel_forge.json_parser import JsonParseError, coerce_types, parse_json_response
 from novel_forge.logging_config import get_logger
 
@@ -24,7 +23,6 @@ class SchemaValidationError(LLMError):
 
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
     """config.yaml を読み込んで設定 dict を返す。"""
-    import os
     yaml = _try_import_yaml()
     if yaml is None:
         return {}
@@ -65,15 +63,9 @@ def _try_import_yaml():
 class LLMClient:
     """LLM client for Ollama API."""
 
-    # Map kind prefix to log subdirectory
-    PHASE_MAP: dict[str, str] = {
-        "series": "plan",
-        "chapter": "design",
-        "scene": "write",
-        "volume": "design",
-    }
     _THINKING_TRUNCATE_THRESHOLD = 500
     _THINKING_KEEP_CHARS = 200
+
     def __init__(
         self,
         api_url: str | None = None,
@@ -82,12 +74,12 @@ class LLMClient:
         max_retries: int = 2,
         raw_log_dir: Path | None = None,
         raw_log_enabled: bool = False,
+        phase: str = "",
         num_ctx: int | None = None,
         num_predict: int = -1,
         ollama_options: dict[str, Any] | None = None,
     ):
         if api_url is None:
-            import os
             host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
             api_url = f"http://{host}/api/chat"
         self.api_url = api_url
@@ -96,10 +88,13 @@ class LLMClient:
         self.max_retries = max_retries
         self.raw_log_dir = raw_log_dir
         self.raw_log_enabled = raw_log_enabled
+        self.phase = phase
         self.num_ctx = num_ctx if num_ctx else 262144
         self.num_predict = num_predict
         self._ollama_options = ollama_options or {}
         self._log = get_logger("novel_forge.llm")
+        self._last_progress_log: float = 0.0
+        self._current_kind: str = ""
         if self._ollama_options.get("think", False):
             print(
                 "⚠ think=True is enabled — qwen3.6 thinking models may return empty "
@@ -108,7 +103,6 @@ class LLMClient:
 
     def _detect_max_ctx(self) -> int:
         """Ollama /api/show からモデルの context_length を取得する。"""
-        import os
         host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
         show_url = f"http://{host.rsplit('/', 1)[0]}/api/show"
         try:
@@ -135,8 +129,6 @@ class LLMClient:
         schema: dict[str, Any] | None = None,
         seed_offset: int = 0,
     ) -> dict[str, Any]:
-        # Separate ollama_options into API-level and options-level
-        # "think" is an API-level parameter, not part of options
         api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
         think_value = self._ollama_options.get("think", True)
 
@@ -157,12 +149,12 @@ class LLMClient:
         payload["think"] = think_value
         last_error: Exception | None = None
         current_prompt = user_prompt
+        self._current_kind = kind
         raw_text, thinking = "", ""
         for attempt in range(self.max_retries):
             raw_text, thinking = "", ""
             try:
                 payload["messages"][1]["content"] = current_prompt
-                # Increment seed on each retry to get different output
                 payload["options"]["seed"] = 42 + attempt + seed_offset
                 self._log.debug(
                     "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d",
@@ -172,16 +164,15 @@ class LLMClient:
                 raw_text, raw, thinking, done_reason = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
                 self._log.debug(
-                    "  [LLM DONE] kind=%s attempt=%d elapsed=%.1fs raw_len=%d",
-                    kind, attempt + 1, _call_elapsed, len(raw),
+                    "  [LLM DONE] kind=%s elapsed=%.1fs",
+                    kind, _call_elapsed,
                 )
                 parsed = parse_json_response(raw)
                 if schema:
-                    # Coerce types and fill missing required fields before validation
                     parsed = coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
-                self._write_log(kind, payload, raw, parsed, thinking=thinking, raw_text=raw_text, elapsed=_call_elapsed, attempt=attempt)
+                self._write_raw_log("response", raw_text)
                 return parsed
             except JsonParseError as e:
                 last_error = e
@@ -189,9 +180,6 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                # Save raw_text so we can investigate parse failures
-                self._write_raw_log(kind + "_json_err", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
-                self._write_log(kind + "_json_err", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -207,8 +195,6 @@ class LLMClient:
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_raw_log(kind + "_schema_err", raw_text, thinking=thinking, resp_obj={"error": str(e), "raw_preview": raw_text[:500]})
-                self._write_log(kind + "_schema_err", payload, raw_text, {"error": str(e), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=attempt)
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -218,26 +204,20 @@ class LLMClient:
                 )
                 continue
             except LLMError as e:
-                # LLMError from _call_api (timeout, HTTP error, etc.) — retry
                 last_error = e
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
                 )
-                self._write_raw_log(kind + "_llm_err", raw_text, thinking=thinking, resp_obj={"error": str(e)})
                 continue
             except Exception as e:
-                # Catch-all: save raw data for any unexpected error
                 last_error = e
                 self._log.warning(
                     "  [LLM ERROR] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:200],
                 )
-                self._write_raw_log(kind + "_err", raw_text, thinking=thinking, resp_obj={"error": str(e), "error_type": type(e).__name__})
                 raise
-        # All retries exhausted — save last raw data
-        self._write_raw_log(kind + "_failed", raw_text, thinking=thinking, resp_obj={"last_error": str(last_error)[:500] if last_error else ""})
-        self._write_log(kind + "_failed", payload, raw_text, {"error": str(last_error), "raw_preview": raw_text[:500]}, thinking=thinking, elapsed=0.0, attempt=self.max_retries)
+        self._write_raw_log("response", raw_text)
         self._log.error(
             "  [LLM FAILED] kind=%s attempts=%d error=%s",
             kind, self.max_retries, str(last_error)[:100],
@@ -246,11 +226,7 @@ class LLMClient:
 
     @staticmethod
     def _parse_ndjson(text: str) -> tuple[str, str]:
-        """Parse NDJSON response into (content, thinking).
-
-        Each line is expected to be a JSON object with optional
-        message.content and message.thinking fields.
-        """
+        """Parse NDJSON response into (content, thinking)."""
         parts: list[str] = []
         thinking_parts: list[str] = []
         for line in text.splitlines():
@@ -273,17 +249,13 @@ class LLMClient:
         return "".join(parts), "".join(thinking_parts)
 
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str]:
-        """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason).
-
-        Saves request before sending, logs progress during reception, saves response on completion.
-        """
+        """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason)."""
         stream_payload = {**payload, "stream": True}
-        # Save request payload before sending
-        self._write_raw_log("_req", "", payload=stream_payload)
+        self._write_raw_log("request", json.dumps(stream_payload, ensure_ascii=False))
         lines: list[str] = []
         chunk_count = 0
         total_bytes = 0
-        last_log_time = time.time()
+        call_start = time.time()
         try:
             with httpx.stream(
                 "POST",
@@ -297,14 +269,17 @@ class LLMClient:
                         lines.append(line)
                         chunk_count += 1
                         total_bytes += len(line)
-                        # Log progress every 10 seconds
                         now = time.time()
-                        if now - last_log_time >= 10:
+                        if now - self._last_progress_log >= 60:
+                            elapsed_total = now - call_start
+                            elapsed_h = int(elapsed_total // 3600)
+                            elapsed_m = int((elapsed_total % 3600) // 60)
+                            elapsed_s = int(elapsed_total % 60)
                             self._log.info(
-                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%.0fs",
-                                chunk_count, total_bytes, now - last_log_time,
+                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%02d:%02d:%02d",
+                                chunk_count, total_bytes, elapsed_h, elapsed_m, elapsed_s,
                             )
-                            last_log_time = now
+                            self._last_progress_log = now
         except httpx.TimeoutException:
             text = "\n".join(lines)
             self._write_raw_log("_timeout", text)
@@ -315,151 +290,37 @@ class LLMClient:
         text = "\n".join(lines)
         result, thinking_combined = self._parse_ndjson(text)
         if not result or not result.strip():
-            self._write_raw_log("_empty", text, thinking=thinking_combined)
+            self._write_raw_log("_empty", text)
             raise LLMError("Ollama returned empty response")
-        # Extract done_reason from last done chunk
-        done_reason = ""
-        for line in reversed(lines):
-            try:
-                chunk = json.loads(line)
-                if chunk.get("done"):
-                    done_reason = chunk.get("done_reason", "")
-                    break
-            except Exception:
-                pass
-        if done_reason:
-            self._log.debug("  [LLM DONE_REASON] %s", done_reason)
-        # Save raw response
-        self._write_raw_log("_resp", text, thinking=thinking_combined)
-        return text, result, thinking_combined, done_reason
+        self._write_raw_log("_resp", text)
+        return text, result, thinking_combined, ""
 
-    def _write_raw_log(self, kind: str, raw_text: str, thinking: str = "", resp_obj: dict | None = None, payload: dict | None = None) -> None:
-        """Write raw Ollama request/response to file, preserving everything as-is.
-
-        Saves the complete Ollama request payload and response including thinking tokens.
-        Always stores as .json.gz for uniform compressed storage.
-        """
-        raw_dir = self.raw_log_dir
-        if not raw_dir:
-            return
-        try:
-            raw_dir.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            return
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
+    def _make_call_dir(self, kind: str) -> Path:
+        """1回のLLM呼び出し用のディレクトリを作成して返す。"""
+        if not self.raw_log_dir:
+            return Path("/dev/null")  # dummy
+        phase = self.phase if self.phase else "unknown"
         pid = os.getpid()
-        idx = 0
-        while True:
-            suffix = f"_{idx:03d}" if idx > 0 else ""
-            log_path = raw_dir / f"{timestamp}_pid{pid}_{kind}{suffix}.json"
-            if not log_path.exists():
-                break
-            idx += 1
-        try:
-            log_data: dict[str, Any] = {
-                "kind": kind,
-                "timestamp": timestamp,
-                "pid": pid,
-                "model": self.model,
-            }
-            # Save request payload (input) if provided
-            if payload:
-                log_data["request"] = {
-                    "system": payload.get("messages", [{}])[0].get("content", ""),
-                    "user": payload.get("messages", [{}])[1].get("content", "") if len(payload.get("messages", [])) > 1 else "",
-                    "options": payload.get("options", {}),
-                    "format": payload.get("format", "unspecified"),
-                    "think": payload.get("think"),
-                }
-            # Save raw response text (full Ollama JSON)
-            log_data["raw_response"] = raw_text
-            # Save thinking as-is (truncate only if absurdly large > 10MB)
-            if thinking:
-                if len(thinking) > 10_000_000:
-                    log_data["thinking"] = thinking[:5_000_000] + f"\n... [truncated, total {len(thinking)} chars]"
-                else:
-                    log_data["thinking"] = thinking
-            # Save parsed response object (without raw_response to avoid duplication)
-            if resp_obj:
-                resp_copy = {k: v for k, v in resp_obj.items() if k != "message"}
-                if "message" in resp_obj:
-                    msg = resp_obj["message"]
-                    resp_copy["message"] = {k: v for k, v in msg.items() if k != "thinking"}
-                    if msg.get("thinking"):
-                        resp_copy["message"]["thinking"] = "(see thinking field above)"
-                log_data["response"] = resp_copy
-            json_bytes = json.dumps(log_data, ensure_ascii=False, indent=2).encode("utf-8")
-            # Always compress with gzip
-            gz_path = log_path.with_suffix(".json.gz")
-            with gzip.open(gz_path, "wb") as f:
-                f.write(json_bytes)
-        except Exception as e:
-            self._log.debug("  [RAW LOG WRITE FAILED] %s", e)
+        run_dir = self.raw_log_dir / phase / f"{pid}_{kind}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        return run_dir
 
-    def _write_log(
-        self,
-        kind: str,
-        payload: dict[str, Any],
-        raw: str,
-        parsed: Any,
-        thinking: str = "",
-        raw_text: str = "",
-        elapsed: float = 0.0,
-        attempt: int = 0,
-    ) -> None:
+    def _write_raw_log(self, file_type: str, raw_text: str, payload: dict | None = None) -> None:
+        """1回のLLM呼び出しで2ファイルを書き出す。
+
+        file_type: "request" または "response"
+        """
         if not self.raw_log_dir or not self.raw_log_enabled:
             return
-        self.raw_log_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        # Organize logs by phase: plan/design/write/error
-        kind_prefix = kind.split("_")[0]
-        phase = LLMClient.PHASE_MAP.get(kind_prefix, "other")
-        sub_dir = self.raw_log_dir / phase
-        sub_dir.mkdir(exist_ok=True)
-        idx = 0
-        while True:
-            suffix = f"_{idx:03d}" if idx > 0 else ""
-            log_path = sub_dir / f"{timestamp}_a{attempt}_{kind}{suffix}.json"
-            if not log_path.exists():
-                break
-            idx += 1
-        # Truncate thinking: keep first/last _THINKING_KEEP_CHARS chars
-        thinking_saved = thinking
-        if len(thinking) > self._THINKING_TRUNCATE_THRESHOLD:
-            keep = self._THINKING_KEEP_CHARS
-            thinking_saved = (
-                thinking[:keep]
-                + f"\n... [中略 {len(thinking) - keep * 2} chars] ...\n"
-                + thinking[-keep:]
-            )
-        # Build compact request log: omit system_prompt (same for all calls),
-        # keep only user_prompt and non-prompt fields
-        req_log = {k: v for k, v in payload.items() if k not in ("api_key", "messages")}
-        if "messages" in payload:
-            user_msgs = [m for m in payload["messages"] if m.get("role") == "user"]
-            if user_msgs:
-                req_log["user_prompt"] = user_msgs[-1]["content"]
-        # Strip thinking from raw_text to avoid duplication
-        raw_for_log = raw_text if raw_text else raw
-        if raw_for_log and thinking_saved:
-            try:
-                raw_data = json.loads(raw_for_log)
-                if isinstance(raw_data, dict) and "message" in raw_data:
-                    raw_data["message"].pop("thinking", None)
-                    raw_for_log = json.dumps(raw_data, ensure_ascii=False)
-            except (json.JSONDecodeError, TypeError):
-                pass
-        log_data = {
-            "kind": kind,
-            "timestamp": timestamp,
-            "elapsed_seconds": round(elapsed, 1),
-            "model": self.model,
-            "attempt": attempt,
-            "request": req_log,
-            "response_raw": raw_for_log,
-            "response_parsed": parsed,
-        }
-        if thinking_saved:
-            log_data["response_thinking"] = thinking_saved
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(log_data, f, ensure_ascii=False, indent=2)
+        # kind は呼び出し元で設定する（_call_api の前で _kind をセット）
+        call_dir = self._make_call_dir(self._current_kind)
+        try:
+            call_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return
+        try:
+            gz_path = call_dir / f"{file_type}.json.gz"
+            with gzip.open(gz_path, "wb") as f:
+                f.write(raw_text.encode("utf-8"))
+        except Exception as e:
+            self._log.debug("  [RAW LOG WRITE FAILED] %s", e)

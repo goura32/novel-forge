@@ -45,7 +45,7 @@
   "emotional_arc": "感情の弧",
   "foreshadowing_notes": ["伏線1"],
   "subplot_notes": ["サブプロット1"],
-  "changes": ["修正内容1", "修正内容2"]
+  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
 }
 ```
 
