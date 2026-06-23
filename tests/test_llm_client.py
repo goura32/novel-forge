@@ -13,14 +13,17 @@ from novel_forge.llm_client import LLMClient, LLMError, SchemaValidationError, l
 # ── Helpers ─────────────────────────────────────────────────────────────
 
 def _make_streaming_response(chunks: list[str], status_code: int = 200) -> MagicMock:
-    """Create a mock httpx.Response that simulates streaming NDJSON."""
+    """Create a mock that simulates `with httpx.stream(...) as resp:` context manager."""
     mock_resp = MagicMock()
     mock_resp.status_code = status_code
     mock_resp.raise_for_status = MagicMock()
-    # iter_lines() returns an iterator over the NDJSON lines
     lines = [chunk.encode() for chunk in chunks]
     mock_resp.iter_lines = MagicMock(return_value=iter(lines))
-    return mock_resp
+    # httpx.stream() returns a context manager that yields the response
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__ = MagicMock(return_value=mock_resp)
+    mock_ctx.__exit__ = MagicMock(return_value=False)
+    return mock_ctx
 
 
 def _ndjson_chunk(content: str, done: bool = False) -> str:
@@ -31,7 +34,6 @@ def _ndjson_chunk(content: str, done: bool = False) -> str:
 
 def _ndjson_response(full_text: str) -> list[str]:
     """Create a sequence of NDJSON chunks for a complete response."""
-    # Split into small chunks to simulate streaming
     chunk_size = 10
     chunks = []
     for i in range(0, len(full_text), chunk_size):
@@ -87,171 +89,127 @@ class TestLLMClientInit:
 # ── complete_json — basic ──────────────────────────────────────────────
 
 class TestCompleteJson:
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_basic_json_response(self, mock_client_cls):
+    def test_basic_json_response(self):
         """complete_json should return parsed JSON from NDJSON streaming."""
         full_json = json.dumps({"key": "value", "number": 42}, ensure_ascii=False)
         chunks = _ndjson_response(full_json)
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(api_url="http://localhost:11434/api/chat")
-        result = client.complete_json(
-            "test_kind",
-            "system prompt",
-            "user prompt",
-        )
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            result = client.complete_json("test_kind", "system prompt", "user prompt")
 
         assert result == {"key": "value", "number": 42}
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_json_with_code_fences(self, mock_client_cls):
+    def test_json_with_code_fences(self):
         """complete_json should strip markdown code fences."""
         full_json = "```json\n" + json.dumps({"a": 1}) + "\n```"
         chunks = _ndjson_response(full_json)
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(api_url="http://localhost:11434/api/chat")
-        result = client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            result = client.complete_json("test_kind", "sys", "usr")
         assert result == {"a": 1}
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_empty_response_raises(self, mock_client_cls):
+    def test_empty_response_raises(self):
         """Empty response should raise LLMError."""
         chunks = _ndjson_response("")
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(api_url="http://localhost:11434/api/chat")
-        with pytest.raises(LLMError):
-            client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_malformed_json_raises(self, mock_client_cls):
+    def test_malformed_json_raises(self):
         """Malformed JSON should raise LLMError."""
         chunks = _ndjson_response("this is not json")
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(api_url="http://localhost:11434/api/chat")
-        with pytest.raises(LLMError):
-            client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
 
 
 # ── complete_json — retry ──────────────────────────────────────────────
 
 class TestCompleteJsonRetry:
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_retry_on_failure(self, mock_client_cls):
+    def test_retry_on_failure(self):
         """Should retry on httpx errors and succeed."""
         full_json = json.dumps({"ok": True})
         chunks = _ndjson_response(full_json)
         mock_resp = _make_streaming_response(chunks)
 
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        # First call fails, second succeeds
         import httpx
 
-        mock_client.post = MagicMock(
-            side_effect=[
-                httpx.TimeoutException("timeout"),
-                mock_resp,
-            ]
-        )
-        mock_client_cls.return_value = mock_client
+        call_count = 0
+        def mock_stream(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise httpx.TimeoutException("timeout")
+            return mock_resp
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            max_retries=2,
-        )
-        result = client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=mock_stream):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=2,
+            )
+            result = client.complete_json("test_kind", "sys", "usr")
         assert result == {"ok": True}
-        assert mock_client.post.call_count == 2
+        assert call_count == 2
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_retry_exhausted_raises(self, mock_client_cls):
+    def test_retry_exhausted_raises(self):
         """Should raise LLMError after all retries exhausted."""
         import httpx
 
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(
-            side_effect=httpx.TimeoutException("timeout")
-        )
-        mock_client_cls.return_value = mock_client
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=httpx.TimeoutException("timeout")):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=2,
+            )
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            max_retries=2,
-        )
-        with pytest.raises(LLMError):
-            client.complete_json("test_kind", "sys", "usr")
-        # Initial + 2 retries = 3 attempts
-        assert mock_client.post.call_count == 3
-
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_no_retry_when_zero(self, mock_client_cls):
+    def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""
         import httpx
 
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(
-            side_effect=httpx.TimeoutException("timeout")
-        )
-        mock_client_cls.return_value = mock_client
+        call_count = 0
+        def mock_stream(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            raise httpx.TimeoutException("timeout")
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            max_retries=0,
-        )
-        with pytest.raises(LLMError):
-            client.complete_json("test_kind", "sys", "usr")
-        assert mock_client.post.call_count == 1
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=mock_stream):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=0,
+            )
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
+        assert call_count == 1
 
 
 # ── complete_json — payload structure ──────────────────────────────────
 
 class TestCompleteJsonPayload:
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_payload_contains_required_fields(self, mock_client_cls):
+    def test_payload_contains_required_fields(self):
         """Payload should contain model, messages, format, think, options."""
         chunks = _ndjson_response('{"ok": true}')
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            model="test-model",
-        )
-        client.complete_json("test_kind", "my system", "my user")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                model="test-model",
+            )
+            client.complete_json("test_kind", "my system", "my user")
 
-        call_args = mock_client.post.call_args
+        # Get the actual call payload
+        call_args = mock_stream.call_args
         payload = call_args.kwargs.get("json") or call_args[1].get("json")
 
         assert payload["model"] == "test-model"
@@ -266,47 +224,37 @@ class TestCompleteJsonPayload:
         assert "num_ctx" in payload["options"]
         assert "seed" in payload["options"]
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_think_false_in_options(self, mock_client_cls):
+    def test_think_false_in_options(self):
         """think=False should be passed as API-level param, not in options."""
         chunks = _ndjson_response('{"ok": true}')
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            ollama_options={"think": False},
-        )
-        client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                ollama_options={"think": False},
+            )
+            client.complete_json("test_kind", "sys", "usr")
 
-        call_args = mock_client.post.call_args
+        call_args = mock_stream.call_args
         payload = call_args.kwargs.get("json") or call_args[1].get("json")
         assert payload["think"] is False
         # think should NOT be in options
         assert "think" not in payload["options"]
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_custom_ollama_options_in_payload(self, mock_client_cls):
+    def test_custom_ollama_options_in_payload(self):
         """Custom ollama_options should appear in payload options."""
         chunks = _ndjson_response('{"ok": true}')
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            ollama_options={"temperature": 0.9, "top_p": 0.95},
-        )
-        client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                ollama_options={"temperature": 0.9, "top_p": 0.95},
+            )
+            client.complete_json("test_kind", "sys", "usr")
 
-        call_args = mock_client.post.call_args
+        call_args = mock_stream.call_args
         payload = call_args.kwargs.get("json") or call_args[1].get("json")
         assert payload["options"]["temperature"] == 0.9
         assert payload["options"]["top_p"] == 0.95
@@ -315,48 +263,38 @@ class TestCompleteJsonPayload:
 # ── complete_json — raw log ────────────────────────────────────────────
 
 class TestCompleteJsonRawLog:
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_raw_log_saved_when_enabled(self, mock_client_cls, tmp_path):
+    def test_raw_log_saved_when_enabled(self, tmp_path):
         """Raw log should be saved when raw_log_enabled=True."""
         full_json = json.dumps({"test": "data"}, ensure_ascii=False)
         chunks = _ndjson_response(full_json)
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            raw_log_dir=tmp_path,
-            raw_log_enabled=True,
-        )
-        client.complete_json("test_kind", "sys prompt", "usr prompt")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                raw_log_dir=tmp_path,
+                raw_log_enabled=True,
+            )
+            client.complete_json("test_kind", "sys prompt", "usr prompt")
 
         # Check that raw log files were created
-        log_files = list(tmp_path.glob("*.json"))
+        log_files = list(tmp_path.rglob("*.json.gz"))
         assert len(log_files) > 0
 
-    @patch("novel_forge.llm_client.httpx.Client")
-    def test_no_raw_log_when_disabled(self, mock_client_cls, tmp_path):
+    def test_no_raw_log_when_disabled(self, tmp_path):
         """No raw log files when raw_log_enabled=False."""
         chunks = _ndjson_response('{"ok": true}')
         mock_resp = _make_streaming_response(chunks)
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post = MagicMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
 
-        client = LLMClient(
-            api_url="http://localhost:11434/api/chat",
-            raw_log_dir=tmp_path,
-            raw_log_enabled=False,
-        )
-        client.complete_json("test_kind", "sys", "usr")
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                raw_log_dir=tmp_path,
+                raw_log_enabled=False,
+            )
+            client.complete_json("test_kind", "sys", "usr")
 
-        log_files = list(tmp_path.glob("*.json"))
+        log_files = list(tmp_path.rglob("*.json.gz"))
         assert len(log_files) == 0
 
 

@@ -75,7 +75,7 @@ def _fix_bracket_quoted_values(s: str) -> str:
                 elif s[j] == '\n' and depth == 0:
                     break
                 j += 1
-            end = last_period + 1 if last_period >= 0 else j
+            end = last_period + 1 if last_period >= 0 else j + 1
             value = s[start:end]
             escaped = value.replace('\\', '\\\\').replace('"', '\\"')
             result.append('"')

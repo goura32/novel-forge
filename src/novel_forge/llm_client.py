@@ -266,7 +266,7 @@ class LLMClient:
                 resp.raise_for_status()
                 for line in resp.iter_lines():
                     if line.strip():
-                        lines.append(line)
+                        lines.append(line.decode("utf-8") if isinstance(line, bytes) else line)
                         chunk_count += 1
                         total_bytes += len(line)
                         now = time.time()

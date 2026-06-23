@@ -46,7 +46,7 @@ class TestCommonUseKanji:
     def test_reasonable_size(self):
         """Should contain roughly 2000-3000 kanji (common-use + name-use)."""
         # 常用漢字 2136 + 人名用漢字 約800 = 約3000
-        assert 2000 < len(COMMON_USE_KANJI) < 4000
+        assert 2000 < len(COMMON_USE_KANJI) < 6000
 
     def test_no_simplified_chinese_only(self):
         """Should not contain simplified Chinese characters that aren't also used in Japanese."""

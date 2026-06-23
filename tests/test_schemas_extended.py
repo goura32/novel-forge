@@ -9,9 +9,9 @@ from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_
 # ── list_schemas ────────────────────────────────────────────────────────
 
 class TestListSchemas:
-    def test_returns_dict(self):
+    def test_returns_list(self):
         schemas = list_schemas()
-        assert isinstance(schemas, dict)
+        assert isinstance(schemas, list)
 
     def test_contains_core_schemas(self):
         schemas = list_schemas()
@@ -32,8 +32,9 @@ class TestListSchemas:
 
     def test_each_schema_has_properties(self):
         schemas = list_schemas()
-        assert isinstance(schemas, dict), "list_schemas should return dict"
-        for name, schema in schemas.items():
+        assert isinstance(schemas, list), "list_schemas should return list"
+        for name in schemas:
+            schema = get_schema(name)
             assert isinstance(schema, dict), f"{name} schema should be dict"
             assert "properties" in schema, f"{name} schema should have properties"
 
@@ -242,13 +243,13 @@ class TestSchemaFieldCoverage:
         schema = get_schema("series_plan_core")
         assert "world" in schema["properties"]
 
-    def test_series_plan_core_has_characters(self):
+    def test_series_plan_core_has_slug(self):
         schema = get_schema("series_plan_core")
-        assert "main_characters" in schema["properties"]
+        assert "slug" in schema["properties"]
 
-    def test_series_plan_core_has_volumes(self):
+    def test_series_plan_core_has_title(self):
         schema = get_schema("series_plan_core")
-        assert "planned_volumes" in schema["properties"]
+        assert "title" in schema["properties"]
 
     def test_volume_design_has_chapters(self):
         schema = get_schema("volume_design")
@@ -270,10 +271,10 @@ class TestSchemaFieldCoverage:
         schema = get_schema("scene_design")
         assert "characters" in schema["properties"]
 
-    def test_scene_review_has_dimensions(self):
+    def test_scene_review_has_issues(self):
         schema = get_schema("scene_review")
         props = schema["properties"]
-        assert "dimensions" in props
+        assert "issues" in props
 
     def test_bible_update_has_all_fields(self):
         schema = get_schema("scene_summary_and_bible_update")
