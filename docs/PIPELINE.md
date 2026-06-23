@@ -122,10 +122,8 @@ LLM呼び出しの生データを `_raw_logs/{phase}/{pid}_{kind}/` に gzip 保
 | イベント | ファイル名 | 内容 |
 |---|---|---|
 | LLM呼び出し前 (attempt N) | `request_N.json.gz` | リクエストペイロード |
-| LLM呼び出し後 (attempt N) | `response_N.json.gz` | パース前の生データ（成功・エラー問わず保存） |
-| スキーマエラー時 (attempt N) | `_schema_err_N.json.gz` | スキーマ不一致の出力 |
-| LLM通信エラー時 (attempt N) | `_llm_err_N.json.gz` | 通信エラー時の出力（空の場合あり） |
-| その他のエラー時 (attempt N) | `_err_N.json.gz` | 予期しないエラー時の出力 |
+| 成功・パース失敗時 (attempt N) | `response_N.json.gz` | パース前の生データ |
+| LLM通信エラー時 (attempt N) | `_llm_err_N.json.gz` | 通信エラー時のレスポンス（空の場合あり、空なら保存しない） |
 | 全リトライ失敗時 | `_failed.json.gz` | 最後の試行の出力 |
 
 - 各リトライで異なるファイル名が使われるため、全試行のRAWデータが保持される

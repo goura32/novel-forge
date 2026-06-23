@@ -192,7 +192,6 @@ class LLMClient:
                 continue
             except SchemaValidationError as e:
                 last_error = e
-                self._write_raw_log(f"_schema_err_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
@@ -207,7 +206,8 @@ class LLMClient:
                 continue
             except LLMError as e:
                 last_error = e
-                self._write_raw_log(f"_llm_err_{attempt}", raw_text)
+                if raw_text.strip():
+                    self._write_raw_log(f"_llm_err_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
