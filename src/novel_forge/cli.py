@@ -396,6 +396,7 @@ def complete(
 def doctor(
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="Model to test"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    ollama_host: str = typer.Option("ws1.local:11434", "--ollama-host", help="Ollama host (default: ws1.local:11434)"),
 ):
     """Diagnose Ollama connectivity and model readiness."""
     import json as _json
@@ -406,7 +407,7 @@ def doctor(
     # 1. Check Ollama is running
     console.print("1. Ollama connectivity")
     try:
-        resp = httpx.get("http://ws1.local:11434/", timeout=5)
+        resp = httpx.get(f"http://{ollama_host}/", timeout=5)
         if resp.status_code == 200:
             console.print("   [green]✓ Ollama is running[/green]")
         else:
@@ -421,7 +422,7 @@ def doctor(
     console.print(f"2. Model: {model}")
     try:
         resp = httpx.post(
-            "http://ws1.local:11434/api/show",
+            f"http://{ollama_host}/api/show",
             json={"name": model},
             timeout=15,
         )
@@ -455,7 +456,7 @@ def doctor(
         content_parts = []
         with httpx.stream(
             "POST",
-            "http://ws1.local:11434/api/chat",
+            f"http://{ollama_host}/api/chat",
             json=payload,
             timeout=120,
         ) as stream_resp:
@@ -493,7 +494,7 @@ def doctor(
         thinking_parts = []
         with httpx.stream(
             "POST",
-            "http://ws1.local:11434/api/chat",
+            f"http://{ollama_host}/api/chat",
             json=payload,
             timeout=300,
         ) as stream_resp:

@@ -366,8 +366,10 @@ class TestPlanReviewLoop:
         mock_llm.add_sequence("series_plan_core_revision", _make_plan_response(title="修正版"))
         mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
         # characters & volumes phases (pass immediately)
-        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
-        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        # series_plan_characters はバリデーションリトライがあるため複数回追加
+        for _ in range(4):
+            mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+            mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
         mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
@@ -387,8 +389,10 @@ class TestPlanReviewLoop:
             })
             mock_llm.add_sequence("series_plan_core_revision", _make_plan_response())
         # characters & volumes phases (pass immediately)
-        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
-        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        # series_plan_characters はバリデーションリトライがあるため複数回追加
+        for _ in range(4):
+            mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+            mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
         mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
@@ -1353,8 +1357,10 @@ class TestPromptInputCompleteness:
         ))
         mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
         # characters & volumes phases (pass immediately)
-        mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
-        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        # series_plan_characters はバリデーションリトライがあるため複数回追加
+        for _ in range(4):
+            mock_llm.add_sequence("series_plan_characters", {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]})
+            mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]})
         mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 

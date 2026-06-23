@@ -251,7 +251,7 @@ class SceneWriter:
             try:
                 result = self._llm.complete_json("scene_review", system, user, schema, seed_offset=seed_offset)
                 if "revision_needed" not in result:
-                    result["revision_needed"] = self._auto_revision_needed(result)
+                    result["revision_needed"] = self._quality.check(result).revision_needed
                 self._log.info("  [REVIEW DONE] revision_needed=%s", result.get("revision_needed"))
                 return result
             except Exception as e:

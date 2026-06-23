@@ -10,9 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, Callable
-
 from novel_forge.validate_schemas import validate_schemas
-from typing import Any, Callable
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
