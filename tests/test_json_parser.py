@@ -1,4 +1,4 @@
-"""Tests for json_parser.py — NDJSON parsing, error handling, type coercion."""
+"""Tests for json_parser.py — parsing and type coercion."""
 from __future__ import annotations
 
 import json
@@ -7,13 +7,7 @@ import pytest
 
 from novel_forge.json_parser import (
     JsonParseError,
-    _escape_json_string_values,
     _extract_json_text,
-    _fix_bracket_quoted_values,
-    _fix_missing_colons,
-    _fix_single_quoted_values,
-    _fix_trailing_comma,
-    _fix_unquoted_values,
     coerce_types,
     parse_json_response,
 )
@@ -40,110 +34,6 @@ class TestExtractJsonText:
         assert _extract_json_text("") == ""
 
 
-# ── _escape_json_string_values ─────────────────────────────────────────
-
-class TestEscapeJsonStringValues:
-    def test_escapes_newlines_in_strings(self):
-        text = '{"key": "line1\nline2"}'
-        result = _escape_json_string_values(text)
-        assert "\\n" in result
-        # Should be valid JSON after escaping
-        parsed = json.loads(result)
-        assert parsed["key"] == "line1\nline2"
-
-    def test_preserves_already_escaped(self):
-        text = '{"key": "line1\\nline2"}'
-        result = _escape_json_string_values(text)
-        parsed = json.loads(result)
-        assert parsed["key"] == "line1\nline2"
-
-    def test_no_strings(self):
-        text = '{"a": 1, "b": true}'
-        result = _escape_json_string_values(text)
-        assert result == text
-
-
-# ── _fix_bracket_quoted_values ─────────────────────────────────────────
-
-class TestFixBracketQuotedValues:
-    def test_bracket_to_double_quote(self):
-        text = '{"key": 「value」}'
-        result = _fix_bracket_quoted_values(text)
-        assert '"value"' in result
-
-    def test_no_brackets(self):
-        text = '{"key": "value"}'
-        result = _fix_bracket_quoted_values(text)
-        assert result == text
-
-
-# ── _fix_single_quoted_values ──────────────────────────────────────────
-
-class TestFixSingleQuotedValues:
-    def test_single_to_double(self):
-        text = "{'key': 'value'}"
-        result = _fix_single_quoted_values(text)
-        parsed = json.loads(result)
-        assert parsed["key"] == "value"
-
-    def test_mixed_quotes(self):
-        text = '{"key": \'value\'}'
-        result = _fix_single_quoted_values(text)
-        parsed = json.loads(result)
-        assert parsed["key"] == "value"
-
-
-# ── _fix_unquoted_values ───────────────────────────────────────────────
-
-class TestFixUnquotedValues:
-    def test_unquoted_string(self):
-        text = '{"key": value}'
-        result = _fix_unquoted_values(text)
-        parsed = json.loads(result)
-        assert parsed["key"] == "value"
-
-    def test_already_quoted(self):
-        text = '{"key": "value"}'
-        result = _fix_unquoted_values(text)
-        assert result == text
-
-    def test_numeric_not_quoted(self):
-        text = '{"key": 42}'
-        result = _fix_unquoted_values(text)
-        # Numeric values should not be quoted
-        assert '42' in result
-
-
-# ── _fix_trailing_comma ────────────────────────────────────────────────
-
-class TestFixTrailingComma:
-    def test_trailing_comma_before_brace(self):
-        text = '{"a": 1, "b": 2,}'
-        result = _fix_trailing_comma(text)
-        parsed = json.loads(result)
-        assert parsed == {"a": 1, "b": 2}
-
-    def test_trailing_comma_before_bracket(self):
-        text = '["a", "b",]'
-        result = _fix_trailing_comma(text)
-        parsed = json.loads(result)
-        assert parsed == ["a", "b"]
-
-    def test_no_trailing_comma(self):
-        text = '{"a": 1}'
-        result = _fix_trailing_comma(text)
-        assert result == text
-
-
-# ── _fix_missing_colons ────────────────────────────────────────────────
-
-class TestFixMissingColons:
-    def test_missing_colon(self):
-        text = '"key", "value"'
-        result = _fix_missing_colons(text)
-        assert '"key": "value"' in result
-
-
 # ── parse_json_response ────────────────────────────────────────────────
 
 class TestParseJsonResponse:
@@ -156,26 +46,6 @@ class TestParseJsonResponse:
         text = '```json\n{"a": 1, "b": 2}\n```'
         result = parse_json_response(text)
         assert result == {"a": 1, "b": 2}
-
-    def test_json_with_newlines_in_strings(self):
-        text = '{"key": "line1\nline2"}'
-        result = parse_json_response(text)
-        assert result["key"] == "line1\nline2"
-
-    def test_json_with_single_quotes(self):
-        text = "{'key': 'value'}"
-        result = parse_json_response(text)
-        assert result == {"key": "value"}
-
-    def test_json_with_trailing_comma(self):
-        text = '{"a": 1, "b": 2,}'
-        result = parse_json_response(text)
-        assert result == {"a": 1, "b": 2}
-
-    def test_json_with_unquoted_values(self):
-        text = '{"key": value}'
-        result = parse_json_response(text)
-        assert result["key"] == "value"
 
     def test_nested_json(self):
         text = '{"outer": {"inner": "value"}, "list": [1, 2, 3]}'

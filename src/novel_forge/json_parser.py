@@ -17,215 +17,26 @@ def _extract_json_text(text: str) -> str:
     return text
 
 
-def _escape_json_string_values(text: str) -> str:
-    """Replace unescaped newlines inside JSON string values with \\n."""
-    result = []
-    i = 0
-    n = len(text)
-    in_string = False
-    escape_next = False
-    while i < n:
-        ch = text[i]
-        if in_string:
-            if escape_next:
-                result.append(ch)
-                escape_next = False
-            elif ch == '\\':
-                result.append(ch)
-                escape_next = True
-            elif ch == '"':
-                result.append(ch)
-                in_string = False
-            elif ch == '\n':
-                result.append('\\')
-                result.append('n')
-            else:
-                result.append(ch)
-        else:
-            if ch == '"':
-                in_string = True
-            result.append(ch)
-        i += 1
-    return ''.join(result)
-
-
-def _fix_bracket_quoted_values(s: str) -> str:
-    """Replace 「...」-quoted values (after ': ') with "..."-quoted values."""
-    result = []
-    i = 0
-    n = len(s)
-    while i < n:
-        if (i + 2 < n and s[i] == ':' and s[i + 1] == ' '
-                and s[i + 2] == '\u300c'):
-            result.append(': ')
-            i += 2
-            start = i
-            j = i
-            last_period = -1
-            depth = 0
-            while j < n:
-                if s[j] == '\u300c':
-                    depth += 1
-                elif s[j] == '\u300d':
-                    depth -= 1
-                elif s[j] == '。' and depth == 0:
-                    last_period = j
-                elif s[j] == ',' and depth == 0:
-                    break
-                elif s[j] == '\n' and depth == 0:
-                    break
-                j += 1
-            end = last_period + 1 if last_period >= 0 else j
-            value = s[start:end]
-            escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-            result.append('"')
-            result.append(escaped)
-            result.append('"')
-            i = end
-        else:
-            result.append(s[i])
-            i += 1
-    return ''.join(result)
-
-
-def _fix_single_quoted_values(s: str) -> str:
-    """Replace single-quoted string values with double-quoted values."""
-    result = []
-    i = 0
-    n = len(s)
-    while i < n:
-        if (s[i] == "'" and i > 0 and s[i - 1] in (':', ',')):
-            j = i + 1
-            while j < n:
-                if s[j] == "'" and s[j - 1] != '\\':
-                    break
-                j += 1
-            if j < n:
-                value = s[i + 1:j]
-                escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                result.append('"')
-                result.append(escaped)
-                result.append('"')
-                i = j + 1
-                continue
-        result.append(s[i])
-        i += 1
-    return ''.join(result)
-
-
-def _fix_unquoted_values(s: str) -> str:
-    """Wrap bare unquoted string values in double quotes.
-
-    Handles patterns like: "key": value (where value is not quoted)
-    The value ends at ,\n or \n at the same nesting level.
-    """
-    result = []
-    i = 0
-    n = len(s)
-    while i < n:
-        if (s[i] == ':' and i + 1 < n and s[i + 1] == ' '
-                and i + 2 < n
-                and s[i + 2] not in ('"', "'", '{', '[', '}', ']', 'n', 't', 'f')):
-            # Check if this is inside a string value (skip if so)
-            quote_count = 0
-            for k in range(i):
-                if s[k] == '"' and (k == 0 or s[k - 1] != '\\'):
-                    quote_count += 1
-            if quote_count % 2 == 1:
-                result.append(s[i])
-                i += 1
-                continue
-            result.append('": "')
-            i += 2  # skip ': '
-            start = i
-            j = i
-            depth_brace = 0
-            depth_bracket = 0
-            last_period = -1
-            while j < n:
-                if s[j] == '{':
-                    depth_brace += 1
-                elif s[j] == '}':
-                    depth_brace -= 1
-                elif s[j] == '[':
-                    depth_bracket += 1
-                elif s[j] == ']':
-                    depth_bracket -= 1
-                elif depth_brace == 0 and depth_bracket == 0:
-                    if s[j] == '。':
-                        last_period = j
-                    elif s[j] == ',':
-                        break
-                    elif s[j] == '\n':
-                        break
-                j += 1
-            end = last_period + 1 if last_period >= 0 else j
-            if end < n and s[end] == '"':
-                end += 1
-            value = s[start:end].rstrip()
-            escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-            result.append(escaped)
-            result.append('"')
-            i = end
-        else:
-            result.append(s[i])
-            i += 1
-    return ''.join(result)
-
-
-def _fix_trailing_comma(s: str) -> str:
-    """Remove trailing commas before } or ] in JSON."""
-    # Remove trailing comma before }:  "key": "value",} -> "key": "value"}
-    s = re.sub(r',\s*}', '}', s)
-    # Remove trailing comma before ]:  ["a","b",] -> ["a","b"]
-    s = re.sub(r',\s*]', ']', s)
-    return s
-
-
-def _fix_missing_colons(s: str) -> str:
-    """Fix missing colons: "key", "value" -> "key": "value"."""
-    return re.sub(r'"\s*,\s*"([^"]*)"', r'": "\1"', s)
-
-
 def parse_json_response(text: str) -> Any:
-    """Parse JSON from LLM response with progressive fallback fixes."""
+    """Parse JSON from LLM response.
+
+    Ollama format=json ensures valid JSON output, so direct parsing is sufficient.
+    Fallback: extract JSON object boundaries if direct parse fails.
+    """
     text = _extract_json_text(text)
 
-    # Attempt 1: Direct parse
+    # Direct parse (primary path for format=json)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # Attempt 2: Fix literal newlines in string values
-    fixed = _escape_json_string_values(text)
-    try:
-        return json.loads(fixed)
-    except json.JSONDecodeError:
-        pass
-
-    # Attempt 3-6: Progressive structural fixes
-    fix_chain = [
-        _fix_bracket_quoted_values,
-        _fix_single_quoted_values,
-        _fix_unquoted_values,
-        _fix_trailing_comma,
-        _fix_missing_colons,
-    ]
-    patched = fixed
-    for fix_fn in fix_chain:
-        patched = fix_fn(patched)
-        try:
-            return json.loads(patched)
-        except json.JSONDecodeError:
-            continue
-
-    # Last resort: extract JSON object boundaries
-    start = patched.find("{")
-    end = patched.rfind("}")
+    # Fallback: extract JSON object boundaries
+    start = text.find("{")
+    end = text.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(patched[start : end + 1])
+            return json.loads(text[start : end + 1])
         except json.JSONDecodeError:
             pass
 
