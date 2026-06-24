@@ -65,6 +65,27 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             f"{kind} のバリデーションに失敗しました。{max_retries}回試行しましたが合格しませんでした。"
         )
 
+    def _get_existing_slugs(self) -> set[str]:
+        """workdir に存在する既存シリーズの slug を取得する"""
+        existing = set()
+        workdir = self._workdir
+        if not workdir.exists():
+            return existing
+        for d in workdir.iterdir():
+            if not d.is_dir() or d.name.startswith("."):
+                continue
+            plan_path = d / "series_plan.json"
+            if plan_path.exists():
+                try:
+                    import json as _json
+                    data = _json.loads(plan_path.read_text(encoding="utf-8"))
+                    slug = data.get("slug", "")
+                    if slug:
+                        existing.add(slug)
+                except Exception:
+                    pass
+        return existing
+
     def _validate_plan_core(self, data: dict) -> list[str]:
         """series_plan_core のバリデーション。"""
         errors = self._validate_required(data, [
@@ -78,6 +99,9 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
                 errors.append("slug: 32文字以内である必要があります")
             if not re.match(r'^[a-z0-9]+(-[a-z0-9]+)*$', slug):
                 errors.append("slug: 英数字とハイフンのみ。ハイフンで始終不可、連続ハイフン不可")
+            # 既存slugとの重複チェック
+            if slug in self._get_existing_slugs():
+                errors.append(f"slug: '{slug}' は既存シリーズと重複します。別のslugを生成してください")
         # world の内部チェック
         world = data.get("world", {})
         if not world.get("summary", "").strip():
@@ -101,6 +125,15 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         slug = getattr(self, "_slug", "?")
         self._log.info(f"Plan started: keywords='{keywords}' slug='{slug}'")
         system = self._prompts.render("system.md", {"lang": self._lang})
+
+        # Check if series directory already exists
+        if self._slug:
+            series_dir = self._workdir / self._slug
+            if series_dir.exists():
+                raise FileNotFoundError(
+                    f"Series directory '{series_dir}' already exists. "
+                    f"Use a different slug or remove the existing directory."
+                )
 
         # Phase 1: Core (title, logline, genre, themes, world)
         core = self._generate_plan_core(keywords, system)
@@ -155,7 +188,12 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     # ── Phase 1: Core ────────────────────────────────────────────────────
 
     def _generate_plan_core(self, keywords: str, system: str) -> dict:
-        user_prompt = self._prompts.render("series_plan_core.md", {"keywords": keywords, "lang": self._lang})
+        # 既存slugをプロンプトに渡して重複回避
+        existing_slugs = sorted(self._get_existing_slugs())
+        existing_hint = ""
+        if existing_slugs:
+            existing_hint = f"\n\n## 注意: 以下のslugは既存シリーズで使用されているため使用不可: {', '.join(existing_slugs)}\nこれらと重複しない新しいslugを生成すること。"
+        user_prompt = self._prompts.render("series_plan_core.md", {"keywords": keywords, "lang": self._lang}) + existing_hint
         return self._validate_and_retry(
             generate_fn=lambda prompt: self._llm.complete_json("series_plan_core", system, prompt, get_schema("series_plan_core")),
             validate_fn=self._validate_plan_core,

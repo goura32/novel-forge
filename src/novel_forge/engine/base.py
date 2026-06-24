@@ -96,7 +96,12 @@ class NovelEngineBase:
         self._slug = ""
         self._phase = phase
 
-        log_file = Path(workdir) / "novel_forge.log"
+        # ログは全シリーズ共通で config.yaml と同じフォルダに出力
+        # workdir がシリーズディレクトリの場合、親ディレクトリを使用
+        log_dir = Path(workdir)
+        if (log_dir / "series_plan.json").exists():
+            log_dir = log_dir.parent
+        log_file = log_dir / "novel_forge.log"
         setup_logging(log_file=log_file, verbose=self._verbose, log_level=self._log_level)
 
         schema_errors = validate_schemas()
@@ -167,41 +172,20 @@ class NovelEngineBase:
 
     @property
     def _series_dir(self) -> Path:
-        """Series output directory (temp during plan, final after)."""
+        """Series output directory: {workdir}/{slug}/ (temp during plan)."""
         if hasattr(self, "_cached_series_dir"):
             return self._cached_series_dir
         if not self._slug:
-            existing = self._find_existing_series_dir()
-            if existing:
-                self._cached_series_dir = existing
-                return existing
             if not hasattr(self, "_tmp_dir"):
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
             self._cached_series_dir = self._tmp_dir
             return self._tmp_dir
-        folder_name = self._slug.replace("-", "_")
-        result = self._workdir / f"{self._timestamp}_{folder_name}"
+        result = self._workdir / self._slug
         self._cached_series_dir = result
         return result
 
-    def _find_existing_series_dir(self) -> Path | None:
-        """Find existing series directory in workdir."""
-        if (self._workdir / "series_plan.json").exists():
-            return self._workdir
-        pattern = re.compile(r"^\d{8}_\d{6}_")
-        for d in sorted(self._workdir.iterdir(), reverse=True):
-            if d.is_dir() and pattern.match(d.name) and (d / "series_plan.json").exists():
-                return d
-        return None
-
-    @property
-    def _timestamp(self) -> str:
-        if not hasattr(self, "_ts"):
-            self._ts = time.strftime("%Y%m%d_%H%M%S")
-        return self._ts
-
     def _move_to_final_dir(self) -> None:
-        """Move temp directory contents to final {timestamp}_{slug}/ directory."""
+        """Move temp directory contents to final {slug}/ directory."""
         if hasattr(self, "_tmp_dir") and self._tmp_dir.exists():
             final_dir = self._series_dir
             if not final_dir.exists():
@@ -251,9 +235,12 @@ class NovelEngineBase:
     def _load_path(self, vol_num: int, filename: str) -> dict:
         path = self._series_dir / f"vol{vol_num:02d}" / filename
         if not path.exists():
-            existing = self._find_existing_series_dir()
-            if existing:
-                path = existing / f"vol{vol_num:02d}" / filename
+            # Try parent directories
+            for d in sorted(self._workdir.iterdir(), reverse=True):
+                if d.is_dir() and (d / "series_plan.json").exists():
+                    path = d / f"vol{vol_num:02d}" / filename
+                    if path.exists():
+                        break
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
         return json.loads(path.read_text(encoding="utf-8"))

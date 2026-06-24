@@ -21,27 +21,34 @@ console = Console()
 DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
 _LOCK_FILE_NAME = ".lock"
 _STATE_FILE_NAME = ".novel_forge_state"
-_LOCK_TIMEOUT_SECONDS = 300  # 5 min stale lock threshold
+_LOCK_TIMEOUT_SECONDS = 300
 
 
 def _acquire_lock(series_dir: Path, timeout: float | None = None) -> Path:
     """Acquire an exclusive lock for a series directory.
 
-    Uses a .lock file containing the current PID. If a stale lock is detected
-    (process no longer alive), it is overwritten. Otherwise, waits up to
-    ``timeout`` seconds (default: _LOCK_TIMEOUT_SECONDS).
-
-    Caller is responsible for releasing the lock via _release_lock().
+    If a stale lock is detected (process no longer alive), it is overwritten
+    immediately. Otherwise, waits up to ``timeout`` seconds.
     """
     if timeout is None:
         timeout = _LOCK_TIMEOUT_SECONDS
     lock_path = series_dir / _LOCK_FILE_NAME
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Check for stale lock first — overwrite immediately if holder is dead
+    if lock_path.exists():
+        try:
+            lock_pid = int(lock_path.read_text().strip())
+        except (ValueError, OSError):
+            lock_pid = 0
+        if lock_pid <= 0 or not _is_process_alive(lock_pid):
+            console.print(f"[yellow]⚠ Stale lock (PID={lock_pid}) detected, removing.[/yellow]")
+            lock_path.unlink(missing_ok=True)
+
     deadline = time.monotonic() + timeout
     last_msg = time.monotonic()
     while True:
         try:
-            # O_CREAT | O_EXCL ensures atomic creation
             fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             try:
                 os.write(fd, str(os.getpid()).encode())
@@ -49,30 +56,28 @@ def _acquire_lock(series_dir: Path, timeout: float | None = None) -> Path:
                 os.close(fd)
             return lock_path
         except FileExistsError:
-            # Check if the lock holder is still alive
             try:
                 lock_pid = int(lock_path.read_text().strip())
             except (ValueError, OSError):
                 lock_pid = 0
-            if lock_pid <= 0 or not _is_process_alive(lock_pid):
-                console.print(f"[yellow]⚠ Stale lock (PID={lock_pid}) detected, removing.[/yellow]")
+            if lock_pid > 0 and _is_process_alive(lock_pid):
+                if time.monotonic() >= deadline:
+                    console.print(
+                        f"[red]✗ Lock held by PID={lock_pid} (waited {timeout:.0f}s). "
+                        f"Another process is running on this series.[/red]"
+                    )
+                    console.print("[dim]Wait for it to finish, or remove the lock file manually:[/dim]")
+                    console.print(f"  rm {lock_path}")
+                    sys.exit(1)
+                now = time.monotonic()
+                if now - last_msg >= 5.0:
+                    waited = now - (deadline - timeout)
+                    console.print(f"[dim]⏳ Waiting for lock (PID={lock_pid}, waited {waited:.0f}s)...[/dim]")
+                    last_msg = now
+                time.sleep(0.5)
+            else:
+                # Lock became stale while we were waiting — remove and retry
                 lock_path.unlink(missing_ok=True)
-                continue
-            if time.monotonic() >= deadline:
-                console.print(
-                    f"[red]✗ Lock held by PID={lock_pid} (waited {timeout:.0f}s). "
-                    f"Another process is running on this series.[/red]"
-                )
-                console.print("[dim]Wait for it to finish, or remove the lock file manually:[/dim]")
-                console.print(f"  rm {lock_path}")
-                sys.exit(1)
-            # Progress message every 5 seconds
-            now = time.monotonic()
-            if now - last_msg >= 5.0:
-                waited = now - (deadline - timeout)
-                console.print(f"[dim]⏳ Waiting for lock (PID={lock_pid}, waited {waited:.0f}s)...[/dim]")
-                last_msg = now
-            time.sleep(0.5)
 
 
 def _is_process_alive(pid: int) -> bool:
@@ -83,7 +88,7 @@ def _is_process_alive(pid: int) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True  # process exists but we can't signal it
+        return True
 
 
 def _release_lock(lock_path: Path) -> None:
@@ -104,36 +109,30 @@ def _series_lock(series_dir: Path) -> Generator[None, None, None]:
         _release_lock(lock_path)
 
 
-def _resolve_series_dir(workdir: Path) -> Path:
-    """Resolve the actual series directory from a workdir path.
+def _resolve_series_dir(workdir: Path, slug: str | None = None) -> Path:
+    """Resolve the actual series directory.
 
-    If workdir itself contains series_plan.json, returns workdir.
-    Otherwise looks for the most recent {timestamp}_{slug} subdirectory.
+    If slug is given, look for {slug} directory in workdir.
+    Otherwise, look for the most recent series directory or return workdir
+    (for plan command which creates a new one).
     """
+    if slug:
+        series_dir = workdir / slug
+        if not series_dir.exists():
+            raise FileNotFoundError(
+                f"Series '{slug}' not found in {workdir}. "
+                f"Run 'plan' first, or check the slug name."
+            )
+        return series_dir
+    # No slug: check if workdir itself is a series dir
     if (workdir / "series_plan.json").exists():
         return workdir
+    # Look for {slug} directory
     for d in sorted(workdir.iterdir(), reverse=True):
-        if d.is_dir() and "_" in d.name and not d.name.startswith("."):
+        if d.is_dir() and not d.name.startswith("."):
             if (d / "series_plan.json").exists():
                 return d
-    return workdir  # not yet planned; lock will be acquired later
-
-
-def _format_lock_status(series_dir: Path) -> tuple[str, str] | None:
-    """Format lock status for display. Returns (style, text) or None."""
-    lock_path = series_dir / _LOCK_FILE_NAME
-    if not lock_path.exists():
-        return None
-    try:
-        lock_pid = int(lock_path.read_text().strip())
-        age = time.time() - lock_path.stat().st_mtime
-        alive = _is_process_alive(lock_pid)
-        if alive:
-            return ("bold", f"🔒 lock: PID={lock_pid} (active, {age:.0f}s ago)")
-        else:
-            return ("dim", f"🔒 lock: PID={lock_pid} (stale, {age:.0f}s ago)")
-    except (ValueError, OSError):
-        return ("dim", "🔒 lock: corrupted")
+    return workdir  # not yet planned
 
 
 def _engine(
@@ -152,7 +151,6 @@ def _engine(
         phase=phase,
     )
 
-    # シグナルハンドラを登録（全コマンドで共通）
     _shutdown_requested = False
     _current_step = "init"
 
@@ -168,9 +166,7 @@ def _engine(
             state = {
                 "step": _current_step,
                 "status": f"interrupted_by_{sig_name}",
-                "model": model,
-                "lang": lang,
-                "pid": os.getpid(),
+                "model": model, "lang": lang, "pid": os.getpid(),
                 "updated_at": time.time(),
             }
             state_path.write_text(_json.dumps(state, ensure_ascii=False, indent=2))
@@ -179,20 +175,18 @@ def _engine(
 
     original_sigterm = signal.signal(signal.SIGTERM, _signal_handler)
     original_sigint = signal.signal(signal.SIGINT, _signal_handler)
-
     engine._signal_cleanup = (original_sigterm, original_sigint)
-
     return engine
 
 
 @app.command()
 def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data to _raw_logs/"),
 ):
     """Generate a series plan from keywords."""
     engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="plan")
@@ -204,16 +198,17 @@ def plan(
 @app.command()
 def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
+    series: str = typer.Option(None, "--series", "-s", help="Series slug (e.g. closed-stacks-return-box)"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data to _raw_logs/"),
 ):
     """Generate a volume design (chapter/scene structure)."""
-    series_dir = _resolve_series_dir(workdir)
+    series_dir = _resolve_series_dir(workdir, series)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="design")
+        engine = _engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="design")
         result = engine.design(volume)
         console.print(f"[green]✓[/green] Volume {volume} design generated")
 
@@ -221,17 +216,18 @@ def design(
 @app.command()
 def write(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
+    series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data to _raw_logs/"),
 ):
     """Write scene drafts."""
-    series_dir = _resolve_series_dir(workdir)
+    series_dir = _resolve_series_dir(workdir, series)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="write")
+        engine = _engine(series_dir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="write")
         results = engine.write(volume)
         console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -239,58 +235,67 @@ def write(
 @app.command()
 def export(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
+    series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data to _raw_logs/"),
 ):
     """Export manuscript for KDP."""
-    series_dir = _resolve_series_dir(workdir)
+    series_dir = _resolve_series_dir(workdir, series)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="export")
+        engine = _engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="export")
         result = engine.export(volume)
         console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
 
 
 @app.command()
 def status(
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
+    series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
 ):
     """Show current project status."""
-    engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="status")
+    series_dir = _resolve_series_dir(workdir, series) if series else workdir
+    engine = _engine(series_dir, model, lang, verbose=verbose, phase="status")
     s = engine.status()
     table = Table(title="NovelForge Status")
     table.add_column("Key", style="bold")
     table.add_column("Value")
     for k, v in s.items():
         table.add_row(k, str(v))
-    # Check lock status
-    series_dir = _resolve_series_dir(workdir)
-    lock_info = _format_lock_status(series_dir)
-    if lock_info:
-        style, text = lock_info
-        table.add_row(f"[{style}]{text}[/{style}]")
+    lock_path = series_dir / _LOCK_FILE_NAME
+    if lock_path.exists():
+        try:
+            lock_pid = int(lock_path.read_text().strip())
+            age = time.time() - lock_path.stat().st_mtime
+            alive = _is_process_alive(lock_pid)
+            if alive:
+                table.add_row(f"[bold]🔒 lock: PID={lock_pid} (active, {age:.0f}s ago)[/bold]", "")
+            else:
+                table.add_row(f"[dim]🔒 lock: PID={lock_pid} (stale, {age:.0f}s ago)[/dim]", "")
+        except (ValueError, OSError):
+            table.add_row("[dim]🔒 lock: corrupted[/dim]", "")
     console.print(table)
 
 
 @app.command()
 def resume(
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
+    series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data to _raw_logs/"),
 ):
     """Resume from the last interrupted phase."""
-    series_dir = _resolve_series_dir(workdir)
+    series_dir = _resolve_series_dir(workdir, series)
     with _series_lock(series_dir):
-        engine = _engine(workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="resume")
+        engine = _engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="resume")
         result = engine.resume()
         action = result["action"]
         console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
@@ -307,37 +312,27 @@ def resume(
 @app.command()
 def complete(
     keywords: str = typer.Argument(..., help="Series keywords"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory (contains config.yaml)"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
     lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="LLM生データをraw_logs/に記録（動作確認用）"),
+    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data to _raw_logs/"),
 ):
     """Run the full pipeline: plan → design → write → export."""
     import json as _json
 
     series_dir = _resolve_series_dir(workdir)
-
-    # --- State file helpers ---
     state_path = series_dir / _STATE_FILE_NAME
 
     def _write_state(step: str, status: str) -> None:
         try:
-            state = {
-                "step": step,
-                "status": status,
-                "model": model,
-                "lang": lang,
-                "pid": os.getpid(),
-                "updated_at": time.time(),
-            }
+            state = {"step": step, "status": status, "model": model, "lang": lang, "pid": os.getpid(), "updated_at": time.time()}
             state_path.write_text(_json.dumps(state, ensure_ascii=False, indent=2))
         except OSError:
             pass
 
-    # --- Signal handler ---
     _shutdown_requested = False
     _current_step = "init"
 
@@ -352,7 +347,7 @@ def complete(
     original_sigint = signal.signal(signal.SIGINT, _signal_handler)
 
     _write_state("init", "running")
-    engine = _engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="complete")
+    engine = _engine(series_dir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="complete")
     steps = [
         ("Plan",   lambda: engine.plan(keywords)),
         ("Design", lambda: engine.design(volume)),
@@ -369,8 +364,6 @@ def complete(
             _write_state(name, "running")
             console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
             try:
-                # Plan はロック不要（新規シリーズ作成）。
-                # Design/Write/Export は既存シリーズに対して排他制御。
                 if name == "Plan":
                     result = fn()
                 else:
@@ -387,7 +380,6 @@ def complete(
         signal.signal(signal.SIGINT, original_sigint)
         if result is not None:
             _write_state("done", "completed")
-            # If interrupted or failed, state already written above
         assert result is not None
         console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
 
@@ -396,7 +388,7 @@ def complete(
 def doctor(
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="Model to test"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    ollama_host: str = typer.Option("ws1.local:11434", "--ollama-host", help="Ollama host (default: ws1.local:11434)"),
+    ollama_host: str = typer.Option("ws1.local:11434", "--ollama-host", help="Ollama host"),
 ):
     """Diagnose Ollama connectivity and model readiness."""
     import json as _json
@@ -421,11 +413,7 @@ def doctor(
     print()
     console.print(f"2. Model: {model}")
     try:
-        resp = httpx.post(
-            f"http://{ollama_host}/api/show",
-            json={"name": model},
-            timeout=15,
-        )
+        resp = httpx.post(f"http://{ollama_host}/api/show", json={"name": model}, timeout=15)
         if resp.status_code == 200:
             info = resp.json()
             details = info.get("details", {})
@@ -433,9 +421,7 @@ def doctor(
             fmt = details.get("format", "?")
             fam = details.get("family", "?")
             console.print(f"   [green]✓ Model loaded[/green]")
-            console.print(f"   context_length: {ctx}")
-            console.print(f"   format: {fmt}")
-            console.print(f"   family: {fam}")
+            console.print(f"   context_length: {ctx}, format: {fmt}, family: {fam}")
         else:
             console.print(f"   [yellow]⚠ Model info status {resp.status_code}[/yellow]")
             console.print(f"   Run: ollama pull {model}")
@@ -444,29 +430,20 @@ def doctor(
 
     # 3. Test simple inference (thinking=False)
     print()
-    console.print("3. Inference test (thinking=False, stream=True)")
+    console.print("3. Inference test (thinking=False)")
     try:
         payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": "Reply with only: OK"}],
-            "stream": True,
-            "format": "json",
-            "options": {"think": False, "num_predict": 500},
+            "model": model, "messages": [{"role": "user", "content": "Reply with only: OK"}],
+            "stream": True, "format": "json", "options": {"think": False, "num_predict": 500},
         }
         content_parts = []
-        with httpx.stream(
-            "POST",
-            f"http://{ollama_host}/api/chat",
-            json=payload,
-            timeout=120,
-        ) as stream_resp:
+        with httpx.stream("POST", f"http://{ollama_host}/api/chat", json=payload, timeout=120) as stream_resp:
             for line in stream_resp.iter_lines():
                 if not line.strip():
                     continue
                 chunk = _json.loads(line)
                 if chunk.get("done"):
-                    done_reason = chunk.get("done_reason", "")
-                    console.print(f"   done_reason: {done_reason}")
+                    console.print(f"   done_reason: {chunk.get('done_reason', '')}")
                     break
                 msg = chunk.get("message", {})
                 if msg.get("content"):
@@ -475,79 +452,94 @@ def doctor(
         if content:
             console.print(f"   [green]✓ content: [{content[:200]}][/green]")
         else:
-            console.print(f"   [yellow]⚠ Empty content — model returned no output[/yellow]")
+            console.print(f"   [yellow]⚠ Empty content[/yellow]")
     except Exception as e:
         console.print(f"   [red]✗ Inference failed: {e}[/red]")
 
     # 4. Test inference with thinking=True
     print()
-    console.print("4. Inference test (thinking=True, stream=True)")
+    console.print("4. Inference test (thinking=True)")
     try:
         payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": "Reply with only: OK"}],
-            "stream": True,
-            "format": "json",
-            "options": {"think": True, "num_predict": 500},
+            "model": model, "messages": [{"role": "user", "content": "Reply with only: OK"}],
+            "stream": True, "format": "json", "options": {"think": True, "num_predict": 500},
         }
         content_parts = []
-        thinking_parts = []
-        with httpx.stream(
-            "POST",
-            f"http://{ollama_host}/api/chat",
-            json=payload,
-            timeout=300,
-        ) as stream_resp:
+        with httpx.stream("POST", f"http://{ollama_host}/api/chat", json=payload, timeout=300) as stream_resp:
             for line in stream_resp.iter_lines():
                 if not line.strip():
                     continue
                 chunk = _json.loads(line)
                 if chunk.get("done"):
-                    done_reason = chunk.get("done_reason", "")
-                    console.print(f"   done_reason: {done_reason}")
+                    console.print(f"   done_reason: {chunk.get('done_reason', '')}")
                     break
                 msg = chunk.get("message", {})
                 if msg.get("content"):
                     content_parts.append(msg["content"])
-                if msg.get("thinking"):
-                    thinking_parts.append(msg["thinking"])
         content = "".join(content_parts)
-        thinking = "".join(thinking_parts)
         if content:
             console.print(f"   [green]✓ content: [{content[:200]}][/green]")
         else:
             console.print(f"   [yellow]⚠ Empty content[/yellow]")
-        if thinking:
-            console.print(f"   [green]thinking: [{thinking[:200]}...][/green]")
-        else:
-            console.print(f"   [dim]thinking: (none)[/dim]")
     except Exception as e:
         console.print(f"   [red]✗ Inference failed: {e}[/red]")
+
+    # 5. Test JSON format
+    print()
+    console.print("5. JSON format test")
+    try:
+        payload = {
+            "model": model, "messages": [{"role": "user", "content": '{"key": "value"}'}],
+            "stream": False, "format": "json", "options": {"think": False, "num_predict": 50},
+        }
+        resp = httpx.post(f"http://{ollama_host}/api/chat", json=payload, timeout=60)
+        if resp.status_code == 200:
+            data = resp.json()
+            content = data.get("message", {}).get("content", "")
+            parsed = _json.loads(content)
+            console.print(f"   [green]✓ JSON parseable: {parsed}[/green]")
+        else:
+            console.print(f"   [yellow]⚠ Status {resp.status_code}[/yellow]")
+    except Exception as e:
+        console.print(f"   [red]✗ JSON test failed: {e}[/red]")
 
     print()
     console.print("[bold]Done.[/bold]")
 
 
-def _cleanup_stale_locks(workdir: Path) -> None:
-    """Remove stale lock files from the workdir and series subdirectories.
+@app.command()
+def list(
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+):
+    """List all series in the working directory."""
+    import json as _json
 
-    Called at startup to handle locks left behind by killed/crashed processes.
-    """
-    # Check workdir itself
-    for lock_path in [workdir / _LOCK_FILE_NAME, *workdir.glob(f"*/{_LOCK_FILE_NAME}")]:
-        if not lock_path.exists():
+    table = Table(title="NovelForge Series")
+    table.add_column("Slug", style="bold")
+    table.add_column("Title")
+    table.add_column("Volumes")
+    table.add_column("Status")
+
+    for d in sorted(workdir.iterdir()):
+        if not d.is_dir() or d.name.startswith("."):
+            continue
+        plan_path = d / "series_plan.json"
+        if not plan_path.exists():
             continue
         try:
-            lock_pid = int(lock_path.read_text().strip())
-        except (ValueError, OSError):
-            lock_path.unlink(missing_ok=True)
-            console.print(f"[dim]⚠ Removed corrupted lock: {lock_path}[/dim]")
-            continue
-        if lock_pid <= 0 or not _is_process_alive(lock_pid):
-            lock_path.unlink(missing_ok=True)
-            console.print(f"[dim]⚠ Removed stale lock (PID={lock_pid}): {lock_path}[/dim]")
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+            slug = plan.get("slug", d.name)
+            title = plan.get("title", "?")
+            volumes = len(plan.get("planned_volumes", []))
+            state_path = d / ".novel_forge_state"
+            st = "unknown"
+            if state_path.exists():
+                try:
+                    st = json.loads(state_path.read_text(encoding="utf-8")).get("status", "?")
+                except Exception:
+                    pass
+            table.add_row(slug, title, str(volumes), st)
+        except Exception:
+            pass
 
-
-if __name__ == "__main__":
-    _cleanup_stale_locks(Path.cwd())
-    app()
+    console.print(table)
