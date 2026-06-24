@@ -33,7 +33,19 @@ from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 # ── Mock LLM Client ─────────────────────────────────────────────────────
 
 class MockLLMClient:
-    """Mock LLM client that returns predefined responses."""
+    """Mock LLM client that returns predefined responses.
+
+    Helpers:
+    - add_sequence(kind, response): Add response to sequential queue
+    - add_batch(*items): Add multiple (kind, response) pairs at once
+
+    Example:
+        mock = MockLLMClient()
+        mock.add_batch(
+            ("series_plan_core", {"title": "Test", "slug": "test", ...}),
+            ("series_plan_core_review", {"issues": [], "suggestions": []}),
+        )
+    """
 
     def __init__(self, responses: dict[str, Any] | None = None):
         self._responses = responses or {}
@@ -45,6 +57,18 @@ class MockLLMClient:
     def add_sequence(self, kind: str, response: Any) -> None:
         """Add a response to the sequential response queue."""
         self._sequence.append((kind, response))
+
+    def add_batch(self, *items: tuple[str, Any]) -> None:
+        """Add multiple (kind, response) pairs at once.
+
+        Usage:
+            mock.add_batch(
+                ("series_plan_core", core_data),
+                ("series_plan_core_review", review_data),
+            )
+        """
+        for kind, response in items:
+            self._sequence.append((kind, response))
 
     def complete_json(
         self,
