@@ -29,37 +29,19 @@ from novel_forge.logging_config import setup_logging, get_logger, console
 
 
 _OLLAMA_OPTION_KEYS = [
-    "temperature",
-    "top_k",
-    "top_p",
-    "repeat_penalty",
-    "presence_penalty",
-    "frequency_penalty",
-    "num_ctx",
-    "num_predict",
-    "seed",
-    "stop",
-    "tfs_z",
-    "typical_p",
-    "mirostat",
-    "mirostat_tau",
-    "mirostat_eta",
-    "penalize_newline",
+    "temperature", "top_k", "top_p", "repeat_penalty",
+    "presence_penalty", "frequency_penalty", "num_ctx",
+    "num_predict", "seed", "stop", "tfs_z", "typical_p",
+    "mirostat", "mirostat_tau", "mirostat_eta", "penalize_newline",
 ]
 
 
 def _build_ollama_options(llm_cfg: dict) -> dict:
-    """config.yaml から ollama options 辞書を構築する。
-
-    ollama_options が明示されていればそれを基準にし、
-    llm 直下の個別パラメータで上書きする。
-    """
+    """config.yaml から ollama options 辞書を構築する。"""
     options = dict(llm_cfg.get("ollama_options") or {})
     for key in _OLLAMA_OPTION_KEYS:
         if key in llm_cfg and llm_cfg[key] is not None:
             options[key] = llm_cfg[key]
-    # think は Ollama API レベルのパラメータだが、
-    # LLMClient が ollama_options から読み取るため、ここで含める
     if "think" in llm_cfg:
         options["think"] = llm_cfg["think"]
     return options
@@ -102,14 +84,11 @@ class NovelEngineBase:
         raw_log_enabled: bool | None = None,
         phase: str = "",
     ):
-        self._workdir = workdir
         self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
 
-        # config.yaml 読み込み（1回のみ）
         cfg = config if config is not None else load_config()
 
-        # logging 設定: CLI引数 > config.yaml > デフォルト
         log_cfg = cfg.get("logging", {})
         self._verbose = verbose if verbose is not None else log_cfg.get("verbose", False)
         self._raw_log_enabled = raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
@@ -117,12 +96,9 @@ class NovelEngineBase:
         self._slug = ""
         self._phase = phase
 
-        # Initialize logging
-        # ログ出力先はフェーズに関係なく workdir に統一
         log_file = Path(workdir) / "novel_forge.log"
         setup_logging(log_file=log_file, verbose=self._verbose, log_level=self._log_level)
 
-        # Validate all schema files are parseable — fail fast before any LLM call
         schema_errors = validate_schemas()
         if schema_errors:
             for err in schema_errors:
@@ -137,7 +113,6 @@ class NovelEngineBase:
         self._bb_storage = BlackboardStorage(self._series_dir)
         self._bible_storage = BibleStorage(self._series_dir)
 
-        # 古いロックファイルの自動削除
         lock_path = Path(workdir) / ".lock"
         if lock_path.exists():
             try:
@@ -153,24 +128,20 @@ class NovelEngineBase:
             llm_cfg = cfg.get("llm", {})
             model = model or self._DEFAULT_MODEL
             model = llm_cfg.get("model", model)
+            if model is None:
+                model = self._DEFAULT_MODEL
             timeout = llm_cfg.get("timeout_seconds", self._DEFAULT_TIMEOUT)
             max_retries = llm_cfg.get("max_retries", self._DEFAULT_MAX_RETRIES)
             num_predict = llm_cfg.get("num_predict", self._DEFAULT_NUM_PREDICT)
             num_ctx = llm_cfg.get("num_ctx", self._DEFAULT_NUM_CTX)
             host = llm_cfg.get("ollama_host", None)
-            api_url = None
-            if host:
-                api_url = f"http://{host}/api/chat"
+            api_url = f"http://{host}/api/chat" if host else None
             llm_client = LLMClient(
-                api_url=api_url,
-                model=model,
+                api_url=api_url, model=model,
                 raw_log_dir=Path(workdir) / "_raw_logs",
-                raw_log_enabled=self._raw_log_enabled,
-                phase=phase,
-                timeout_seconds=timeout,
-                max_retries=max_retries,
-                num_predict=num_predict,
-                num_ctx=num_ctx,
+                raw_log_enabled=self._raw_log_enabled, phase=phase,
+                timeout_seconds=timeout, max_retries=max_retries,
+                num_predict=num_predict, num_ctx=num_ctx,
                 ollama_options=_build_ollama_options(llm_cfg),
             )
         self._llm = llm_client
@@ -179,13 +150,11 @@ class NovelEngineBase:
         self._quality = QualityGate(max_retries=quality_retries)
         self._state = self._storage.load()
 
-        # Sub-components
         self._ctx_builder = ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
         self._bible_mgr = BibleManager(self._bible_storage)
         self._scene_writer = SceneWriter(
             workdir, self._llm, self._prompts, self._quality,
-            self._bb_storage, self._bible_storage,
-            series_dir=self._series_dir,
+            self._bb_storage, self._bible_storage, series_dir=self._series_dir,
         )
 
     @property
@@ -198,51 +167,35 @@ class NovelEngineBase:
 
     @property
     def _series_dir(self) -> Path:
-        """Series output directory.
-        During plan(): uses temp dir /tmp/novel-forge-{pid}/
-        After plan(): uses {workdir}/{timestamp}_{slug}/
-        If slug is not set, tries to find existing series dir in workdir.
-        Result is cached after first call.
-        """
+        """Series output directory (temp during plan, final after)."""
         if hasattr(self, "_cached_series_dir"):
             return self._cached_series_dir
         if not self._slug:
-            # Check if there's an existing series directory (from previous plan)
             existing = self._find_existing_series_dir()
             if existing:
                 self._cached_series_dir = existing
                 return existing
-            # Before plan(): use temp directory
             if not hasattr(self, "_tmp_dir"):
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
             self._cached_series_dir = self._tmp_dir
             return self._tmp_dir
-        # After plan(): use final directory
         folder_name = self._slug.replace("-", "_")
         result = self._workdir / f"{self._timestamp}_{folder_name}"
         self._cached_series_dir = result
         return result
 
     def _find_existing_series_dir(self) -> Path | None:
-        """Find existing series directory in workdir (for commands after plan).
-
-        Looks for directories matching the pattern {YYYYMMDD_HHMMSS}_{slug}
-        that contain series_plan.json.
-        """
-        # Check if workdir itself is the series directory
+        """Find existing series directory in workdir."""
         if (self._workdir / "series_plan.json").exists():
             return self._workdir
-        # Look for {timestamp}_{slug} pattern directories
         pattern = re.compile(r"^\d{8}_\d{6}_")
         for d in sorted(self._workdir.iterdir(), reverse=True):
-            if d.is_dir() and pattern.match(d.name):
-                if (d / "series_plan.json").exists():
-                    return d
+            if d.is_dir() and pattern.match(d.name) and (d / "series_plan.json").exists():
+                return d
         return None
 
     @property
     def _timestamp(self) -> str:
-        """Timestamp for this engine instance (set once at init)."""
         if not hasattr(self, "_ts"):
             self._ts = time.strftime("%Y%m%d_%H%M%S")
         return self._ts
@@ -254,27 +207,20 @@ class NovelEngineBase:
             if not final_dir.exists():
                 shutil.move(str(self._tmp_dir), str(final_dir))
             else:
-                # Merge: move files from temp to final
                 for item in self._tmp_dir.iterdir():
                     dest = final_dir / item.name
                     if dest.exists():
-                        # If dest exists, merge contents recursively
                         if item.is_dir() and dest.is_dir():
                             for sub_item in item.iterdir():
                                 sub_dest = dest / sub_item.name
                                 if not sub_dest.exists():
                                     shutil.move(str(sub_item), str(sub_dest))
-                        # If dest is file and item is file, skip (keep existing)
                     else:
                         shutil.move(str(item), str(dest))
-                # Remove temp dir recursively (in case any items couldn't be moved)
                 shutil.rmtree(self._tmp_dir, ignore_errors=True)
             self._log.info(f"Moved to final dir: {final_dir}")
-        # Invalidate cache so next _series_dir access uses final dir
         if hasattr(self, "_cached_series_dir"):
             del self._cached_series_dir
-
-    # ── helpers ───────────────────────────────────────────────────────
 
     def _save(self) -> None:
         self._storage.save(self._state)
@@ -289,9 +235,8 @@ class NovelEngineBase:
         return vol
 
     def _save_path(self, vol_num: int, filename: str, data: Any, version: int | None = None) -> None:
-        """Save data to path. If version is given, append _v{N} before extension."""
+        """Save data to path. If version > 0, append _v{N} before extension."""
         if version is not None and version > 0:
-            # Insert _v{N} before extension: design.json → design_v1.json
             stem = Path(filename).stem
             suffix = Path(filename).suffix
             filename = f"{stem}_v{version}{suffix}"
@@ -300,31 +245,20 @@ class NovelEngineBase:
         else:
             path = self._series_dir / f"vol{vol_num:02d}" / filename
         path.parent.mkdir(parents=True, exist_ok=True)
-        content = (
-            json.dumps(data, ensure_ascii=False, indent=2)
-            if isinstance(data, dict)
-            else str(data)
-        )
+        content = json.dumps(data, ensure_ascii=False, indent=2) if isinstance(data, dict) else str(data)
         path.write_text(content, encoding="utf-8")
 
     def _load_path(self, vol_num: int, filename: str) -> dict:
         path = self._series_dir / f"vol{vol_num:02d}" / filename
         if not path.exists():
-            # Try to find existing series directory
             existing = self._find_existing_series_dir()
             if existing:
                 path = existing / f"vol{vol_num:02d}" / filename
         if not path.exists():
-            raise FileNotFoundError(
-                f"File not found: {path}\n"
-                f"series_dir: {self._series_dir}\n"
-                f"workdir: {self._workdir}"
-            )
+            raise FileNotFoundError(f"File not found: {path}")
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def _get_or_create_scene_record(
-        self, vol: VolumeProgress, scene_number: int
-    ) -> SceneRecord:
+    def _get_or_create_scene_record(self, vol: VolumeProgress, scene_number: int) -> SceneRecord:
         for s in vol.scenes:
             if s.scene_number == scene_number:
                 return s
@@ -342,17 +276,7 @@ class NovelEngineBase:
         label: str = "",
         on_revise: Callable | None = None,
     ) -> dict:
-        """Generic review → revise loop.
-
-        Args:
-            item: The object to review/revise (modified in place).
-            review_fn: Callable(item, system, seed_offset) -> review dict.
-            revise_fn: Callable(item, review, system, seed_offset) -> revised item dict.
-            system: System prompt string.
-            max_retries: Maximum number of review/revise cycles.
-            label: Label for stderr logging.
-            on_revise: Optional callback(revised_item, version) called after each revision.
-        """
+        """Generic review → revise loop."""
         if max_retries is None:
             max_retries = self._quality.max_retries
         if max_retries < 1:

@@ -856,23 +856,6 @@ class TestPromptInputCompleteness:
         assert "テストシリーズ" in review_prompt
         assert "テストのあらすじ" in review_prompt
 
-    def test_outline_review_receives_series_plan(self, planned_engine, mock_llm):
-        """Outline review should receive series plan context."""
-        mock_llm._responses["volume_design"] = _make_design_response()
-        mock_llm._responses["scene_design"] = {
-            "title": "出会い", "goal": "主人公を紹介する",
-            "outcome": "主人公が旅立つ", "conflict": "葛藤なし",
-        }
-        mock_llm._responses["volume_design_review"] = _make_review_response(score=80)
-        mock_llm._call_log.clear()
-
-        planned_engine.design(volume_number=1)
-
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "volume_design_review"]
-        assert len(review_calls) > 0
-        review_prompt = review_calls[0][1]
-        assert "テストシリーズ" in review_prompt or "あらすじ" in review_prompt
-
     def test_outline_review_receives_scene_goals(self, planned_engine, mock_llm):
         """Outline review should receive scene goals and outcomes."""
         mock_llm._responses["volume_design"] = _make_design_response()

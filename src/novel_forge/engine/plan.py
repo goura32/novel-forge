@@ -34,12 +34,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
                 errors.append(field)
             elif isinstance(val, list) and len(val) == 0:
                 errors.append(field)
-            elif isinstance(val, dict):
-                # world のようなネストオブジェクトの内部チェック
-                for sub_field in val.get("_check_required", []):
-                    sub_val = val.get(sub_field)
-                    if sub_val is None or (isinstance(sub_val, str) and not sub_val.strip()) or (isinstance(sub_val, list) and len(sub_val) == 0):
-                        errors.append(f"{field}.{sub_field}")
         return errors
 
     def _validate_and_retry(
@@ -51,22 +45,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         kind: str,
         max_retries: int = 3,
     ) -> dict:
-        """LLM呼び出し → バリデーション → 失敗時リトライ。
-
-        Args:
-            generate_fn: LLMを呼んでdictを返す関数
-            validate_fn: バリデーション関数。問題フィールド名のリストを返す（空なら合格）
-            system: システムプロンプト
-            user_prompt: 初回のユーザープロンプト
-            kind: LLM呼び出しの種別（ログ用）
-            max_retries: 最大試行回数
-
-        Returns:
-            バリデーション合格のdict
-
-        Raises:
-            RuntimeError: max_retries回すべて失敗した場合
-        """
+        """LLM呼び出し → バリデーション → 失敗時リトライ。"""
         current_prompt = user_prompt
         for attempt in range(max_retries):
             result = generate_fn(current_prompt)
@@ -84,7 +63,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             )
         raise RuntimeError(
             f"{kind} のバリデーションに失敗しました。{max_retries}回試行しましたが合格しませんでした。"
-            )
+        )
 
     def _validate_plan_core(self, data: dict) -> list[str]:
         """series_plan_core のバリデーション。"""
@@ -136,7 +115,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         volumes = self._review_and_revise_plan_volumes(volumes, core, characters, system)
 
         # Merge all phases into final series_plan
-        # Remove phase-internal fields that don't belong in the merged plan
         core_clean = {k: v for k, v in core.items() if k != "changes"}
         characters_clean = {k: v for k, v in characters.items() if k != "changes"}
         volumes_clean = {k: v for k, v in volumes.items() if k != "changes"}
@@ -154,7 +132,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
         self._state.series_title = result.get("title", "")
         self._state.status = "計画中"
-        # Clear _series_dir cache before setting slug so final dir is computed fresh
         if hasattr(self, "_cached_series_dir"):
             del self._cached_series_dir
         self._slug = result.get("slug", "")
@@ -167,7 +144,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         self._scene_writer._bb_storage = self._bb_storage
         self._scene_writer._bible_storage = self._bible_storage
         self._scene_writer._bible_mgr = self._bible_mgr
-        # 各phase別ファイル + 統合ファイルを保存
         self._save_path(0, "series_core.json", core)
         self._save_path(0, "series_characters.json", characters)
         self._save_path(0, "series_volumes.json", volumes)
@@ -203,12 +179,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         return self._llm.complete_json("series_plan_core_review", system, user, get_schema("series_plan_core_review"))
 
     def _revise_plan_core(self, core: dict, review: dict, system: str) -> dict:
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
-        for s in review.get("suggestions", []):
-            lines.append(f"  推奨: {s}")
-        review_text = "\n".join(lines)
+        review_text = self._format_review_text(review)
         user_prompt = self._prompts.render(
             "series_plan_core_revision.md",
             {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text, "lang": self._lang},
@@ -234,7 +205,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             label="CORE REVIEW",
             on_revise=_on_revise,
         )
-        # レビュー結果を保存（全履歴）
         self._save_path(0, "series_core_review.json", {"reviews": all_reviews})
         return core
 
@@ -254,76 +224,18 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             user_prompt=user_prompt,
             kind="series_plan_characters",
         )
-        result = self._fix_character_duplicates(result)
         return result
-
-    @staticmethod
-    def _fix_character_duplicates(characters: dict) -> dict:
-        """Detect and fix duplicate characters, role conflicts, and empty growth fields.
-
-        This is a fail-safe for when the LLM ignores prompt-level duplicate prevention.
-        """
-        chars = characters.get("main_characters", [])
-        if not chars:
-            return characters
-
-        # 1. Detect duplicate names
-        seen_names: dict[str, int] = {}
-        for i, c in enumerate(chars):
-            name = c.get("name", "")
-            if name in seen_names:
-                # Duplicate found — rename with suffix
-                new_name = f"{name}（{seen_names[name] + 1}）"
-                c["name"] = new_name
-                seen_names[name] += 1
-                # Also change role to avoid role conflict
-                existing_roles = {ch.get("role", "") for j, ch in enumerate(chars) if j != i}
-                for alt_role in ["ヒロイン", "相棒", "師匠", "仲間", "敵対者"]:
-                    if alt_role not in existing_roles:
-                        c["role"] = alt_role
-                        break
-            else:
-                seen_names[name] = 1
-
-        # 2. Fix empty growth fields
-        for c in chars:
-            if not c.get("growth") or not c.get("growth", "").strip():
-                arc = c.get("arc", "") or "物語を通じた成長"
-                role = c.get("role", "")
-                c["growth"] = f"{arc}を経て、最終的に自己の課題を克服し、新たな境地へ到達する"
-
-        # 3. Ensure role uniqueness (first occurrence wins)
-        used_roles: set[str] = set()
-        available_roles = ["主人公", "ヒロイン", "相棒", "敵対者", "師匠", "仲間"]
-        for c in chars:
-            role = c.get("role", "")
-            if role in used_roles:
-                for alt in available_roles:
-                    if alt not in used_roles:
-                        c["role"] = alt
-                        used_roles.add(alt)
-                        break
-            else:
-                used_roles.add(role)
-
-        characters["main_characters"] = chars
-        return characters
 
     def _review_plan_characters(self, characters: dict, core: dict, system: str, seed_offset: int = 0) -> dict:
         lines = ["世界観:", core.get("world", {}).get("summary", ""), "", "メインキャラクター:"]
         for c in characters.get("main_characters", []):
-            lines.append("  - {}（{}）: {}".format(c.get('name', ''), c.get('role', ''), c.get('arc', '')))
+            lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
         char_text = "\n".join(lines)
         user = self._prompts.render("series_plan_characters_review.md", {"characters": char_text, "lang": self._lang})
         return self._llm.complete_json("series_plan_characters_review", system, user, get_schema("series_plan_characters_review"))
 
     def _revise_plan_characters(self, characters: dict, review: dict, system: str) -> dict:
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
-        for s in review.get("suggestions", []):
-            lines.append(f"  推奨: {s}")
-        review_text = "\n".join(lines)
+        review_text = self._format_review_text(review)
         user_prompt = self._prompts.render(
             "series_plan_characters_revision.md",
             {"current_characters": json.dumps(characters, ensure_ascii=False), "review": review_text, "lang": self._lang},
@@ -350,7 +262,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             label="CHAR REVIEW",
             on_revise=_on_revise,
         )
-        # レビュー結果を保存（全履歴）
         self._save_path(0, "series_characters_review.json", {"reviews": all_reviews})
         return characters
 
@@ -360,7 +271,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         core_text = f"タイトル: {core.get('title', '')}\nあらすじ: {core.get('logline', '')}\n世界観: {core.get('world', {}).get('summary', '')}"
         char_lines = ["メインキャラクター:"]
         for c in characters.get("main_characters", []):
-            char_lines.append("  - {}（{}）: {}".format(c.get('name', ''), c.get('role', ''), c.get('arc', '')))
+            char_lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
         char_text = "\n".join(char_lines)
         user_prompt = self._prompts.render(
             "series_plan_volumes.md",
@@ -383,12 +294,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         return self._llm.complete_json("series_plan_volumes_review", system, user, get_schema("series_plan_volumes_review"))
 
     def _revise_plan_volumes(self, volumes: dict, review: dict, system: str) -> dict:
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
-        for s in review.get("suggestions", []):
-            lines.append(f"  推奨: {s}")
-        review_text = "\n".join(lines)
+        review_text = self._format_review_text(review)
         user_prompt = self._prompts.render(
             "series_plan_volumes_revision.md",
             {"current_volumes": json.dumps(volumes, ensure_ascii=False), "review": review_text, "lang": self._lang},
@@ -415,14 +321,30 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             label="VOL REVIEW",
             on_revise=_on_revise,
         )
-        # レビュー結果を保存（全履歴）
         self._save_path(0, "series_volumes_review.json", {"reviews": all_reviews})
         return volumes
 
     # ── Utility ──────────────────────────────────────────────────────────
 
     @staticmethod
+    def _format_review_text(review: dict) -> str:
+        """Format review result into text for revision prompt."""
+        lines = ["レビュー結果:"]
+        for issue in review.get("issues", []):
+            sev = issue.get("severity", "")
+            cat = issue.get("category", "")
+            desc = issue.get("description", "")
+            sug = issue.get("suggestion", "")
+            lines.append(f"  [{sev}] {cat}: {desc}")
+            if sug:
+                lines.append(f"    提案: {sug}")
+        for s in review.get("suggestions", []):
+            lines.append(f"  推奨: {s}")
+        return "\n".join(lines)
+
+    @staticmethod
     def _slugify(title: str) -> str:
+        """Convert title to URL-safe slug."""
         romaji_parts = re.findall(r'[a-zA-Z][a-zA-Z0-9]*', title)
         if romaji_parts:
             slug = "-".join(p.lower() for p in romaji_parts)
