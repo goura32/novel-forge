@@ -161,10 +161,15 @@ class LLMClient:
                 payload["messages"][1]["content"] = current_prompt
                 payload["options"]["seed"] = 42 + attempt + seed_offset
                 self._write_raw_log(f"request_{attempt}", json.dumps(payload, ensure_ascii=False))
+                meta = ""
+                if self._series_slug:
+                    meta += f" series={self._series_slug}"
+                if self._volume:
+                    meta += f" vol={self._volume}"
                 self._log.debug(
-                    "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d series=%s vol=%s",
+                    "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
                     kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset,
-                    self._series_slug or "?", self._volume or "?",
+                    meta,
                 )
                 _call_start = time.time()
                 raw_text, raw, thinking, done_reason = self._call_api(payload)
@@ -282,10 +287,15 @@ class LLMClient:
                             elapsed_h = int(elapsed_total // 3600)
                             elapsed_m = int((elapsed_total % 3600) // 60)
                             elapsed_s = int(elapsed_total % 60)
+                            meta = ""
+                            if self._series_slug:
+                                meta += f" series={self._series_slug}"
+                            if self._volume:
+                                meta += f" vol={self._volume}"
                             self._log.info(
-                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%02d:%02d:%02d series=%s vol=%s",
+                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%02d:%02d:%02d%s",
                                 chunk_count, total_bytes, elapsed_h, elapsed_m, elapsed_s,
-                                self._series_slug or "?", self._volume or "?",
+                                meta,
                             )
                             self._last_progress_log = now
         except httpx.TimeoutException:

@@ -20,11 +20,9 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         self._state.status = "デザイン済"
-        slug = getattr(self, "_slug", "?")
-        series_plan = self._ctx_builder.get_series_plan_summary()
-        self._log.info(f"▶ Design: series='{slug}' vol={vol_num}")
-        system = self._prompts.render("system.md", {"lang": self._lang})
-        genre = self._ctx_builder.get_genre()
+        slug = self._slug
+        if not slug:
+            raise ValueError("Design: slug is empty — run 'plan' first or specify --series")
 
         # Plan info for progress
         plan_path = self._series_dir / "series_plan.json"
@@ -37,8 +35,13 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
             except Exception:
                 pass
 
+        self._log.info(f"▶ Design: slug='{slug}' vol={vol_num}/{total_vol}")
+        system = self._prompts.render("system.md", {"lang": self._lang})
+        genre = self._ctx_builder.get_genre()
+        series_plan = self._ctx_builder.get_series_plan_summary()
+
         # Phase 1: Volume design (chapters)
-        self._log.info(f"  ▶ volume_design — series='{slug}' vol={vol_num}/{total_vol}")
+        self._log.info(f"  ▶ volume_design — vol={vol_num}/{total_vol}")
         chapters = self._generate_volume_design(series_plan, genre, vol_num, system)
         chapters_count = len(chapters)
         self._log.info(f"  ✓ volume_design — vol={vol_num} {chapters_count} ch done")

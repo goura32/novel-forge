@@ -8,6 +8,7 @@ import re
 from typing import TYPE_CHECKING, Any, Callable
 
 from novel_forge.bible_manager import BibleManager
+from novel_forge.name_registry import load_used_names, record_names
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
@@ -138,10 +139,8 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     # ── Main pipeline ──────────────────────────────────────────────────
 
     def plan(self, keywords: str) -> dict[str, Any]:
-        slug = getattr(self, "_slug", "?")
-        title = getattr(self, "_state", None)
-        title = title.series_title if title else "?"
-        self._log.info(f"▶ Plan: series='{title}' slug='{slug}' keywords='{keywords}'")
+        slug = getattr(self, "_slug", "")
+        self._log.info(f"▶ Plan: keywords='{keywords}'")
         system = self._prompts.render("system.md", {"lang": self._lang})
 
         # Lock check
@@ -149,17 +148,18 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             raise FileNotFoundError(f"Series '{slug}' already exists in {self._workdir}")
 
         existing_slugs = self._get_existing_slugs()
+        used_names = load_used_names(self._workdir)
 
         # Phase 1: Core
-        self._log.info(f"  ▶ core — series='{slug}' [1/3]")
+        self._log.info("  ▶ core — [1/3]")
         core = self._generate_plan_core(keywords, system, existing_slugs)
         self._log.info(f"  ✓ core — title='{core.get('title', '?')}' slug='{core.get('slug', '?')}'")
 
-        self._log.info(f"  ▶ characters — series='{slug}' [2/3]")
-        characters = self._generate_plan_characters(core, system)
+        self._log.info("  ▶ characters — [2/3]")
+        characters = self._generate_plan_characters(core, system, used_names)
         self._log.info(f"  ✓ characters — {len(characters.get('main_characters', []))} chars")
 
-        self._log.info(f"  ▶ volumes — series='{slug}' [3/3]")
+        self._log.info("  ▶ volumes — [3/3]")
         volumes = self._generate_plan_volumes(core, characters, system)
         self._log.info(f"  ✓ volumes — {len(volumes.get('planned_volumes', []))} vols")
 
@@ -175,6 +175,11 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         result = {k: v for k, v in {**core, **characters, **volumes}.items() if k != "changes"}
         if not result.get("slug"):
             result["slug"] = self._slugify(result.get("title", ""))
+
+        # Record new character names
+        new_names = {c.get("name", "") for c in characters.get("main_characters", []) if c.get("name")}
+        if new_names:
+            record_names(self._workdir, new_names)
 
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             vol["number"] = i
@@ -231,11 +236,14 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
 
-    def _generate_plan_characters(self, core: dict, system: str) -> dict:
+    def _generate_plan_characters(self, core: dict, system: str, used_names: set[str]) -> dict:
+        existing_hint = ""
+        if used_names:
+            existing_hint = f"\n\n## 注意: 以下の名前は既存シリーズで使用済みのため使用不可: {', '.join(sorted(used_names))}\n新しいキャラクターには、これらの名前と重複しない名前を割り当てること。"
         prompt = self._prompts.render("series_plan_characters.md",
                                       {"world_summary": core.get("world", {}).get("summary", ""),
                                        "world_rules": "; ".join(core.get("world", {}).get("rules", [])),
-                                       "lang": self._lang})
+                                       "lang": self._lang}) + existing_hint
         return self._generate_and_review(
             generate_fn=lambda p, s: self._llm.complete_json("series_plan_characters", system, p, get_schema("series_plan_characters"), seed_offset=s),
             validate_fn=self._validate_plan_characters,
