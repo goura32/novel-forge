@@ -177,7 +177,6 @@ class LLMClient:
                 return parsed
             except JsonParseError as e:
                 last_error = e
-                self._write_raw_log(f"response_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
                     kind, attempt + 1, self.max_retries, str(e)[:100],
