@@ -131,7 +131,24 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         return errors
 
     def _validate_plan_characters(self, data: dict) -> list[str]:
-        return self._validate_required(data, ["main_characters"], "plan_characters")
+        errors = self._validate_required(data, ["main_characters"], "plan_characters")
+        if errors:
+            return errors
+
+        # Name dedup: within same series + across existing series
+        existing_names = load_used_names(self._workdir)
+        seen = set()
+        for ch in data.get("main_characters", []):
+            name = ch.get("name", "")
+            if not name:
+                errors.append("character: name is required")
+                continue
+            if name in seen:
+                errors.append(f"character: duplicate name '{name}' in this series")
+            elif name in existing_names:
+                errors.append(f"character: '{name}' is already used in another series")
+            seen.add(name)
+        return errors
 
     def _validate_plan_volumes(self, data: dict) -> list[str]:
         return self._validate_required(data, ["planned_volumes"], "plan_volumes")
