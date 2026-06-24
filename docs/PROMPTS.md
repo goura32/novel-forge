@@ -50,12 +50,29 @@ prompts/
 | シーン本文 | `scene_draft.md` | `scene_review.md` | `scene_revision.md` |
 | 設定資料集 | `scene_summary_and_bible_update.md` | 該当なし | 該当なし |
 
-詳細なプロンプト設計原則は `docs/dev/PROMPTS_STRATEGY.md` を参照。
+### 各工程の役割定義
 
-## 言語制約
+各プロンプトの先頭に `## 役割` セクションを記述し、その工程でLLMに期待する役割を明示する。
 
-中国語の生成を禁止する。出力言語は `{lang}` で指定された言語に限定する。この制約は `system.md` の最優先事項に記述し、全プロンプトで遵守される。
+- `series_plan_core.md` — シリーズ全体を統括する編集者・プロデューサー
+- `series_plan_characters.md` — キャラクター設計の専門家
+- `series_plan_volumes.md` — 物語の架構を設計する構成家
+- `volume_design.md` — 巻の構造を設計する放送作家
+- `chapter_design.md` — 章の設計を担当する小説家
+- `scene_design.md` — シーンの設計を担当する小説家
+- `scene_draft.md` — プロの小説家（本文執筆）
+- `scene_review.md` — 厳格な編集長（評価・改善指示）
+- `scene_revision.md` — 改稿を担当する作家（修正実行）
+- `scene_summary_and_bible_update.md` — 物語の記録係（要約・台帳更新）
+- `kdp_metadata.md` — 出版事務担当
+- `cover_prompt.md` — 表紙デザイナー
 
 ---
 
-*Last updated: 2026-06-23*
+## 言語制約
+
+中国語の生成を禁止する。出力言語は日本語に限定する。この制約は `system.md` に記述し、全プロンプトで遵守される。
+
+---
+
+*Last updated: 2026-06-25*

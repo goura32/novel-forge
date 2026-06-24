@@ -8,25 +8,13 @@ KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足を
 
 ## ドキュメント
 
-### 運用ガイド
-
 | ファイル | 内容 |
 |---|---|
-| [README.md](README.md) | このファイル。概要、セットアップ、クイックスタート |
-
-### 設計書
-
-| ファイル | 内容 |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | アーキテクチャ設計（レイヤー構成、データフロー、記憶モデル） |
-| [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、設定ファイル） |
-| [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、SceneWriter、状態遷移） |
-| [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理（一覧、レビュー/改稿の分離ルール） |
-| [docs/TEMPLATE_SCHEMA_CONTRACT.md](docs/TEMPLATE_SCHEMA_CONTRACT.md) | テンプレート/スキーマ分離の方針 |
+| [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、エンジン、状態遷移） |
+| [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理（一覧、役割定義、言語制約） |
+| [docs/dev/ARCHITECTURE.md](docs/dev/ARCHITECTURE.md) | アーキテクチャ設計（レイヤー構成、データフロー、記憶モデル） |
+| [docs/dev/SPECIFICATION.md](docs/dev/SPECIFICATION.md) | 実装仕様（プロジェクト構造、データモデル、設定ファイル） |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | 用語集 |
-| [docs/OLLAMA_API.md](docs/OLLAMA_API.md) | Ollama API 仕様調査 |
-| [docs/raw_log_format.md](docs/raw_log_format.md) | RAWログフォーマット |
-| [docs/schema_maintenance.md](docs/schema_maintenance.md) | スキーマファイル修正時の再発防止チェックリスト |
 
 ---
 
