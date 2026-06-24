@@ -151,15 +151,15 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         existing_slugs = self._get_existing_slugs()
 
         # Phase 1: Core
-        self._log.info(f"  ▶ core — series='{slug}'")
+        self._log.info(f"  ▶ core — series='{slug}' [1/3]")
         core = self._generate_plan_core(keywords, system, existing_slugs)
         self._log.info(f"  ✓ core — title='{core.get('title', '?')}' slug='{core.get('slug', '?')}'")
 
-        self._log.info(f"  ▶ characters — series='{slug}'")
+        self._log.info(f"  ▶ characters — series='{slug}' [2/3]")
         characters = self._generate_plan_characters(core, system)
         self._log.info(f"  ✓ characters — {len(characters.get('main_characters', []))} chars")
 
-        self._log.info(f"  ▶ volumes — series='{slug}'")
+        self._log.info(f"  ▶ volumes — series='{slug}' [3/3]")
         volumes = self._generate_plan_volumes(core, characters, system)
         self._log.info(f"  ✓ volumes — {len(volumes.get('planned_volumes', []))} vols")
 

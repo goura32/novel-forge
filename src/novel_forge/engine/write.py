@@ -51,17 +51,20 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         design_obj.chapters = sorted(seen.values(), key=lambda c: c.number)
 
         results = []
+        total_ch = len(design_obj.chapters)
         total_scenes = len(design_obj.scenes)
         vol = self._current_volume()
 
+        self._log.info(f"  ▶ Write: {total_ch} ch, {total_scenes} sc")
+
         for chapter in design_obj.chapters:
             ch_scenes = [s for s in design_obj.scenes if s.chapter_number == chapter.number]
-            self._log.info(f"  ▶ ch{chapter.number} — {len(ch_scenes)} sc")
+            self._log.info(f"    ▶ ch{chapter.number}/{total_ch} — {len(ch_scenes)} sc")
 
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("修正済", "強制出力済"):
-                    self._log.info(f"    ~ sc{scene.number} skip")
+                    self._log.info(f"    ~ sc{scene.number}/{total_scenes} skip")
                     continue
 
                 self._log.info(f"    ▶ sc{scene.number} — {scene.title}")
@@ -83,7 +86,7 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
                 self._scene_writer.summarize_and_update_bible(record.scene_number, draft_text, self._lang, self._bible_mgr.to_text)
                 self._log.info(f"    ✓ sc{scene.number}")
 
-            self._log.info(f"  ✓ ch{chapter.number}")
+            self._log.info(f"  ✓ ch{chapter.number}/{total_ch}")
 
         vol = self._current_volume()
         vol.status = "初稿済"

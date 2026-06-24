@@ -26,20 +26,33 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         system = self._prompts.render("system.md", {"lang": self._lang})
         genre = self._ctx_builder.get_genre()
 
+        # Plan info for progress
+        plan_path = self._series_dir / "series_plan.json"
+        total_vol = "?"
+        if plan_path.exists():
+            try:
+                import json as _json
+                plan = _json.loads(plan_path.read_text(encoding="utf-8"))
+                total_vol = len(plan.get("planned_volumes", []))
+            except Exception:
+                pass
+
         # Phase 1: Volume design (chapters)
-        self._log.info(f"  ▶ volume_design — series='{slug}' vol={vol_num}")
+        self._log.info(f"  ▶ volume_design — series='{slug}' vol={vol_num}/{total_vol}")
         chapters = self._generate_volume_design(series_plan, genre, vol_num, system)
-        self._log.info(f"  ✓ volume_design — vol={vol_num} {len(chapters)} ch")
+        chapters_count = len(chapters)
+        self._log.info(f"  ✓ volume_design — vol={vol_num} {chapters_count} ch done")
 
         # Phase 2: Chapter design
-        self._log.info(f"  ▶ chapter_design — vol={vol_num} {len(chapters)} ch")
+        self._log.info(f"  ▶ chapter_design — vol={vol_num} {chapters_count} ch")
         chapters = self._generate_chapter_designs(chapters, series_plan, vol_num, system)
-        self._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)} ch")
+        self._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)}/{chapters_count} ch done")
 
-        # Phase 3: Scene design
-        self._log.info(f"  ▶ scene_design — vol={vol_num} {len(chapters)} ch")
+        # Phase 3: Scene design — estimate total scenes
+        est_scenes = sum(self._estimate_scene_count(ch.get("purpose", "展開")) for ch in chapters)
+        self._log.info(f"  ▶ scene_design — vol={vol_num} {chapters_count} ch (~{est_scenes} sc)")
         scenes = self._generate_scene_designs(chapters, series_plan, vol_num, system)
-        self._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)} sc")
+        self._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)}/{est_scenes} sc done")
 
         # Build result
         chapters_with_scenes = []
