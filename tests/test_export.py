@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from novel_forge.bible_manager import BibleManager
 from novel_forge.models import (
     Bible,
     Blackboard,
@@ -92,7 +93,8 @@ class TestExportMixin:
         """_assemble_manuscript should join chapter files with separator."""
         result = mock_engine._assemble_manuscript(1)
         assert "本文です" in result
-        assert "---" in result
+        # With only 1 chapter, no separator is needed
+        assert "第1章" in result
 
     def test_assemble_manuscript_saves_file(self, mock_engine):
         """_assemble_manuscript should save to exports/."""
@@ -127,12 +129,16 @@ class TestExportMixin:
     def test_generate_readiness_report_no_warnings_when_clean(self, mock_engine):
         """Report should not have warnings when everything is resolved."""
         # Resolve all foreshadowing and complete subplots
-        bible = mock_engine._bible_storage.load()
-        for fh in bible.foreshadowing:
-            fh.resolved = True
-        for sp in bible.subplots:
-            sp.status = "completed"
+        bible = Bible(
+            foreshadowing=[
+                ForeshadowingItem(description="剣の秘密", resolved=True),
+                ForeshadowingItem(description="正体", resolved=True),
+            ],
+            subplots=[],
+        )
         mock_engine._bible_storage.save(bible)
+        # Re-initialize bible_mgr to load updated bible
+        mock_engine._bible_mgr = BibleManager(mock_engine._bible_storage)
 
         # Reset scenes to all revised
         vol = mock_engine._current_volume()
@@ -241,7 +247,7 @@ class TestStatus:
         vol = VolumeProgress(volume_number=1, status="執筆中", word_count=5000, target_word_count=8000)
         vol.scenes = [
             SceneRecord(scene_number=1, status="修正済"),
-            SceneRecord(scene_number=2, status="執筆中"),
+            SceneRecord(scene_number=2, status="初稿済"),
         ]
         engine._current_volume = MagicMock(return_value=vol)
 
