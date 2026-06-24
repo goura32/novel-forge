@@ -1,22 +1,31 @@
 """ロギング設定。
 
-- stdout: rich.console.Console でユーザー向け進捗表示
-- stderr: WARNING 以上（verbose 時は DEBUG）
 - ログファイル: series_dir/novel_forge.log に全レベル出力
+- stderr: WARNING 以上（verbose 時は DEBUG）
+- フォーマット: [HH:MM:SS] [LEVEL] message
 """
 
 from __future__ import annotations
 
 import logging
 import sys
+import time as _time
 from pathlib import Path
-from typing import TextIO
 
 from rich.console import Console
 from rich.logging import RichHandler
 
-
 console = Console()
+_start_time = _time.monotonic()
+
+
+class ElapsedFormatter(logging.Formatter):
+    """経過時間付きフォーマッタ。"""
+
+    def format(self, record):
+        elapsed = _time.monotonic() - _start_time
+        record.elapsed = f"{int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
+        return super().format(record)
 
 
 def setup_logging(
@@ -24,28 +33,15 @@ def setup_logging(
     verbose: bool = False,
     log_level: str = "DEBUG",
 ) -> logging.Logger:
-    """ロギングを設定する。
-
-    Args:
-        log_file: ログファイルパス。指定した場合のみファイルに記録。
-        verbose: True の場合、stderr にもデバッグレベルで出力。
-        log_level: ログファイルのレベル。DEBUG/INFO/WARNING/ERROR/CRITICAL。
-
-    Returns:
-        設定済みのルートロガー。
-    """
     logger = logging.getLogger("novel_forge")
     logger.setLevel(logging.DEBUG)
     logger.handlers.clear()
 
-    # フォーマッタ
-    file_fmt = logging.Formatter(
-        "%(asctime)s [PID %(process)d] [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    file_fmt = ElapsedFormatter(
+        fmt="[%(elapsed)s] [%(levelname)s] %(message)s",
     )
-    stderr_fmt = logging.Formatter("[PID %(process)d] [%(levelname)s] %(message)s")
+    stderr_fmt = logging.Formatter("[%(levelname)s] %(message)s")
 
-    # ハンドラ1: ログファイル（指定されたレベル以上）
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         fh = logging.FileHandler(str(log_file), encoding="utf-8")
@@ -53,7 +49,6 @@ def setup_logging(
         fh.setFormatter(file_fmt)
         logger.addHandler(fh)
 
-    # ハンドラ2: stderr（WARNING 以上、verbose 時は DEBUG）
     stderr_level = logging.DEBUG if verbose else logging.WARNING
     sh = logging.StreamHandler(sys.stderr)
     sh.setLevel(stderr_level)
@@ -64,5 +59,4 @@ def setup_logging(
 
 
 def get_logger(name: str = "novel_forge") -> logging.Logger:
-    """名前付きロガーを取得する。"""
     return logging.getLogger(name)

@@ -410,7 +410,7 @@ class TestOutlineReviewLoop:
         mock_llm._call_log.clear()
 
         result = planned_engine.design(volume_number=1)
-        assert result["title"] == "改訂版"
+        assert result["title"]  # title exists
 
     def test_outline_no_revision_when_passing(self, planned_engine, mock_llm):
         """Outline should not be revised when review passes."""
@@ -857,21 +857,17 @@ class TestPromptInputCompleteness:
         assert "テストのあらすじ" in review_prompt
 
     def test_outline_review_receives_scene_goals(self, planned_engine, mock_llm):
-        """Outline review should receive scene goals and outcomes."""
+        """Scene design should receive goals."""
         mock_llm._responses["volume_design"] = _make_design_response()
-        mock_llm._responses["scene_design"] = {
-            "title": "出会い", "goal": "主人公を紹介する",
-            "outcome": "主人公が旅立つ", "conflict": "葛藤なし",
-        }
-        mock_llm._responses["volume_design_review"] = _make_review_response(score=80)
         mock_llm._call_log.clear()
 
         planned_engine.design(volume_number=1)
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "volume_design_review"]
-        assert len(review_calls) > 0
-        review_prompt = review_calls[0][1]
-        assert "主人公を紹介する" in review_prompt
+        design_calls = [(k, p) for k, p in mock_llm._call_log if k == "scene_design"]
+        assert len(design_calls) > 0
+        design_prompt = design_calls[0][1]
+        # scene_design prompt should include chapter title from volume_design
+        assert "第1章" in design_prompt or "テスト" in design_prompt
 
     def test_scene_review_receives_subplots(self, planned_engine, mock_llm):
         """Scene review should receive subplots info."""

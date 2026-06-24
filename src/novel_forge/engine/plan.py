@@ -170,7 +170,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         self._save_path(0, "series_volumes_review.json", {"reviews": [{"version": 0, "issues": self._review_plan_volumes(volumes, core, characters, system).get("issues", [])}]})
 
         # Merge
-        result = {k: v for k in {**core, **characters, **volumes}.items() if k != "changes"}
+        result = {k: v for k, v in {**core, **characters, **volumes}.items() if k != "changes"}
         if not result.get("slug"):
             result["slug"] = self._slugify(result.get("title", ""))
 
@@ -291,12 +291,17 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
     # ── Utility ──────────────────────────────────────────────────────────
 
+    @staticmethod
     def _format_review_text(review: dict) -> str:
         lines = ["レビュー結果:"]
         for issue in review.get("issues", []):
-            lines.append(f"  [{issue.get('severity', '')}] {issue.get('category', '')}: {issue.get('description', '')}")
-            if issue.get("suggestion"):
-                lines.append(f"    提案: {issue['suggestion']}")
+            sev = issue.get("severity", "")
+            cat = issue.get("category", "")
+            desc = issue.get("description", "")
+            sug = issue.get("suggestion", "")
+            lines.append(f"  [{sev}] {cat}: {desc}")
+            if sug:
+                lines.append(f"    提案: {sug}")
         for s in review.get("suggestions", []):
             lines.append(f"  推奨: {s}")
         return "\n".join(lines)

@@ -23,7 +23,24 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         self._log.info(f"Write started: volume={vol_num}")
 
         design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
-        design_obj = VolumeOutline(**design_data)
+        # Ensure purpose is set (fallback for legacy designs without purpose)
+        chapters = design_data.get("chapters", [])
+        for i, ch in enumerate(chapters, 1):
+            if not ch.get("purpose"):
+                ch["purpose"] = "導入" if i == 1 else ("収束" if i == len(chapters) else "展開")
+        scenes = design_data.get("scenes", [])
+        # Avoid nesting scenes inside chapters for VolumeOutline
+        chapters_clean = []
+        for ch in chapters:
+            ch_copy = {k: v for k, v in ch.items() if k != "scenes"}
+            chapters_clean.append(ch_copy)
+        design_obj = VolumeOutline(
+            volume_number=vol_num,
+            title=design_data.get("title", ""),
+            premise=design_data.get("premise", ""),
+            chapters=chapters_clean,
+            scenes=scenes,
+        )
 
         # Deduplicate chapters
         seen = {}
