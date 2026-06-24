@@ -20,9 +20,9 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         self._state.status = "執筆中"
-        self._log.info(f"Write started: volume={vol_num}")
-
+        slug = getattr(self, "_slug", "?")
         design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
+        vol_title = design_data.get("title", f"第{vol_num}巻")
         # Ensure purpose is set (fallback for legacy designs without purpose)
         chapters = design_data.get("chapters", [])
         for i, ch in enumerate(chapters, 1):
@@ -41,6 +41,7 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
             chapters=chapters_clean,
             scenes=scenes,
         )
+        self._log.info(f"▶ Write: series='{slug}' vol={vol_num} title='{vol_title}'")
 
         # Deduplicate chapters
         seen = {}
@@ -55,15 +56,15 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
 
         for chapter in design_obj.chapters:
             ch_scenes = [s for s in design_obj.scenes if s.chapter_number == chapter.number]
-            self._log.info(f"  [CHAPTER START] ch{chapter.number} scenes={len(ch_scenes)}")
+            self._log.info(f"  ▶ ch{chapter.number} — {len(ch_scenes)} sc")
 
             for scene in ch_scenes:
                 record = self._get_or_create_scene_record(vol, scene.number)
                 if record.status in ("修正済", "強制出力済"):
-                    self._log.info(f"  [SCENE SKIP] sc{scene.number} (already {record.status})")
+                    self._log.info(f"    ~ sc{scene.number} skip")
                     continue
 
-                self._log.info(f"  [SCENE START] ch{chapter.number} sc{scene.number} title='{scene.title}'")
+                self._log.info(f"    ▶ sc{scene.number} — {scene.title}")
                 result = self._scene_writer.write_scene(
                     design_obj=design_obj, chapter=chapter, scene=scene, record=record,
                     ctx=SceneWriteContext(
@@ -80,13 +81,13 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
                 results.append(result)
                 draft_text = self._scene_writer.load_scene_draft(vol_num, scene.number, chapter.number)
                 self._scene_writer.summarize_and_update_bible(record.scene_number, draft_text, self._lang, self._bible_mgr.to_text)
-                self._log.info(f"  [SCENE END] ch{chapter.number} sc{scene.number}")
+                self._log.info(f"    ✓ sc{scene.number}")
 
-            self._log.info(f"  [CHAPTER END] ch{chapter.number}")
+            self._log.info(f"  ✓ ch{chapter.number}")
 
         vol = self._current_volume()
         vol.status = "初稿済"
         self._state.status = "初稿済"
         self._save()
-        self._log.info(f"Write finished: volume={vol_num} scenes={len(results)}/{total_scenes}")
+        self._log.info(f"✓ Write: series='{slug}' vol={vol_num} — {len(results)}/{total_scenes} sc done")
         return results

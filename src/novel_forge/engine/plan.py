@@ -139,7 +139,9 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
     def plan(self, keywords: str) -> dict[str, Any]:
         slug = getattr(self, "_slug", "?")
-        self._log.info(f"Plan started: keywords='{keywords}' slug='{slug}'")
+        title = getattr(self, "_state", None)
+        title = title.series_title if title else "?"
+        self._log.info(f"▶ Plan: series='{title}' slug='{slug}' keywords='{keywords}'")
         system = self._prompts.render("system.md", {"lang": self._lang})
 
         # Lock check
@@ -149,17 +151,17 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         existing_slugs = self._get_existing_slugs()
 
         # Phase 1: Core
-        self._log.info("  [PHASE START] core")
+        self._log.info(f"  ▶ core — series='{slug}'")
         core = self._generate_plan_core(keywords, system, existing_slugs)
-        self._log.info("  [PHASE END] core")
+        self._log.info(f"  ✓ core — title='{core.get('title', '?')}' slug='{core.get('slug', '?')}'")
 
-        self._log.info("  [PHASE START] characters")
+        self._log.info(f"  ▶ characters — series='{slug}'")
         characters = self._generate_plan_characters(core, system)
-        self._log.info("  [PHASE END] characters")
+        self._log.info(f"  ✓ characters — {len(characters.get('main_characters', []))} chars")
 
-        self._log.info("  [PHASE START] volumes")
+        self._log.info(f"  ▶ volumes — series='{slug}'")
         volumes = self._generate_plan_volumes(core, characters, system)
-        self._log.info("  [PHASE END] volumes")
+        self._log.info(f"  ✓ volumes — {len(volumes.get('planned_volumes', []))} vols")
 
         # Save results
         self._save_path(0, "series_core.json", core)
@@ -194,7 +196,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         self._scene_writer._bible_mgr = self._bible_mgr
         self._save_path(0, "series_plan.json", result)
         self._save()
-        self._log.info(f"Plan finished: title='{result.get('title', '?')}' slug='{self._slug}'")
+        self._log.info(f"✓ Plan complete: title='{result.get('title', '?')}' slug='{self._slug}'")
         return result
 
     # ── Phase 1: Core ────────────────────────────────────────────────────

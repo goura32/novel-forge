@@ -141,6 +141,8 @@ class NovelEngineBase:
             num_ctx = llm_cfg.get("num_ctx", self._DEFAULT_NUM_CTX)
             host = llm_cfg.get("ollama_host", None)
             api_url = f"http://{host}/api/chat" if host else None
+            state = getattr(self, "_state", None)
+            vol = str(state.current_volume) if state else ""
             llm_client = LLMClient(
                 api_url=api_url, model=model,
                 raw_log_dir=Path(workdir) / "_raw_logs",
@@ -148,6 +150,7 @@ class NovelEngineBase:
                 timeout_seconds=timeout, max_retries=max_retries,
                 num_predict=num_predict, num_ctx=num_ctx,
                 ollama_options=_build_ollama_options(llm_cfg),
+                series_slug=self._slug, volume=vol,
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()

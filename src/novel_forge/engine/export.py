@@ -35,8 +35,9 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         if any(s.status == "強制出力済" for s in vol.scenes):
             vol.status = "強制出力済"
         self._state.status = vol.status
+        slug = getattr(self, "_slug", "?")
         self._save()
-        self._log.info(f"Export finished: volume={vol_num} slug='{slug}'")
+        self._log.info(f"✓ Export: series='{slug}' vol={vol_num}")
         return {
             "manuscript_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_manuscript.md"),
             "metadata_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_metadata.json"),

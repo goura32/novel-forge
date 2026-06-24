@@ -78,6 +78,8 @@ class LLMClient:
         num_ctx: int | None = None,
         num_predict: int = -1,
         ollama_options: dict[str, Any] | None = None,
+        series_slug: str = "",
+        volume: str = "",
     ):
         if api_url is None:
             host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
@@ -86,6 +88,8 @@ class LLMClient:
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
+        self._series_slug = series_slug
+        self._volume = volume
         self.raw_log_dir = raw_log_dir
         self.raw_log_enabled = raw_log_enabled
         self.phase = phase
@@ -158,8 +162,9 @@ class LLMClient:
                 payload["options"]["seed"] = 42 + attempt + seed_offset
                 self._write_raw_log(f"request_{attempt}", json.dumps(payload, ensure_ascii=False))
                 self._log.debug(
-                    "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d",
+                    "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d series=%s vol=%s",
                     kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset,
+                    self._series_slug or "?", self._volume or "?",
                 )
                 _call_start = time.time()
                 raw_text, raw, thinking, done_reason = self._call_api(payload)
@@ -278,8 +283,9 @@ class LLMClient:
                             elapsed_m = int((elapsed_total % 3600) // 60)
                             elapsed_s = int(elapsed_total % 60)
                             self._log.info(
-                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%02d:%02d:%02d",
+                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%02d:%02d:%02d series=%s vol=%s",
                                 chunk_count, total_bytes, elapsed_h, elapsed_m, elapsed_s,
+                                self._series_slug or "?", self._volume or "?",
                             )
                             self._last_progress_log = now
         except httpx.TimeoutException:

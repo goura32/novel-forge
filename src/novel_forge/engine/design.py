@@ -20,26 +20,26 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         self._state.status = "デザイン済"
-        self._log.info(f"Design started: volume={vol_num}")
-
-        system = self._prompts.render("system.md", {"lang": self._lang})
+        slug = getattr(self, "_slug", "?")
         series_plan = self._ctx_builder.get_series_plan_summary()
+        self._log.info(f"▶ Design: series='{slug}' vol={vol_num}")
+        system = self._prompts.render("system.md", {"lang": self._lang})
         genre = self._ctx_builder.get_genre()
 
         # Phase 1: Volume design (chapters)
-        self._log.info("  [PHASE START] volume_design")
+        self._log.info(f"  ▶ volume_design — series='{slug}' vol={vol_num}")
         chapters = self._generate_volume_design(series_plan, genre, vol_num, system)
-        self._log.info(f"  [PHASE END] volume_design: {len(chapters)} chapters")
+        self._log.info(f"  ✓ volume_design — vol={vol_num} {len(chapters)} ch")
 
         # Phase 2: Chapter design
-        self._log.info("  [PHASE START] chapter_design")
+        self._log.info(f"  ▶ chapter_design — vol={vol_num} {len(chapters)} ch")
         chapters = self._generate_chapter_designs(chapters, series_plan, vol_num, system)
-        self._log.info(f"  [PHASE END] chapter_design")
+        self._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)} ch")
 
         # Phase 3: Scene design
-        self._log.info("  [PHASE START] scene_design")
+        self._log.info(f"  ▶ scene_design — vol={vol_num} {len(chapters)} ch")
         scenes = self._generate_scene_designs(chapters, series_plan, vol_num, system)
-        self._log.info(f"  [PHASE END] scene_design: {len(scenes)} scenes")
+        self._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)} sc")
 
         # Build result
         chapters_with_scenes = []
@@ -73,7 +73,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
             sc_path.write_text(json.dumps(sc, ensure_ascii=False, indent=2), encoding="utf-8")
 
         self._save()
-        self._log.info(f"Design finished: volume={vol_num}")
+        self._log.info(f"✓ Design: series='{slug}' vol={vol_num} — {len(chapters)} ch, {len(scenes)} sc")
         return result
 
     # ── Phase 1: Volume design ──────────────────────────────────────────
