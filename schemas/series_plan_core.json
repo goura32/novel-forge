@@ -6,7 +6,7 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "シリーズのタイトル（想定: 500文字）"
+      "description": "シリーズのタイトル（想定: 100文字)"
     },
     "slug": {
       "type": "string",
@@ -43,6 +43,7 @@
     },
     "world": {
       "type": "object",
+      "description": "世界観。summary で舞台設定を、rules で独自ルールを記述する。",
       "properties": {
         "summary": {
           "type": "string",
@@ -53,7 +54,7 @@
           "items": {
             "type": "string"
           },
-          "description": "世界観のルール（各想定: 200文字）"
+          "description": "世界観の独自ルール（1-5条、各想定: 200文字）"
         }
       }
     }

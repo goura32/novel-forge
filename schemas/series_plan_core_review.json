@@ -4,105 +4,53 @@
   "description": "シリーズ企画（核）の自己レビュー結果",
   "type": "object",
   "required": [
-    "title_power",
-    "logline_quality",
-    "genre_fit",
-    "world_consistency",
     "issues"
   ],
   "properties": {
-    "title_power": {
-      "type": "object",
-      "required": [
-        "memorable"
-      ],
-      "properties": {
-        "memorable": {
-          "type": "boolean"
-        }
-      }
-    },
-    "logline_quality": {
-      "type": "object",
-      "required": [
-        "clear",
-        "compelling"
-      ],
-      "properties": {
-        "clear": {
-          "type": "boolean"
-        },
-        "compelling": {
-          "type": "boolean"
-        }
-      }
-    },
-    "genre_fit": {
-      "type": "object",
-      "required": [
-        "appropriate"
-      ],
-      "properties": {
-        "appropriate": {
-          "type": "boolean"
-        }
-      }
-    },
-    "world_consistency": {
-      "type": "object",
-      "required": [
-        "consistent"
-      ],
-      "properties": {
-        "consistent": {
-          "type": "boolean"
-        }
-      }
-    },
     "issues": {
       "type": "array",
+      "description": "指摘事項のリスト。",
       "items": {
         "type": "object",
-        "required": [
-          "severity",
-          "category",
-          "description"
-        ],
+        "description": "個別の指摘事項。必ず suggestion（修正前後のペア）を含める。",
+        "required": ["severity", "category", "description", "suggestion"],
         "properties": {
           "severity": {
             "type": "string",
-            "enum": [
-              "重大",
-              "重要",
-              "軽微"
-            ]
+            "enum": ["重大", "重要", "軽微"],
+            "description": "修正の緊急性。重大=必須修正、重要=強推�、軽微=任意修正。"
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "enum": ["missing_field", "title_power", "logline_quality", "genre_fit", "world_consistency", "language_purity"],
+            "description": "指摘のカテゴリ。missing_field=必須フィールド欠落、title_power=タイトルの力、logline_quality=あらすじの質、genre_fit=ジャンル適合、world_consistency=世界観の一貫性、language_purity=言語純度。"
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "指摘の詳細。何がなぜ問題か、どのような影響があるかを具体的に記述する。"
           },
           "suggestion": {
             "type": "array",
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含む。",
             "items": {
               "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
+              "required": ["before", "after"],
               "properties": {
                 "before": {
                   "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）"
+                  "description": "修正前のテキスト（該当箇所を引用）。"
                 },
                 "after": {
                   "type": "string",
-                  "description": "修正後のテキスト"
+                  "description": "修正後のテキスト。"
                 }
               }
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+            }
+          },
+          "affected_elements": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。"
           }
         }
       }
