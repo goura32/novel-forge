@@ -1,7 +1,7 @@
 # 章設計のレビュー
 
 ## 役割
-あなたは章設計の編集者です。章の問題点を指摘し、改善案を提示します。
+あなたは章です。章の問題点を指摘し、改善案を提示します。
 
 ## 指示
 以下の章設計を評価し、改善点を指摘せよ。
@@ -43,86 +43,26 @@
 
 - `emotional_arc_quality`: 感情の弧が存在するか。自然で説得力があるか。
   - **減点要素**: 感情の弧がない、感情の変化が唐突、感情が平板
-  - **高評価要素**: 感情の弧が明確で自然、読者の感情を動かす
+  - **高評価要素**: 感情の弧が明確で感情を動かす
 
 - `scene_distribution`: シーン配分について（章設計の段階ではシーン一覧は未設計であるため、シーン配分の評価は行わないこと。シーン一覧が空欄の場合、これは正常な状態であり、issue を出力してはならない）。シーン一覧が入力された場合のみ、シーン数が章の役割に適切か評価すること。
 
-## 改稿要否の判定
-
-- 「重大」 issue が1つでもある → `true`
-- 「重要」 issue が2つ以上ある → `true`
-- 「軽微」 issue のみ、または issue なし → `false`
-- 「重要」 issue が1つだけ → `false`
-
 ## 出力スキーマ
 
-以下の JSON スキーマに適合する JSON を出力すること。
+{schema}
 
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ChapterDesignReview",
-  "description": "章設計の自己レビュー結果",
-  "type": "object",
-  "required": ["issues"],
-  "properties": {
-    "issues": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "severity",
-          "category",
-          "description",
-          "affected_elements"
-        ],
-        "properties": {
-          "severity": {
-            "type": "string",
-            "enum": [
-              "重大",
-              "重要",
-              "軽微"
-            ]
-          },
-          "category": {
-            "type": "string",
-            "description": "問題のカテゴリ名"
-          },
-          "description": {
-            "type": "string",
-            "description": "問題の説明"
-          },
-          "affected_elements": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "suggestion": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）"
-                },
-                "after": {
-                  "type": "string",
-                  "description": "修正後のテキスト"
-                }
-              }
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
-          }
-        }
-      }
-    }
-  }
-}
-```
+**注意**:
+- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
+- **すべてのフィールドを必ず出力すること。省略禁止。**
+- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
+- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
+- `category` は以下のいずれかから選択: missing_field, role_validity, theme_coherence, emotional_arc_quality, scene_distribution
+
+**必須**: issue がない場合でも、具体的に改善点を記述すること。「問題なし」「良好」等の記述は禁止。
+
+## issues 出力ルール（厳守）
+
+1. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
+2. **suggestion はペア配列**: 1つの issue に複数の修正�所がある場合、`suggestion` の配列要素に分割すること
+3. **affected_elements の明示**: 問題が特定の巻・キャラクターに関わる場合、`affected_elements` に該当名を列挙すること
+4. **重複禁止**: 同じ修正�所への指摘を複数の issue で重複して出さないこと

@@ -11,7 +11,6 @@
 
 - シリーズ企画: `{series_plan}`
 - 巻デザイン: `{design}`
-- 出力言語: `{lang}`
 
 ## 出力スキーマ
 
@@ -19,44 +18,7 @@
 
 **以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 
-```json
-{
-  "title": "作品タイトル",
-  "visual_elements": {
-    "subject": {
-      "description": "メインビジュアルの詳細説明（英語、500文字以内）",
-      "characters": [
-        {
-          "name": "キャラクター名（64文字以内）",
-          "appearance": "外見（200文字以内）"
-        }
-      ]
-    },
-    "background": {
-      "setting": "背景の場面説明（300文字以内）",
-      "atmosphere": "雰囲気（200文字以内）"
-    },
-    "items": [
-      {
-        "name": "アイテム名（64文字以内）",
-        "significance": "物語での意味（200文字以内）"
-      }
-    ]
-  },
-  "style": {
-    "genre": "ジャンル（64文字以内）",
-    "tone": "トーン（64文字以内）",
-    "color_palette": ["#color1", "#color2", "#color3"],
-    "composition": "portrait"
-  },
-  "negative_prompt": "除外したい要素（500文字以内）",
-  "metadata": {
-    "series_name": "シリーズ名（128文字以内）",
-    "volume_number": 1,
-    "target_audience": "ターゲット読者（50文字以内）"
-  }
-}
-```
+{schema}
 
 **注意**:
 - `style.composition` は「portrait」「landscape」「action」「symbolic」「atmospheric」から選択すること。

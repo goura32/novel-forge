@@ -136,6 +136,9 @@ class LLMClient:
         api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
         think_value = self._ollama_options.get("think", True)
 
+        # Replace {schema} placeholder with the full JSON schema text
+        if schema is not None:
+            user_prompt = user_prompt.replace("{schema}", json.dumps(schema, ensure_ascii=False))
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [

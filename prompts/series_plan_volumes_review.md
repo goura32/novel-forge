@@ -43,62 +43,8 @@
    - **減点要素**: 巻の終わりが毎回同じパターン（例: 毎回「次巻への伏線」で終わる）
    - **高評価要素**: 各巻が固有の目的を持ち、物語が段階的に進展している
 
-## 改稿要否の判定
-
-- 「重大」 issue が1つでもある → `true`
-- 「重要」 issue が2つ以上ある → `true`
-- 「軽微」 issue のみ、または issue なし → `false`
-- 「重要」 issue が1つだけ → `false`
-
 ## 出力スキーマ
 
 以下の JSON スキーマに適合する JSON を出力すること。
 
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SeriesPlanVolumesReview",
-  "description": "シリーズ企画（各巻）の自己レビュー結果",
-  "type": "object",
-  "required": ["issues"],
-  "properties": {
-    "issues": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["severity", "category", "description"],
-        "properties": {
-          "severity": {
-            "type": "string",
-            "enum": ["重大", "重要", "軽微"]
-          },
-          "category": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "suggestion": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["before", "after"],
-              "properties": {
-                "before": {
-                  "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）"
-                },
-                "after": {
-                  "type": "string",
-                  "description": "修正後のテキスト"
-                }
-              }
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
-          }
-        }
-      }
-    }
-  }
-}
-```
+{schema}
