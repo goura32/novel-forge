@@ -1,39 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SceneRevision",
+  "title": "SceneDraftRevision",
   "type": "object",
-  "required": [
-    "content"
-  ],
   "properties": {
     "title": {
       "type": "string",
-      "description": "シーンタイトル（変更しない場合でも入力すること）"
+      "description": "シーンタイトル"
     },
     "content": {
       "type": "string",
-      "description": "改稿後のシーン本文"
-    },
-    "changes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "before",
-          "after"
-        ],
-        "properties": {
-          "before": {
-            "type": "string",
-            "description": "修正前のテキスト"
-          },
-          "after": {
-            "type": "string",
-            "description": "修正後のテキスト"
-          }
-        }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+      "description": "シーンの本文"
     }
-  }
+  },
+  "required": [
+    "title",
+    "content"
+  ]
 }

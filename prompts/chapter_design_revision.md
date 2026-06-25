@@ -28,30 +28,61 @@
 - 章の役割・テーマ・感情弧を改善すること
 - シーン配分を見直すこと
 - **レビューで指摘されていないフィールド（purpose, theme, title等）は絶対に変更しないこと。指摘されたissueに関連するフィールドのみを修正すること。**
-- **changes フィールドには、実際に変更した内容のみを記述すること。メタ的な記述（「章番号を補足」「シーン一覧を再分割」等）を changes に含めないこと。**
-- 修正後も JSON Schema に適合すること
-
-### changes フィールドの出力（ペア形式）
-修正内容を `changes` 配列に列挙すること。各要素は before（修正前）と after（修正後）を含むオブジェクト。
-- `{"before": "修正前のテキスト", "after": "修正後のテキスト"}`
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること
-- 各要素は100字以内に収めること
 
 ## 出力スキーマ
-`chapter_design_revision.json` に適合する JSON を出力すること。
+
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "title": "章タイトル",
-  "purpose": "導入",
-  "theme": "章のテーマ",
-  "emotional_arc": "感情の弧",
-  "foreshadowing_notes": ["伏線1"],
-  "subplot_notes": ["サブプロット1"],
-  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterDesignRevision",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "章タイトル"
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "導入",
+        "展開",
+        "転換",
+        "クライマックス",
+        "収束"
+      ],
+      "description": "章の役割。物語全体におけるこの章の機能。"
+    },
+    "theme": {
+      "type": "string",
+      "description": "章のテーマ"
+    },
+    "emotional_arc": {
+      "type": "string",
+      "description": "感情の弧"
+    },
+    "foreshadowing_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "伏線メモのリスト"
+    },
+    "subplot_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "サブプロットメモのリスト"
+    }
+  },
+  "required": [
+    "title",
+    "purpose",
+    "theme",
+    "emotional_arc"
+  ],
+  "description": "章の詳細設計。章の役割、テーマ、感情アーク、伏線・サブプロットの扱いを定義する。"
 }
 ```
-
-言語: {lang}
-
-**重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。

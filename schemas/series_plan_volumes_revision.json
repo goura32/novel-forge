@@ -3,20 +3,11 @@
   "title": "SeriesPlanVolumesRevision",
   "description": "シリーズ企画（各巻）の改訂結果",
   "type": "object",
-  "required": [
-    "planned_volumes",
-    "changes"
-  ],
   "properties": {
     "planned_volumes": {
       "type": "array",
-      "description": "各巻の計画（3巻固定）",
       "items": {
         "type": "object",
-        "required": [
-          "title",
-          "premise"
-        ],
         "properties": {
           "title": {
             "type": "string",
@@ -39,7 +30,7 @@
             "items": {
               "type": "string"
             },
-            "description": "巻内の主要イベント（各想定: 200文字）"
+            "description": "巻内の主要イベント（1個以上、各想定: 200文字）"
           },
           "cliffhanger": {
             "type": "string",
@@ -47,27 +38,9 @@
           }
         }
       }
-    },
-    "changes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "before",
-          "after"
-        ],
-        "properties": {
-          "before": {
-            "type": "string",
-            "description": "修正前のテキスト"
-          },
-          "after": {
-            "type": "string",
-            "description": "修正後のテキスト"
-          }
-        }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
     }
-  }
+  },
+  "required": [
+    "planned_volumes"
+  ]
 }

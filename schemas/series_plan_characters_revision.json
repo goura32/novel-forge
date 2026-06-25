@@ -3,20 +3,11 @@
   "title": "SeriesPlanCharactersRevision",
   "description": "シリーズ企画（キャラクター）の改訂結果",
   "type": "object",
-  "required": [
-    "main_characters",
-    "changes"
-  ],
   "properties": {
     "main_characters": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "role",
-          "arc"
-        ],
         "properties": {
           "name": {
             "type": "string",
@@ -24,7 +15,19 @@
           },
           "role": {
             "type": "string",
-            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間、調停者、観察者等）"
+            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間等）"
+          },
+          "personality": {
+            "type": "string",
+            "description": "性格・特徴（想定: 1000文字）"
+          },
+          "motivation": {
+            "type": "string",
+            "description": "動機・目標（想定: 1000文字）"
+          },
+          "flaw": {
+            "type": "string",
+            "description": "欠点・弱み（想定: 1000文字）"
           },
           "arc": {
             "type": "string",
@@ -38,10 +41,6 @@
             "type": "string",
             "description": "職業・立場（想定: 500文字）"
           },
-          "personality": {
-            "type": "string",
-            "description": "性格・特徴（想定: 1000文字）"
-          },
           "appearance": {
             "type": "string",
             "description": "外見的特徴（想定: 500文字）"
@@ -49,43 +48,13 @@
           "background": {
             "type": "string",
             "description": "過去・経歴（想定: 1000文字）"
-          },
-          "motivation": {
-            "type": "string",
-            "description": "動機・目標（想定: 1000文字）"
-          },
-          "flaw": {
-            "type": "string",
-            "description": "欠点・弱み（想定: 1000文字）"
-          },
-          "growth": {
-            "type": "string",
-            "description": "成長の方向性（想定: 1000文字）"
           }
         }
       },
       "description": "メインキャラクター（2-5人）"
-    },
-    "changes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "before",
-          "after"
-        ],
-        "properties": {
-          "before": {
-            "type": "string",
-            "description": "修正前のテキスト"
-          },
-          "after": {
-            "type": "string",
-            "description": "修正後のテキスト"
-          }
-        }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
     }
-  }
+  },
+  "required": [
+    "main_characters"
+  ]
 }

@@ -4,29 +4,9 @@
   "description": "シリーズ企画（各巻）の自己レビュー結果",
   "type": "object",
   "required": [
-    "volume_uniqueness",
-    "series_flow",
-    "cliffhanger",
-    "theme_consistency",
     "issues"
   ],
   "properties": {
-    "volume_uniqueness": {
-      "type": "string",
-      "description": "巻の独自性の評価コメント"
-    },
-    "series_flow": {
-      "type": "string",
-      "description": "シリーズ全体の流れの評価コメント"
-    },
-    "cliffhanger": {
-      "type": "string",
-      "description": "クライフハンガーの評価コメント"
-    },
-    "theme_consistency": {
-      "type": "string",
-      "description": "テーマの一貫性の評価コメント"
-    },
     "issues": {
       "type": "array",
       "items": {

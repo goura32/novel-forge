@@ -4,94 +4,9 @@
   "description": "シーン設計の自己レビュー結果",
   "type": "object",
   "required": [
-    "goal_outcome_coherence",
-    "conflict_quality",
-    "pov_character_consistency",
-    "setting_event_completeness",
-    "scene_diversity",
-    "issues",
-    "revision_needed"
+    "issues"
   ],
   "properties": {
-    "goal_outcome_coherence": {
-      "type": "object",
-      "required": [
-        "goal_clear",
-        "outcome_follows",
-        "connects_to_next"
-      ],
-      "properties": {
-        "goal_clear": {
-          "type": "boolean"
-        },
-        "outcome_follows": {
-          "type": "boolean"
-        },
-        "connects_to_next": {
-          "type": "boolean"
-        }
-      }
-    },
-    "conflict_quality": {
-      "type": "object",
-      "required": [
-        "conflict_exists",
-        "conflict_meaningful"
-      ],
-      "properties": {
-        "conflict_exists": {
-          "type": "boolean"
-        },
-        "conflict_meaningful": {
-          "type": "boolean"
-        }
-      }
-    },
-    "pov_character_consistency": {
-      "type": "object",
-      "required": [
-        "pov_clear",
-        "character_actions_consistent"
-      ],
-      "properties": {
-        "pov_clear": {
-          "type": "boolean"
-        },
-        "character_actions_consistent": {
-          "type": "boolean"
-        }
-      }
-    },
-    "setting_event_completeness": {
-      "type": "object",
-      "required": [
-        "setting_clear",
-        "key_events_sufficient"
-      ],
-      "properties": {
-        "setting_clear": {
-          "type": "boolean"
-        },
-        "key_events_sufficient": {
-          "type": "boolean"
-        }
-      }
-    },
-    "scene_diversity": {
-      "type": "object",
-      "required": [
-        "differs_from_previous",
-        "story_progresses"
-      ],
-      "properties": {
-        "differs_from_previous": {
-          "type": "boolean"
-        },
-        "story_progresses": {
-          "type": "boolean"
-        }
-      }
-    },
     "issues": {
       "type": "array",
       "items": {
@@ -148,10 +63,6 @@
           }
         }
       }
-    },
-    "revision_needed": {
-      "type": "boolean",
-      "description": "改稿が必要かどうか。重大 issue がある場合、または重要 issue が2つ以上ある場合に true。軽微 issue のみ、issue なし、重要 1つの場合は false。"
     }
   }
 }

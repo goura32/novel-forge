@@ -1,76 +1,51 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SceneDesignRevision",
-  "description": "シーン設計の改訂結果",
   "type": "object",
-  "required": [
-    "title",
-    "goal",
-    "outcome"
-  ],
   "properties": {
     "title": {
       "type": "string",
-      "description": "シーンタイトル（想定: 500文字）"
+      "description": "シーンタイトル"
     },
     "goal": {
       "type": "string",
-      "description": "State: 状況 | Action: 行動（想定: 800文字）"
+      "description": "シーン開始時の状況と主人公の行動"
     },
     "outcome": {
       "type": "string",
-      "description": "シーン終了時の結果（想定: 800文字）"
+      "description": "シーン終了時の実際の結果"
     },
     "conflict": {
       "type": "string",
-      "description": "障害・対立（想定: 600文字）"
+      "description": "シーン内の障害・対立"
     },
     "pov": {
       "type": "string",
-      "description": "視点人物（想定: 500文字）"
+      "description": "視点人物"
     },
     "characters": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "登場人物（各想定: 64文字）"
+      "description": "登場人物"
     },
     "key_events": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "主要イベント（各想定: 200文字）"
+      "description": "主要イベント"
     },
     "setting": {
       "type": "string",
-      "description": "舞台設定（想定: 500文字）"
-    },
-    "emotional_arc": {
-      "type": "string",
-      "description": "感情の弧（想定: 500文字）"
-    },
-    "changes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "before",
-          "after"
-        ],
-        "properties": {
-          "before": {
-            "type": "string",
-            "description": "修正前のテキスト"
-          },
-          "after": {
-            "type": "string",
-            "description": "修正後のテキスト"
-          }
-        }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+      "description": "舞台設定"
     }
-  }
+  },
+  "required": [
+    "title",
+    "goal",
+    "outcome"
+  ],
+  "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"
 }

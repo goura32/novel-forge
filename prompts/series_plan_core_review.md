@@ -20,59 +20,66 @@
 5. **世界観の一貫性**: ルール間に矛盾がないか、設定が明確か
 6. **言語純度**: 英語混在、簡体字、ハングルがないか
 
-## 出力
+## 出力スキーマ
 
-`series_plan_core_review.json` スキーマに適合する JSON を出力すること。
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "issues": [
-    {
-      "severity": "重大",
-      "category": "missing_field",
-      "description": "問題の説明",
-      "suggestion": [{"before": "修正前", "after": "修正後"}]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCoreReview",
+  "description": "シリーズ企画（核）の自己レビュー結果",
+  "type": "object",
+  "required": ["issues"],
+  "properties": {
+    "issues": {
+      "type": "array",
+      "description": "指摘事項のリスト。",
+      "items": {
+        "type": "object",
+        "description": "個別の指摘事項。必ず suggestion（修正前後のペア）を含める。",
+        "required": ["severity", "category", "description", "suggestion"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["重大", "重要", "軽微"],
+            "description": "修正の緊急性。重大=必須修正、重要=強推奨、軽微=任意修正。"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["missing_field", "title_power", "logline_quality", "genre_fit", "world_consistency", "language_purity"],
+            "description": "指摘のカテゴリ。missing_field=必須フィールド欠落、title_power=タイトルの力、logline_quality=あらすじの質、genre_fit=ジャンル適合、world_consistency=世界観の一貫性、language_purity=言語純度。"
+          },
+          "description": {
+            "type": "string",
+            "description": "指摘の詳細。何がなぜ問題か、どのような影響があるかを具体的に記述する。"
+          },
+          "suggestion": {
+            "type": "array",
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含む。",
+            "items": {
+              "type": "object",
+              "required": ["before", "after"],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "description": "修正前のテキスト（該当箇所を引用）。"
+                },
+                "after": {
+                  "type": "string",
+                  "description": "修正後のテキスト。"
+                }
+              }
+            }
+          },
+          "affected_elements": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。"
+          }
+        }
+      }
     }
-  ]
+  }
 }
 ```
-
-**注意**:
-- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- **すべてのフィールドを必ず出力すること。省略禁止。**
-- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
-- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
-- `category` は以下のいずれかから選択: missing_field, title_power, logline_quality, genre_fit, world_consistency, language_purity
-
-**必須**: issue がない場合でも、具体的に改善点を記述すること。「問題なし」「良好」等の記述は禁止。
-
-## issues 出力ルール（厳守）
-
-11. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
-12. **suggestion はペア配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること
-13. **affected_elements の明示**: 問題が特定の巻・キャラクターに関わる場合、`affected_elements` に該当名を列挙すること
-14. **重複禁止**: 同じ修正箇所への指摘を複数の issue で重複して出さないこと
-
-**複数指摘事項の出力例:**
-```json
-{
-  "issues": [
-    {
-      "severity": "重要",
-      "category": "world_consistency",
-      "description": "第3巻の前提がシリーズの世界観ルールと矛盾している",
-      "affected_elements": ["第3巻"],
-      "suggestion": [{"before": "第3巻の前提（矛盾する内容）", "after": "世界観ルールに整合した前提"}]
-    },
-    {
-      "severity": "軽微",
-      "category": "title_power",
-      "description": "タイトルが直球的で印象に残りにくい",
-      "suggestion": [{"before": "現在のタイトル", "after": "具体的なイメージを喚起するタイトル"}]
-    }
-  ],
-  "revision_needed": true
-}
-```
-
-言語: {lang}

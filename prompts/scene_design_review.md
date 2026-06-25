@@ -11,7 +11,7 @@
 
 ## 巻情報
 - 巻タイトル: {volume_title}
-- 巻の前提: {volume_premise}
+- 巻の前提: {volume_premise}  
 
 ## 章情報
 - 章タイトル: {chapter_title}
@@ -31,107 +31,89 @@
 ## 前シーンの結果
 {previous_outcome}
 
-## 評価基準
+## 評価カテゴリ
 
-0. **必須フィールドの完全性** (`missing_field`)
-   - シーン設計に title, goal, outcome が含まれているか確認すること
-   - **欠落フィールドがある場合**: severity=「重大」で issue を出力すること。category は `missing_field` とする
-   - すべてのフィールドが埋まっている場合は、このカテゴリの issue を出力しないこと
+各 issue の `category` は以下のいずれかから必ず一つを選択すること:
 
-1. **目標・結果の連貫性** (`goal_outcome_coherence`)
-   - シーンの目標が明確か。結果が目標から自然に導かれるか。次のシーンの目標に繋がるか。
-   - **減点要素**: 目標が曖昧、結果が目標と無関係、次シーンへの接続がない
-   - **高評価要素**: 目標→結果→次シーン目標の流れが明確
+- `missing_field`: シーン設計に title, goal, outcome が含まれているか確認すること。欠落フィールドがある場合 severity=「重大」。
+- `goal_outcome_coherence`: シーンの目標が明確か。結果が目標から自然に導かれるか。次のシーンの目標に繋がるか。
+  - **減点要素**: 目標が曖昧、結果が目標と無関係、次シーンへの接続がない
+  - **高評価要素**: 目標→結果→次シーン目標の流れが明確
+- `conflict_quality`: 葛藤が存在するか。葛藤が物語に意味を持つか。
+  - **減点要素**: 葛藤がない、葛藤がシーンの目的と無関係
+  - **高評価要素**: 葛藤がキャラクターに具体的な選択を迫る
+- `pov_character_consistency`: POVが明確か。キャラクターの行動が設定と矛盾しないか。
+  - **減点要素**: POVが曖昧、キャラクター行動が設定と矛盾
+  - **高評価要素**: POVが一貫し、キャラクター行動が設定に整合
+- `setting_event_completeness`: 舞台設定が明確か。主要イベントが十分か。
+  - **減点要素**: 舞台設定が曖昧、主要イベントが不足
+  - **高評価要素**: 舞台設定が具体的で、主要イベントがシーンを推進する
+- `scene_diversity`: このシーンが前シーンと異なる出来事・感情・葛藤を持っているか
+  - **減点要素**: 前シーンと同じパターン、物語が前進していない
+  - **高評価要素**: 各シーンが固有の目的を持ち、物語が段階的に進展している
 
-2. **葛藤の質** (`conflict_quality`)
-   - 葛藤が存在するか。葛藤が物語に意味を持つか。
-   - **減点要素**: 葛藤がない、葛藤がシーンの目的と無関係
-   - **高評価要素**: 葛藤がキャラクターに具体的な選択を迫る
-
-3. **POV・キャラクター一貫性** (`pov_character_consistency`)
-   - POVが明確か。キャラクターの行動が設定と矛盾しないか。
-   - **減点要素**: POVが曖昧、キャラクター行動が設定と矛盾
-   - **高評価要素**: POVが一貫し、キャラクター行動が設定に整合
-
-4. **舞台・イベントの完全性** (`setting_event_completeness`)
-   - 舞台設定が明確か。主要イベントが十分か。
-   - **減点要素**: 舞台設定が曖昧、主要イベントが不足
-   - **高評価要素**: 舞台設定が具体的で、主要イベントがシーンを推進する
-
-5. **シーン間多様性** (`scene_diversity`)
-   - このシーンが前シーンと異なる出来事・感情・葛藤を持っているか
-   - **減点要素**: 前シーンと同じパターン（同じ行動・同じ葛藤・同じ感情の弧）を繰り返している
-   - **減点要素**: シーン間で物語が前進していない（状況が変わらない）
-   - **高評価要素**: 各シーンが固有の目的を持ち、物語が段階的に進展している
-   - **重要**: 前シーンの結果（previous_outcome）を確認し、このシーンがその続きとして適切に異なる内容であることを評価すること
-
-## 改稿要否（revision_needed）の判定
+## 改稿要否の判定
 
 - 「重大」 issue が1つでもある → `true`
 - 「重要」 issue が2つ以上ある → `true`
 - 「軽微」 issue のみ、または issue なし → `false`
 - 「重要」 issue が1つだけ → `false`
 
-## 出力
+## 出力スキーマ
 
-`scene_design_review.json` スキーマに適合する JSON を出力すること。
-
-**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "goal_outcome_coherence": {
-    "goal_clear": false,
-    "outcome_follows": false,
-    "connects_to_next": false,
-  },
-  "conflict_quality": {
-    "conflict_exists": false,
-    "conflict_meaningful": false,
-  },
-  "pov_character_consistency": {
-    "pov_clear": false,
-    "character_actions_consistent": false,
-  },
-  "setting_event_completeness": {
-    "setting_clear": false,
-    "key_events_sufficient": false,
-  },
-  "scene_diversity": {
-    "differs_from_previous": false,
-    "story_progresses": false,
-  },
-  "issues": [
-    {
-      "severity": "重大",
-      "category": "カテゴリ名",
-      "description": "問題の説明",
-      "affected_elements": ["要素1"],
-      "suggestion": [{"before": "修正前", "after": "修正後"}]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDesignReview",
+  "description": "シーン設計の自己レビュー結果",
+  "type": "object",
+  "required": ["issues"],
+  "properties": {
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description", "affected_elements"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["重大", "重要", "軽微"]
+          },
+          "category": {
+            "type": "string",
+            "description": "問題のカテゴリ名"
+          },
+          "description": {
+            "type": "string",
+            "description": "問題の説明"
+          },
+          "affected_elements": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "suggestion": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["before", "after"],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "description": "修正前のテキスト（該当箇所を引用）"
+                },
+                "after": {
+                  "type": "string",
+                  "description": "修正後のテキスト"
+                }
+              }
+            },
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+          }
+        }
+      }
     }
-  ],
-  "revision_needed": false
+  }
 }
 ```
-
-**注意**:
-- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- **すべてのフィールドを必ず出力すること。省略禁止。** スキーマに存在するすべてのキーに対応する値を記述すること。
-- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
-- `issues[].category` は評価カテゴリ名から選択すること。
-- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
-
-**suggestion 出力例:**
-```json
-{
-  "severity": "重大",
-  "category": "goal_outcome_coherence",
-  "description": "シーンの結果が次のシーンの目標に繋がっていない",
-  "affected_elements": ["シーン3"],
-  "suggestion": [{"before": "シーン3の結果（次シーンと無関係）", "after": "シーン3の結果（次シーンの目標に繋がる内容）"}]
-}
-```
-
-**必須**: issue がない場合でも、`issues` には空配列ではなく、改善点を記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう改善できるかを記述すること。
-
-言語: {lang}

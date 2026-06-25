@@ -15,7 +15,6 @@
    - 各巻に以下の必須フィールドがすべて含まれているか確認すること: title, premise, theme, emotional_arc, key_events, cliffhanger
    - **主要フィールド**（title, premise）が欠落している場合: severity=「重大」
    - **補足フィールド**（theme, emotional_arc, key_events, cliffhanger）が欠落している場合: severity=「重要」
-   - **出力例**: `{"severity": "重要", "category": "missing_field", "description": "第3巻「繋がる味と再生の板前」にフィールド「theme」「emotional_arc」「key_events」「cliffhanger」が欠落しています。", "affected_elements": ["第3巻"], "suggestion": [{"before": "(欠落)", "after": "各フィールドの具体的な記述"}]}`
    - すべてのフィールドが埋まっている場合は、このカテゴリの issue を出力しないこと
 
 1. **巻の独自性** (`volume_uniqueness`)
@@ -32,15 +31,6 @@
    - 次巻への引きがあるか（最終巻を除く）
    - **減点要素**: クライフハンガーがない（最終巻以外）、唐突な終わり方
    - **高評価要素**: 次巻を読みたくなる具体的な謎・危機・決断が提示されている
-   - **具体例（良いcliffhanger）**:
-     - 「○○が鍵を握っていることが判明し、次の巻でその鍵を探す旅が始まる」
-     - 「主人公の選択により避けられるはずだった危機が、次巻でより大きな形で逼近する」
-     - 「物語の根幹に関わる謎が提示され、読者が答えを知りたくなる」
-   - **具体例（悪いcliffhanger）**:
-     - 「次巻に続く」（読者が次巻を読む具体的な理由がない）
-     - 「物語はまだ続くだけ」（謎や危機が提示されていない）
-     - 「運命はどうなるのか」（抽象的で具体的な引きがない）
-   - **評価基準**: cliffhanger が次巻の「具体的な行動・探索・対立」に直結しているか評価すること。単なる「続きが気になる」ではなく、「次巻で何が起きるか」が具体的にイメージできるものを高評価とする
 
 4. **テーマの一貫性** (`theme_consistency`)
    - シリーズのテーマと各巻のテーマが整合しているか
@@ -49,79 +39,66 @@
 
 5. **巻間多様性** (`volume_diversity`)
    - 各巻が異なる危機・解決方法・感情の弧を持っているか
-   - **減点要素**: 全巻で同じパターン（同じ危機・同じ解決策・同じ感情の弧）を繰り返している
+   - **減点要素**: 全巻で同じパターン（同じ crisis ・同じ解決策・同じ感情の弧）を繰り返している
    - **減点要素**: 巻の終わりが毎回同じパターン（例: 毎回「次巻への伏線」で終わる）
    - **高評価要素**: 各巻が固有の目的を持ち、物語が段階的に進展している
-   - **重要**: 禁止パターンを確認すること。全巻で「料理で解決」「結界が軋む」「味覚が回復する」等の同じパターンが繰り返されている場合は severity=「重大」で指摘すること
 
-## 改稿要否（revision_needed）の判定
+## 改稿要否の判定
 
 - 「重大」 issue が1つでもある → `true`
 - 「重要」 issue が2つ以上ある → `true`
 - 「軽微」 issue のみ、または issue なし → `false`
 - 「重要」 issue が1つだけ → `false`
 
-## 出力
+## 出力スキーマ
 
-`series_plan_volumes_review.json` スキーマに適合する JSON を出力すること。
-
-**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "volume_uniqueness": "各巻は明確に異なるテーマ・目的を持っている。",
-  "series_flow": "巻間の連続性は概ね自然。",
-  "cliffhanger": "第1巻・第2巻のクライフハンガーは良好。最終巻は不要。",
-  "theme_consistency": "シリーズテーマと各巻のテーマは整合している。",
-  "issues": [
-    {
-      "severity": "重大",
-      "category": "theme_consistency",
-      "description": "第2巻のテーマがシリーズテーマと乖離している",
-      "affected_elements": ["第2巻"],
-      "suggestion": [{"before": "第2巻のテーマ（乖離する内容）", "after": "シリーズテーマに整合したテーマ"}]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanVolumesReview",
+  "description": "シリーズ企画（各巻）の自己レビュー結果",
+  "type": "object",
+  "required": ["issues"],
+  "properties": {
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["重大", "重要", "軽微"]
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["before", "after"],
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "description": "修正前のテキスト（該当箇所を引用）"
+                },
+                "after": {
+                  "type": "string",
+                  "description": "修正後のテキスト"
+                }
+              }
+            },
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+          }
+        }
+      }
     }
-  ],
-  "revision_needed": true
+  }
 }
 ```
-
-**注意**:
-- 上記テンプレートのキー名は変更しないこと。値のみを埋めること。
-- **すべてのフィールドを必ず出力すること。省略禁止。** スキーマに存在するすべてのキーに対応する値を記述すること。
-- `issues[].severity` は「重大」「重要」「軽微」から選択すること。
-- `issues[].suggestion` は**オブジェクトの配列**であること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
-
-**必須**: issue がない場合でも、`issues` には空配列ではなく、改善点を記述すること。「問題なし」「良好」等の記述は禁止。具体的に何がどう改善できるかを記述すること。
-
-## issues 出力ルール（厳守）
-
-1. **1問題 = 1 issue**: 異なる問題は個別の issue 要素として列挙すること
-2. **suggestion はペア配列**: 1つの issue に複数の修正箇所がある場合、`suggestion` の配列要素に分割すること。各要素は `before`（修正前）と `after`（修正後）を含むオブジェクト。
-3. **affected_elements の明示**: 問題が特定の巻に関わる場合、`affected_elements` に該当巻番号を列挙すること
-4. **重複禁止**: 同じ修正箇所への指摘を複数の issue で重複して出さないこと
-
-**複数指摘事項の出力例:**
-```json
-{
-  "issues": [
-    {
-      "severity": "重大",
-      "category": "theme_consistency",
-      "description": "第2巻のテーマがシリーズテーマと乖離している",
-      "affected_elements": ["第2巻"],
-      "suggestion": [{"before": "第2巻のテーマ（乖離する内容）", "after": "シリーズテーマに整合したテーマ"}]
-    },
-    {
-      "severity": "重要",
-      "category": "cliffhanger",
-      "description": "第1巻のクライフハンガーがなく、次巻への引きが弱い",
-      "affected_elements": ["第1巻"],
-      "suggestion": [{"before": "第1巻の末尾（平坦な終わり）", "after": "次巻を読みたくなる具体的な謎・危機を追加"}]
-    }
-  ],
-  "revision_needed": true
-}
-```
-
-言語: {lang}

@@ -2,19 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeDesignRevision",
   "type": "object",
-  "required": [
-    "title",
-    "premise",
-    "chapters"
-  ],
   "properties": {
     "title": {
       "type": "string",
-      "description": "巻タイトル（想定: 500文字）"
+      "description": "巻タイトル"
     },
     "premise": {
       "type": "string",
-      "description": "巻の前提（想定: 500文字）"
+      "description": "巻の前提"
     },
     "chapters": {
       "type": "array",
@@ -27,8 +22,7 @@
         ],
         "properties": {
           "title": {
-            "type": "string",
-            "description": "章タイトル"
+            "type": "string"
           },
           "purpose": {
             "type": "string",
@@ -39,7 +33,7 @@
               "クライマックス",
               "収束"
             ],
-            "description": "章の役割"
+            "description": "章の役割。日本語で指定: 導入/展開/転換/クライマックス/収束"
           },
           "scenes": {
             "type": "array",
@@ -53,31 +47,25 @@
               ],
               "properties": {
                 "title": {
-                  "type": "string",
-                  "description": "シーンタイトル"
-                },
-                "goal": {
-                  "type": "string",
-                  "description": "State: 状況 | Action: 行動"
-                },
-                "outcome": {
-                  "type": "string",
-                  "description": "シーン終了時の結果"
-                },
-                "conflict": {
-                  "type": "string",
-                  "description": "障害・対立"
+                  "type": "string"
                 },
                 "pov": {
-                  "type": "string",
-                  "description": "視点人物"
+                  "type": "string"
+                },
+                "goal": {
+                  "type": "string"
+                },
+                "conflict": {
+                  "type": "string"
+                },
+                "outcome": {
+                  "type": "string"
                 },
                 "characters": {
                   "type": "array",
                   "items": {
                     "type": "string"
-                  },
-                  "description": "登場人物"
+                  }
                 },
                 "key_events": {
                   "type": "array",
@@ -95,13 +83,10 @@
           }
         }
       }
-    },
-    "changes": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "修正内容の説明文のリスト"
     }
-  }
+  },
+  "required": [
+    "chapters"
+  ],
+  "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"
 }

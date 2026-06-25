@@ -27,34 +27,52 @@
 - `affected_elements` に記載された巻番号を特定し、該当巻を重点的に修正すること
 - 巻間の連続性、クライフハンガー、テーマの整合性を改善すること
 - レビューで指摘されていない部分を勝手に変更しないこと
-- 修正後も JSON Schema に適合すること
 
-### changes フィールドの出力（ペア形式）
-修正内容を `changes` 配列に列挙すること。各要素は before（修正前）と after（修正後）を含むオブジェクト。
-- `{"before": "修正前のテキスト", "after": "修正後のテキスト"}`
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること
-- 各要素は100字以内に収めること
+## 出力スキーマ
 
-## 出力
-
-`schemas/series_plan_volumes_revision.json` に適合する JSON を出力すること。
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "planned_volumes": [
-    {
-      "title": "巻タイトル",
-      "premise": "巻のあらすじ",
-      "theme": "巻のテーマ",
-      "emotional_arc": "感情の弧",
-      "key_events": ["主要イベント1"],
-      "cliffhanger": "次巻へのフック"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanVolumesRevision",
+  "description": "シリーズ企画（各巻）の改訂結果",
+  "type": "object",
+  "properties": {
+    "planned_volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "巻タイトル（想定: 500文字）"
+          },
+          "premise": {
+            "type": "string",
+            "description": "巻のあらすじ（想定: 1000文字）"
+          },
+          "theme": {
+            "type": "string",
+            "description": "巻のテーマ（想定: 600文字）"
+          },
+          "emotional_arc": {
+            "type": "string",
+            "description": "巻全体の感情の弧（想定: 500文字）"
+          },
+          "key_events": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "巻内の主要イベント（1個以上、各想定: 200文字）"
+          },
+          "cliffhanger": {
+            "type": "string",
+            "description": "次巻へのフック（最終巻以外必須、想定: 1000文字）"
+          }
+        }
+      }
     }
-  ],
-  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
+  },
+  "required": ["planned_volumes"]
 }
 ```
-
-言語: {lang}
-
-**重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。

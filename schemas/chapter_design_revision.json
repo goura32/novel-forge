@@ -1,18 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ChapterDesignRevision",
-  "description": "章設計の改訂結果",
   "type": "object",
-  "required": [
-    "title",
-    "purpose",
-    "theme",
-    "emotional_arc"
-  ],
   "properties": {
     "title": {
       "type": "string",
-      "description": "章タイトル（想定: 500文字）"
+      "description": "章タイトル"
     },
     "purpose": {
       "type": "string",
@@ -23,50 +16,36 @@
         "クライマックス",
         "収束"
       ],
-      "description": "章の役割（「導入」「展開」「転換」「クライマックス」「収束」から選択）"
+      "description": "章の役割。物語全体におけるこの章の機能。"
     },
     "theme": {
       "type": "string",
-      "description": "章のテーマ（想定: 600文字）"
+      "description": "章のテーマ"
     },
     "emotional_arc": {
       "type": "string",
-      "description": "感情の弧（想定: 600文字）"
+      "description": "感情の弧"
     },
     "foreshadowing_notes": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "伏線メモ（各想定: 300文字）"
+      "description": "伏線メモのリスト"
     },
     "subplot_notes": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "サブプロットメモ（各想定: 300文字）"
-    },
-    "changes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "before",
-          "after"
-        ],
-        "properties": {
-          "before": {
-            "type": "string",
-            "description": "修正前のテキスト"
-          },
-          "after": {
-            "type": "string",
-            "description": "修正後のテキスト"
-          }
-        }
-      },
-      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+      "description": "サブプロットメモのリスト"
     }
-  }
+  },
+  "required": [
+    "title",
+    "purpose",
+    "theme",
+    "emotional_arc"
+  ],
+  "description": "章の詳細設計。章の役割、テーマ、感情アーク、伏線・サブプロットの扱いを定義する。"
 }

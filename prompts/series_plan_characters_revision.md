@@ -27,49 +27,72 @@
 - `affected_elements` に記載されたキャラクター名を特定し、該当キャラクターを重点的に修正すること
 - キャラクターの差別化、成長弧、世界観適合を改善すること
 - レビューで指摘されていない部分を勝手に変更しないこと
-- 修正後も JSON Schema に適合すること
 - **キャラクター名の重複を確認すること**: `main_characters` 内に同じ名前のキャラクターが複数存在する場合、それぞれを異なる名前・性格・背景のキャラクターに変更すること。重複キャラクターは許容されない。
 - **役割の重複を禁止すること**: 各キャラクターは異なる役割を持つこと。2人以上が同じ役割にならないこと。
 - **growth フィールドを空欄にしないこと**: すべてのキャラクターに成長の方向性を具体的に記述すること。
 - **キャラクター数の最適化**: レビューで指摘された問題を解決するため、必要に応じてキャラクター数を増減すること。ただし、最低2人以上を維持すること。
 
-### changes フィールドの出力（ペア形式）
-修正内容を `changes` 配列に列挙すること。各要素は before（修正前）と after（修正後）を含むオブジェクト。
-- `{"before": "修正前のテキスト", "after": "修正後のテキスト"}`
-- 例: `"「主人公の性格」を「主人公の性格（修正後）」に置換"`
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること
-- 各要素は100字以内に収めること
+## 出力スキーマ
 
-## 出力
-
-`schemas/series_plan_characters_revision.json` に適合する JSON を出力すること。
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "main_characters": [
-    {
-      "name": "キャラクター名",
-      "role": "主人公",
-      "arc": "成長の方向性",
-      "gender": "男性",
-      "age": "28歳",
-      "occupation": "職業",
-      "personality": "性格",
-      "appearance": "外見",
-      "background": "経歴",
-      "motivation": "動機",
-      "flaw": "欠点",
-      "growth": "成長の方向性"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCharactersRevision",
+  "description": "シリーズ企画（キャラクター）の改訂結果",
+  "type": "object",
+  "properties": {
+    "main_characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "キャラクター名（フルネーム、想定: 500文字）"
+          },
+          "role": {
+            "type": "string",
+            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間等）"
+          },
+          "personality": {
+            "type": "string",
+            "description": "性格・特徴（想定: 1000文字）"
+          },
+          "motivation": {
+            "type": "string",
+            "description": "動機・目標（想定: 1000文字）"
+          },
+          "flaw": {
+            "type": "string",
+            "description": "欠点・弱み（想定: 1000文字）"
+          },
+          "arc": {
+            "type": "string",
+            "description": "シリーズを通じた成長・変化（想定: 600文字）"
+          },
+          "age": {
+            "type": "string",
+            "description": "年齢（例: 28歳、想定: 500文字）"
+          },
+          "occupation": {
+            "type": "string",
+            "description": "職業・立場（想定: 500文字）"
+          },
+          "appearance": {
+            "type": "string",
+            "description": "外見的特徴（想定: 500文字）"
+          },
+          "background": {
+            "type": "string",
+            "description": "過去・経歴（想定: 1000文字）"
+          }
+        }
+      },
+      "description": "メインキャラクター（2-5人）"
     }
-  ],
-  "changes": [
-    {"before": "修正前のテキスト", "after": "修正後のテキスト"}
-  ]
+  },
+  "required": ["main_characters"]
 }
 ```
-
-**注意**:
-- `changes` の各要素は `before`（修正前）と `after`（修正後）を含む **オブジェクト** であること。文字列は禁止。
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること。
-
-**重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。

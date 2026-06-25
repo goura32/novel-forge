@@ -4,94 +4,9 @@
   "description": "巻デザインの自己レビュー結果",
   "type": "object",
   "required": [
-    "structural_validity",
-    "scene_coherence",
-    "pace_analysis",
-    "character_arc_review",
     "issues"
   ],
   "properties": {
-    "structural_validity": {
-      "type": "object",
-      "required": [
-        "has_clear_arc",
-        "chapter_roles_valid",
-        "climax_placement_valid"
-      ],
-      "properties": {
-        "has_clear_arc": {
-          "type": "boolean"
-        },
-        "chapter_roles_valid": {
-          "type": "boolean"
-        },
-        "climax_placement_valid": {
-          "type": "boolean"
-        }
-      }
-    },
-    "scene_coherence": {
-      "type": "object",
-      "required": [
-        "scene_transitions_valid",
-        "no_contradictions",
-        "state_continuity"
-      ],
-      "properties": {
-        "scene_transitions_valid": {
-          "type": "boolean"
-        },
-        "no_contradictions": {
-          "type": "boolean"
-        },
-        "state_continuity": {
-          "type": "boolean"
-        }
-      }
-    },
-    "pace_analysis": {
-      "type": "object",
-      "required": [
-        "introduction_ratio",
-        "development_ratio",
-        "climax_ratio",
-        "pacing_comment"
-      ],
-      "properties": {
-        "introduction_ratio": {
-          "type": "number"
-        },
-        "development_ratio": {
-          "type": "number"
-        },
-        "climax_ratio": {
-          "type": "number"
-        },
-        "pacing_comment": {
-          "type": "string",
-          "description": "ペースのコメント"
-        }
-      }
-    },
-    "character_arc_review": {
-      "type": "object",
-      "required": [
-        "protagonist_has_arc",
-        "arc_believability",
-        "supporting_chars_used"
-      ],
-      "properties": {
-        "protagonist_has_arc": {
-          "type": "boolean"
-        },
-        "arc_believability": {
-          "type": "number"
-        },
-        "supporting_chars_used": {
-          "type": "boolean"
-        }
-      }
-    },
     "issues": {
       "type": "array",
       "items": {

@@ -27,37 +27,94 @@
 - `affected_elements` に記載された要素（巻番号、キャラクター名等）を特定し、該当箇所を重点的に修正すること
 - レビューで指摘されていない部分を勝手に変更しないこと
 - 言語純度の問題（英語混在、簡体字、ハングル）は最優先で修正すること
-- 修正後も JSON Schema に適合すること
 - **slug は変更しないこと**（タイトルと連関する識別子であり、改訂の対象外）
 
-### changes フィールドの出力（ペア形式）
-修正内容を `changes` 配列に列挙すること。各要素は before（修正前）と after（修正後）を含むオブジェクト。
-- `{"before": "修正前のテキスト", "after": "修正後のテキスト"}`
-- 例: `"「データ分析」を「情報分析」に置換"`
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること
-- 各要素は100字以内に収めること
+## 出力スキーマ
 
-## 出力
-
-`schemas/series_plan_core_revision.json` に適合する JSON を出力すること。
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "title": "シリーズタイトル",
-  "slug": "series-slug",
-  "logline": "あらすじ",
-  "genre": ["ジャンル1"],
-  "target_audience": "ターゲット読者",
-  "themes": ["テーマ1"],
-  "selling_points": ["売りポイント1"],
-  "world": {
-    "summary": "世界観の概要",
-    "rules": ["ルール1"]
-  },
-  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCoreRevision",
+  "description": "シリーズ企画（核）の改訂結果",
+  "type": "object",
+  "required": [
+    "title",
+    "slug",
+    "logline",
+    "genre",
+    "target_audience",
+    "themes",
+    "selling_points",
+    "world",
+    "changes"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "シリーズのタイトル（想定: 500文字）"
+    },
+    "slug": {
+      "type": "string",
+      "description": "シリーズのスラグ（ローマ字ハイフン区切り、32文字以内）"
+    },
+    "logline": {
+      "type": "string",
+      "description": "シリーズのあらすじ（想定: 500文字）"
+    },
+    "genre": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "ジャンル（各想定: 64文字）"
+    },
+    "target_audience": {
+      "type": "string",
+      "description": "ターゲット読者（想定: 500文字）"
+    },
+    "themes": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "テーマ（各想定: 128文字）"
+    },
+    "selling_points": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "売りポイント（各想定: 200文字）"
+    },
+    "world": {
+      "type": "object",
+      "required": ["summary", "rules"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "世界観の概要（想定: 1000文字）"
+        },
+        "rules": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "世界観のルール（各想定: 200文字）"
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["before", "after"],
+        "properties": {
+          "before": {
+            "type": "string",
+            "description": "修正前のテキスト"
+          },
+          "after": {
+            "type": "string",
+            "description": "修正後のテキスト"
+          }
+        }
+      },
+      "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+    }
+  }
 }
 ```
-
-言語: {lang}
-
-**重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。

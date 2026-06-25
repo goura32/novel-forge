@@ -27,32 +27,53 @@
 - 目標・結果の連貫性を改善すること
 - 葛藤を強化すること
 - レビューで指摘されていない部分を勝手に変更しないこと
-- 修正後も JSON Schema に適合すること
-
-### changes フィールドの出力（ペア形式）
-修正内容を `changes` 配列に列挙すること。各要素は before（修正前）と after（修正後）を含むオブジェクト。
-- `{"before": "修正前のテキスト", "after": "修正後のテキスト"}`
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること
-- 各要素は100字以内に収めること
 
 ## 出力スキーマ
-`scene_design_revision.json` に適合する JSON を出力すること。
+
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "title": "シーンタイトル",
-  "goal": "State: ... | Action: ...",
-  "outcome": "結果",
-  "conflict": "葛藤",
-  "pov": "視点人物",
-  "characters": ["キャラクター1"],
-  "key_events": ["イベント1"],
-  "setting": "舞台設定",
-  "emotional_arc": "感情の弧",
-  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDesignRevision",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "シーンタイトル"
+    },
+    "goal": {
+      "type": "string",
+      "description": "シーン開始時の状況と主人公の行動"
+    },
+    "outcome": {
+      "type": "string",
+      "description": "シーン終了時の実際の結果"
+    },
+    "conflict": {
+      "type": "string",
+      "description": "シーン内の障害・対立"
+    },
+    "pov": {
+      "type": "string",
+      "description": "視点人物"
+    },
+    "characters": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "登場人物"
+    },
+    "key_events": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "主要イベント"
+    },
+    "setting": {
+      "type": "string",
+      "description": "舞台設定"
+    }
+  },
+  "required": ["title", "goal", "outcome"],
+  "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"
 }
 ```
-
-言語: {lang}
-
-**重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。

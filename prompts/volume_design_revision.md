@@ -32,54 +32,102 @@
 - 各シーンの outcome が次のシーンの goal に繋がっていること
 - 前巻デザインが提供されている場合、前巻との整合性を保つこと（キャラクターの状態、伏線、サブプロットの進捗）
 - レビューで指摘されていない部分を勝手に変更しないこと
-- 修正後も JSON Schema に適合すること
 
-### changes フィールドの出力（ペア形式）
-修正内容を `changes` 配列に列挙すること。各要素は before（修正前）と after（修正後）を含むオブジェクト。
-- `{"before": "修正前のテキスト", "after": "修正後のテキスト"}`
-- 例: `"「第2章の目的」を「展開」に修正"`
-- 複数の変更がある場合は、すべての変更を配列要素として列挙すること
-- 各要素は100字以内に収めること
+## 出力スキーマ
 
-## 出力
-修正後の巻デザインを JSON で出力すること。`volume_design_revision.json` スキーマに適合する JSON とすること。
-
-**以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
+以下の JSON スキーマに適合する JSON を出力すること。
 
 ```json
 {
-  "title": "巻タイトル",
-  "premise": "巻の前提",
-  "chapters": [
-    {
-      "title": "章タイトル",
-      "purpose": "導入",
-      "scenes": [
-        {
-          "title": "シーンタイトル",
-          "goal": "State: 状況 | Action: 行動",
-          "outcome": "シーン終了時の結果",
-          "conflict": "障害・対立",
-          "pov": "視点人物",
-          "characters": ["登場人物1", "登場人物2"],
-          "key_events": ["主要イベント1"],
-          "setting": "舞台設定",
-          "emotional_arc": "感情の弧"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VolumeDesignRevision",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "巻タイトル"
+    },
+    "premise": {
+      "type": "string",
+      "description": "巻の前提"
+    },
+    "chapters": {
+      "type": "array",
+      "description": "章のリスト。1巻あたり4-8章が標準。3章以下は短すぎ、10章以上は長すぎ。",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "purpose"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "導入",
+              "展開",
+              "転換",
+              "クライマックス",
+              "収束"
+            ],
+            "description": "章の役割。日本語で指定: 導入/展開/転換/クライマックス/収束"
+          },
+          "scenes": {
+            "type": "array",
+            "description": "シーンのリスト。1章あたり2-4シーンが標準。",
+            "items": {
+              "type": "object",
+              "required": [
+                "title",
+                "goal",
+                "outcome"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "pov": {
+                  "type": "string"
+                },
+                "goal": {
+                  "type": "string"
+                },
+                "conflict": {
+                  "type": "string"
+                },
+                "outcome": {
+                  "type": "string"
+                },
+                "characters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "key_events": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "主要イベント"
+                },
+                "setting": {
+                  "type": "string",
+                  "description": "舞台設定"
+                }
+              }
+            }
+          }
         }
-      ]
+      }
     }
+  },
+  "required": [
+    "chapters"
   ],
-  "changes": [{"before": "修正前のテキスト", "after": "修正後のテキスト"}]
+  "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"
 }
 ```
-
-**注意**:
-- `title` と `premise` は**必ず**出力すること。空文字列でもよい。
-- `chapters[].purpose` は「導入」「展開」「転換」「クライマックス」「収束」から選択すること。単語のみで記述し、改行や句読点を含めないこと。
-- `chapters[].scenes[].goal` は `State: ... | Action: ...` 形式で記述すること。
-- `number` と `chapter_number` は engine で機械採番されるため含めないこと。
-- **配列フィールド（`characters`, `key_events`）は必ず2つ以上の要素を含めること。空配列にしないこと。**
-
-言語: {lang}
-
-**重要**: 上記テンプレートに含まれるすべてのフィールドを必ず出力すること。省略禁止。
