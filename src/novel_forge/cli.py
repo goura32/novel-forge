@@ -158,7 +158,7 @@ def complete(
                 raise SystemExit(1) from e
     finally:
         assert result is not None
-        console.print(f"[green]✓[/green] Complete! Manuscript: {result['manuscript_path']}")
+        console.print(f"[green]✓[/green] Complete! Manuscript: {result.get('manuscript_path', result.get('manuscript', 'N/A'))}")
 
 
 @app.command()

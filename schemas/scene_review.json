@@ -36,6 +36,7 @@
               "dialogue_naturalness",
               "tone_consistency",
               "scene_completeness",
+              "scene_length",
               "language_purity",
               "pov_consistency"
             ]
