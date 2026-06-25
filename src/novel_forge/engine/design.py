@@ -20,7 +20,7 @@ class DesignMixin(NovelEngineBase):  # type: ignore[misc]
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
         self._state.status = "デザイン済"
-        slug = self._slug
+        slug = self._slug or self._workdir.name
         if not slug:
             raise ValueError("Design: slug is empty — run 'plan' first or specify --series")
 

@@ -10,7 +10,7 @@
     },
     "slug": {
       "type": "string",
-      "description": "シリーズのスラグ（ローマ字ハイフン区切り、32文字以内）。タイトルと意味的に連関すること。例: 「凍れる誓約」→ frozen-vow, 「魔法の落し物相談室」→ lost-bells-office"
+      "description": "a-z0-9と-のみからなる32文字以内のURL識別子"
     },
     "logline": {
       "type": "string",

@@ -121,8 +121,11 @@ def make_engine(
     verbose: bool = False,
     raw_log: bool = False,
     phase: str = "",
+    series: str = "",
 ) -> NovelEngine:
     """Create NovelEngine with signal handlers registered."""
+    if series:
+        workdir = workdir / series
     engine = NovelEngine(
         workdir=workdir, model=model, lang=lang,
         max_review_retries=max_review_retries, verbose=verbose,
