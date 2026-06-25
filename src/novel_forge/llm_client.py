@@ -155,6 +155,8 @@ class LLMClient:
         current_prompt = user_prompt
         self._current_kind = kind
         raw_text, thinking = "", ""
+        chunk_count = 0
+        total_bytes = 0
         for attempt in range(max(self.max_retries, 1)):
             raw_text, thinking = "", ""
             try:
@@ -172,11 +174,11 @@ class LLMClient:
                     meta,
                 )
                 _call_start = time.time()
-                raw_text, raw, thinking, done_reason = self._call_api(payload)
+                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
                 self._log.debug(
-                    "  [LLM DONE] kind=%s elapsed=%.1fs",
-                    kind, _call_elapsed,
+                    "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
+                    kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
                 )
                 self._write_raw_log(f"response_{attempt}", raw_text)
                 parsed = parse_json_response(raw)
@@ -261,8 +263,8 @@ class LLMClient:
                 thinking_parts.append(thinking)
         return "".join(parts), "".join(thinking_parts)
 
-    def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str]:
-        """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason)."""
+    def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str, int, int]:
+        """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason, chunk_count, total_bytes)."""
         stream_payload = {**payload, "stream": True}
         lines: list[str] = []
         chunk_count = 0
@@ -284,18 +286,15 @@ class LLMClient:
                         now = time.time()
                         if now - self._last_progress_log >= 60:
                             elapsed_total = now - call_start
-                            elapsed_h = int(elapsed_total // 3600)
-                            elapsed_m = int((elapsed_total % 3600) // 60)
-                            elapsed_s = int(elapsed_total % 60)
                             meta = ""
                             if self._series_slug:
                                 meta += f" series={self._series_slug}"
                             if self._volume:
                                 meta += f" vol={self._volume}"
+                            elapsed_total = now - call_start
                             self._log.info(
-                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%02d:%02d:%02d%s",
-                                chunk_count, total_bytes, elapsed_h, elapsed_m, elapsed_s,
-                                meta,
+                                "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%.1fs%s",
+                                chunk_count, total_bytes, elapsed_total, meta,
                             )
                             self._last_progress_log = now
         except httpx.TimeoutException:
@@ -311,7 +310,7 @@ class LLMClient:
             self._write_raw_log("_empty", text)
             raise LLMError("Ollama returned empty response")
         self._write_raw_log("_resp", text)
-        return text, result, thinking_combined, ""
+        return text, result, thinking_combined, "", chunk_count, total_bytes
 
     def _make_call_dir(self, kind: str) -> Path:
         """1回のLLM呼び出し用のディレクトリを作成して返す。"""

@@ -99,10 +99,12 @@ class NovelEngineBase:
         # ログは全シリーズ共通で config.yaml と同じフォルダに出力
         # workdir がシリーズディレクトリの場合、親ディレクトリを使用
         log_dir = Path(workdir)
+        log_slug = ""
         if (log_dir / "series_plan.json").exists():
             log_dir = log_dir.parent
+            log_slug = workdir.name
         log_file = log_dir / "novel_forge.log"
-        setup_logging(log_file=log_file, verbose=self._verbose, log_level=self._log_level)
+        setup_logging(log_file=log_file, verbose=self._verbose, log_level=self._log_level, series_slug=log_slug)
 
         schema_errors = validate_schemas()
         if schema_errors:

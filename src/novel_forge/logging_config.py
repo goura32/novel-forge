@@ -1,50 +1,60 @@
 """ロギング設定。
 
-- ログファイル: series_dir/novel_forge.log に全レベル出力
+- ログファイル: workdir/novel_forge.log に全レベル出力
 - stderr: WARNING 以上（verbose 時は DEBUG）
-- フォーマット: [HH:MM:SS] [LEVEL] message
+- フォーマット: [YYYY-MM-DD HH:MM:SS] [series:X] [PID XXXX] [LEVEL] message
+- マルチプロセス対応: 各プロセスが異なる slug でログを区別できる
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time as _time
 from pathlib import Path
 
 from rich.console import Console
-from rich.logging import RichHandler
 
 console = Console()
-_start_time = _time.monotonic()
+_PID = os.getpid()
 
 
-class ElapsedFormatter(logging.Formatter):
-    """経過時間付きフォーマッタ。"""
+class ContextFormatter(logging.Formatter):
+    """現在時刻 + PID + slug 付きフォーマッタ。"""
 
     def format(self, record):
-        elapsed = _time.monotonic() - _start_time
-        record.elapsed = f"{int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
+        record.elapsed = _time.strftime("%Y-%m-%d %H:%M:%S")
+        record.pid = getattr(self, "pid", "?")
+        record.series = getattr(self, "series", "")
         return super().format(record)
+
+
+_context: dict[str, object] = {}
 
 
 def setup_logging(
     log_file: Path | None = None,
     verbose: bool = False,
     log_level: str = "DEBUG",
+    series_slug: str = "",
 ) -> logging.Logger:
     logger = logging.getLogger("novel_forge")
     logger.setLevel(logging.DEBUG)
     logger.handlers.clear()
 
-    file_fmt = ElapsedFormatter(
-        fmt="[%(elapsed)s] [%(levelname)s] %(message)s",
-    )
-    stderr_fmt = logging.Formatter("[%(levelname)s] %(message)s")
+    fmt = "[%(elapsed)s]%(series)s [PID %(pid)d] [%(levelname)s] %(message)s"
+    file_fmt = ContextFormatter(fmt=fmt)
+    file_fmt.pid = _PID
+    file_fmt.series = f" [{series_slug}]" if series_slug else ""
+
+    stderr_fmt = ContextFormatter(fmt="[PID %(pid)d] [%(levelname)s] %(message)s")
+    stderr_fmt.pid = _PID
+    stderr_fmt.series = f" [{series_slug}]" if series_slug else ""
 
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(str(log_file), encoding="utf-8")
+        fh = logging.FileHandler(str(log_file), mode="a", encoding="utf-8")
         fh.setLevel(getattr(logging, log_level.upper(), logging.DEBUG))
         fh.setFormatter(file_fmt)
         logger.addHandler(fh)
