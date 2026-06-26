@@ -8,10 +8,8 @@ Design principle:
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -19,18 +17,12 @@ from novel_forge.context_builder import ContextBuilder
 from novel_forge.engine import NovelEngine
 from novel_forge.models import (
     Bible,
-    Blackboard,
     CharacterProfile,
-    SceneRecord,
-    VolumeOutline,
-    VolumeProgress,
 )
-from novel_forge.prompts import PromptManager, render_prompt
+from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
 from novel_forge.scene_writer import SceneWriter
-from novel_forge.schemas import get_schema
-from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
-
+from novel_forge.storage import BibleStorage, BlackboardStorage
 
 # ── Mock LLM Client ─────────────────────────────────────────────────────
 
@@ -253,7 +245,7 @@ class TestPlan:
 
     def test_plan_creates_series_plan(self, engine, mock_llm, tmp_workdir):
         """plan() should create series_plan.json with valid data."""
-        result = engine.plan("テスト")
+        engine.plan("テスト")
 
         plan_path = engine._series_dir / "series_plan.json"
         assert plan_path.exists()
@@ -364,7 +356,7 @@ class TestPlanReviewLoop:
             {"volume_uniqueness": "良い", "series_flow": "良い", "cliffhanger": "良い",
              "theme_consistency": "良い", "issues": []})
 
-        result = engine.plan("テスト")
+        engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
         # No separate revision kind — revision reuses series_plan_core
@@ -434,7 +426,7 @@ class TestWrite:
         planned_engine.design(volume_number=1)
         mock_llm._call_log.clear()
 
-        result = planned_engine.write(volume_number=1)
+        planned_engine.write(volume_number=1)
         vol_dir = planned_engine._series_dir / "vol01"
 
         # Check that chapter directories exist
@@ -534,7 +526,6 @@ class TestContextBuilder:
 
     def test_build_context_empty(self, tmp_workdir):
         """build_context() with no data should return empty context."""
-        from novel_forge.storage import BlackboardStorage, BibleStorage
         ctx = ContextBuilder(
             series_dir=tmp_workdir,
             blackboard_storage=BlackboardStorage(tmp_workdir),
@@ -545,7 +536,6 @@ class TestContextBuilder:
 
     def test_build_context_with_facts(self, tmp_workdir):
         """build_context() should include facts."""
-        from novel_forge.storage import BlackboardStorage, BibleStorage
         ctx = ContextBuilder(
             series_dir=tmp_workdir,
             blackboard_storage=BlackboardStorage(tmp_workdir),
@@ -583,7 +573,6 @@ class TestSceneWriter:
         """load_scene_draft() should load existing draft."""
         from novel_forge.prompts import PromptManager
         from novel_forge.quality_gate import QualityGate
-        from novel_forge.storage import BlackboardStorage, BibleStorage
         scene_file = tmp_workdir / "test_scene.md"
         scene_file.write_text("# Test\n\nContent", encoding="utf-8")
         writer = SceneWriter(
@@ -602,7 +591,6 @@ class TestSceneWriter:
         from novel_forge.models import ChapterOutline
         from novel_forge.prompts import PromptManager
         from novel_forge.quality_gate import QualityGate
-        from novel_forge.storage import BlackboardStorage, BibleStorage
         writer = SceneWriter(
             workdir=tmp_workdir,
             llm_client=MockLLMClient(),

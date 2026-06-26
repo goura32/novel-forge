@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from novel_forge.models import VolumeOutline, SceneWriteContext
+from novel_forge.models import SceneWriteContext, VolumeOutline
 
 if TYPE_CHECKING:
     from novel_forge.engine.base import NovelEngineBase

@@ -1,31 +1,24 @@
 from __future__ import annotations
 
-import json
-import tempfile
-from pathlib import Path
-
 import pytest
 
-from novel_forge.models import (
-    ProjectState,
-    VolumeProgress,
-    SceneRecord,
-    Fact,
-    Blackboard,
-    Bible,
-    CharacterProfile,
-    QualityGateResult,
-    SceneDesign,
-    ChapterDesign,
-    VolumeOutline,
-)
-from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
-from novel_forge.prompts import PromptManager, render_prompt
-from novel_forge.schemas import validate, validate_or_raise, list_schemas, get_schema
-from novel_forge.quality_gate import QualityGate
 from novel_forge.engine import NovelEngine
-from novel_forge.llm_client import LLMClient, LLMError, SchemaValidationError
-
+from novel_forge.llm_client import LLMClient
+from novel_forge.models import (
+    Bible,
+    Blackboard,
+    ChapterDesign,
+    CharacterProfile,
+    Fact,
+    ProjectState,
+    SceneDesign,
+    SceneRecord,
+    VolumeProgress,
+)
+from novel_forge.prompts import PromptManager, render_prompt
+from novel_forge.quality_gate import QualityGate
+from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_raise
+from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 
 # ── LLM Client ──────────────────────────────────────────────────────────
 
@@ -53,7 +46,7 @@ class TestModels:
         assert fact.confidence == 1.0
 
     def test_fact_confidence_range(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             Fact(subject="A", predicate="is", object="B", confidence=1.5)
 
     def test_blackboard_creation(self):
@@ -102,7 +95,7 @@ class TestModels:
         assert sr.status == "計画中"
 
     def test_scene_record_invalid_status(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SceneRecord(scene_number=1, status="invalid")
 
 
@@ -268,7 +261,6 @@ class TestEngine:
         assert result["action"] == "design"
 
     def test_engine_resume_drafting(self, tmp_path):
-        from novel_forge.models import VolumeProgress
         engine = NovelEngine(workdir=tmp_path, model="test")
         vol = VolumeProgress(volume_number=1, status="執筆中", current_chapter=0)
         engine._state.volumes.append(vol)

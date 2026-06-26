@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import signal
 import sys
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+
 from rich.console import Console
 from rich.table import Table
 
@@ -81,14 +83,12 @@ def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> P
 
 
 def _release_lock(lock_path: Path) -> None:
-    try:
+    with contextlib.suppress(OSError):
         lock_path.unlink(missing_ok=True)
-    except OSError:
-        pass
 
 
 @contextmanager
-def _series_lock(series_dir: Path) -> Generator[None, None, None]:
+def _series_lock(series_dir: Path) -> Generator[None]:
     lock_path = _acquire_lock(series_dir)
     try:
         yield
@@ -145,10 +145,8 @@ def make_engine(
             "model": model, "lang": lang, "pid": os.getpid(),
             "updated_at": time.time(),
         }
-        try:
+        with contextlib.suppress(Exception):
             state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2))
-        except Exception:
-            pass
 
     original_sigterm = signal.signal(signal.SIGTERM, _signal_handler)
     original_sigint = signal.signal(signal.SIGINT, _signal_handler)
@@ -188,7 +186,6 @@ def cmd_doctor(
     ollama_host: str = "ws1.local:11434",
 ) -> None:
     """Diagnose Ollama connectivity and model readiness."""
-    import json as _json
     import httpx as _httpx
 
     console.print("[bold]NovelForge Doctor[/bold]\n")
@@ -197,7 +194,7 @@ def cmd_doctor(
     console.print("1. Ollama connectivity")
     try:
         resp = _httpx.get(f"http://{ollama_host}/", timeout=5)
-        console.print(f"   [green]✓ Ollama is running[/green]" if resp.status_code == 200
+        console.print("   [green]✓ Ollama is running[/green]" if resp.status_code == 200
                       else f"   [red]✗ Status {resp.status_code}[/red]")
     except Exception as e:
         console.print(f"   [red]✗ Cannot reach Ollama: {e}[/red]\n")
@@ -209,7 +206,7 @@ def cmd_doctor(
         resp = _httpx.post(f"http://{ollama_host}/api/show", json={"name": model}, timeout=15)
         if resp.status_code == 200:
             details = resp.json().get("details", {})
-            print(f"   [green]✓ Model loaded[/green]")
+            print("   [green]✓ Model loaded[/green]")
             print(f"   context_length: {details.get('context_length', '?')}")
             print(f"   format: {details.get('format', '?')}")
         else:

@@ -1,19 +1,16 @@
 """Tests for scene_writer.py — load_scene_draft, assemble_chapter."""
 from pathlib import Path
 
-import pytest
-
-from novel_forge.models import Bible, Blackboard
 from novel_forge.quality_gate import QualityGate
-from novel_forge.storage import BlackboardStorage, BibleStorage
+from novel_forge.storage import BibleStorage, BlackboardStorage
 
 
 class TestLoadSceneDraft:
     """Tests for SceneWriter.load_scene_draft with version=0 support."""
 
     def _make_writer(self, tmp_path):
-        from novel_forge.prompts import PromptManager
         from novel_forge.llm_client import LLMClient
+        from novel_forge.prompts import PromptManager
         from novel_forge.scene_writer import SceneWriter
 
         series_dir = tmp_path / "series"
@@ -81,8 +78,8 @@ class TestAssembleChapter:
     """Tests for SceneWriter.assemble_chapter."""
 
     def _make_writer(self, tmp_path):
-        from novel_forge.prompts import PromptManager
         from novel_forge.llm_client import LLMClient
+        from novel_forge.prompts import PromptManager
         from novel_forge.scene_writer import SceneWriter
 
         series_dir = tmp_path / "series"

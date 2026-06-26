@@ -4,28 +4,26 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import tempfile
-import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
-from novel_forge.schemas import validate_schemas
+from typing import Any
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
+from novel_forge.llm_client import LLMClient, load_config
+from novel_forge.logging_config import console, get_logger, setup_logging
 from novel_forge.models import (
     ProjectState,
-    VolumeProgress,
     SceneRecord,
+    VolumeProgress,
 )
-from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
 from novel_forge.scene_writer import SceneWriter
-from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
-from novel_forge.logging_config import setup_logging, get_logger, console
-
+from novel_forge.schemas import validate_schemas
+from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 
 _OLLAMA_OPTION_KEYS = [
     "temperature", "top_k", "top_p", "repeat_penalty",

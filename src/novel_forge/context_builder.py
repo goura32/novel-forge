@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from novel_forge.models import VolumeOutline
-from novel_forge.storage import BlackboardStorage, BibleStorage
+from novel_forge.storage import BibleStorage, BlackboardStorage
 
 
 class ContextBuilder:

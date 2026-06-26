@@ -303,10 +303,10 @@ class LLMClient:
         except httpx.TimeoutException:
             text = "\n".join(lines)
             self._write_raw_log("_timeout", text)
-            raise LLMError("Ollama request timed out")
+            raise LLMError("Ollama request timed out") from None
         except httpx.HTTPStatusError as e:
             self._write_raw_log("_http_err", str(e))
-            raise LLMError(f"Ollama HTTP error: {e}")
+            raise LLMError(f"Ollama HTTP error: {e}") from e
         text = "\n".join(lines)
         result, thinking_combined = self._parse_ndjson(text)
         if not result or not result.strip():

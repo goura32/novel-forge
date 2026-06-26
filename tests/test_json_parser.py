@@ -1,8 +1,6 @@
 """Tests for json_parser.py — parsing and type coercion."""
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from novel_forge.json_parser import (
@@ -11,7 +9,6 @@ from novel_forge.json_parser import (
     coerce_types,
     parse_json_response,
 )
-
 
 # ── _extract_json_text ─────────────────────────────────────────────────
 

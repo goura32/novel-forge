@@ -26,9 +26,9 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         bb = self._bb_storage.load()
         self._bible_mgr.finalize(bb.continuity_notes)
 
-        manuscript = self._assemble_manuscript(vol_num)
-        metadata = self._generate_kdp_metadata(vol_num)
-        report = self._generate_readiness_report(vol_num)
+        self._assemble_manuscript(vol_num)
+        self._generate_kdp_metadata(vol_num)
+        self._generate_readiness_report(vol_num)
 
         vol.status = "出力済"
         if any(s.status == "強制出力済" for s in vol.scenes):

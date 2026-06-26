@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from novel_forge.models import ProjectState, Blackboard, Bible
+from novel_forge.models import Bible, Blackboard, ProjectState
 
 
 def _atomic_write(path: Path, content: str) -> None:

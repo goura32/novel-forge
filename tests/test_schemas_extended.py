@@ -5,7 +5,6 @@ import pytest
 
 from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_raise
 
-
 # ── list_schemas ────────────────────────────────────────────────────────
 
 class TestListSchemas:
@@ -221,7 +220,7 @@ class TestValidateOrRaise:
 
     def test_invalid_data_raises(self):
         data = {"title": "Test"}
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Schema validation failed"):
             validate_or_raise("series_plan_core", data)
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 import typer
@@ -49,7 +50,7 @@ def design(
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="design")
-        result = engine.design(volume)
+        engine.design(volume)
         console.print(f"[green]✓[/green] Volume {volume} design generated")
 
 
@@ -197,10 +198,8 @@ def list(
             state_path = d / ".novel_forge_state"
             st = "unknown"
             if state_path.exists():
-                try:
+                with contextlib.suppress(Exception):
                     st = _json.loads(state_path.read_text(encoding="utf-8")).get("status", "?")
-                except Exception:
-                    pass
             table.add_row(slug, title, str(volumes), st)
         except Exception:
             pass

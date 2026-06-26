@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
+from novel_forge.logging_config import get_logger
 from novel_forge.models import (
     Bible,
     Fact,
@@ -19,8 +20,7 @@ from novel_forge.models import (
 )
 from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
-from novel_forge.storage import BlackboardStorage, BibleStorage
-from novel_forge.logging_config import get_logger
+from novel_forge.storage import BibleStorage, BlackboardStorage
 
 
 class SceneWriter:
@@ -105,7 +105,7 @@ class SceneWriter:
         chapter,
         scene,
         record: SceneRecord,
-        ctx: "SceneWriteContext",
+        ctx: SceneWriteContext,
         log_fn=None,
     ) -> dict[str, Any]:
         system = self._prompts.render("system.md", {"lang": ctx.lang})
@@ -164,7 +164,7 @@ class SceneWriter:
         record: SceneRecord,
         design_obj: VolumeOutline,
         scene,
-        ctx: "SceneWriteContext",
+        ctx: SceneWriteContext,
         chapter_number: int,
         log_fn=None,
     ) -> tuple[str, SceneRecord]:
@@ -403,7 +403,7 @@ class SceneWriter:
         # 各シーンの最終版を version=0 で保存
         if scene_numbers is None:
             scene_numbers = list(range(1, len(scene_texts) + 1))
-        for sc_num, text in zip(scene_numbers, scene_texts):
+        for sc_num, _text in zip(scene_numbers, scene_texts, strict=True):
             # 最新版の v*.md を探して、その内容で version=0 を保存
             max_version = 0
             for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v*.md"):

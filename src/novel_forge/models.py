@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ── 事実記録（Blackboard）──────────────────────────────────────────────
 
@@ -18,7 +17,7 @@ class Blackboard(BaseModel):
     facts: list[Fact] = Field(default_factory=list)
     scene_summaries: dict[str, str] = Field(default_factory=dict)
     continuity_notes: list[str] = Field(default_factory=list)
-    subplots: list["SubplotItem"] = Field(default_factory=list)
+    subplots: list[SubplotItem] = Field(default_factory=list)
     timeline: list[dict[str, Any]] = Field(default_factory=list)
 
 

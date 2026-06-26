@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,14 +9,11 @@ import pytest
 from novel_forge.bible_manager import BibleManager
 from novel_forge.models import (
     Bible,
-    Blackboard,
-    CharacterProfile,
     ForeshadowingItem,
     SceneRecord,
     SubplotItem,
     VolumeProgress,
 )
-
 
 # ── ExportMixin のテスト (engine/export.py) ─────────────────────────────
 

@@ -1,11 +1,8 @@
 """Tests for storage.py — atomic save with backup."""
-import json
-from pathlib import Path
 
-import pytest
 
-from novel_forge.models import ProjectState, Blackboard, Bible, CharacterProfile
-from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
+from novel_forge.models import Bible, Blackboard, CharacterProfile, ProjectState
+from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 
 
 class TestStateStorageAtomicSave:
