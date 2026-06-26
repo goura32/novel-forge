@@ -14,13 +14,13 @@
 
 ## 出力スキーマ
 
-`cover_prompt.json` に適合する JSON を出力すること。
+{schema} に適合する JSON を出力すること。
 
 **以下のJSONテンプレートの構造とフィールド名を厳守すること。フィールド名や構造を変更しないこと。**
 
 {schema}
 
-**注意**:
+**注意:**
 - `style.composition` は「portrait」「landscape」「action」「symbolic」「atmospheric」から選択すること。
 - `visual_elements.subject.description` は英語の画像生成プロンプトとして記述すること。
 
