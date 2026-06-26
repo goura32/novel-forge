@@ -10,7 +10,7 @@
     "title": {
       "type": "string",
       "maxLength": 128,
-      "description": "シーンタイトル"
+      "description": "シーンタイトル（最大128文字）"
     },
     "content": {
       "type": "string",

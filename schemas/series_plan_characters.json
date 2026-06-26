@@ -11,43 +11,43 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "キャラクター名（フルネーム、想定: 500文字）（最大64文字）"
+            "description": "キャラクター名（フルネーム、最大64文字）"
           },
           "role": {
             "type": "string",
-            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間等）（最大64文字）"
+            "description": "役割（主人公、ヒロイン、相棒、敵対者、師匠、仲間等、最大64文字）"
           },
           "personality": {
             "type": "string",
-            "description": "性格・特徴（想定: 1000文字）（最大200文字）"
+            "description": "性格・特徴（最大200文字）"
           },
           "motivation": {
             "type": "string",
-            "description": "動機・目標（想定: 1000文字）（最大200文字）"
+            "description": "動機・目標（最大200文字）"
           },
           "flaw": {
             "type": "string",
-            "description": "欠点・弱み（想定: 1000文字）（最大200文字）"
+            "description": "欠点・弱み（最大200文字）"
           },
           "arc": {
             "type": "string",
-            "description": "シリーズを通じた成長・変化（想定: 600文字）（最大500文字）"
+            "description": "シリーズを通じた成長・変化（最大500文字）"
           },
           "age": {
             "type": "string",
-            "description": "年齢（例: 28歳、想定: 500文字）（最大32文字）"
+            "description": "年齢（最大32文字）"
           },
           "occupation": {
             "type": "string",
-            "description": "職業・立場（想定: 500文字）（最大128文字）"
+            "description": "職業・立場（最大128文字）"
           },
           "appearance": {
             "type": "string",
-            "description": "外見的特徴（想定: 500文字）（最大200文字）"
+            "description": "外見的特徴（最大200文字）"
           },
           "background": {
             "type": "string",
-            "description": "過去・経歴（想定: 1000文字）（最大500文字）"
+            "description": "過去・経歴（最大500文字）"
           }
         },
         "description": "main_charactersの配列"

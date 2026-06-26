@@ -11,27 +11,27 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "タイトル（想定: 500文字）（最大100）"
+      "description": "タイトル（最大100文字）"
     },
     "subtitle": {
       "type": "string",
-      "description": "サブタイトル（想定: 500文字）（最大100）"
+      "description": "サブタイトル（最大100文字）"
     },
     "series_name": {
       "type": "string",
-      "description": "シリーズ名（想定: 500文字）（最大100）"
+      "description": "シリーズ名（最大100文字）"
     },
     "description": {
       "type": "string",
-      "description": "商品説明（想定: 2000文字）（最大2000）"
+      "description": "商品説明（最大2000文字）"
     },
     "back_cover_text": {
       "type": "string",
-      "description": "裏表紙テキスト（想定: 2000文字）（最大2000）"
+      "description": "裏表紙テキスト（最大2000文字）"
     },
     "target_audience": {
       "type": "string",
-      "description": "ターゲット読者（想定: 500文字）（最大500）"
+      "description": "ターゲット読者（最大500文字）"
     },
     "keywords": {
       "type": "array",
@@ -39,7 +39,7 @@
         "type": "string",
         "description": "キーワード"
       },
-      "description": "検索キーワード（最大7件、各想定: 32文字）"
+      "description": "検索キーワード（最大7件、各最大32文字）"
     },
     "categories": {
       "type": "array",
@@ -47,7 +47,7 @@
         "type": "string",
         "description": "カテゴリ"
       },
-      "description": "KDPカテゴリ（1-2件、各想定: 64文字）"
+      "description": "KDPカテゴリ（1-2件、各最大64文字）"
     },
     "content_warnings": {
       "type": "array",
@@ -59,7 +59,7 @@
     },
     "author_note": {
       "type": "string",
-      "description": "著者ノート（想定: 1000文字）（最大1000）"
+      "description": "著者ノート（最大1000文字）"
     }
   }
 }

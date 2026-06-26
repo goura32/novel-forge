@@ -6,7 +6,7 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "シリーズのタイトル（想定: 100文字)（最大100）"
+      "description": "シリーズのタイトル（最大100文字）"
     },
     "slug": {
       "type": "string",
@@ -14,7 +14,7 @@
     },
     "logline": {
       "type": "string",
-      "description": "シリーズのあらすじ（1-2文、想定: 800文字）（最大800）"
+      "description": "シリーズのあらすじ（1-2文、最大800文字）"
     },
     "genre": {
       "type": "array",
@@ -22,11 +22,11 @@
         "type": "string",
         "description": "ジャンル一覧"
       },
-      "description": "ジャンル（数個、各想定: 64文字）"
+      "description": "ジャンル（数個、各最大64文字）"
     },
     "target_audience": {
       "type": "string",
-      "description": "ターゲット読者（想定: 500文字）（最大500）"
+      "description": "ターゲット読者（最大500文字）"
     },
     "themes": {
       "type": "array",
@@ -34,7 +34,7 @@
         "type": "string",
         "description": "テーマ一覧"
       },
-      "description": "テーマ（1個以上、各想定: 64文字）"
+      "description": "テーマ（1個以上、各最大64文字）"
     },
     "selling_points": {
       "type": "array",
@@ -42,7 +42,7 @@
         "type": "string",
         "description": "売りポイント一覧"
       },
-      "description": "売りポイント（1個以上、各想定: 128文字）"
+      "description": "売りポイント（1個以上、各最大128文字）"
     },
     "world": {
       "type": "object",

@@ -16,7 +16,7 @@
     },
     "chapters": {
       "type": "array",
-      "description": "章のリスト。1巻あたり4-8章が標準。3章以下は短すぎ、10章以上は長すぎ。（最小3, 最大10）",
+      "description": "章のリスト（3〜10章）",
       "items": {
         "type": "object",
         "required": [
@@ -25,7 +25,8 @@
         ],
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "章タイトル"
           },
           "purpose": {
             "type": "string",
@@ -36,7 +37,7 @@
               "クライマックス",
               "収束"
             ],
-            "description": "章の役割。日本語で指定: 導入/展開/転換/クライマックス/収束"
+            "description": "章の役割（導入/展開/転換/クライマックス/収束）"
           },
           "scenes": {
             "type": "array",
