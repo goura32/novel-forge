@@ -79,6 +79,10 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
             errors = validate_fn(result)
             if errors:
+                if seed_offset >= max_retries:
+                    msg = f"  [VALIDATION FAIL] {kind}: {errors} (max retries reached)"
+                    if self._strict:
+                        raise RuntimeError(msg + " (--strict mode)")
                 self._log.warning(
                     "  [VALIDATION FAIL] %s: %s attempt=%d/%d",
                     kind,
@@ -98,12 +102,10 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
                 return result
 
             if seed_offset >= max_retries:
-                self._log.warning(
-                    "  [REVIEW] %s: revision needed but max retries reached (%d/%d)",
-                    kind,
-                    seed_offset,
-                    max_retries,
-                )
+                msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({seed_offset}/{max_retries})"
+                if self._strict:
+                    raise RuntimeError(msg + " (--strict mode)")
+                self._log.warning(msg)
                 return result
 
             result = revise_fn(result, review, system, seed_offset)

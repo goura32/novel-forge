@@ -51,6 +51,7 @@ class SceneWriter:
         self._bible_mgr = BibleManager(bible_storage)
         self._bible_cache: Bible | None = None
         self._log = get_logger("novel_forge.scene_writer")
+        self._strict = False
 
     # ── Bible caching ──────────────────────────────────────────────────
 
@@ -225,6 +226,10 @@ class SceneWriter:
                 )
                 record.draft_path = draft_path
             else:
+                if getattr(self, "_strict", False):
+                    raise RuntimeError(
+                        f"Scene {record.scene_number}: review retry exhausted ({self._quality.max_retries}) (--strict mode)"
+                    )
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
                 # 強制出力も版付きで保存

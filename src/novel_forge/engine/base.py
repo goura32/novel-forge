@@ -106,6 +106,7 @@ class NovelEngineBase:
         self._log_level = log_cfg.get("log_level", "DEBUG")
         self._slug = ""
         self._phase = phase
+        self._strict = False
 
         # ログは全シリーズ共通で config.yaml と同じフォルダに出力
         # workdir がシリーズディレクトリの場合、親ディレクトリを使用

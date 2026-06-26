@@ -14,8 +14,8 @@
 
 下記のスキーマに適合するJSONのみを出力すること。
 
+{schema}
 
-{schema} に適合する JSON を出力すること。
 - `style.composition` は「portrait」「landscape」「action」「symbolic」「atmospheric」から選択すること。
 - `visual_elements.subject.description` は英語の画像生成プロンプトとして記述すること。
 

@@ -41,6 +41,7 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
             scenes=scenes,
         )
         self._log.info(f"▶ Write: series='{slug}' vol={vol_num} title='{vol_title}'")
+        self._scene_writer._strict = getattr(self, "_strict", False)
 
         # Deduplicate chapters
         seen = {}
