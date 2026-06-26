@@ -9,9 +9,7 @@ import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, Optional
-
-import typer  # noqa: E402
+from typing import Generator
 from rich.console import Console
 from rich.table import Table
 

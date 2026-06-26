@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-from novel_forge.models import SceneRecord  # used in type hints elsewhere
 
 if TYPE_CHECKING:
     from novel_forge.engine.base import NovelEngineBase

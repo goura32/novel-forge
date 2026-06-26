@@ -335,11 +335,12 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
     @staticmethod
     def _slugify(title: str) -> str:
+        """フォールバック用slug生成。英数字がなければハッシュを使用。"""
         romaji_parts = re.findall(r'[a-zA-Z][a-zA-Z0-9]*', title)
         if romaji_parts:
-            slug = "-".join(p.lower() for p in romaji_parts)
-            slug = re.sub(r'[^a-z0-9-]', '', slug)
+            slug = "_".join(p.lower() for p in romaji_parts)
+            slug = re.sub(r'[^a-z0-9_]', '', slug)
             if slug:
-                return slug[:200]
+                return slug[:32]
         h = hashlib.md5(title.encode()).hexdigest()[:12]
-        return f"series-{h}"
+        return f"series_{h}"
