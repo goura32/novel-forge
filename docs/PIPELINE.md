@@ -10,7 +10,6 @@
 | `--series` | `-s` | なし | 既存シリーズの slug |
 | `--volume` | `-V` | `1` | 処理対象の巻番号 |
 | `--model` | `-m` | 設定ファイル or デフォルト | LLM モデル名 |
-| `--lang` | | `ja` | 出力言語（日本語固定） |
 | `--max-retries` | | `2` | シーン品質ゲート最大リトライ回数 |
 | `--verbose` | `-v` | `false` | 詳細出力 |
 | `--raw-log` | | `false` | LLM生データを `_raw_logs/` に gzip 保存 |
@@ -30,15 +29,15 @@
 novel-forge plan "古文書修復師 司書 図書館" --workdir /mnt/hdd/novel
 
 # 段階実行
-novel-forge design --workdir /mnt/hdd/novel --series closed-stacks-return-box
-novel-forge write   --workdir /mnt/hdd/novel --series closed-stacks-return-box
-novel-forge export  --workdir /mnt/hdd/novel --series closed-stacks-return-box
+novel-forge design --workdir /mnt/hdd/novel --series monthly_closed_nonmagic_chef
+novel-forge write   --workdir /mnt/hdd/novel --series monthly_closed_nonmagic_chef
+novel-forge export  --workdir /mnt/hdd/novel --series monthly_closed_nonmagic_chef
 
 # 一括実行
 novel-forge complete "古文書修復師 司書 図書館" --workdir /mnt/hdd/novel
 
 # 進捗確認
-novel-forge status --workdir /mnt/hdd/novel --series closed-stacks-return-box
+novel-forge status --workdir /mnt/hdd/novel --series monthly_closed_nonmagic_chef
 novel-forge doctor
 ```
 
@@ -46,12 +45,12 @@ novel-forge doctor
 
 | コマンド | 説明 |
 |---|---|
-| `plan` | キーワードからシリーズ企画を生成 |
+| `plan` | キー�ードからシを生成 |
 | `design` | 巻デザイン（章・シーン構成）を生成 |
 | `write` | シーン本文を生成 |
 | `export` | KDP 向け出力を生成 |
 | `complete` | plan → design → write → export を一括実行 |
-| `status` | 現在の進捗を表示 |
+| `status` | 現在の進�を表示 |
 | `resume` | 中断した工程から再開 |
 | `list` | シリーズ一覧を表示 |
 | `doctor` | Ollama 接続診断 |
@@ -64,7 +63,7 @@ novel-forge doctor
 
 ```python
 class NovelEngine(
-    NovelEngineBase,    # __init__, helpers, state, _review_and_revise
+    NovelEngineBase,    # __init__, helpers, state, _generate_and_review
     PlanMixin,          # plan() — 3-phase: core → characters → volumes
     DesignMixin,        # design() — 3-phase: volume → chapter → scene
     WriteMixin,         # write()
@@ -77,73 +76,100 @@ class NovelEngine(
 
 ```
 engine/
-├── base.py           # NovelEngineBase — __init__, ロック, 状態管理, _review_and_revise
+├── base.py           # NovelEngineBase — __init__, ロック, 状態管理, _generate_and_review
 ├── infra.py          # ロック取得, エンジン生成, フェーズ解決, status/doctor
 ├── plan.py           # PlanMixin — plan() 3フェーズ
 ├── design.py         # DesignMixin — design() 3フェーズ
 ├── write.py          # WriteMixin — write()
-├── export.py         # ExportMixin — export()
-└── __init__.py       # NovelEngine クラス定義
+└── export.py         # ExportMixin — export()
+```
+
+### 2.3 外部モジュール
+
+```
+├── cli.py                # CLI コマンド定義（typer）
+├── llm_client.py         # Ollama API クライアント（ストリーミング + JSON パース）
+├── schemas.py            # JSON スキーマローダー（get_schema, validate）
+├── name_registry.py      # キャラクター名重複排除
+├── bible_manager.py      # 設定資料集（伏線・関係性・用語）
+├── json_parser.py        # パース・型補正ユーティリティ
+├── logging_config.py     # ロギング設定（ファイル追記 + コンソール）
+├── models.py             # データモデル（SceneRecord等）
+└── scene_writer.py       # シーン本文生成エンジン
 ```
 
 ---
 
 ## 3. シリーズ企画パイプライン (PlanMixin)
 
-3フェーズでシリーズ企画を生成。各フェーズは `_generate_and_review()` で統一。
+3フェーズでシリーズ企画を生成。各フェーズが `_generate_and_review()` で生成→レビュー→改稿ループ。
 
 ### Phase 1: Core
-- 入力: キーワード
-- 出力: タイトル、あらすじ、ジャンル、テーマ、世界観
-- バリデーション: `title`, `slug`, `logline`, `genre`, `themes`, `selling_points`, `target_audience` 必須
-- slug 重複チェック: 既存シリーズの slug 一覧をプロンプトに渡して回避
+- **入力**: キーワード
+- **出力**: タイトル、あらすじ、ジャンル、テーマ、世界観、キャラクター一覧
+- **スキーマ**: `series_plan_core.json`
+- **バリデーション**: `title`, `slug`, `logline`, `genre`, `themes`, `selling_points`, `world`, `target_audience`, `main_characters` 必須
+- **slug 重複チェック**: 既存シリーズの slug 一覧をプロンプトに渡して「追加name_registry」に使用
+- **キャラクター名重複バリデーション**: 名前レジストリで重複排除
 
 ### Phase 2: Characters
-- 入力: Phase 1 の世界観
-- 出力: メインキャラクター（名前、役割、性格、背景、動機、欠陥、成長弧）
+- **入力**: Phase 1 の世界観・キャラクター
+- **出力**: 全キャラクターの詳細プロフィール（personality, motivation, flaw, arc, skills）
+- **スキーマ**: `series_plan_characters.json`
+- **スキーマフィールド**: name, role, personality, motivation, flaw, arc, skills（追加: skillsは newer）
 
 ### Phase 3: Volumes
-- 入力: Phase 1 + Phase 2
-- 出力: 各巻のタイトル、前提、テーマ、感情弧、イベント、クリフハンガー
+- **入力**: Phase 1 + Phase 2
+- **出力**: 各巻の構造（タイトル、前提、テーマ、感情弧、主要イベント）
+- **スキーマ**: `series_plan_volumes.json`
+- **制約**: 3巻固定、クリフハンガー必須（最終巻除く）
 
 ### `_generate_and_review()` ループ
 
-```
+```python
 for attempt in range(max_retries):
     result = generate(prompt, seed_offset=attempt)
-    if validate(result) has errors: continue
-    review = review(result, system)
-    if no revision needed: return result
-    result = revise(result, review, system, seed_offset)
-    if validate(result) has errors: continue
-    review = review(result, system)
-    if no revision needed: return result
-return result  # best effort after max_retries
+    errors = validate(result)
+    if errors:
+        continue  # seed変えて再生成
+    review = review(result)
+    blocker_issues = [i for i in review['issues'] if i['severity'] == '致命的']
+    critical_issues = [i for i in review['issues'] if i['severity'] == '重大']
+    major_issues = [i for i in review['issues'] if i['severity'] == '重要']
+    revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
+    if not revision_needed:
+        return result
+    result = revise(result, review, seed_offset=attempt)
+return result  # max_retries後にbest effort
 ```
 
-- バリデーションエラー → seed を変えて再生成（プロンプトは変更しない）
-- レビュー修正 → 修正後もバリデーション再チェック
+- **バリデーションエラー** → seed を変えて再生成（プロンプトは変更しない）
+- **レビュー修正** → 修正後もバリデーション再チェック
+- **revision_needed** はコード側で機械判定（LLMに任せない）
 - 合計 max_retries 回まで（デフォルト3回）
 
 ---
 
-## 4. 巻デザインパイプライン (DesignMixin)
+## 4. 巻デザイン�イプライン (DesignMixin)
 
-3フェーズで巻デザインを生成。
+3フェーズで。
 
-### Phase 1: Volume design (章構成)
-- 入力: シリーズ企画、ジャンル
-- 出力: 章のリスト（title, purpose）
-- purpose: 導入 / 展開 / 転換 / クライマックス / 収束
+### Phase 1: Volume Design (章構成)
+- **入力**: シリーズ企画、ジャンル
+- **出力**: 各章の title, purpose, theme
+- **スキーマ**: `volume_design.json`
+- **制約**: 5〜6章、**「収束」必須**、7章以上禁止
 
-### Phase 2: Chapter design
-- 入力: Phase 1 の章構成
-- 出力: 各章のテーマ、感情弧、伏線メモ、サブプロットメモ
+### Phase 2: Chapter Design
+- **入力**: Phase 1 の章構成
+- **出力**: 各章のサブプロット・伏線メモ・感情の弧
+- **スキーマ**: `chapter_design.json`
 
-### Phase 3: Scene design
-- 入力: Phase 2 の章設計
-- 出力: 各シーンの目標/結果/葛藤/視点/登場人物/主要イベント
-- シーン数は purpose に基づいて自動推定（導入:2, 展開:3, 転換:3, クライマックス:4, 収束:2）
+### Phase 3: Scene Design
+- **入力**: Phase 2 の章設計
+- **出力**: 全シーンの構造（goal, outcome, conflict, pov, characters, events, setting, emotional_arc）
+- **スキーマ**: `scene_design.json`
+- **シーン数**: purpose に基づいて自動推定（導入:2, 展開:3, 転換:3, クライマックス:4, 収束:2）
 
 ---
 
@@ -151,7 +177,7 @@ return result  # best effort after max_retries
 
 ### 5.1 処理順序
 
-シーンは**必ず順序通り**に処理。
+シーンは**必ず順に処理。
 
 ```
 for chapter in chapters:
@@ -169,9 +195,9 @@ SceneWriter.write_scene() で以下の情報を基に初稿生成:
 
 ### 5.3 Review → Quality Gate → Revise
 
-1. **Review**: 初稿を評価し、改善点を抽出
-2. **Quality Gate**: レビュー結果に基づき合格/不合格を判定
-3. **Revise**: 不合格の場合、レビュー結果に基づき自動改稿
+1. **Review**: 初稿を評価し、改善点を抽出（`scene_review.json`）
+2. **Quality Gate**: レビュー結果に基づき code側で 合格/不合格 を機械判定
+3. **Revise**: 不合格の場合、レビュー結果に基づき自動改稿（`scene_revision.json` 不要、`scene_draft` スキーマ使用）
 4. **最大2回**まで繰り返す。2回不合格 → `強制出力済`
 
 ### 5.4 Summarize + Bible Update
@@ -179,44 +205,72 @@ SceneWriter.write_scene() で以下の情報を基に初稿生成:
 シーン合格後、1回のLLM呼び出しで:
 - **Blackboard 更新**: シーン要約、事実記録、引き継ぎメモ
 - **Bible 更新**: キャラクター、伏線、関係性、サブプロット、用語、世界観ルール
+- **スキーマ**: `scene_summary_and_bible_update.json`
 
 ---
 
-## 6. ログ出力
+## 6. レビュー指摘カテゴリ
 
-### 6.1 フォーマット
+### シリーズ企画（核）
+`missing_field`, `title_power`, `logline_quality`, `genre_fit`, `world_consistency`, `language_purity`
+
+### シリーズ企画（キャラクター）
+`missing_field`, `consistency`, `differentiation`, `growth_arc`, `world_fit`
+
+### シリーズ企画（各巻）
+`missing_field`, `volume_uniqueness`, `series_flow`, `cliffhanger`, `theme_consistency`
+
+### 巻デザイン
+`missing_field`, `structural_validity`, `scene_coherence`, `pace_analysis`, `character_arc_review`
+
+### 章デザイン
+`missing_field`, `role_validity`, `theme_coherence`, `emotional_arc_quality`, `scene_distribution`
+
+### シーン
+`opening_hook`, `character_distinction`, `sensory_coverage`, `scene_closure`, `dialogue_naturalness`, `tone_consistency`, `scene_completeness`, `scene_length`, `language_purity`, `pov_consistency`
+
+---
+
+## 7. キャラクター名重複排除
+
+`name_registry.py` が `workdir/used_names.json` を管理。
+
+- **Plan 完了時**: キャラクター名を `record_names()` で記録
+- **新規 Plan**: `load_used_names()` で既読名を取得し、プロンプトに「使用不可名」として渡す
+- **バリデーション**: `_validate_plan_plan` で同一シリーズ内の重複チェック
+
+---
+
+## 8. ログ出力
+
+### 8.1 フォーマット
 
 ```
-[MM:SS] [LEVEL] message
+[YYYY-MM-DD HH:MM:SS] [PID XXXX]【LEVEL】message
 ```
 
-- `MM:SS`: エンジン起動からの経過時間
-- ログファイル: `workdir/novel_forge.log`（config.yaml と同じフォルダ）
+- `PID`: プロセスID（マルチプロセス時の区別）
+- ログファイル: `workdir/novel_forge.log`（追記モード）
 - stderr: WARNING 以上（verbose 時は DEBUG）
 
-### 6.2 フェーズログ
+### 8.2 フェーズログ
 
 ```
-[00:00] [INFO] Plan started: keywords='...'
-[00:00] [INFO]   [PHASE START] core
-[00:09] [INFO]   [PHASE END] core
-[00:09] [INFO]   [PHASE START] characters
-...
-[00:00] [INFO] Design started: volume=1
-[00:00] [INFO]   [PHASE START] volume_design
-[00:05] [INFO]   [PHASE END] volume_design: 4 chapters
+[2026-06-26 10:30:00] [PID 45567] [INFO] ▶ Plan: keywords='...'
+[2026-06-26 10:30:00] [PID 45567] [INFO]   ▶ core — [1/3]
+[2026-06-26 10:35:19] [PID 45567] [INFO]   ✓ core — title='...' slug='...'
 ```
 
-### 6.3 LLM進捗ログ
+### 8.3 LLM進捗ログ
 
 ```
-[00:05] [DEBUG] [LLM PROGRESS] chunks=2500 bytes=394641 elapsed=00:03:24
-[00:09] [DEBUG] [LLM DONE] kind=series_plan_core elapsed=435.0s
+[2026-06-26 10:30:00] [PID 45567] [INFO]  [LLM PROGRESS] chunks=2500 bytes=394641 elapsed=110.0s series=X vol=Y
+[2026-06-26 10:40:00] [PID 45567] [DEBUG]  [LLM DONE] kind=series_plan_core chunks=5081 bytes=795439 elapsed=124.4s done=
 ```
 
 ---
 
-## 7. RAWデータ保存
+## 9. RAWデータ保存
 
 LLM呼び出しの生データを `_raw_logs/{phase}/{pid}_{kind}/` に gzip 保存。
 
@@ -230,7 +284,7 @@ LLM呼び出しの生データを `_raw_logs/{phase}/{pid}_{kind}/` に gzip 保
 
 ---
 
-## 8. 設定ファイル (config.yaml)
+## 10. 設定ファイル (config.yaml)
 
 ```yaml
 llm:
@@ -255,7 +309,7 @@ quality:
 
 ---
 
-## 9. 状態遷移
+## 11. 状態遷移
 
 ```
 Volume status:
@@ -271,7 +325,7 @@ Scene status:
 
 任意の状態から再開可能。状態は `state.json` から読み込まれる。
 
-| 状態 | 再開動作 |
+| 狀態 | 再開動作 |
 |---|---|
 | 計画中 | plan から再開 |
 | デザイン済 | design から再開 |
@@ -280,33 +334,26 @@ Scene status:
 
 ---
 
-## 10. 人間介入ポイント
+## 12. 人間介入ポイント
 
 | 介入ポイント | タイミング | 内容 |
 |---|---|---|
 | シリーズ企画の確認 | plan 直後 | LLM自己レビュー結果を人間が確認（暗黙承認） |
-| 最終レビュー | export 直後 | kdp_readiness_report.md の確認（任意） |
+| 最終レビュー | export 直后 | kdp_readiness_report.md の確認（任意） |
 
 **それ以外の工程はすべて LLM 自律。**
 
 ---
 
-## 11. 出力ファイル構成
+## 13. 出力ファイル構成
 
 ```
 <series_dir>/
 ├── state.json
 ├── series_plan.json
-├── series_core.json
-├── series_characters.json
-├── series_volumes.json
-├── series_core_review.json
-├── series_characters_review.json
-├── series_volumes_review.json
-├── blackboard.json
-├── bible.json
-├── _raw_logs/
-│   └── {timestamp}_{kind}/
+├── _raw_logs/plan/{pid}_{kind}/
+├── _raw_logs/design/{pid}_{kind}/
+├── _raw_logs/write/{pid}_{kind}/
 ├── vol01/
 │   ├── vol01.json
 │   ├── vol01_ch01/
@@ -316,12 +363,20 @@ Scene status:
 │   │   │   └── vol01_ch01_sc01.md
 │   │   └── ...
 │   └── ...
+├── used_names.json
 └── exports/
-    ├── vol01_manuscript.md
-    ├── vol01_metadata.json
-    └── vol01_kdp_readiness_report.md
+    ├── <slug>_vol01.md
+    ├── <slug>_vol01_metadata.json
+    └── <slug>_vol01_kdp
 ```
 
 ---
 
-*Last updated: 2026-06-25*
+## 14. {lang} の廃止
+
+`{lang}` プレースホルダは全プロンプトから削除済み。
+出力言語は `system.md` の「日本語固定」に従う。
+
+---
+
+*Last updated: 2026-06-26*

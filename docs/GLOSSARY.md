@@ -6,8 +6,6 @@
 |---|---|
 | Bible (bible.json) | 設定資料集。キャラクター、用語、伏線、世界観ルール、関係性、サブプロットを管理する台帳 |
 | Blackboard (blackboard.json) | 事実記録。facts、シーン要約、引き継ぎメモ、サブプロット進捗、タイムラインを管理 |
-| Blocking issue | 品質ゲートで不合格となる深刻な問題（score ≤ 50） |
-| Blocker | 品質ゲートの致命的問題。即座に不合格 |
 
 ## あ行
 
@@ -33,9 +31,9 @@
 | 系列 (series) | 複数巻からなる小説シリーズ全体 |
 | シリーズ企画 (series_plan.json) | タイトル、あらすじ、ジャンル、世界観、キャラクター、各巻設計 |
 | 衝突 (conflict) | シーン内で主人公が直面する障害・対立 |
-| 構造化ログ (structured log) | `novel_forge.log` に出力される JSON 形式のログ |
+| 構造化ログ (structured log) | `novel_forge.log` に出力されるログ。[YYYY-MM-DD HH:MM:SS] [PID] [LEVEL] フォーマット |
 | スキーマ (schema) | JSON Schema。LLM出力の検証に使用 |
-| スラグ (slug) | シリーズ識別子。URL/ディレクトリ名に使用。英数字ハイフン区切り |
+| スラグ (slug) | シリーズ識別子。ディレクトリ名に使用。英数字アンダースコア区切り（例: `novel_forge`） |
 | 設定ファイル (config.yaml) | LLM、ログ、品質ゲート等の設定 |
 
 ## た行
@@ -56,7 +54,8 @@
 
 | 用語 | 説明 |
 |---|---|
-| 品質ゲート (quality gate) | レビュー結果に基づき合格/不合格を判定する機構 |
+| 品質ゲート (quality gate) | レビュー結果に基づき code側で revision_needed を判定する機構（severity=致命的/重大→true, 重要≥2→true） |
+| revision_needed | 改稿が必要か。コード側が severity ベースで機械判定（LLMは出力しない） |
 | 非決定的 (non-deterministic) | LLM 出力の非決定的な性質。リトライで多様性を確保 |
 | パイプライン (pipeline) | plan → design → write → export の一連の工程 |
 | 非同期 (asynchronous) | 非同期処理。NovelForge は同期実行のみ |
