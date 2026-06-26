@@ -373,7 +373,7 @@ class LLMClient:
         if not result or not result.strip():
             self._write_raw_log("_empty", text)
             raise LLMError("Ollama returned empty response")
-        self._write_raw_log("_resp", text)
+        self._write_raw_log("response", text)
         return text, result, thinking_combined, "", chunk_count, total_bytes
 
     def _make_call_dir(self, kind: str) -> Path:
