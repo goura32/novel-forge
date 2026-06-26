@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, Callable
-from novel_forge.validate_schemas import validate_schemas
+from novel_forge.schemas import get_schema, validate_schemas
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
@@ -22,7 +22,6 @@ from novel_forge.models import (
 from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
-from novel_forge.schemas import get_schema
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import StateStorage, BlackboardStorage, BibleStorage
 from novel_forge.logging_config import setup_logging, get_logger, console

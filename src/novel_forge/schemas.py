@@ -15,6 +15,22 @@ _SCHEMA_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
 _SCHEMA_BY_NAME: dict[str, dict[str, Any]] = {}
 
 
+def validate_schemas() -> list[str]:
+    """Validate all schema files. Returns list of error messages (empty = all OK)."""
+    errors: list[str] = []
+    if not _SCHEMA_DIR.exists():
+        return [f"Schema directory not found: {_SCHEMA_DIR}"]
+
+    for path in sorted(_SCHEMA_DIR.glob("*.json")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                json.load(f)
+        except json.JSONDecodeError as e:
+            errors.append(f"{path.name}: {e}")
+
+    return errors
+
+
 def _load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMA_BY_NAME:
         path = _SCHEMA_DIR / f"{name}.json"
