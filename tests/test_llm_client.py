@@ -1,4 +1,5 @@
 """Tests for llm_client.py — streaming, retry, timeout, schema validation."""
+
 from __future__ import annotations
 
 import json
@@ -9,6 +10,7 @@ import pytest
 from novel_forge.llm_client import LLMClient, LLMError, SchemaValidationError, load_config
 
 # ── Helpers ─────────────────────────────────────────────────────────────
+
 
 def _make_streaming_response(chunks: list[str], status_code: int = 200) -> MagicMock:
     """Create a mock that simulates `with httpx.stream(...) as resp:` context manager."""
@@ -42,6 +44,7 @@ def _ndjson_response(full_text: str) -> list[str]:
 
 
 # ── LLMClient initialization ────────────────────────────────────────────
+
 
 class TestLLMClientInit:
     def test_default_values(self):
@@ -85,6 +88,7 @@ class TestLLMClientInit:
 
 
 # ── complete_json — basic ──────────────────────────────────────────────
+
 
 class TestCompleteJson:
     def test_basic_json_response(self):
@@ -133,6 +137,7 @@ class TestCompleteJson:
 
 # ── complete_json — retry ──────────────────────────────────────────────
 
+
 class TestCompleteJsonRetry:
     def test_retry_on_failure(self):
         """Should retry on httpx errors and succeed."""
@@ -143,6 +148,7 @@ class TestCompleteJsonRetry:
         import httpx
 
         call_count = 0
+
         def mock_stream(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -163,7 +169,9 @@ class TestCompleteJsonRetry:
         """Should raise LLMError after all retries exhausted."""
         import httpx
 
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=httpx.TimeoutException("timeout")):
+        with patch(
+            "novel_forge.llm_client.httpx.stream", side_effect=httpx.TimeoutException("timeout")
+        ):
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 max_retries=2,
@@ -176,6 +184,7 @@ class TestCompleteJsonRetry:
         import httpx
 
         call_count = 0
+
         def mock_stream(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -192,6 +201,7 @@ class TestCompleteJsonRetry:
 
 
 # ── complete_json — payload structure ──────────────────────────────────
+
 
 class TestCompleteJsonPayload:
     def test_payload_contains_required_fields(self):
@@ -260,6 +270,7 @@ class TestCompleteJsonPayload:
 
 # ── complete_json — raw log ────────────────────────────────────────────
 
+
 class TestCompleteJsonRawLog:
     def test_raw_log_saved_when_enabled(self, tmp_path):
         """Raw log should be saved when raw_log_enabled=True."""
@@ -298,6 +309,7 @@ class TestCompleteJsonRawLog:
 
 # ── SchemaValidationError ──────────────────────────────────────────────
 
+
 class TestSchemaValidationError:
     def test_is_llm_error_subclass(self):
         assert issubclass(SchemaValidationError, LLMError)
@@ -308,6 +320,7 @@ class TestSchemaValidationError:
 
 
 # ── load_config ────────────────────────────────────────────────────────
+
 
 class TestLoadConfig:
     def test_load_valid_yaml(self, tmp_path):

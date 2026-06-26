@@ -5,6 +5,7 @@ Design principle:
 - Internal implementation (retry counts, call order) is NOT tested
 - MockLLMClient is used only for tests that need to control LLM responses
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
 # ── Mock LLM Client ─────────────────────────────────────────────────────
+
 
 class MockLLMClient:
     """Mock LLM client for tests that need to control LLM responses.
@@ -112,14 +114,30 @@ class MockLLMClient:
         if kind == "scene_draft":
             return {"title": "シーン", "content": "本文"}
         if kind == "scene_review":
-            return {"score": 80.0, "issues": [], "strengths": ["良い"], "recommendations": [], "dimensions": {}}
+            return {
+                "score": 80.0,
+                "issues": [],
+                "strengths": ["良い"],
+                "recommendations": [],
+                "dimensions": {},
+            }
         if kind == "scene_summary_and_bible_update":
-            return {"summary": "要約", "facts": [], "continuity_notes": [], "characters": [],
-                    "foreshadowing": [], "relationships": [], "subplots": [], "glossary": [], "world_rules": []}
+            return {
+                "summary": "要約",
+                "facts": [],
+                "continuity_notes": [],
+                "characters": [],
+                "foreshadowing": [],
+                "relationships": [],
+                "subplots": [],
+                "glossary": [],
+                "world_rules": [],
+            }
         return {}
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
+
 
 def _make_plan_response(**overrides) -> dict:
     """Create a valid series plan core response."""
@@ -183,6 +201,7 @@ def _make_review_response(score: float = 80.0, issues: list | None = None) -> di
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def tmp_workdir(tmp_path):
     """Create a minimal workdir with prompts and schemas."""
@@ -190,6 +209,7 @@ def tmp_workdir(tmp_path):
     dst_prompts = tmp_path / "prompts"
     if src_prompts.exists():
         import shutil
+
         shutil.copytree(src_prompts, dst_prompts)
     return tmp_path
 
@@ -240,6 +260,7 @@ def planned_engine(tmp_workdir, mock_llm):
 
 # ── Plan tests ──────────────────────────────────────────────────────────
 
+
 class TestPlan:
     """Verify plan() output (not internal implementation)."""
 
@@ -281,6 +302,7 @@ class TestPlan:
 
 # ── Plan review → revise loop ──────────────────────────────────────────
 
+
 class TestPlanReviewLoop:
     """Verify plan review behavior (not internal call counts)."""
 
@@ -301,9 +323,16 @@ class TestPlanReviewLoop:
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
-        mock_llm.add_sequence("series_plan_volumes_review",
-            {"volume_uniqueness": "良い", "series_flow": "良い", "cliffhanger": "良い",
-             "theme_consistency": "良い", "issues": []})
+        mock_llm.add_sequence(
+            "series_plan_volumes_review",
+            {
+                "volume_uniqueness": "良い",
+                "series_flow": "良い",
+                "cliffhanger": "良い",
+                "theme_consistency": "良い",
+                "issues": [],
+            },
+        )
 
         result = engine.plan("テスト")
 
@@ -332,9 +361,16 @@ class TestPlanReviewLoop:
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
-        mock_llm.add_sequence("series_plan_volumes_review",
-            {"volume_uniqueness": "良い", "series_flow": "良い", "cliffhanger": "良い",
-             "theme_consistency": "良い", "issues": []})
+        mock_llm.add_sequence(
+            "series_plan_volumes_review",
+            {
+                "volume_uniqueness": "良い",
+                "series_flow": "良い",
+                "cliffhanger": "良い",
+                "theme_consistency": "良い",
+                "issues": [],
+            },
+        )
 
         result = engine.plan("テスト")
 
@@ -352,9 +388,16 @@ class TestPlanReviewLoop:
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
-        mock_llm.add_sequence("series_plan_volumes_review",
-            {"volume_uniqueness": "良い", "series_flow": "良い", "cliffhanger": "良い",
-             "theme_consistency": "良い", "issues": []})
+        mock_llm.add_sequence(
+            "series_plan_volumes_review",
+            {
+                "volume_uniqueness": "良い",
+                "series_flow": "良い",
+                "cliffhanger": "良い",
+                "theme_consistency": "良い",
+                "issues": [],
+            },
+        )
 
         engine.plan("テスト")
 
@@ -364,6 +407,7 @@ class TestPlanReviewLoop:
 
 
 # ── Outline tests ──────────────────────────────────────────────────────
+
 
 class TestOutline:
     """Verify design() output."""
@@ -393,6 +437,7 @@ class TestOutline:
 
 # ── Outline review → revise loop ────────────────────────────────────────
 
+
 class TestOutlineReviewLoop:
     """Verify outline review behavior."""
 
@@ -417,6 +462,7 @@ class TestOutlineReviewLoop:
 
 
 # ── Write tests ────────────────────────────────────────────────────────
+
 
 class TestWrite:
     """Verify write() output."""
@@ -455,6 +501,7 @@ class TestWrite:
 
 # ── Export tests ────────────────────────────────────────────────────────
 
+
 class TestExportMixin:
     """Verify export behavior."""
 
@@ -477,7 +524,9 @@ class TestExportMixin:
 
         planned_engine.export(volume_number=1)
 
-        meta_path = planned_engine._series_dir / "exports" / f"{planned_engine._slug}_vol01_metadata.json"
+        meta_path = (
+            planned_engine._series_dir / "exports" / f"{planned_engine._slug}_vol01_metadata.json"
+        )
         assert meta_path.exists()
 
     def test_export_creates_readiness_report(self, planned_engine, mock_llm):
@@ -488,11 +537,16 @@ class TestExportMixin:
 
         planned_engine.export(volume_number=1)
 
-        report_path = planned_engine._series_dir / "exports" / f"{planned_engine._slug}_vol01_kdp_readiness_report.md"
+        report_path = (
+            planned_engine._series_dir
+            / "exports"
+            / f"{planned_engine._slug}_vol01_kdp_readiness_report.md"
+        )
         assert report_path.exists()
 
 
 # ── Resume tests ───────────────────────────────────────────────────────
+
 
 class TestResume:
     """Verify resume behavior."""
@@ -521,6 +575,7 @@ class TestResume:
 
 # ── Context builder tests ──────────────────────────────────────────────
 
+
 class TestContextBuilder:
     """Verify context building."""
 
@@ -547,6 +602,7 @@ class TestContextBuilder:
 
 # ── Bible manager tests ────────────────────────────────────────────────
 
+
 class TestBibleManager:
     """Verify bible management."""
 
@@ -554,7 +610,7 @@ class TestBibleManager:
         """Bible with no data should return empty or string."""
         bible = Bible()
         # Bible doesn't have to_text(), verify it has basic attributes
-        assert hasattr(bible, 'characters') or hasattr(bible, 'foreshadowing')
+        assert hasattr(bible, "characters") or hasattr(bible, "foreshadowing")
 
     def test_to_text_with_characters(self, tmp_workdir):
         """Bible should include character info."""
@@ -566,6 +622,7 @@ class TestBibleManager:
 
 # ── Scene writer tests ─────────────────────────────────────────────────
 
+
 class TestSceneWriter:
     """Verify scene writing."""
 
@@ -573,6 +630,7 @@ class TestSceneWriter:
         """load_scene_draft() should load existing draft."""
         from novel_forge.prompts import PromptManager
         from novel_forge.quality_gate import QualityGate
+
         scene_file = tmp_workdir / "test_scene.md"
         scene_file.write_text("# Test\n\nContent", encoding="utf-8")
         writer = SceneWriter(
@@ -591,6 +649,7 @@ class TestSceneWriter:
         from novel_forge.models import ChapterOutline
         from novel_forge.prompts import PromptManager
         from novel_forge.quality_gate import QualityGate
+
         writer = SceneWriter(
             workdir=tmp_workdir,
             llm_client=MockLLMClient(),
@@ -613,6 +672,7 @@ class TestSceneWriter:
 
 
 # ── Quality gate tests ─────────────────────────────────────────────────
+
 
 class TestQualityGate:
     """Verify quality gate."""
@@ -651,6 +711,7 @@ class TestQualityGate:
 
 
 # ── Quality gate boundary tests ────────────────────────────────────────
+
 
 class TestQualityGateBoundary:
     """Test quality gate boundary conditions."""
@@ -736,6 +797,7 @@ class TestQualityGateBoundary:
 
 # ── Config generation test ────────────────────────────────────────────
 
+
 class TestConfigGeneration:
     """Verify config handling."""
 
@@ -758,6 +820,7 @@ class TestConfigGeneration:
 
 
 # ── File naming convention tests ────────────────────────────────────────
+
 
 class TestFileNamingConvention:
     """Verify file naming conventions."""
@@ -799,6 +862,7 @@ class TestFileNamingConvention:
 
 # ── Prompt input completeness tests ────────────────────────────────────
 
+
 class TestPromptInputCompleteness:
     """Verify that review prompts receive necessary information.
 
@@ -808,16 +872,26 @@ class TestPromptInputCompleteness:
 
     def test_series_plan_review_receives_world_rules(self, engine, mock_llm, tmp_workdir):
         """Series plan review should receive world rules in the plan text."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response(
-            world={"summary": "魔法世界", "rules": ["魔法が存在する", "魔力には限りがある"]}
-        ))
+        mock_llm.add_sequence(
+            "series_plan_core",
+            _make_plan_response(
+                world={"summary": "魔法世界", "rules": ["魔法が存在する", "魔力には限りがある"]}
+            ),
+        )
         mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
-        mock_llm.add_sequence("series_plan_volumes_review",
-            {"volume_uniqueness": "良い", "series_flow": "良い", "cliffhanger": "良い",
-             "theme_consistency": "良い", "issues": []})
+        mock_llm.add_sequence(
+            "series_plan_volumes_review",
+            {
+                "volume_uniqueness": "良い",
+                "series_flow": "良い",
+                "cliffhanger": "良い",
+                "theme_consistency": "良い",
+                "issues": [],
+            },
+        )
 
         engine.plan("テスト")
 
@@ -828,16 +902,26 @@ class TestPromptInputCompleteness:
 
     def test_series_plan_review_receives_character_arc(self, engine, mock_llm, tmp_workdir):
         """Series plan core review should receive series plan context."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response(
-            main_characters=[{"name": "主人公", "role": "主人公", "arc": "成長から覚醒へ"}]
-        ))
+        mock_llm.add_sequence(
+            "series_plan_core",
+            _make_plan_response(
+                main_characters=[{"name": "主人公", "role": "主人公", "arc": "成長から覚醒へ"}]
+            ),
+        )
         mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
-        mock_llm.add_sequence("series_plan_volumes_review",
-            {"volume_uniqueness": "良い", "series_flow": "良い", "cliffhanger": "良い",
-             "theme_consistency": "良い", "issues": []})
+        mock_llm.add_sequence(
+            "series_plan_volumes_review",
+            {
+                "volume_uniqueness": "良い",
+                "series_flow": "良い",
+                "cliffhanger": "良い",
+                "theme_consistency": "良い",
+                "issues": [],
+            },
+        )
 
         engine.plan("テスト")
 
@@ -867,9 +951,9 @@ class TestPromptInputCompleteness:
         planned_engine.design(volume_number=1)
 
         bible = planned_engine._bible_storage.load()
-        bible.subplots.append(SubplotItem(
-            id="sp1", name="陰謀", status="進行中", progress_note="進行中"
-        ))
+        bible.subplots.append(
+            SubplotItem(id="sp1", name="陰謀", status="進行中", progress_note="進行中")
+        )
         planned_engine._bible_storage.save(bible)
 
         mock_llm._call_log.clear()
@@ -887,10 +971,11 @@ class TestPromptInputCompleteness:
         planned_engine.design(volume_number=1)
 
         bible = planned_engine._bible_storage.load()
-        bible.relationships.append(RelationshipItem(
-            character_a="主人公", character_b="仲間",
-            relationship_type="友人", status="良好"
-        ))
+        bible.relationships.append(
+            RelationshipItem(
+                character_a="主人公", character_b="仲間", relationship_type="友人", status="良好"
+            )
+        )
         planned_engine._bible_storage.save(bible)
 
         mock_llm._call_log.clear()

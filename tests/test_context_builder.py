@@ -1,4 +1,5 @@
 """Tests for context_builder.py — context/continuity building for scene writing."""
+
 from __future__ import annotations
 
 import json
@@ -21,6 +22,7 @@ from novel_forge.models import (
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
 # ── Fixtures ────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def series_dir(tmp_path):
@@ -51,18 +53,22 @@ def _save_plan(series_dir: Path, data: dict) -> None:
 
 # ── get_series_plan_summary ────────────────────────────────────────────
 
+
 class TestGetSeriesPlanSummary:
     def test_returns_formatted_summary(self, builder, series_dir):
-        _save_plan(series_dir, {
-            "title": "テストシリーズ",
-            "logline": "テストのあらすじ",
-            "genre": ["fantasy"],
-            "target_audience": "10代",
-            "themes": ["冒険"],
-            "world": {"summary": "魔法世界", "rules": ["魔法あり"]},
-            "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
-            "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
-        })
+        _save_plan(
+            series_dir,
+            {
+                "title": "テストシリーズ",
+                "logline": "テストのあらすじ",
+                "genre": ["fantasy"],
+                "target_audience": "10代",
+                "themes": ["冒険"],
+                "world": {"summary": "魔法世界", "rules": ["魔法あり"]},
+                "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
+                "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
+            },
+        )
 
         result = builder.get_series_plan_summary()
         assert "テストシリーズ" in result
@@ -83,6 +89,7 @@ class TestGetSeriesPlanSummary:
 
 # ── get_genre ───────────────────────────────────────────────────────────
 
+
 class TestGetGenre:
     def test_returns_genre(self, builder, series_dir):
         _save_plan(series_dir, {"title": "T", "genre": "sf"})
@@ -97,6 +104,7 @@ class TestGetGenre:
 
 
 # ── get_scene_summary ──────────────────────────────────────────────────
+
 
 class TestGetSceneSummary:
     def test_basic_scene(self, builder):
@@ -167,6 +175,7 @@ class TestGetSceneSummary:
 
 # ── get_outline_summary ────────────────────────────────────────────────
 
+
 class TestGetOutlineSummary:
     def test_volume_outline(self, builder):
         outline = VolumeOutline(
@@ -179,12 +188,20 @@ class TestGetOutlineSummary:
             ],
             scenes=[
                 SceneOutline(
-                    number=1, chapter_number=1, title="出会い",
-                    goal="紹介", outcome="旅立ち", characters=["主人公"],
+                    number=1,
+                    chapter_number=1,
+                    title="出会い",
+                    goal="紹介",
+                    outcome="旅立ち",
+                    characters=["主人公"],
                 ),
                 SceneOutline(
-                    number=2, chapter_number=1, title="別れ",
-                    goal="別れ", outcome="孤独", characters=["主人公", "仲間"],
+                    number=2,
+                    chapter_number=1,
+                    title="別れ",
+                    goal="別れ",
+                    outcome="孤独",
+                    characters=["主人公", "仲間"],
                 ),
             ],
         )
@@ -205,8 +222,12 @@ class TestGetOutlineSummary:
             chapters=[ChapterOutline(number=1, title="Ch1", purpose="導入")],
             scenes=[
                 SceneOutline(
-                    number=1, chapter_number=1, title="シーン1",
-                    goal="State: 緊張 | 目標", outcome="結果", characters=[],
+                    number=1,
+                    chapter_number=1,
+                    title="シーン1",
+                    goal="State: 緊張 | 目標",
+                    outcome="結果",
+                    characters=[],
                 ),
             ],
         )
@@ -217,6 +238,7 @@ class TestGetOutlineSummary:
 
 
 # ── build_context ──────────────────────────────────────────────────────
+
 
 class TestBuildContext:
     def test_empty_when_no_data(self, builder):
@@ -242,8 +264,10 @@ class TestBuildContext:
         bible = Bible(
             characters=[
                 CharacterProfile(
-                    name="主人公", role="主人公",
-                    personality="勇敢", motivation="正義",
+                    name="主人公",
+                    role="主人公",
+                    personality="勇敢",
+                    motivation="正義",
                 ),
             ],
         )
@@ -259,8 +283,10 @@ class TestBuildContext:
         bible = Bible(
             relationships=[
                 RelationshipItem(
-                    character_a="主人公", character_b="仲間",
-                    relationship_type="友人", status="良好",
+                    character_a="主人公",
+                    character_b="仲間",
+                    relationship_type="友人",
+                    status="良好",
                 ),
             ],
         )
@@ -286,7 +312,8 @@ class TestBuildContext:
         bible = Bible(
             glossary=[
                 __import__("novel_forge.models", fromlist=["GlossaryItem"]).GlossaryItem(
-                    term="魔力", definition="魔法の源",
+                    term="魔力",
+                    definition="魔法の源",
                 ),
             ],
         )
@@ -347,10 +374,12 @@ class TestBuildContext:
 
 # ── build_continuity ───────────────────────────────────────────────────
 
+
 class TestBuildContinuity:
     def test_first_scene_returns_placeholder(self, builder):
         result = builder.build_continuity(
-            scene_number=1, vol_num=1,
+            scene_number=1,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "",
         )
         assert "最初のシーン" in result
@@ -360,20 +389,26 @@ class TestBuildContinuity:
         bb_storage.save(bb)
 
         result = builder.build_continuity(
-            scene_number=2, vol_num=1,
+            scene_number=2,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "",
         )
         assert "前シーンの要約" in result
         assert "シーン1の要約" in result
 
     def test_with_recent_summaries(self, builder, bb_storage):
-        bb = Blackboard(scene_summaries={
-            "1": "要約1", "2": "要約2", "3": "要約3",
-        })
+        bb = Blackboard(
+            scene_summaries={
+                "1": "要約1",
+                "2": "要約2",
+                "3": "要約3",
+            }
+        )
         bb_storage.save(bb)
 
         result = builder.build_continuity(
-            scene_number=4, vol_num=1,
+            scene_number=4,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "",
         )
         assert "直近シーン要約" in result
@@ -386,7 +421,8 @@ class TestBuildContinuity:
         bb_storage.save(bb)
 
         result = builder.build_continuity(
-            scene_number=2, vol_num=1,
+            scene_number=2,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "",
         )
         assert "引き継ぎメモ" in result
@@ -398,7 +434,8 @@ class TestBuildContinuity:
         bb_storage.save(bb)
 
         result = builder.build_continuity(
-            scene_number=2, vol_num=1,
+            scene_number=2,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "前シーンの本文" if s == 1 else "",
         )
         assert "前シーン全文" in result
@@ -410,7 +447,8 @@ class TestBuildContinuity:
         bb_storage.save(bb)
 
         result = builder.build_continuity(
-            scene_number=2, vol_num=1,
+            scene_number=2,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "",
         )
         # Should only include last 5 notes
@@ -423,7 +461,8 @@ class TestBuildContinuity:
         bb_storage.save(bb)
 
         result = builder.build_continuity(
-            scene_number=1, vol_num=1,
+            scene_number=1,
+            vol_num=1,
             load_scene_draft_fn=lambda v, s: "",
         )
         # Scene 1 should not have previous scene content

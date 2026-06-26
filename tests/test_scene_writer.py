@@ -1,4 +1,5 @@
 """Tests for scene_writer.py — load_scene_draft, assemble_chapter."""
+
 from pathlib import Path
 
 from novel_forge.quality_gate import QualityGate

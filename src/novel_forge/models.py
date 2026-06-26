@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 # ── 事実記録（Blackboard）──────────────────────────────────────────────
 
+
 class Fact(BaseModel):
     subject: str
     predicate: str
@@ -22,6 +23,7 @@ class Blackboard(BaseModel):
 
 
 # ── 設定資料集（Bible）────────────────────────────────────────────────
+
 
 class CharacterProfile(BaseModel):
     name: str
@@ -73,6 +75,7 @@ class Bible(BaseModel):
 
 # ── シーン設計 ─────────────────────────────────────────────────────────
 
+
 class SceneDesign(BaseModel):
     number: int = Field(ge=1)
     title: str = Field(max_length=128)
@@ -88,6 +91,7 @@ class SceneDesign(BaseModel):
 
 
 # ── 章設計 ─────────────────────────────────────────────────────────────
+
 
 class ChapterDesign(BaseModel):
     number: int = Field(ge=1)
@@ -105,6 +109,7 @@ class ChapterDesign(BaseModel):
 
 
 # ── 巻デザイン ─────────────────────────────────────────────────────
+
 
 class SceneOutline(BaseModel):
     number: int = Field(ge=1)
@@ -137,6 +142,7 @@ class VolumeOutline(BaseModel):
 
 # ── シリーズ企画 ───────────────────────────────────────────────────────
 
+
 class VolumePlanItem(BaseModel):
     title: str = Field(max_length=128, default="")
     premise: str = Field(max_length=200, default="")
@@ -159,10 +165,6 @@ class SeriesPlan(BaseModel):
 
 # ── シーン生成状況 ─────────────────────────────────────────────────────
 
-class QualityGateResult(BaseModel):
-    passed: bool = False
-    issues: list[dict[str, Any]] = Field(default_factory=list)
-
 
 class SceneRecord(BaseModel):
     scene_number: int = Field(ge=1)
@@ -172,13 +174,14 @@ class SceneRecord(BaseModel):
     )
     quality_retries: int = Field(ge=0, default=0)
     draft_version: int = Field(ge=1, default=1)
-    quality_gate: QualityGateResult = Field(default_factory=QualityGateResult)
+    quality_gate: Any = Field(default_factory=lambda: {"passed": False, "issues": []})
     design: SceneDesign | None = None
     draft_path: str = ""
     review_path: str = ""
 
 
 # ── プロジェクト状態 ───────────────────────────────────────────────────
+
 
 class VolumeProgress(BaseModel):
     volume_number: int = Field(ge=1)
@@ -206,20 +209,25 @@ class ProjectState(BaseModel):
 
 # ── scene write context (parameter object) ──────────────────────────────
 
+
 class SceneWriteContext(BaseModel):
     """Parameter object for SceneWriter.write_scene().
 
     Groups all callback functions and configuration needed for scene writing,
     avoiding a long parameter list.
     """
+
     lang: str = "ja"
     vol_num: int = 1
-    build_context_fn: Any = None          # () -> str
-    build_continuity_fn: Any = None       # (scene_number: int, vol_num: int) -> str
+    build_context_fn: Any = None  # () -> str
+    build_continuity_fn: Any = None  # (scene_number: int, vol_num: int) -> str
     get_series_plan_summary_fn: Any = None  # () -> str
-    get_outline_summary_fn: Any = None    # (outline: VolumeOutline) -> str
-    get_scene_summary_fn: Any = None      # (scene) -> str
-    get_bible_text_fn: Any = None         # () -> str
-    load_scene_draft_fn: Any = None       # (vol_num: int, scene_number: int, chapter_number: int = 1) -> str
+    get_outline_summary_fn: Any = None  # (outline: VolumeOutline) -> str
+    get_scene_summary_fn: Any = None  # (scene) -> str
+    get_bible_text_fn: Any = None  # () -> str
+    load_scene_draft_fn: Any = (
+        None  # (vol_num: int, scene_number: int, chapter_number: int = 1) -> str
+    )
+
 
 Blackboard.model_rebuild()

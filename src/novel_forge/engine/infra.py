@@ -44,7 +44,7 @@ def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> P
     if lock_path.exists():
         try:
             lock_pid = int(lock_path.read_text().strip())
-        except (ValueError, OSError):
+        except ValueError, OSError:
             lock_pid = 0
         if lock_pid <= 0 or not _is_process_alive(lock_pid):
             console.print(f"[yellow]⚠ Stale lock (PID={lock_pid}) detected, removing.[/yellow]")
@@ -63,7 +63,7 @@ def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> P
         except FileExistsError:
             try:
                 lock_pid = int(lock_path.read_text().strip())
-            except (ValueError, OSError):
+            except ValueError, OSError:
                 lock_pid = 0
             if lock_pid > 0 and _is_process_alive(lock_pid):
                 if time.monotonic() >= deadline:
@@ -75,7 +75,9 @@ def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> P
                 now = time.monotonic()
                 if now - last_msg >= 5.0:
                     waited = now - (deadline - timeout)
-                    console.print(f"[dim]⏳ Waiting for lock (PID={lock_pid}, waited {waited:.0f}s)...[/dim]")
+                    console.print(
+                        f"[dim]⏳ Waiting for lock (PID={lock_pid}, waited {waited:.0f}s)...[/dim]"
+                    )
                     last_msg = now
                 time.sleep(0.5)
             else:
@@ -125,9 +127,13 @@ def make_engine(
     if series:
         workdir = workdir / series
     engine = NovelEngine(
-        workdir=workdir, model=model, lang=lang,
-        max_review_retries=max_review_retries, verbose=verbose,
-        raw_log_enabled=raw_log, phase=phase,
+        workdir=workdir,
+        model=model,
+        lang=lang,
+        max_review_retries=max_review_retries,
+        verbose=verbose,
+        raw_log_enabled=raw_log,
+        phase=phase,
     )
 
     _shutdown_requested = False
@@ -137,12 +143,16 @@ def make_engine(
         _shutdown_requested = True
         sig_name = signal.Signals(signum).name
         engine._log.warning(f"Received {sig_name} — shutting down after current step")
-        console.print(f"\n[yellow]⚠ Received {sig_name} — shutting down after current step...[/yellow]")
+        console.print(
+            f"\n[yellow]⚠ Received {sig_name} — shutting down after current step...[/yellow]"
+        )
         state_path = engine._series_dir / _STATE_FILE_NAME
         state = {
             "step": "interrupted",
             "status": f"interrupted_by_{sig_name}",
-            "model": model, "lang": lang, "pid": os.getpid(),
+            "model": model,
+            "lang": lang,
+            "pid": os.getpid(),
             "updated_at": time.time(),
         }
         with contextlib.suppress(Exception):
@@ -176,7 +186,7 @@ def cmd_status(engine: NovelEngine) -> None:
                 table.add_row(f"[bold]🔒 lock: PID={lock_pid} (active, {age:.0f}s ago)[/bold]", "")
             else:
                 table.add_row(f"[dim]🔒 lock: PID={lock_pid} (stale, {age:.0f}s ago)[/dim]", "")
-        except (ValueError, OSError):
+        except ValueError, OSError:
             table.add_row("[dim]🔒 lock: corrupted[/dim]", "")
     console.print(table)
 
@@ -194,8 +204,11 @@ def cmd_doctor(
     console.print("1. Ollama connectivity")
     try:
         resp = _httpx.get(f"http://{ollama_host}/", timeout=5)
-        console.print("   [green]✓ Ollama is running[/green]" if resp.status_code == 200
-                      else f"   [red]✗ Status {resp.status_code}[/red]")
+        console.print(
+            "   [green]✓ Ollama is running[/green]"
+            if resp.status_code == 200
+            else f"   [red]✗ Status {resp.status_code}[/red]"
+        )
     except Exception as e:
         console.print(f"   [red]✗ Cannot reach Ollama: {e}[/red]\n")
         return

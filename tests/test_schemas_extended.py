@@ -1,4 +1,5 @@
 """Extended tests for schemas.py — validation edge cases and schema coverage."""
+
 from __future__ import annotations
 
 import pytest
@@ -6,6 +7,7 @@ import pytest
 from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_raise
 
 # ── list_schemas ────────────────────────────────────────────────────────
+
 
 class TestListSchemas:
     def test_returns_list(self):
@@ -39,6 +41,7 @@ class TestListSchemas:
 
 # ── get_schema ──────────────────────────────────────────────────────────
 
+
 class TestGetSchema:
     def test_returns_valid_schema(self):
         schema = get_schema("series_plan_core")
@@ -51,6 +54,7 @@ class TestGetSchema:
 
 
 # ── validate ────────────────────────────────────────────────────────────
+
 
 class TestValidate:
     def test_valid_series_plan(self):
@@ -135,7 +139,12 @@ class TestValidate:
     def test_scene_review_with_issues(self):
         data = {
             "issues": [
-                {"severity": "重要", "category": "pov_consistency", "description": "視点が揺れている", "suggestion": [{"before": "揺れている", "after": "統一する"}]}
+                {
+                    "severity": "重要",
+                    "category": "pov_consistency",
+                    "description": "視点が揺れている",
+                    "suggestion": [{"before": "揺れている", "after": "統一する"}],
+                }
             ],
             "revision_needed": True,
             "ready_for_publication": False,
@@ -203,6 +212,7 @@ class TestValidate:
 
 # ── validate_or_raise ──────────────────────────────────────────────────
 
+
 class TestValidateOrRaise:
     def test_valid_data_no_raise(self):
         data = {
@@ -225,6 +235,7 @@ class TestValidateOrRaise:
 
 
 # ── Schema field coverage ──────────────────────────────────────────────
+
 
 class TestSchemaFieldCoverage:
     """Verify that all expected schemas have the right fields."""
@@ -270,7 +281,14 @@ class TestSchemaFieldCoverage:
         schema = get_schema("scene_summary_and_bible_update")
         props = schema["properties"]
         for field in [
-            "summary", "facts", "continuity_notes", "characters",
-            "foreshadowing", "relationships", "subplots", "glossary", "world_rules",
+            "summary",
+            "facts",
+            "continuity_notes",
+            "characters",
+            "foreshadowing",
+            "relationships",
+            "subplots",
+            "glossary",
+            "world_rules",
         ]:
             assert field in props, f"Missing field in bible_update: {field}"

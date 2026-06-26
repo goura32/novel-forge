@@ -22,6 +22,7 @@ from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 
 # ── LLM Client ──────────────────────────────────────────────────────────
 
+
 class TestLLMClient:
     def test_client_creates_with_defaults(self):
         client = LLMClient(model="test-model")
@@ -39,6 +40,7 @@ class TestLLMClient:
 
 
 # ── Models ─────────────────────────────────────────────────────────────
+
 
 class TestModels:
     def test_fact_creation(self):
@@ -101,6 +103,7 @@ class TestModels:
 
 # ── Storage ────────────────────────────────────────────────────────────
 
+
 class TestStorage:
     def test_state_storage_roundtrip(self, tmp_path):
         storage = StateStorage(tmp_path)
@@ -126,9 +129,7 @@ class TestStorage:
 
     def test_blackboard_storage(self, tmp_path):
         storage = BlackboardStorage(tmp_path)
-        bb = Blackboard(
-            facts=[Fact(subject="A", predicate="met", object="B", confidence=0.9)]
-        )
+        bb = Blackboard(facts=[Fact(subject="A", predicate="met", object="B", confidence=0.9)])
         storage.save(bb)
         loaded = storage.load()
         assert len(loaded.facts) == 1
@@ -143,6 +144,7 @@ class TestStorage:
 
 
 # ── Prompts ────────────────────────────────────────────────────────────
+
 
 class TestPrompts:
     def test_prompt_manager_loads_file(self, tmp_path):
@@ -159,6 +161,7 @@ class TestPrompts:
 
 # ── Quality Gate ───────────────────────────────────────────────────────
 
+
 class TestQualityGate:
     def test_pass_scene(self):
         qg = QualityGate()
@@ -172,11 +175,8 @@ class TestQualityGate:
 
     def test_fail_scene_critical_issue(self):
         qg = QualityGate()
-        result = qg.check_scene(
-            {"score": 90.0, "issues": [{"severity": "致命的"}]}
-        )
+        result = qg.check_scene({"score": 90.0, "issues": [{"severity": "致命的"}]})
         assert result.passed is False
-
 
 
 class TestSchemas:
@@ -227,7 +227,9 @@ class TestSchemas:
 
     def test_volume_design_goal_is_string(self):
         schema = get_schema("volume_design")
-        goal = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"]["properties"]["goal"]
+        goal = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"][
+            "properties"
+        ]["goal"]
         assert goal.get("type") == "string"
 
     def test_chapter_design_purpose_is_enum(self):
@@ -237,6 +239,7 @@ class TestSchemas:
 
 
 # ── Engine ─────────────────────────────────────────────────────────────
+
 
 class TestEngine:
     def test_engine_creates_state(self, tmp_path):

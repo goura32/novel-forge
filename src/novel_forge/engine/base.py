@@ -26,10 +26,22 @@ from novel_forge.schemas import validate_schemas
 from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 
 _OLLAMA_OPTION_KEYS = [
-    "temperature", "top_k", "top_p", "repeat_penalty",
-    "presence_penalty", "frequency_penalty", "num_ctx",
-    "num_predict", "seed", "stop", "tfs_z", "typical_p",
-    "mirostat", "mirostat_tau", "mirostat_eta", "penalize_newline",
+    "temperature",
+    "top_k",
+    "top_p",
+    "repeat_penalty",
+    "presence_penalty",
+    "frequency_penalty",
+    "num_ctx",
+    "num_predict",
+    "seed",
+    "stop",
+    "tfs_z",
+    "typical_p",
+    "mirostat",
+    "mirostat_tau",
+    "mirostat_eta",
+    "penalize_newline",
 ]
 
 
@@ -88,7 +100,9 @@ class NovelEngineBase:
 
         log_cfg = cfg.get("logging", {})
         self._verbose = verbose if verbose is not None else log_cfg.get("verbose", False)
-        self._raw_log_enabled = raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
+        self._raw_log_enabled = (
+            raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
+        )
         self._log_level = log_cfg.get("log_level", "DEBUG")
         self._slug = ""
         self._phase = phase
@@ -101,7 +115,12 @@ class NovelEngineBase:
             log_dir = log_dir.parent
             log_slug = workdir.name
         log_file = log_dir / "novel_forge.log"
-        setup_logging(log_file=log_file, verbose=self._verbose, log_level=self._log_level, series_slug=log_slug)
+        setup_logging(
+            log_file=log_file,
+            verbose=self._verbose,
+            log_level=self._log_level,
+            series_slug=log_slug,
+        )
 
         schema_errors = validate_schemas()
         if schema_errors:
@@ -124,7 +143,7 @@ class NovelEngineBase:
                 if not _is_process_alive(lock_pid):
                     lock_path.unlink(missing_ok=True)
                     console.print(f"[dim]⚠ Removed stale lock (PID={lock_pid}): {lock_path}[/dim]")
-            except (ValueError, OSError):
+            except ValueError, OSError:
                 lock_path.unlink(missing_ok=True)
                 console.print(f"[dim]⚠ Removed corrupted lock: {lock_path}[/dim]")
 
@@ -143,25 +162,39 @@ class NovelEngineBase:
             state = getattr(self, "_state", None)
             vol = str(state.current_volume) if state else ""
             llm_client = LLMClient(
-                api_url=api_url, model=model,
+                api_url=api_url,
+                model=model,
                 raw_log_dir=Path(workdir) / "_raw_logs",
-                raw_log_enabled=self._raw_log_enabled, phase=phase,
-                timeout_seconds=timeout, max_retries=max_retries,
-                num_predict=num_predict, num_ctx=num_ctx,
+                raw_log_enabled=self._raw_log_enabled,
+                phase=phase,
+                timeout_seconds=timeout,
+                max_retries=max_retries,
+                num_predict=num_predict,
+                num_ctx=num_ctx,
                 ollama_options=_build_ollama_options(llm_cfg),
-                series_slug=self._slug, volume=vol,
+                series_slug=self._slug,
+                volume=vol,
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
-        quality_retries = max_review_retries if max_review_retries is not None else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
+        quality_retries = (
+            max_review_retries
+            if max_review_retries is not None
+            else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
+        )
         self._quality = QualityGate(max_retries=quality_retries)
         self._state = self._storage.load()
 
         self._ctx_builder = ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
         self._bible_mgr = BibleManager(self._bible_storage)
         self._scene_writer = SceneWriter(
-            workdir, self._llm, self._prompts, self._quality,
-            self._bb_storage, self._bible_storage, series_dir=self._series_dir,
+            workdir,
+            self._llm,
+            self._prompts,
+            self._quality,
+            self._bb_storage,
+            self._bible_storage,
+            series_dir=self._series_dir,
         )
 
     @property
@@ -220,7 +253,9 @@ class NovelEngineBase:
         self._state.volumes.append(vol)
         return vol
 
-    def _save_path(self, vol_num: int, filename: str, data: Any, version: int | None = None) -> None:
+    def _save_path(
+        self, vol_num: int, filename: str, data: Any, version: int | None = None
+    ) -> None:
         """Save data to path. If version > 0, append _v{N} before extension."""
         if version is not None and version > 0:
             stem = Path(filename).stem
@@ -231,7 +266,9 @@ class NovelEngineBase:
         else:
             path = self._series_dir / f"vol{vol_num:02d}" / filename
         path.parent.mkdir(parents=True, exist_ok=True)
-        content = json.dumps(data, ensure_ascii=False, indent=2) if isinstance(data, dict) else str(data)
+        content = (
+            json.dumps(data, ensure_ascii=False, indent=2) if isinstance(data, dict) else str(data)
+        )
         path.write_text(content, encoding="utf-8")
 
     def _load_path(self, vol_num: int, filename: str) -> dict:
@@ -273,16 +310,26 @@ class NovelEngineBase:
         seed_offset = 0
         review = review_fn(item, system, seed_offset=seed_offset)
         for retry in range(max_retries):
-            blocker_issues = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
-            critical_issues = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
+            blocker_issues = [
+                i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER
+            ]
+            critical_issues = [
+                i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL
+            ]
             major_issues = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
-            revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            revision_needed = (
+                len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
+            )
             if not revision_needed:
                 break
             self._log.warning(
                 "  [%s] blocker=%d critical=%d major=%d retry=%d/%d",
-                label, len(blocker_issues), len(critical_issues), len(major_issues),
-                retry + 1, max_retries,
+                label,
+                len(blocker_issues),
+                len(critical_issues),
+                len(major_issues),
+                retry + 1,
+                max_retries,
             )
             seed_offset += 1
             item = revise_fn(item, review, system)

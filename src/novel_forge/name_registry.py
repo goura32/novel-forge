@@ -24,7 +24,9 @@ def save_used_names(workdir: Path, names: set[str]) -> None:
     """Persist used names to disk."""
     path = workdir / _NAMES_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"names": sorted(names)}, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.write_text(
+        json.dumps({"names": sorted(names)}, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def record_names(workdir: Path, new_names: set[str]) -> None:

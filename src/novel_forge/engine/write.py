@@ -68,11 +68,17 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
 
                 self._log.info(f"    ▶ sc{scene.number} — {scene.title}")
                 result = self._scene_writer.write_scene(
-                    design_obj=design_obj, chapter=chapter, scene=scene, record=record,
+                    design_obj=design_obj,
+                    chapter=chapter,
+                    scene=scene,
+                    record=record,
                     ctx=SceneWriteContext(
-                        lang=self._lang, vol_num=vol_num,
+                        lang=self._lang,
+                        vol_num=vol_num,
                         build_context_fn=self._ctx_builder.build_context,
-                        build_continuity_fn=lambda sn, vn: self._ctx_builder.build_continuity(sn, vn, self._scene_writer.load_scene_draft),
+                        build_continuity_fn=lambda sn, vn: self._ctx_builder.build_continuity(
+                            sn, vn, self._scene_writer.load_scene_draft
+                        ),
                         get_series_plan_summary_fn=self._ctx_builder.get_series_plan_summary,
                         get_outline_summary_fn=self._ctx_builder.get_outline_summary,
                         get_scene_summary_fn=self._ctx_builder.get_scene_summary,
@@ -81,8 +87,12 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
                     ),
                 )
                 results.append(result)
-                draft_text = self._scene_writer.load_scene_draft(vol_num, scene.number, chapter.number)
-                self._scene_writer.summarize_and_update_bible(record.scene_number, draft_text, self._lang, self._bible_mgr.to_text)
+                draft_text = self._scene_writer.load_scene_draft(
+                    vol_num, scene.number, chapter.number
+                )
+                self._scene_writer.summarize_and_update_bible(
+                    record.scene_number, draft_text, self._lang, self._bible_mgr.to_text
+                )
                 self._log.info(f"    ✓ sc{scene.number}")
 
             self._log.info(f"  ✓ ch{chapter.number}/{total_ch}")
@@ -91,5 +101,7 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
         vol.status = "初稿済"
         self._state.status = "初稿済"
         self._save()
-        self._log.info(f"✓ Write: series='{slug}' vol={vol_num} — {len(results)}/{total_scenes} sc done")
+        self._log.info(
+            f"✓ Write: series='{slug}' vol={vol_num} — {len(results)}/{total_scenes} sc done"
+        )
         return results

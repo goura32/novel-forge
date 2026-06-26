@@ -73,18 +73,13 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
             "target_word_count": vol.target_word_count,
             "scenes_total": len(vol.scenes),
             "scenes_revised": sum(1 for s in vol.scenes if s.status == "修正済"),
-            "scenes_force_exported": sum(
-                1 for s in vol.scenes if s.status == "強制出力済"
-            ),
+            "scenes_force_exported": sum(1 for s in vol.scenes if s.status == "強制出力済"),
         }
 
     def _assemble_manuscript(self, vol_num: int) -> str:
         chapters = []
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
-        chapter_files = sorted(
-            p for p in vol_dir.glob("vol*_ch*/*.md")
-            if p.stem == p.parent.name
-        )
+        chapter_files = sorted(p for p in vol_dir.glob("vol*_ch*/*.md") if p.stem == p.parent.name)
         for ch_path in chapter_files:
             chapters.append(ch_path.read_text(encoding="utf-8"))
         manuscript = "\n\n---\n\n".join(chapters)
@@ -126,11 +121,13 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
             f"- force_exported シーン: {force_count}",
         ]
         if force_count > 0:
-            lines.extend([
-                "",
-                "## ⚠️ 警告",
-                "以下のシーンは品質ゲート不合格のまま出力されています:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## ⚠️ 警告",
+                    "以下のシーンは品質ゲート不合格のまま出力されています:",
+                ]
+            )
             for s in vol.scenes:
                 if s.status == "強制出力済":
                     lines.append(f"- シーン {s.scene_number}")
@@ -145,9 +142,7 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         if incomplete_sp:
             lines.extend(["", "## ⚠️ 未完了サブプロット"])
             for sp in incomplete_sp:
-                lines.append(
-                    f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}"
-                )
+                lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
 
         lines.extend(["", "## 提出前確認事項"])
         lines.append("- [ ] 表紙画像の準備")

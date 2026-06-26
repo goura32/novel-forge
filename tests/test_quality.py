@@ -17,15 +17,19 @@ class TestQualityGate:
     def test_fail_critical(self):
         qg = QualityGate()
         result = qg.check_scene(
-            {"score": 90, "issues": [{"severity": "致命的", "category": "test", "description": "test"}]}
+            {
+                "score": 90,
+                "issues": [{"severity": "致命的", "category": "test", "description": "test"}],
+            }
         )
         assert result.passed is False
 
     def test_fail_blocker(self):
         qg = QualityGate()
         result = qg.check_scene(
-            {"score": 90, "issues": [{"severity": "致命的", "category": "test", "description": "test"}]}
+            {
+                "score": 90,
+                "issues": [{"severity": "致命的", "category": "test", "description": "test"}],
+            }
         )
         assert result.passed is False
-
-

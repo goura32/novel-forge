@@ -1,4 +1,5 @@
 """Tests for prompts.py — render_prompt uses {key} (single-brace) placeholders."""
+
 import pytest
 
 from novel_forge.prompts import PromptManager, render_prompt

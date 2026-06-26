@@ -3,6 +3,7 @@
 Handles character profiles, foreshadowing, relationships, subplots,
 glossary, and world rules.
 """
+
 from __future__ import annotations
 
 from novel_forge.models import (
@@ -80,9 +81,7 @@ class BibleManager:
             lines.append("サブプロット:")
             for sp in bible.subplots:
                 # Do NOT include status markers like [in_progress] — LLM may copy them into text
-                lines.append(
-                    f"  - {sp.name}: {sp.progress_note or '進捗なし'}"
-                )
+                lines.append(f"  - {sp.name}: {sp.progress_note or '進捗なし'}")
         if bible.glossary:
             lines.append("用語:")
             for g in bible.glossary[-10:]:
@@ -113,10 +112,13 @@ class BibleManager:
                 continue
             # 完全一致または部分一致（既存キャラ名が新名に含まれる、または新名が既存キャラ名に含まれる）で重複チェック
             existing = next(
-                (c for c in bible.characters
-                 if c.name == new_name
-                 or (len(new_name) >= 2 and new_name in c.name)
-                 or (len(c.name) >= 2 and c.name in new_name)),
+                (
+                    c
+                    for c in bible.characters
+                    if c.name == new_name
+                    or (len(new_name) >= 2 and new_name in c.name)
+                    or (len(c.name) >= 2 and c.name in new_name)
+                ),
                 None,
             )
             if existing:
@@ -131,14 +133,16 @@ class BibleManager:
                 if ch_data.get("state"):
                     existing.state = ch_data["state"]
             elif ch_data.get("is_new", False) or (ch_data.get("name") and ch_data["name"].strip()):
-                bible.characters.append(CharacterProfile(
-                    name=ch_data.get("name", ""),
-                    role=ch_data.get("role", ""),
-                    personality=ch_data.get("personality", ""),
-                    appearance=ch_data.get("appearance", ""),
-                    motivation=ch_data.get("motivation", ""),
-                    arc=ch_data.get("arc") or "",
-                ))
+                bible.characters.append(
+                    CharacterProfile(
+                        name=ch_data.get("name", ""),
+                        role=ch_data.get("role", ""),
+                        personality=ch_data.get("personality", ""),
+                        appearance=ch_data.get("appearance", ""),
+                        motivation=ch_data.get("motivation", ""),
+                        arc=ch_data.get("arc") or "",
+                    )
+                )
 
         # Foreshadowing
         for fh_data in result.get("foreshadowing", []):
@@ -153,21 +157,27 @@ class BibleManager:
             else:
                 desc = fh_data.get("description", "").strip()
                 if desc and desc not in {f.description.strip() for f in bible.foreshadowing}:
-                    bible.foreshadowing.append(ForeshadowingItem(
-                        description=desc,
-                        resolved=False,
-                    ))
+                    bible.foreshadowing.append(
+                        ForeshadowingItem(
+                            description=desc,
+                            resolved=False,
+                        )
+                    )
 
         # Relationships
         for rel_data in result.get("relationships", []):
             if not isinstance(rel_data, dict):
                 continue
             existing = next(
-                (r for r in bible.relationships
-                 if {r.character_a, r.character_b} == {
-                     rel_data.get("character_a", ""),
-                     rel_data.get("character_b", ""),
-                 }),
+                (
+                    r
+                    for r in bible.relationships
+                    if {r.character_a, r.character_b}
+                    == {
+                        rel_data.get("character_a", ""),
+                        rel_data.get("character_b", ""),
+                    }
+                ),
                 None,
             )
             if existing:
@@ -179,14 +189,16 @@ class BibleManager:
                     existing.trigger_event = rel_data["trigger_event"]
                 existing.scene_number = scene_number
             else:
-                bible.relationships.append(RelationshipItem(
-                    character_a=rel_data.get("character_a", ""),
-                    character_b=rel_data.get("character_b", ""),
-                    relationship_type=rel_data.get("relationship_type", ""),
-                    change_direction=rel_data.get("change_direction", ""),
-                    trigger_event=rel_data.get("trigger_event", ""),
-                    scene_number=scene_number,
-                ))
+                bible.relationships.append(
+                    RelationshipItem(
+                        character_a=rel_data.get("character_a", ""),
+                        character_b=rel_data.get("character_b", ""),
+                        relationship_type=rel_data.get("relationship_type", ""),
+                        change_direction=rel_data.get("change_direction", ""),
+                        trigger_event=rel_data.get("trigger_event", ""),
+                        scene_number=scene_number,
+                    )
+                )
 
         # Subplots
         for sp_data in result.get("subplots", []):
@@ -202,14 +214,16 @@ class BibleManager:
                 if sp_data.get("progress_note"):
                     existing.progress_note = sp_data["progress_note"]
             else:
-                bible.subplots.append(SubplotItem(
-                    id=sp_data.get("id", f"sp_{scene_number}"),
-                    name=sp_data.get("name", ""),
-                    status=sp_data.get("status", "進行中"),
-                    progress_note=sp_data.get("progress_note", ""),
-                    related_characters=sp_data.get("related_characters", []),
-                    related_foreshadowing_ids=sp_data.get("related_foreshadowing_ids", []),
-                ))
+                bible.subplots.append(
+                    SubplotItem(
+                        id=sp_data.get("id", f"sp_{scene_number}"),
+                        name=sp_data.get("name", ""),
+                        status=sp_data.get("status", "進行中"),
+                        progress_note=sp_data.get("progress_note", ""),
+                        related_characters=sp_data.get("related_characters", []),
+                        related_foreshadowing_ids=sp_data.get("related_foreshadowing_ids", []),
+                    )
+                )
 
         # Glossary
         for g_data in result.get("glossary", []):
@@ -221,10 +235,12 @@ class BibleManager:
                 if existing:
                     existing.definition = g_data.get("definition", existing.definition)
                 else:
-                    bible.glossary.append(GlossaryItem(
-                        term=term,
-                        definition=g_data.get("definition", ""),
-                    ))
+                    bible.glossary.append(
+                        GlossaryItem(
+                            term=term,
+                            definition=g_data.get("definition", ""),
+                        )
+                    )
 
         # World rules
         for r_data in result.get("world_rules", []):

@@ -1,6 +1,5 @@
 """Tests for storage.py — atomic save with backup."""
 
-
 from novel_forge.models import Bible, Blackboard, CharacterProfile, ProjectState
 from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 

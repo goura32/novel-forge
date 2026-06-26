@@ -55,6 +55,7 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
 def _try_import_yaml():
     try:
         import yaml
+
         return yaml
     except ImportError:
         return None
@@ -173,28 +174,43 @@ class LLMClient:
                     meta += f" vol={self._volume}"
                 self._log.debug(
                     "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
-                    kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset,
+                    kind,
+                    attempt + 1,
+                    self.max_retries,
+                    self.model,
+                    42 + attempt + seed_offset,
                     meta,
                 )
                 _call_start = time.time()
-                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
+                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(
+                    payload
+                )
                 _call_elapsed = time.time() - _call_start
                 self._log.debug(
                     "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
-                    kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
+                    kind,
+                    chunk_count,
+                    total_bytes,
+                    _call_elapsed,
+                    meta,
+                    done_reason,
                 )
                 self._write_raw_log(f"response_{attempt}", raw_text)
                 parsed = parse_json_response(raw)
                 if schema:
                     parsed = coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
+
                     validate_or_raise(kind, parsed)
                 return parsed
             except JsonParseError as e:
                 last_error = e
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
-                    kind, attempt + 1, self.max_retries, str(e)[:100],
+                    kind,
+                    attempt + 1,
+                    self.max_retries,
+                    str(e)[:100],
                 )
                 error_hint = str(e)[:100]
                 current_prompt = (
@@ -210,7 +226,10 @@ class LLMClient:
                 self._write_raw_log(f"response_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
-                    kind, attempt + 1, self.max_retries, str(e)[:100],
+                    kind,
+                    attempt + 1,
+                    self.max_retries,
+                    str(e)[:100],
                 )
                 error_hint = str(e)[:200]
                 current_prompt = (
@@ -225,7 +244,10 @@ class LLMClient:
                 self._write_raw_log(f"response_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
-                    kind, attempt + 1, self.max_retries, str(e)[:100],
+                    kind,
+                    attempt + 1,
+                    self.max_retries,
+                    str(e)[:100],
                 )
                 continue
             except Exception as e:
@@ -233,12 +255,17 @@ class LLMClient:
                 self._write_raw_log(f"response_{attempt}", raw_text)
                 self._log.warning(
                     "  [LLM ERROR] kind=%s attempt=%d/%d error=%s",
-                    kind, attempt + 1, self.max_retries, str(e)[:200],
+                    kind,
+                    attempt + 1,
+                    self.max_retries,
+                    str(e)[:200],
                 )
                 raise
         self._log.error(
             "  [LLM FAILED] kind=%s attempts=%d error=%s",
-            kind, self.max_retries, str(last_error)[:100],
+            kind,
+            self.max_retries,
+            str(last_error)[:100],
         )
         raise last_error or LLMError("LLM request failed")
 
@@ -297,7 +324,10 @@ class LLMClient:
                             elapsed_total = now - call_start
                             self._log.info(
                                 "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%.1fs%s",
-                                chunk_count, total_bytes, elapsed_total, meta,
+                                chunk_count,
+                                total_bytes,
+                                elapsed_total,
+                                meta,
                             )
                             self._last_progress_log = now
         except httpx.TimeoutException:

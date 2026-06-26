@@ -1,4 +1,5 @@
 """Tests for engine/export.py — manuscript assembly, KDP metadata, readiness report."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ from novel_forge.models import (
 )
 
 # ── ExportMixin のテスト (engine/export.py) ─────────────────────────────
+
 
 class TestExportMixin:
     """Test ExportMixin methods via a minimal mock engine."""
@@ -79,6 +81,7 @@ class TestExportMixin:
 
         # Bind real methods
         from novel_forge.engine.export import ExportMixin
+
         engine.export = ExportMixin.export.__get__(engine)
         engine._assemble_manuscript = ExportMixin._assemble_manuscript.__get__(engine)
         engine._write_export = ExportMixin._write_export.__get__(engine)
@@ -180,6 +183,7 @@ class TestExportMixin:
 
 # ── Resume tests (export.py) ───────────────────────────────────────────
 
+
 class TestResume:
     """Test resume() method via mock engine."""
 
@@ -229,6 +233,7 @@ class TestResume:
 
 # ── Status tests (export.py) ───────────────────────────────────────────
 
+
 class TestStatus:
     """Test status() method."""
 
@@ -242,7 +247,9 @@ class TestStatus:
         engine._state.status = "執筆中"
         engine._state.current_volume = 1
 
-        vol = VolumeProgress(volume_number=1, status="執筆中", word_count=5000, target_word_count=8000)
+        vol = VolumeProgress(
+            volume_number=1, status="執筆中", word_count=5000, target_word_count=8000
+        )
         vol.scenes = [
             SceneRecord(scene_number=1, status="修正済"),
             SceneRecord(scene_number=2, status="初稿済"),

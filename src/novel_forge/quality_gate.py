@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 @dataclass
 class QualityGateResult:
     """品質ゲートの判定結果。"""
+
     passed: bool
     issues: list[dict] = field(default_factory=list)
 
@@ -69,5 +70,3 @@ class QualityGate:
     def check_scene(self, review_result: dict) -> QualityGateResult:
         """レビュー結果に基づきシーン品質を判定する。"""
         return self._check(review_result)
-
-

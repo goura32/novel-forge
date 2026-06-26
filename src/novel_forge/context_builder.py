@@ -3,6 +3,7 @@
 Builds context and continuity information from blackboard and bible
 to provide LLM with comprehensive scene writing context.
 """
+
 from __future__ import annotations
 
 import json
@@ -60,7 +61,7 @@ class ContextBuilder:
         plan_path = self._series_dir / "series_plan.json"
         if plan_path.exists():
             data = json.loads(plan_path.read_text(encoding="utf-8"))
-            return data.get("genre", "fantasy")
+            return str(data.get("genre", "fantasy"))
         return "fantasy"
 
     # ── scene / design summaries ────────────────────────────────────
@@ -111,10 +112,7 @@ class ContextBuilder:
         if bb.facts:
             parts.append(
                 "## 事実記録\n"
-                + "\n".join(
-                    f"- {f.subject} {f.predicate} {f.object}"
-                    for f in bb.facts[-20:]
-                )
+                + "\n".join(f"- {f.subject} {f.predicate} {f.object}" for f in bb.facts[-20:])
             )
         if bible.characters:
             parts.append(
@@ -133,24 +131,22 @@ class ContextBuilder:
                 )
             )
         if bible.subplots:
-            active_subplots = [sp for sp in bible.subplots if sp.status not in ("completed", "完了")]
+            active_subplots = [
+                sp for sp in bible.subplots if sp.status not in ("completed", "完了")
+            ]
             if active_subplots:
                 parts.append(
                     "## サブプロット\n"
                     + "\n".join(
-                        f"- {sp.name}: {sp.progress_note or '進捗なし'}"
-                        for sp in active_subplots
+                        f"- {sp.name}: {sp.progress_note or '進捗なし'}" for sp in active_subplots
                     )
                 )
         if bible.glossary:
             parts.append(
-                "## 用語\n"
-                + "\n".join(f"- {g.term}: {g.definition}" for g in bible.glossary[-10:])
+                "## 用語\n" + "\n".join(f"- {g.term}: {g.definition}" for g in bible.glossary[-10:])
             )
         if bible.world_rules:
-            parts.append(
-                "## 世界観ルール\n" + "\n".join(f"- {r}" for r in bible.world_rules)
-            )
+            parts.append("## 世界観ルール\n" + "\n".join(f"- {r}" for r in bible.world_rules))
         return "\n\n".join(parts)
 
     # ── continuity (previous scene info) ────────────────────────────

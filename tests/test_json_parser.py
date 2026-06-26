@@ -1,4 +1,5 @@
 """Tests for json_parser.py — parsing and type coercion."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,6 +12,7 @@ from novel_forge.json_parser import (
 )
 
 # ── _extract_json_text ─────────────────────────────────────────────────
+
 
 class TestExtractJsonText:
     def test_plain_json(self):
@@ -32,6 +34,7 @@ class TestExtractJsonText:
 
 
 # ── parse_json_response ────────────────────────────────────────────────
+
 
 class TestParseJsonResponse:
     def test_valid_json(self):
@@ -76,6 +79,7 @@ class TestParseJsonResponse:
 
 
 # ── coerce_types ────────────────────────────────────────────────────────
+
 
 class TestCoerceTypes:
     def test_fill_missing_string(self):
@@ -192,6 +196,7 @@ class TestCoerceTypes:
 
 
 # ── JsonParseError ─────────────────────────────────────────────────────
+
 
 class TestJsonParseError:
     def test_is_exception(self):

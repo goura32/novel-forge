@@ -23,10 +23,13 @@ _PID = os.getpid()
 class ContextFormatter(logging.Formatter):
     """現在時刻 + PID + slug 付きフォーマッタ。"""
 
+    pid: int | str = "?"
+    series: str = ""
+
     def format(self, record):
         record.elapsed = _time.strftime("%Y-%m-%d %H:%M:%S")
-        record.pid = getattr(self, "pid", "?")
-        record.series = getattr(self, "series", "")
+        record.pid = self.pid
+        record.series = self.series
         return super().format(record)
 
 

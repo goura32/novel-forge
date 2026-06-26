@@ -36,7 +36,9 @@ def _load_schema(name: str) -> dict[str, Any]:
         path = _SCHEMA_DIR / f"{name}.json"
         if not path.exists():
             available = sorted(p.stem for p in _SCHEMA_DIR.glob("*.json"))
-            _log.error("Schema not found: %s (requested: '%s', available: %s)", path, name, available)
+            _log.error(
+                "Schema not found: %s (requested: '%s', available: %s)", path, name, available
+            )
             raise FileNotFoundError(f"Schema not found: {path}")
         with open(path, encoding="utf-8") as f:
             _SCHEMA_BY_NAME[name] = json.load(f)
@@ -64,9 +66,7 @@ def validate(name: str, data: dict[str, Any]) -> list[str]:
 def validate_or_raise(name: str, data: dict[str, Any]) -> None:
     errors = validate(name, data)
     if errors:
-        raise ValidationError(
-            f"Schema validation failed for '{name}':\n" + "\n".join(errors)
-        )
+        raise ValidationError(f"Schema validation failed for '{name}':\n" + "\n".join(errors))
 
 
 def get_schema(name: str) -> dict[str, Any]:

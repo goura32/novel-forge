@@ -49,7 +49,9 @@ def design(
     """Generate a volume design (chapter/scene structure)."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
-        engine = make_engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="design")
+        engine = make_engine(
+            series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="design"
+        )
         engine.design(volume)
         console.print(f"[green]✓[/green] Volume {volume} design generated")
 
@@ -68,7 +70,15 @@ def write(
     """Write scene drafts."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
-        engine = make_engine(series_dir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="write")
+        engine = make_engine(
+            series_dir,
+            model,
+            lang,
+            max_review_retries=max_retries,
+            verbose=verbose,
+            raw_log=raw_log,
+            phase="write",
+        )
         results = engine.write(volume)
         console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -86,7 +96,9 @@ def export(
     """Export manuscript for KDP."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
-        engine = make_engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="export")
+        engine = make_engine(
+            series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="export"
+        )
         result = engine.export(volume)
         console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
 
@@ -115,7 +127,9 @@ def resume(
     """Resume from the last interrupted phase."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
-        engine = make_engine(series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="resume")
+        engine = make_engine(
+            series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="resume"
+        )
         result = engine.resume()
         action = result["action"]
         console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
@@ -141,11 +155,19 @@ def complete(
     raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
 ):
     """Run the full pipeline: plan → design → write → export."""
-    engine = make_engine(workdir, model, lang, max_review_retries=max_retries, verbose=verbose, raw_log=raw_log, phase="complete")
+    engine = make_engine(
+        workdir,
+        model,
+        lang,
+        max_review_retries=max_retries,
+        verbose=verbose,
+        raw_log=raw_log,
+        phase="complete",
+    )
     steps = [
-        ("Plan",   lambda: engine.plan(keywords)),
+        ("Plan", lambda: engine.plan(keywords)),
         ("Design", lambda: engine.design(volume)),
-        ("Write",  lambda: engine.write(volume)),
+        ("Write", lambda: engine.write(volume)),
         ("Export", lambda: engine.export(volume)),
     ]
     result = None
@@ -159,7 +181,9 @@ def complete(
                 raise SystemExit(1) from e
     finally:
         assert result is not None
-        console.print(f"[green]✓[/green] Complete! Manuscript: {result.get('manuscript_path', result.get('manuscript', 'N/A'))}")
+        console.print(
+            f"[green]✓[/green] Complete! Manuscript: {result.get('manuscript_path', result.get('manuscript', 'N/A'))}"
+        )
 
 
 @app.command()
@@ -177,6 +201,7 @@ def list(
 ):
     """List all series in the working directory."""
     from rich.table import Table
+
     table = Table(title="NovelForge Series")
     table.add_column("Slug", style="bold")
     table.add_column("Title")
@@ -191,6 +216,7 @@ def list(
             continue
         try:
             import json as _json
+
             plan = _json.loads(plan_path.read_text(encoding="utf-8"))
             slug = plan.get("slug", d.name)
             title = plan.get("title", "?")

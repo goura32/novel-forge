@@ -3,6 +3,7 @@
 Handles the full scene writing pipeline: draft → review → quality gate → revise.
 Also manages scene summarization and Bible updates after each scene.
 """
+
 from __future__ import annotations
 
 import re
@@ -27,8 +28,8 @@ class SceneWriter:
     """Handles scene drafting, review, revision, and post-processing."""
 
     # Pre-compiled regex patterns for chapter assembly
-    _RE_SCENE_MARKER_FULL = re.compile(r'^シーン\d+[\uff08\(]第\d+章[\uff09\)]\s*[：:]\s*')
-    _RE_SCENE_MARKER_SIMPLE = re.compile(r'^シーン\d+\s*[：:]\s*')
+    _RE_SCENE_MARKER_FULL = re.compile(r"^シーン\d+[\uff08\(]第\d+章[\uff09\)]\s*[：:]\s*")
+    _RE_SCENE_MARKER_SIMPLE = re.compile(r"^シーン\d+\s*[：:]\s*")
 
     def __init__(
         self,
@@ -113,7 +114,9 @@ class SceneWriter:
         continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
 
         # Draft
-        self._log.info("  [DRAFT START] vol%d ch%d sc%d", ctx.vol_num, chapter.number, record.scene_number)
+        self._log.info(
+            "  [DRAFT START] vol%d ch%d sc%d", ctx.vol_num, chapter.number, record.scene_number
+        )
         if log_fn:
             log_fn(f"  [DRAFT START] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number}")
         user = self._prompts.render(
@@ -135,9 +138,17 @@ class SceneWriter:
         draft_schema = get_schema("scene_draft")
         draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
         draft_text = draft_result.get("content", "")
-        self._log.info("  [DRAFT END] vol%d ch%d sc%d len=%d", ctx.vol_num, chapter.number, record.scene_number, len(draft_text))
+        self._log.info(
+            "  [DRAFT END] vol%d ch%d sc%d len=%d",
+            ctx.vol_num,
+            chapter.number,
+            record.scene_number,
+            len(draft_text),
+        )
         if log_fn:
-            log_fn(f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}")
+            log_fn(
+                f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}"
+            )
         record.status = "初稿済"
         record.draft_version = 1
         draft_path = self.save_scene_draft(
@@ -151,7 +162,10 @@ class SceneWriter:
         )
 
         if record.status == "初稿済":
-            self._log.warning("  [WARNING] シーン%d: 品質ゲートループ後に初稿済のまま。強制出力済に変更。", record.scene_number)
+            self._log.warning(
+                "  [WARNING] シーン%d: 品質ゲートループ後に初稿済のまま。強制出力済に変更。",
+                record.scene_number,
+            )
             record.status = "強制出力済"
 
         return {"scene_number": record.scene_number, "status": record.status}
@@ -172,8 +186,13 @@ class SceneWriter:
         seed_offset = 0
         for retry in range(self._quality.max_retries):
             review = self._review_scene(
-                draft_text, design_obj, scene, ctx.lang, ctx.build_context_fn,
-                ctx.get_outline_summary_fn, seed_offset=seed_offset,
+                draft_text,
+                design_obj,
+                scene,
+                ctx.lang,
+                ctx.build_context_fn,
+                ctx.get_outline_summary_fn,
+                seed_offset=seed_offset,
             )
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
@@ -193,10 +212,15 @@ class SceneWriter:
                 if log_fn:
                     log_fn(msg)
                 seed_offset += 1
-                draft_text = self._revise_scene(draft_text, review, ctx.lang, seed_offset=seed_offset)
+                draft_text = self._revise_scene(
+                    draft_text, review, ctx.lang, seed_offset=seed_offset
+                )
                 record.draft_version += 1
                 draft_path = self.save_scene_draft(
-                    ctx.vol_num, record.scene_number, draft_text, chapter_number,
+                    ctx.vol_num,
+                    record.scene_number,
+                    draft_text,
+                    chapter_number,
                     version=record.draft_version,
                 )
                 record.draft_path = draft_path
@@ -206,7 +230,10 @@ class SceneWriter:
                 # 強制出力も版付きで保存
                 record.draft_version += 1
                 draft_path = self.save_scene_draft(
-                    ctx.vol_num, record.scene_number, draft_text, chapter_number,
+                    ctx.vol_num,
+                    record.scene_number,
+                    draft_text,
+                    chapter_number,
                     version=record.draft_version,
                 )
                 record.draft_path = draft_path
@@ -246,7 +273,9 @@ class SceneWriter:
         # Retry up to 3 times on failure (timeout, parse error, etc.)
         for attempt in range(3):
             try:
-                result = self._llm.complete_json("scene_review", system, user, schema, seed_offset=seed_offset)
+                result = self._llm.complete_json(
+                    "scene_review", system, user, schema, seed_offset=seed_offset
+                )
                 self._log.info("  [REVIEW DONE] issues=%d", len(result.get("issues", [])))
                 return result
             except Exception as e:
@@ -284,7 +313,9 @@ class SceneWriter:
             },
         )
         schema = get_schema("scene_draft")
-        result = self._llm.complete_json("scene_draft", system, user, schema, seed_offset=seed_offset)
+        result = self._llm.complete_json(
+            "scene_draft", system, user, schema, seed_offset=seed_offset
+        )
         return result.get("content", draft_text)
 
     # ── summarize → blackboard update ───────────────────────────────
@@ -333,7 +364,11 @@ class SceneWriter:
     # ── scene draft I/O ──────────────────────────────────────────────
 
     def save_scene_draft(
-        self, vol_num: int, scene_number: int, text: str, chapter_number: int = 1,
+        self,
+        vol_num: int,
+        scene_number: int,
+        text: str,
+        chapter_number: int = 1,
         version: int = 1,
     ) -> str:
         """シーン本文を保存し、ファイルパスを返す。
@@ -353,19 +388,13 @@ class SceneWriter:
         path.write_text(text, encoding="utf-8")
         return str(path)
 
-    def load_scene_draft(
-        self, vol_num: int, scene_number: int, chapter_number: int = 1
-    ) -> str:
+    def load_scene_draft(self, vol_num: int, scene_number: int, chapter_number: int = 1) -> str:
         """最新版のシーン本文を読み込む。
 
         優先順位: v2 > v1 > version=0（接尾辞なし）
         assemble_chapter が生成した最終版（version=0）も読める。
         """
-        ch_dir = (
-            self._series_dir
-            / f"vol{vol_num:02d}"
-            / f"vol{vol_num:02d}_ch{chapter_number:02d}"
-        )
+        ch_dir = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{chapter_number:02d}"
         if not ch_dir.exists():
             return ""
         # 1. 最大バージョン付きファイルを探す（v1, v2, ...）
@@ -378,7 +407,10 @@ class SceneWriter:
             except ValueError:
                 pass
         if max_version > 0:
-            path = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{max_version}.md"
+            path = (
+                ch_dir
+                / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{max_version}.md"
+            )
             return path.read_text(encoding="utf-8")
         # 2. version=0（接尾辞なし）ファイルを探す
         plain = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
@@ -414,7 +446,10 @@ class SceneWriter:
                 except ValueError:
                     pass
             if max_version > 0:
-                latest = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v{max_version}.md"
+                latest = (
+                    ch_dir
+                    / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v{max_version}.md"
+                )
                 final_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}.md"
                 final_path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -422,8 +457,8 @@ class SceneWriter:
         # Remove scene markers
         cleaned_texts = []
         for text in scene_texts:
-            cleaned = self._RE_SCENE_MARKER_FULL.sub('', text.strip())
-            cleaned = self._RE_SCENE_MARKER_SIMPLE.sub('', cleaned)
+            cleaned = self._RE_SCENE_MARKER_FULL.sub("", text.strip())
+            cleaned = self._RE_SCENE_MARKER_SIMPLE.sub("", cleaned)
             cleaned_texts.append(cleaned)
         content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(cleaned_texts)
         ch_path.write_text(content, encoding="utf-8")
