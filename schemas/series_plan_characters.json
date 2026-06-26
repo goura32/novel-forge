@@ -49,7 +49,8 @@
             "type": "string",
             "description": "過去・経歴（想定: 1000文字）"
           }
-        }
+        },
+        "description": "main_charactersの配列"
       },
       "description": "メインキャラクター（2-5人）"
     }

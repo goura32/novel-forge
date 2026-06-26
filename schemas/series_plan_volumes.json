@@ -28,7 +28,8 @@
           "key_events": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "key_eventsの配列"
             },
             "description": "巻内の主要イベント（1個以上、各想定: 200文字）"
           },

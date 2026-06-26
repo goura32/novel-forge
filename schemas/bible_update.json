@@ -9,7 +9,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "一意識別子"
           },
           "description": {
             "type": "string"
@@ -25,11 +26,13 @@
             "type": "boolean"
           },
           "scene_number": {
-            "type": "integer"
+            "type": "integer",
+            "description": "番号"
           }
         },
         "description": "更新された伏線"
-      }
+      },
+      "description": "伏線リスト"
     },
     "characters": {
       "type": "array",
@@ -62,7 +65,8 @@
           }
         },
         "description": "更新されたキャラクター"
-      }
+      },
+      "description": "キャラクター"
     },
     "relationships": {
       "type": "array",
@@ -92,7 +96,8 @@
           }
         },
         "description": "更新された関係"
-      }
+      },
+      "description": "キャラクター関係"
     },
     "subplots": {
       "type": "array",
@@ -100,7 +105,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "一意識別子"
           },
           "name": {
             "type": "string"
@@ -118,7 +124,8 @@
           }
         },
         "description": "更新されたサブプロット"
-      }
+      },
+      "description": "サブプロット"
     },
     "glossary": {
       "type": "array",
@@ -136,7 +143,8 @@
           }
         },
         "description": "更新された用語"
-      }
+      },
+      "description": "用語集"
     },
     "world_rules": {
       "type": "array",
@@ -151,7 +159,8 @@
           }
         },
         "description": "更新された世界観ルール"
-      }
+      },
+      "description": "世界観ルール"
     },
     "facts": {
       "type": "array",
@@ -169,14 +178,16 @@
           }
         },
         "description": "新しく抽出した事実"
-      }
+      },
+      "description": "事実記録"
     },
     "continuity_notes": {
       "type": "array",
       "items": {
         "type": "string",
         "description": "連続性メモ"
-      }
+      },
+      "description": "連続性メモ"
     }
   }
 }

@@ -67,13 +67,15 @@
                 "characters": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "charactersの配列"
                   }
                 },
                 "key_events": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "key_eventsの配列"
                   },
                   "description": "主要イベント"
                 },
@@ -81,10 +83,12 @@
                   "type": "string",
                   "description": "舞台設定"
                 }
-              }
+              },
+              "description": "scenesの配列"
             }
           }
-        }
+        },
+        "description": "chaptersの配列"
       }
     }
   },

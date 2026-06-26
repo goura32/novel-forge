@@ -35,14 +35,16 @@
     "foreshadowing_notes": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "foreshadowing_notesの配列"
       },
       "description": "伏線メモのリスト"
     },
     "subplot_notes": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "subplot_notesの配列"
       },
       "description": "サブプロットメモのリスト"
     }

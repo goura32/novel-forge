@@ -31,14 +31,16 @@
     "characters": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "charactersの配列"
       },
       "description": "登場人物"
     },
     "key_events": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "key_eventsの配列"
       },
       "description": "主要イベント"
     },

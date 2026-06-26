@@ -15,7 +15,8 @@
     "characters": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "charactersの配列"
       },
       "description": "登場キャラクター"
     },
@@ -41,7 +42,8 @@
             "type": "string",
             "description": "目的語"
           }
-        }
+        },
+        "description": "factsの配列"
       },
       "description": "抽出事実"
     },

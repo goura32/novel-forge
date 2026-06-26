@@ -13,16 +13,32 @@
       "items": {
         "type": "object",
         "description": "個別の指摘事項。必ず suggestion（修正前後のペア）を含める。",
-        "required": ["severity", "category", "description", "suggestion"],
+        "required": [
+          "severity",
+          "category",
+          "description",
+          "suggestion"
+        ],
         "properties": {
           "severity": {
             "type": "string",
-            "enum": ["重大", "重要", "軽微"],
+            "enum": [
+              "重大",
+              "重要",
+              "軽微"
+            ],
             "description": "修正の緊急性。重大=必須修正、重要=強推�、軽微=任意修正。"
           },
           "category": {
             "type": "string",
-            "enum": ["missing_field", "title_power", "logline_quality", "genre_fit", "world_consistency", "language_purity"],
+            "enum": [
+              "missing_field",
+              "title_power",
+              "logline_quality",
+              "genre_fit",
+              "world_consistency",
+              "language_purity"
+            ],
             "description": "指摘のカテゴリ。missing_field=必須フィールド欠落、title_power=タイトルの力、logline_quality=あらすじの質、genre_fit=ジャンル適合、world_consistency=世界観の一貫性、language_purity=言語純度。"
           },
           "description": {
@@ -34,7 +50,10 @@
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含む。",
             "items": {
               "type": "object",
-              "required": ["before", "after"],
+              "required": [
+                "before",
+                "after"
+              ],
               "properties": {
                 "before": {
                   "type": "string",
@@ -44,12 +63,16 @@
                   "type": "string",
                   "description": "修正後のテキスト。"
                 }
-              }
+              },
+              "description": "suggestionの配列"
             }
           },
           "affected_elements": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string",
+              "description": "affected_elementsの配列"
+            },
             "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。"
           }
         }

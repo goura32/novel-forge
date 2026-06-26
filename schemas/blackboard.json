@@ -35,7 +35,8 @@
           }
         },
         "description": "事実記録"
-      }
+      },
+      "description": "事実記録"
     },
     "scene_summaries": {
       "type": "object",
@@ -49,7 +50,8 @@
       "items": {
         "type": "string",
         "description": "連続性メモ"
-      }
+      },
+      "description": "連続性メモ"
     }
   }
 }

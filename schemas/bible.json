@@ -49,7 +49,8 @@
           }
         },
         "description": "キャラクタープロフィール一覧"
-      }
+      },
+      "description": "キャラクター"
     },
     "glossary": {
       "type": "array",
@@ -70,7 +71,8 @@
           }
         },
         "description": "用語集"
-      }
+      },
+      "description": "用語集"
     },
     "foreshadowing": {
       "type": "array",
@@ -89,14 +91,16 @@
           }
         },
         "description": "伏線一覧"
-      }
+      },
+      "description": "伏線リスト"
     },
     "world_rules": {
       "type": "array",
       "items": {
         "type": "string",
         "description": "世界のルール"
-      }
+      },
+      "description": "世界観ルール"
     },
     "relationships": {
       "type": "array",
@@ -128,11 +132,13 @@
             "type": "string"
           },
           "scene_number": {
-            "type": "integer"
+            "type": "integer",
+            "description": "番号"
           }
         },
         "description": "キャラクター関係一覧"
-      }
+      },
+      "description": "キャラクター関係"
     },
     "subplots": {
       "type": "array",
@@ -140,7 +146,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "一意識別子"
           },
           "name": {
             "type": "string"
@@ -159,18 +166,21 @@
           "related_characters": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "related_charactersの配列"
             }
           },
           "related_foreshadowing_ids": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "related_foreshadowing_idsの配列"
             }
           }
         },
         "description": "サブプロット一覧"
-      }
+      },
+      "description": "サブプロット"
     }
   }
 }
