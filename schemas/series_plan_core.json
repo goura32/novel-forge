@@ -6,8 +6,7 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "シリーズのタイトル（想定: 100文字)",
-      "maxLength": 100
+      "description": "シリーズのタイトル（想定: 100文字)（最大100）"
     },
     "slug": {
       "type": "string",
@@ -15,8 +14,7 @@
     },
     "logline": {
       "type": "string",
-      "description": "シリーズのあらすじ（1-2文、想定: 800文字）",
-      "maxLength": 800
+      "description": "シリーズのあらすじ（1-2文、想定: 800文字）（最大800）"
     },
     "genre": {
       "type": "array",
@@ -28,8 +26,7 @@
     },
     "target_audience": {
       "type": "string",
-      "description": "ターゲット読者（想定: 500文字）",
-      "maxLength": 500
+      "description": "ターゲット読者（想定: 500文字）（最大500）"
     },
     "themes": {
       "type": "array",

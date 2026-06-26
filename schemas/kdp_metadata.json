@@ -11,33 +11,27 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "タイトル（想定: 500文字）",
-      "maxLength": 100
+      "description": "タイトル（想定: 500文字）（最大100）"
     },
     "subtitle": {
       "type": "string",
-      "description": "サブタイトル（想定: 500文字）",
-      "maxLength": 100
+      "description": "サブタイトル（想定: 500文字）（最大100）"
     },
     "series_name": {
       "type": "string",
-      "description": "シリーズ名（想定: 500文字）",
-      "maxLength": 100
+      "description": "シリーズ名（想定: 500文字）（最大100）"
     },
     "description": {
       "type": "string",
-      "description": "商品説明（想定: 2000文字）",
-      "maxLength": 2000
+      "description": "商品説明（想定: 2000文字）（最大2000）"
     },
     "back_cover_text": {
       "type": "string",
-      "description": "裏表紙テキスト（想定: 2000文字）",
-      "maxLength": 2000
+      "description": "裏表紙テキスト（想定: 2000文字）（最大2000）"
     },
     "target_audience": {
       "type": "string",
-      "description": "ターゲット読者（想定: 500文字）",
-      "maxLength": 500
+      "description": "ターゲット読者（想定: 500文字）（最大500）"
     },
     "keywords": {
       "type": "array",
@@ -65,8 +59,7 @@
     },
     "author_note": {
       "type": "string",
-      "description": "著者ノート（想定: 1000文字）",
-      "maxLength": 1000
+      "description": "著者ノート（想定: 1000文字）（最大1000）"
     }
   }
 }

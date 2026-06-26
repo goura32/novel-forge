@@ -9,14 +9,14 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "シーンタイトル",
-      "maxLength": 128
+      "maxLength": 128,
+      "description": "シーンタイトル"
     },
     "content": {
       "type": "string",
-      "description": "シーンの本文",
+      "minLength": 3000,
       "maxLength": 10000,
-      "minLength": 3000
+      "description": "シーンの本文（最低3000文字以上）"
     }
   }
 }

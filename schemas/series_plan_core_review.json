@@ -23,6 +23,7 @@
           "severity": {
             "type": "string",
             "enum": [
+              "致命的",
               "重大",
               "重要",
               "軽微"

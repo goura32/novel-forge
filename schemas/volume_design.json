@@ -12,11 +12,11 @@
     },
     "premise": {
       "type": "string",
-      "description": "巻の前提"
+      "description": "巻の前提・あらすじ"
     },
     "chapters": {
       "type": "array",
-      "description": "章のリスト。1巻あたり4-8章が標準。3章以下は短すぎ、10章以上は長すぎ。",
+      "description": "章のリスト。1巻あたり4-8章が標準。3章以下は短すぎ、10章以上は長すぎ。（最小3, 最大10）",
       "items": {
         "type": "object",
         "required": [
@@ -89,9 +89,7 @@
           }
         },
         "description": "chaptersの配列"
-      },
-      "minItems": 3,
-      "maxItems": 10
+      }
     }
   },
   "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"

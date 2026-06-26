@@ -20,6 +20,7 @@
           "severity": {
             "type": "string",
             "enum": [
+              "致命的",
               "重大",
               "重要",
               "軽微"
@@ -28,7 +29,14 @@
           },
           "category": {
             "type": "string",
-            "description": "指摘のカテゴリ（例: missing_field, volume_uniqueness, series_flow, cliffhanger, theme_consistency）。"
+            "description": "指摘のカテゴリ（例: missing_field, volume_uniqueness, series_flow, cliffhanger, theme_consistency）。",
+            "enum": [
+              "必須フィールド欠落",
+              "巻の独自性",
+              "シリーズ流れ",
+              "クライフハンガー",
+              "テーマ一貫性"
+            ]
           },
           "description": {
             "type": "string",
