@@ -34,6 +34,7 @@ class TestExportMixin:
         engine._workdir = tmp_path
         engine._series_dir = tmp_path / "series"
         engine._series_dir.mkdir(parents=True, exist_ok=True)
+        engine._slug = "test_engine"
         engine._lang = "ja"
 
         # State
@@ -84,6 +85,7 @@ class TestExportMixin:
         from novel_forge.engine.export import ExportMixin
         engine.export = ExportMixin.export.__get__(engine)
         engine._assemble_manuscript = ExportMixin._assemble_manuscript.__get__(engine)
+        engine._write_export = ExportMixin._write_export.__get__(engine)
         engine._generate_kdp_metadata = ExportMixin._generate_kdp_metadata.__get__(engine)
         engine._generate_readiness_report = ExportMixin._generate_readiness_report.__get__(engine)
 
@@ -99,7 +101,7 @@ class TestExportMixin:
     def test_assemble_manuscript_saves_file(self, mock_engine):
         """_assemble_manuscript should save to exports/."""
         mock_engine._assemble_manuscript(1)
-        export_path = mock_engine._workdir / "exports" / "vol01_manuscript.md"
+        export_path = mock_engine._series_dir / "exports" / "test_engine_vol01.md"
         assert export_path.exists()
 
     def test_generate_kdp_metadata(self, mock_engine):
@@ -111,7 +113,7 @@ class TestExportMixin:
 
     def test_generate_kdp_metadata_saves_file(self, mock_engine):
         mock_engine._generate_kdp_metadata(1)
-        meta_path = mock_engine._workdir / "exports" / "vol01_metadata.json"
+        meta_path = mock_engine._series_dir / "exports" / "test_engine_vol01_metadata.json"
         assert meta_path.exists()
         data = json.loads(meta_path.read_text(encoding="utf-8"))
         assert data["title"] == "テストシリーズ"

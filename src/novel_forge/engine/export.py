@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 else:
     NovelEngineBase = object
 
+_SLUG_DEFAULT = "vol"
+
 
 class ExportMixin(NovelEngineBase):  # type: ignore[misc]
     """Export, resume, status methods for NovelEngine."""
@@ -35,18 +37,21 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         if any(s.status == "強制出力済" for s in vol.scenes):
             vol.status = "強制出力済"
         self._state.status = vol.status
-        slug = getattr(self, "_slug", "?")
         self._save()
-        # exports はシリーズディレクトリ内に作成
-        series_dir = self._series_dir
-        exports_dir = series_dir / "exports"
+
+        exports_dir = self._series_dir / "exports"
         exports_dir.mkdir(parents=True, exist_ok=True)
-        self._log.info(f"✓ Export: series='{slug}' vol={vol_num}")
+        self._log.info(f"✓ Export: series='{vol_num}")
         return {
             "manuscript_path": str(exports_dir / f"{slug}_vol{vol_num:02d}.md"),
             "metadata_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_metadata.json"),
             "report_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md"),
         }
+
+    def _write_export(self, filename: str, content: str) -> None:
+        exports_dir = self._series_dir / "exports"
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        (exports_dir / filename).write_text(content, encoding="utf-8")
 
     def resume(self) -> dict[str, Any]:
         vol = self._current_volume()
@@ -77,26 +82,20 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         }
 
     def _assemble_manuscript(self, vol_num: int) -> str:
-        export_dir = self._workdir / "exports"
-        export_dir.mkdir(parents=True, exist_ok=True)
         chapters = []
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
-        # Collect chapter files: volXX_chXX/volXX_chXX.md
         chapter_files = sorted(
             p for p in vol_dir.glob("vol*_ch*/*.md")
-            if p.stem == p.parent.name  # ch01/ch01.md のみ（sc01_v1.md等を除外）
+            if p.stem == p.parent.name
         )
         for ch_path in chapter_files:
             chapters.append(ch_path.read_text(encoding="utf-8"))
         manuscript = "\n\n---\n\n".join(chapters)
-        (export_dir / f"vol{vol_num:02d}_manuscript.md").write_text(
-            manuscript, encoding="utf-8"
-        )
+        slug = getattr(self, "_slug", _SLUG_DEFAULT)
+        self._write_export(f"{slug}_vol{vol_num:02d}.md", manuscript)
         return manuscript
 
     def _generate_kdp_metadata(self, vol_num: int) -> dict[str, Any]:
-        export_dir = self._workdir / "exports"
-        export_dir.mkdir(parents=True, exist_ok=True)
         plan_path = self._series_dir / "series_plan.json"
         title = self._state.series_title
         if plan_path.exists():
@@ -107,14 +106,14 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
             "volume": vol_num,
             "language": self._lang,
         }
-        (export_dir / f"vol{vol_num:02d}_metadata.json").write_text(
-            json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+        slug = getattr(self, "_slug", _SLUG_DEFAULT)
+        self._write_export(
+            f"{slug}_vol{vol_num:02d}_metadata.json",
+            json.dumps(metadata, ensure_ascii=False, indent=2),
         )
         return metadata
 
     def _generate_readiness_report(self, vol_num: int) -> str:
-        export_dir = self._workdir / "exports"
-        export_dir.mkdir(parents=True, exist_ok=True)
         vol = self._current_volume()
         force_count = sum(1 for s in vol.scenes if s.status == "強制出力済")
         revised_count = sum(1 for s in vol.scenes if s.status == "修正済")
@@ -139,19 +138,19 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
                 if s.status == "強制出力済":
                     lines.append(f"- シーン {s.scene_number}")
 
-        # Unresolved foreshadowing
         unresolved = self._bible_mgr.get_unresolved_foreshadowing()
         if unresolved:
             lines.extend(["", "## ⚠️ 未回収伏線"])
             for fh in unresolved:
                 lines.append(f"- {fh.description}")
 
-        # Incomplete subplots
         incomplete_sp = self._bible_mgr.get_incomplete_subplots()
         if incomplete_sp:
             lines.extend(["", "## ⚠️ 未完了サブプロット"])
             for sp in incomplete_sp:
-                lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
+                lines.append(
+                    f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}"
+                )
 
         lines.extend(["", "## 提出前確認事項"])
         lines.append("- [ ] 表紙画像の準備")
@@ -159,7 +158,6 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         lines.append("- [ ] キーワード・カテゴリの確認")
 
         report = "\n".join(lines)
-        (export_dir / f"vol{vol_num:02d}_kdp_readiness_report.md").write_text(
-            report, encoding="utf-8"
-        )
+        slug = getattr(self, "_slug", _SLUG_DEFAULT)
+        self._write_export(f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md", report)
         return report

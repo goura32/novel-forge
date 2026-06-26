@@ -474,7 +474,7 @@ class TestExportMixin:
 
         planned_engine.export(volume_number=1)
 
-        export_path = planned_engine._workdir / "exports" / "vol01_manuscript.md"
+        export_path = planned_engine._series_dir / "exports" / f"{planned_engine._slug}_vol01.md"
         assert export_path.exists()
 
     def test_export_creates_metadata(self, planned_engine, mock_llm):
@@ -485,7 +485,7 @@ class TestExportMixin:
 
         planned_engine.export(volume_number=1)
 
-        meta_path = planned_engine._workdir / "exports" / "vol01_metadata.json"
+        meta_path = planned_engine._series_dir / "exports" / f"{planned_engine._slug}_vol01_metadata.json"
         assert meta_path.exists()
 
     def test_export_creates_readiness_report(self, planned_engine, mock_llm):
@@ -496,7 +496,7 @@ class TestExportMixin:
 
         planned_engine.export(volume_number=1)
 
-        report_path = planned_engine._workdir / "exports" / "vol01_kdp_readiness_report.md"
+        report_path = planned_engine._series_dir / "exports" / f"{planned_engine._slug}_vol01_kdp_readiness_report.md"
         assert report_path.exists()
 
 
