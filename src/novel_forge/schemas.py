@@ -43,17 +43,22 @@ def _load_schema(name: str) -> dict[str, Any]:
     return _SCHEMA_BY_NAME[name]
 
 
+def _validate_with_schema(schema: dict[str, Any], data: dict[str, Any]) -> list[str]:
+    """Validate data against a loaded schema. Returns list of error messages."""
+    errors = []
+    for error in Draft202012Validator(schema).iter_errors(data):
+        path = "/".join(str(p) for p in error.absolute_path) or "(root)"
+        errors.append(f"[{path}] {error.message}")
+    return errors
+
+
 def validate(name: str, data: dict[str, Any]) -> list[str]:
+    """スキーマ検証。エラーリストを返す。"""
     try:
         schema = _load_schema(name)
     except FileNotFoundError:
         return []
-    validator = Draft202012Validator(schema)
-    errors = []
-    for error in validator.iter_errors(data):
-        path = "/".join(str(p) for p in error.absolute_path) or "(root)"
-        errors.append(f"[{path}] {error.message}")
-    return errors
+    return _validate_with_schema(schema, data)
 
 
 def validate_or_raise(name: str, data: dict[str, Any]) -> None:

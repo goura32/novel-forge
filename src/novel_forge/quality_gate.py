@@ -44,10 +44,10 @@ class QualityGate:
     def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES):
         self.max_retries = max_retries
 
-    def check(self, review_result: dict, stage: str = "scene") -> QualityGateResult:
+    def _check(self, review_result: dict) -> QualityGateResult:
         """レビュー結果に基づき品質を判定する。
 
-        判定ルール（全工程共通）:
+        判定ルール:
         - 致命的 issue が1つでもある → 不合格
         - 重大 issue が1つでもある → 不合格
         - 重要 issue が2つ以上ある → 不合格
@@ -68,6 +68,6 @@ class QualityGate:
 
     def check_scene(self, review_result: dict) -> QualityGateResult:
         """レビュー結果に基づきシーン品質を判定する。"""
-        return self.check(review_result, stage="scene")
+        return self._check(review_result)
 
 

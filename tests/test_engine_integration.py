@@ -633,7 +633,7 @@ class TestQualityGate:
         """check() should pass when no issues."""
         gate = QualityGate()
         review = {"issues": [], "revision_needed": False, "ready_for_publication": True}
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is False
 
     def test_check_fails_with_blocker(self):
@@ -644,7 +644,7 @@ class TestQualityGate:
             "revision_needed": True,
             "ready_for_publication": False,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is True
 
     def test_check_fails_with_major_issues(self):
@@ -658,7 +658,7 @@ class TestQualityGate:
             "revision_needed": True,
             "ready_for_publication": False,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is True
 
 
@@ -675,7 +675,7 @@ class TestQualityGateBoundary:
             "revision_needed": False,
             "ready_for_publication": True,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is False
 
     def test_single_major_issue_passes(self):
@@ -686,7 +686,7 @@ class TestQualityGateBoundary:
             "revision_needed": False,
             "ready_for_publication": True,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is False
 
     def test_critical_issue_fails(self):
@@ -697,14 +697,14 @@ class TestQualityGateBoundary:
             "revision_needed": True,
             "ready_for_publication": False,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is True
 
     def test_empty_issues_passes(self):
         """Empty issues should pass."""
         gate = QualityGate()
         review = {"issues": [], "revision_needed": False, "ready_for_publication": True}
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is False
 
     def test_mixed_severity_fails(self):
@@ -718,7 +718,7 @@ class TestQualityGateBoundary:
             "revision_needed": True,
             "ready_for_publication": False,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is True
 
     def test_two_major_fails(self):
@@ -732,7 +732,7 @@ class TestQualityGateBoundary:
             "revision_needed": True,
             "ready_for_publication": False,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.revision_needed is True
 
     def test_ready_for_publication_flag(self):
@@ -742,7 +742,7 @@ class TestQualityGateBoundary:
             "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
             "revision_needed": True,
         }
-        result = gate.check(review)
+        result = gate.check_scene(review)
         assert result.passed is False
 
 
