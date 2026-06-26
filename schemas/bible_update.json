@@ -27,7 +27,8 @@
           "scene_number": {
             "type": "integer"
           }
-        }
+        },
+        "description": "更新された伏線"
       }
     },
     "characters": {
@@ -59,7 +60,8 @@
           "is_new": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "更新されたキャラクター"
       }
     },
     "relationships": {
@@ -88,7 +90,8 @@
           "trigger_event": {
             "type": "string"
           }
-        }
+        },
+        "description": "更新された関係"
       }
     },
     "subplots": {
@@ -113,7 +116,8 @@
           "progress_note": {
             "type": "string"
           }
-        }
+        },
+        "description": "更新されたサブプロット"
       }
     },
     "glossary": {
@@ -130,7 +134,8 @@
           "is_new": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "更新された用語"
       }
     },
     "world_rules": {
@@ -144,7 +149,8 @@
           "is_new": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "更新された世界観ルール"
       }
     },
     "facts": {
@@ -161,13 +167,15 @@
           "object": {
             "type": "string"
           }
-        }
+        },
+        "description": "新しく抽出した事実"
       }
     },
     "continuity_notes": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "連続性メモ"
       }
     }
   }

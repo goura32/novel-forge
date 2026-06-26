@@ -33,7 +33,8 @@
           "confidence": {
             "type": "number"
           }
-        }
+        },
+        "description": "事実記録"
       }
     },
     "scene_summaries": {

@@ -54,7 +54,8 @@
       "items": {
         "type": "string",
         "description": "コンテンツ警告"
-      }
+      },
+      "description": "コンテンツ警告（暴力、性的描写等）"
     },
     "author_note": {
       "type": "string",

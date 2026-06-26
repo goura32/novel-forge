@@ -81,7 +81,8 @@
           },
           "description": "物語を象徴するアイテム・モチーフ"
         }
-      }
+      },
+      "description": "ビジュアル要素（画像生成プロンプト用）"
     },
     "style": {
       "type": "object",
@@ -112,7 +113,8 @@
           ],
           "description": "構図タイプ"
         }
-      }
+      },
+      "description": "スタイル（例: 暗めのファンタジー、ポップな現代など）"
     },
     "negative_prompt": {
       "type": "string",
@@ -130,7 +132,8 @@
         "target_audience": {
           "type": "string"
         }
-      }
+      },
+      "description": "KDP メタデータ（タイトル、著者、カテゴリ等）"
     }
   }
 }

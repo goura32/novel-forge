@@ -47,7 +47,8 @@
             "type": "string",
             "description": "状態"
           }
-        }
+        },
+        "description": "キャラクタープロフィール一覧"
       }
     },
     "glossary": {
@@ -67,7 +68,8 @@
             "type": "string",
             "description": "定義"
           }
-        }
+        },
+        "description": "用語集"
       }
     },
     "foreshadowing": {
@@ -85,7 +87,8 @@
           "resolved": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "伏線一覧"
       }
     },
     "world_rules": {
@@ -127,7 +130,8 @@
           "scene_number": {
             "type": "integer"
           }
-        }
+        },
+        "description": "キャラクター関係一覧"
       }
     },
     "subplots": {
@@ -164,7 +168,8 @@
               "type": "string"
             }
           }
-        }
+        },
+        "description": "サブプロット一覧"
       }
     }
   }

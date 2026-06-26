@@ -19,7 +19,8 @@
     "genre": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "ジャンル一覧"
       },
       "description": "ジャンル（数個、各想定: 64文字）"
     },
@@ -30,14 +31,16 @@
     "themes": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "テーマ一覧"
       },
       "description": "テーマ（1個以上、各想定: 64文字）"
     },
     "selling_points": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "売りポイント一覧"
       },
       "description": "売りポイント（1個以上、各想定: 128文字）"
     },

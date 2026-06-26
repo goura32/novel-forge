@@ -16,7 +16,8 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "登場キャラクター"
     },
     "facts": {
       "type": "array",
@@ -41,14 +42,16 @@
             "description": "目的語"
           }
         }
-      }
+      },
+      "description": "抽出事実"
     },
     "continuity_notes": {
       "type": "array",
       "items": {
         "type": "string",
         "description": "連続性メモ"
-      }
+      },
+      "description": "連続性メモ"
     }
   }
 }

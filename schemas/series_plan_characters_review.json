@@ -19,7 +19,11 @@
         "properties": {
           "severity": {
             "type": "string",
-            "enum": ["重大", "重要", "軽微"],
+            "enum": [
+              "重大",
+              "重要",
+              "軽微"
+            ],
             "description": "修正の緊急性。重大=必須修正、重要=強推、軽微=任意。"
           },
           "category": {
@@ -34,7 +38,10 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["before", "after"],
+              "required": [
+                "before",
+                "after"
+              ],
               "properties": {
                 "before": {
                   "type": "string",
@@ -48,7 +55,8 @@
             },
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
-        }
+        },
+        "description": "指摘事項の配列"
       }
     }
   }

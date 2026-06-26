@@ -20,21 +20,16 @@
         "properties": {
           "severity": {
             "type": "string",
-            "enum": ["重大", "重要", "軽微"],
+            "enum": [
+              "重大",
+              "重要",
+              "軽微"
+            ],
             "description": "修正の緊急性。重大=必須修正（致命的・重大フィールド欠落等）、重要=強推（品質問題）、軽微=任意（改善提案）。"
           },
           "category": {
             "type": "string",
             "description": "指摘のカテゴリ（例: missing_field, role_validity, theme_coherence, scene_distribution）。"
-          },
-          "description": {
-            "type": "string",
-            "description": "問題の具体的な説明。何がなぜ問題か、どのような影響があるかを具体的に記述する。"
-          },
-          "affected_elements": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号・章番号等）を列挙。"
           },
           "description": {
             "type": "string",
@@ -67,7 +62,8 @@
             },
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
-        }
+        },
+        "description": "指摘事項の配列"
       }
     }
   }

@@ -36,7 +36,8 @@
             "type": "string",
             "description": "次巻へのフック（最終巻以外必須、想定: 1000文字）"
           }
-        }
+        },
+        "description": "巻構成一覧"
       }
     }
   },
