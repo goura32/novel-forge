@@ -50,16 +50,14 @@
       "properties": {
         "summary": {
           "type": "string",
-          "description": "世界観の概要（想定: 1000文字）",
-          "maxLength": 1000
+          "description": "世界観の概要"
         },
         "rules": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "世界観の独自ルール（1-5条、各想定: 200文字）",
-          "maxLength": 200
+          "description": "世界観の独自ルール"
         }
       }
     }
