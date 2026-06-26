@@ -11,10 +11,9 @@
 ## 現在の Bible
 {current_bible}
 
-## 出力
+## 出力構造
 
 下記のスキーマに適合するJSONのみを出力すること。
-
 
 {schema}
 
