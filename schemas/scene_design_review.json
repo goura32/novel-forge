@@ -24,21 +24,23 @@
               "重大",
               "重要",
               "軽微"
-            ]
+            ],
+            "description": "修正の緊急性。重大=必須修正、重要=強推、軽微=任意。"
           },
           "category": {
             "type": "string",
-            "description": "問題のカテゴリ名"
+            "description": "指摘のカテゴリ（例: missing_field, goal_outcome_coherence, conflict_quality, setting_event_completeness, scene_diversity）。"
           },
           "description": {
             "type": "string",
-            "description": "問題の説明"
+            "description": "問題の具体的な説明。何がなぜ問題か、どのような影響があるかを具体的に記述する。"
           },
           "affected_elements": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・シーン番号等）を列挙。"
           },
           "suggestion": {
             "type": "array",
