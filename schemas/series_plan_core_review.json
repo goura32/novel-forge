@@ -8,8 +8,8 @@
   ],
   "properties": {
     "issues": {
-      "type": "array",
       "description": "指摘事項のリスト。",
+      "type": "array",
       "items": {
         "type": "object",
         "description": "個別の指摘事項。必ず suggestion（修正前後のペア）を含める。",
@@ -21,16 +21,17 @@
         ],
         "properties": {
           "severity": {
+            "description": "修正の緊急性。重大=必須修正、重要=強推奨、軽微=任意修正。",
             "type": "string",
             "enum": [
               "致命的",
               "重大",
               "重要",
               "軽微"
-            ],
-            "description": "修正の緊急性。重大=必須修正、重要=強推奨、軽微=任意修正。"
+            ]
           },
           "category": {
+            "description": "指摘のカテゴリ。",
             "type": "string",
             "enum": [
               "必須フィールド欠落",
@@ -39,16 +40,15 @@
               "ジャンル適合",
               "世界観一貫性",
               "言語純度"
-            ],
-            "description": "指摘のカテゴリ。"
+            ]
           },
           "description": {
-            "type": "string",
-            "description": "指摘の詳細。何がなぜ問題か、どのような影響があるかを具体的に記述する。"
+            "description": "指摘の詳細。何がなぜ問題か、どのような影響があるかを具体的に記述する。",
+            "type": "string"
           },
           "suggestion": {
-            "type": "array",
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含む。",
+            "type": "array",
             "items": {
               "type": "object",
               "required": [
@@ -57,22 +57,22 @@
               ],
               "properties": {
                 "before": {
-                  "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）。"
+                  "description": "修正前のテキスト（該当箇所を引用）。",
+                  "type": "string"
                 },
                 "after": {
-                  "type": "string",
-                  "description": "修正後のテキスト。"
+                  "description": "修正後のテキスト。",
+                  "type": "string"
                 }
               }
             }
           },
           "affected_elements": {
+            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。",
             "type": "array",
             "items": {
               "type": "string"
-            },
-            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。"
+            }
           }
         }
       }

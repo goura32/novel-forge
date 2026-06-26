@@ -12,6 +12,7 @@
   ],
   "properties": {
     "characters": {
+      "description": "キャラクター",
       "type": "array",
       "items": {
         "type": "object",
@@ -20,39 +21,39 @@
         ],
         "properties": {
           "name": {
-            "type": "string",
-            "description": "キャラクター名"
+            "description": "キャラクター名",
+            "type": "string"
           },
           "role": {
-            "type": "string",
-            "description": "役割"
+            "description": "役割",
+            "type": "string"
           },
           "arc": {
-            "type": "string",
-            "description": "成長軌跡"
+            "description": "成長軌跡",
+            "type": "string"
           },
           "appearance": {
-            "type": "string",
-            "description": "外見"
+            "description": "外見",
+            "type": "string"
           },
           "personality": {
-            "type": "string",
-            "description": "性格"
+            "description": "性格",
+            "type": "string"
           },
           "motivation": {
-            "type": "string",
-            "description": "動機・目的"
+            "description": "動機・目的",
+            "type": "string"
           },
           "state": {
-            "type": "string",
-            "description": "状態"
+            "description": "状態",
+            "type": "string"
           }
         },
         "description": "キャラクタープロフィール一覧"
-      },
-      "description": "キャラクター"
+      }
     },
     "glossary": {
+      "description": "用語集",
       "type": "array",
       "items": {
         "type": "object",
@@ -62,19 +63,19 @@
         ],
         "properties": {
           "term": {
-            "type": "string",
-            "description": "用語"
+            "description": "用語",
+            "type": "string"
           },
           "definition": {
-            "type": "string",
-            "description": "定義"
+            "description": "定義",
+            "type": "string"
           }
         },
         "description": "用語集"
-      },
-      "description": "用語集"
+      }
     },
     "foreshadowing": {
+      "description": "伏線リスト",
       "type": "array",
       "items": {
         "type": "object",
@@ -83,26 +84,26 @@
         ],
         "properties": {
           "description": {
-            "type": "string",
-            "description": "伏線の説明"
+            "description": "伏線の説明",
+            "type": "string"
           },
           "resolved": {
             "type": "boolean"
           }
         },
         "description": "伏線一覧"
-      },
-      "description": "伏線リスト"
+      }
     },
     "world_rules": {
+      "description": "世界観ルール",
       "type": "array",
       "items": {
         "type": "string",
         "description": "世界のルール"
-      },
-      "description": "世界観ルール"
+      }
     },
     "relationships": {
+      "description": "キャラクター関係",
       "type": "array",
       "items": {
         "type": "object",
@@ -132,22 +133,22 @@
             "type": "string"
           },
           "scene_number": {
-            "type": "integer",
-            "description": "番号"
+            "description": "番号",
+            "type": "integer"
           }
         },
         "description": "キャラクター関係一覧"
-      },
-      "description": "キャラクター関係"
+      }
     },
     "subplots": {
+      "description": "サブプロット",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "一意識別子"
+            "description": "一意識別子",
+            "type": "string"
           },
           "name": {
             "type": "string"
@@ -179,8 +180,7 @@
           }
         },
         "description": "サブプロット一覧"
-      },
-      "description": "サブプロット"
+      }
     }
   }
 }

@@ -4,13 +4,14 @@
   "type": "object",
   "properties": {
     "foreshadowing": {
+      "description": "伏線リスト",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "一意識別子"
+            "description": "一意識別子",
+            "type": "string"
           },
           "description": {
             "type": "string"
@@ -26,15 +27,15 @@
             "type": "boolean"
           },
           "scene_number": {
-            "type": "integer",
-            "description": "番号"
+            "description": "番号",
+            "type": "integer"
           }
         },
         "description": "更新された伏線"
-      },
-      "description": "伏線リスト"
+      }
     },
     "characters": {
+      "description": "キャラクター",
       "type": "array",
       "items": {
         "type": "object",
@@ -65,10 +66,10 @@
           }
         },
         "description": "更新されたキャラクター"
-      },
-      "description": "キャラクター"
+      }
     },
     "relationships": {
+      "description": "キャラクター関係",
       "type": "array",
       "items": {
         "type": "object",
@@ -96,17 +97,17 @@
           }
         },
         "description": "更新された関係"
-      },
-      "description": "キャラクター関係"
+      }
     },
     "subplots": {
+      "description": "サブプロット",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "一意識別子"
+            "description": "一意識別子",
+            "type": "string"
           },
           "name": {
             "type": "string"
@@ -124,10 +125,10 @@
           }
         },
         "description": "更新されたサブプロット"
-      },
-      "description": "サブプロット"
+      }
     },
     "glossary": {
+      "description": "用語集",
       "type": "array",
       "items": {
         "type": "object",
@@ -143,10 +144,10 @@
           }
         },
         "description": "更新された用語"
-      },
-      "description": "用語集"
+      }
     },
     "world_rules": {
+      "description": "世界観ルール",
       "type": "array",
       "items": {
         "type": "object",
@@ -159,10 +160,10 @@
           }
         },
         "description": "更新された世界観ルール"
-      },
-      "description": "世界観ルール"
+      }
     },
     "facts": {
+      "description": "事実記録",
       "type": "array",
       "items": {
         "type": "object",
@@ -178,16 +179,15 @@
           }
         },
         "description": "新しく抽出した事実"
-      },
-      "description": "事実記録"
+      }
     },
     "continuity_notes": {
+      "description": "連続性メモ",
       "type": "array",
       "items": {
         "type": "string",
         "description": "連続性メモ"
-      },
-      "description": "連続性メモ"
+      }
     }
   }
 }

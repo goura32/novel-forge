@@ -8,8 +8,8 @@
   ],
   "properties": {
     "issues": {
-      "type": "array",
       "description": "指摘事項の配列",
+      "type": "array",
       "items": {
         "type": "object",
         "required": [
@@ -19,16 +19,17 @@
         ],
         "properties": {
           "severity": {
+            "description": "修正の緊急性。致命的・重大=必須修正、重要=強推奨、軽微=任意。",
             "type": "string",
             "enum": [
               "致命的",
               "重大",
               "重要",
               "軽微"
-            ],
-            "description": "修正の緊急性。致命的・重大=必須修正、重要=強推奨、軽微=任意。"
+            ]
           },
           "category": {
+            "description": "指摘のカテゴリ。",
             "type": "string",
             "enum": [
               "必須フィールド欠落",
@@ -36,16 +37,15 @@
               "キャラクター差別化",
               "成長弧",
               "世界観適合"
-            ],
-            "description": "指摘のカテゴリ。"
+            ]
           },
           "description": {
-            "type": "string",
-            "description": "問題の具体的な説明。何がなぜ問題か、どのような影響があるかを具体的に記述する。"
+            "description": "問題の具体的な説明。何がなぜ問題か、どのような影響があるかを具体的に記述する。",
+            "type": "string"
           },
           "suggestion": {
-            "type": "array",
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
+            "type": "array",
             "items": {
               "type": "object",
               "required": [
@@ -54,12 +54,12 @@
               ],
               "properties": {
                 "before": {
-                  "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）"
+                  "description": "修正前のテキスト（該当箇所を引用）",
+                  "type": "string"
                 },
                 "after": {
-                  "type": "string",
-                  "description": "修正後のテキスト"
+                  "description": "修正後のテキスト",
+                  "type": "string"
                 }
               }
             }

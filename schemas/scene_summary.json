@@ -9,18 +9,19 @@
   ],
   "properties": {
     "summary": {
-      "type": "string",
-      "description": "シーンの要約"
+      "description": "シーンの要約",
+      "type": "string"
     },
     "characters": {
+      "description": "登場キャラクター",
       "type": "array",
       "items": {
         "type": "string",
         "description": "charactersの配列"
-      },
-      "description": "登場キャラクター"
+      }
     },
     "facts": {
+      "description": "抽出事実",
       "type": "array",
       "items": {
         "type": "object",
@@ -31,29 +32,28 @@
         ],
         "properties": {
           "subject": {
-            "type": "string",
-            "description": "主語"
+            "description": "主語",
+            "type": "string"
           },
           "predicate": {
-            "type": "string",
-            "description": "述語"
+            "description": "述語",
+            "type": "string"
           },
           "object": {
-            "type": "string",
-            "description": "目的語"
+            "description": "目的語",
+            "type": "string"
           }
         },
         "description": "factsの配列"
-      },
-      "description": "抽出事実"
+      }
     },
     "continuity_notes": {
+      "description": "連続性メモ",
       "type": "array",
       "items": {
         "type": "string",
         "description": "連続性メモ"
-      },
-      "description": "連続性メモ"
+      }
     }
   }
 }

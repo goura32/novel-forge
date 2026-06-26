@@ -5,42 +5,42 @@
   "type": "object",
   "properties": {
     "planned_volumes": {
+      "description": "巻構成一覧（3巻固定）",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "title": {
-            "type": "string",
-            "description": "巻タイトル（最大500文字）"
+            "description": "巻タイトル（最大500文字）",
+            "type": "string"
           },
           "premise": {
-            "type": "string",
-            "description": "巻のあらすじ（最大1000文字）"
+            "description": "巻のあらすじ（最大1000文字）",
+            "type": "string"
           },
           "theme": {
-            "type": "string",
-            "description": "巻のテーマ（最大600文字）"
+            "description": "巻のテーマ（最大600文字）",
+            "type": "string"
           },
           "emotional_arc": {
-            "type": "string",
-            "description": "巻全体の感情の弧（最大500文字）"
+            "description": "巻全体の感情の弧（最大500文字）",
+            "type": "string"
           },
           "key_events": {
+            "description": "巻内の主要イベント（1個以上、各最大200文字）",
             "type": "array",
             "items": {
               "type": "string",
               "description": "key_eventsの配列"
-            },
-            "description": "巻内の主要イベント（1個以上、各最大200文字）"
+            }
           },
           "cliffhanger": {
-            "type": "string",
-            "description": "次巻へのフック（最終巻以外必須、最大1000文字）"
+            "description": "次巻へのフック（最終巻以外必須、最大1000文字）",
+            "type": "string"
           }
         },
         "description": "巻構成一覧"
-      },
-      "description": "巻構成一覧（3巻固定）"
+      }
     }
   },
   "required": [

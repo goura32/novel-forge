@@ -10,10 +10,11 @@
   ],
   "properties": {
     "title": {
-      "type": "string",
-      "description": "章タイトル"
+      "description": "章タイトル",
+      "type": "string"
     },
     "purpose": {
+      "description": "章の役割。物語全体におけるこの章の機能。",
       "type": "string",
       "enum": [
         "導入",
@@ -21,32 +22,31 @@
         "転換",
         "クライマックス",
         "収束"
-      ],
-      "description": "章の役割。物語全体におけるこの章の機能。"
+      ]
     },
     "theme": {
-      "type": "string",
-      "description": "章のテーマ"
+      "description": "章のテーマ",
+      "type": "string"
     },
     "emotional_arc": {
-      "type": "string",
-      "description": "感情の弧"
+      "description": "感情の弧",
+      "type": "string"
     },
     "foreshadowing_notes": {
+      "description": "伏線メモのリスト",
       "type": "array",
       "items": {
         "type": "string",
         "description": "foreshadowing_notesの配列"
-      },
-      "description": "伏線メモのリスト"
+      }
     },
     "subplot_notes": {
+      "description": "サブプロットメモのリスト",
       "type": "array",
       "items": {
         "type": "string",
         "description": "subplot_notesの配列"
-      },
-      "description": "サブプロットメモのリスト"
+      }
     }
   },
   "description": "章の詳細設計。章の役割、テーマ、感情アーク、伏線・サブプロットの扱いを定義する。"

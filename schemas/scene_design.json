@@ -9,44 +9,44 @@
   ],
   "properties": {
     "title": {
-      "type": "string",
-      "description": "シーンタイトル"
+      "description": "シーンタイトル",
+      "type": "string"
     },
     "goal": {
-      "type": "string",
-      "description": "シーン開始時の状況と主人公の行動"
+      "description": "シーン開始時の状況と主人公の行動",
+      "type": "string"
     },
     "outcome": {
-      "type": "string",
-      "description": "シーン終了時の実際の結果"
+      "description": "シーン終了時の実際の結果",
+      "type": "string"
     },
     "conflict": {
-      "type": "string",
-      "description": "シーン内の障害・対立"
+      "description": "シーン内の障害・対立",
+      "type": "string"
     },
     "pov": {
-      "type": "string",
-      "description": "視点人物"
+      "description": "視点人物",
+      "type": "string"
     },
     "characters": {
+      "description": "登場人物",
       "type": "array",
       "items": {
         "type": "string",
         "description": "charactersの配列"
-      },
-      "description": "登場人物"
+      }
     },
     "key_events": {
+      "description": "主要イベント",
       "type": "array",
       "items": {
         "type": "string",
         "description": "key_eventsの配列"
-      },
-      "description": "主要イベント"
+      }
     },
     "setting": {
-      "type": "string",
-      "description": "舞台設定"
+      "description": "舞台設定",
+      "type": "string"
     }
   },
   "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"

@@ -5,59 +5,59 @@
   "type": "object",
   "properties": {
     "title": {
-      "type": "string",
-      "description": "シリーズのタイトル（最大100文字）"
+      "description": "シリーズのタイトル（最大100文字）",
+      "type": "string"
     },
     "slug": {
-      "type": "string",
-      "description": "a-z0-9と_のみからなる32文字以内のスラッグ（アンダースコア区切り）"
+      "description": "a-z0-9と_のみからなる32文字以内のスラッグ（アンダースコア区切り）",
+      "type": "string"
     },
     "logline": {
-      "type": "string",
-      "description": "シリーズのあらすじ（1-2文、最大800文字）"
+      "description": "シリーズのあらすじ（1-2文、最大800文字）",
+      "type": "string"
     },
     "genre": {
+      "description": "ジャンル（数個、各最大64文字）",
       "type": "array",
       "items": {
         "type": "string",
         "description": "ジャンル一覧"
-      },
-      "description": "ジャンル（数個、各最大64文字）"
+      }
     },
     "target_audience": {
-      "type": "string",
-      "description": "ターゲット読者（最大500文字）"
+      "description": "ターゲット読者（最大500文字）",
+      "type": "string"
     },
     "themes": {
+      "description": "テーマ（1個以上、各最大64文字）",
       "type": "array",
       "items": {
         "type": "string",
         "description": "テーマ一覧"
-      },
-      "description": "テーマ（1個以上、各最大64文字）"
+      }
     },
     "selling_points": {
+      "description": "売りポイント（1個以上、各最大128文字）",
       "type": "array",
       "items": {
         "type": "string",
         "description": "売りポイント一覧"
-      },
-      "description": "売りポイント（1個以上、各最大128文字）"
+      }
     },
     "world": {
-      "type": "object",
       "description": "世界観。summary で舞台設定を、rules で独自ルールを記述する。",
+      "type": "object",
       "properties": {
         "summary": {
-          "type": "string",
-          "description": "世界観の概要"
+          "description": "世界観の概要",
+          "type": "string"
         },
         "rules": {
+          "description": "世界観の独自ルール",
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "description": "世界観の独自ルール"
+          }
         }
       }
     }

@@ -5,54 +5,54 @@
   "type": "object",
   "properties": {
     "main_characters": {
+      "description": "メインキャラクター（2-5人）",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "name": {
-            "type": "string",
-            "description": "キャラクター名（フルネーム、最大64文字）"
+            "description": "キャラクター名（フルネーム、最大64文字）",
+            "type": "string"
           },
           "role": {
-            "type": "string",
-            "description": "役割（主人公、ヒロイン、相棒、敵対者、師匠、仲間等、最大64文字）"
+            "description": "役割（主人公、ヒロイン、相棒、敵対者、師匠、仲間等、最大64文字）",
+            "type": "string"
           },
           "personality": {
-            "type": "string",
-            "description": "性格・特徴（最大200文字）"
+            "description": "性格・特徴（最大200文字）",
+            "type": "string"
           },
           "motivation": {
-            "type": "string",
-            "description": "動機・目標（最大200文字）"
+            "description": "動機・目標（最大200文字）",
+            "type": "string"
           },
           "flaw": {
-            "type": "string",
-            "description": "欠点・弱み（最大200文字）"
+            "description": "欠点・弱み（最大200文字）",
+            "type": "string"
           },
           "arc": {
-            "type": "string",
-            "description": "シリーズを通じた成長・変化（最大500文字）"
+            "description": "シリーズを通じた成長・変化（最大500文字）",
+            "type": "string"
           },
           "age": {
-            "type": "string",
-            "description": "年齢（最大32文字）"
+            "description": "年齢（最大32文字）",
+            "type": "string"
           },
           "occupation": {
-            "type": "string",
-            "description": "職業・立場（最大128文字）"
+            "description": "職業・立場（最大128文字）",
+            "type": "string"
           },
           "appearance": {
-            "type": "string",
-            "description": "外見的特徴（最大200文字）"
+            "description": "外見的特徴（最大200文字）",
+            "type": "string"
           },
           "background": {
-            "type": "string",
-            "description": "過去・経歴（最大500文字）"
+            "description": "過去・経歴（最大500文字）",
+            "type": "string"
           }
         },
         "description": "main_charactersの配列"
-      },
-      "description": "メインキャラクター（2-5人）"
+      }
     }
   },
   "required": [

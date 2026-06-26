@@ -7,16 +7,16 @@
   ],
   "properties": {
     "title": {
-      "type": "string",
-      "description": "巻タイトル"
+      "description": "巻タイトル",
+      "type": "string"
     },
     "premise": {
-      "type": "string",
-      "description": "巻の前提・あらすじ"
+      "description": "巻の前提・あらすじ",
+      "type": "string"
     },
     "chapters": {
-      "type": "array",
       "description": "章のリスト（3〜10章）",
+      "type": "array",
       "items": {
         "type": "object",
         "required": [
@@ -25,10 +25,11 @@
         ],
         "properties": {
           "title": {
-            "type": "string",
-            "description": "章タイトル"
+            "description": "章タイトル",
+            "type": "string"
           },
           "purpose": {
+            "description": "章の役割（導入/展開/転換/クライマックス/収束）",
             "type": "string",
             "enum": [
               "導入",
@@ -36,12 +37,11 @@
               "転換",
               "クライマックス",
               "収束"
-            ],
-            "description": "章の役割（導入/展開/転換/クライマックス/収束）"
+            ]
           },
           "scenes": {
-            "type": "array",
             "description": "シーンのリスト。1章あたり2-4シーンが標準。",
+            "type": "array",
             "items": {
               "type": "object",
               "required": [
@@ -73,16 +73,16 @@
                   }
                 },
                 "key_events": {
+                  "description": "主要イベント",
                   "type": "array",
                   "items": {
                     "type": "string",
                     "description": "key_eventsの配列"
-                  },
-                  "description": "主要イベント"
+                  }
                 },
                 "setting": {
-                  "type": "string",
-                  "description": "舞台設定"
+                  "description": "舞台設定",
+                  "type": "string"
                 }
               },
               "description": "scenesの配列"

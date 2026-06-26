@@ -8,6 +8,7 @@
   ],
   "properties": {
     "facts": {
+      "description": "事実記録",
       "type": "array",
       "items": {
         "type": "object",
@@ -19,39 +20,38 @@
         ],
         "properties": {
           "subject": {
-            "type": "string",
-            "description": "主語"
+            "description": "主語",
+            "type": "string"
           },
           "predicate": {
-            "type": "string",
-            "description": "述語"
+            "description": "述語",
+            "type": "string"
           },
           "object": {
-            "type": "string",
-            "description": "目的語"
+            "description": "目的語",
+            "type": "string"
           },
           "confidence": {
             "type": "number"
           }
         },
         "description": "事実記録"
-      },
-      "description": "事実記録"
+      }
     },
     "scene_summaries": {
+      "description": "シーン要約の辞書。キーはシーン番号（文字列）、値は要約",
       "type": "object",
       "additionalProperties": {
         "type": "string"
-      },
-      "description": "シーン要約の辞書。キーはシーン番号（文字列）、値は要約"
+      }
     },
     "continuity_notes": {
+      "description": "連続性メモ",
       "type": "array",
       "items": {
         "type": "string",
         "description": "連続性メモ"
-      },
-      "description": "連続性メモ"
+      }
     }
   }
 }

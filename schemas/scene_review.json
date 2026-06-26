@@ -7,6 +7,7 @@
   ],
   "properties": {
     "issues": {
+      "description": "指摘事項の配列",
       "type": "array",
       "items": {
         "type": "object",
@@ -27,6 +28,7 @@
             ]
           },
           "category": {
+            "description": "指摘カテゴリ",
             "type": "string",
             "enum": [
               "冒頭フック",
@@ -39,14 +41,14 @@
               "シーン文字数",
               "言語純度",
               "POV一貫性"
-            ],
-            "description": "指摘カテゴリ"
+            ]
           },
           "description": {
-            "type": "string",
-            "description": "問題の説明"
+            "description": "問題の説明",
+            "type": "string"
           },
           "suggestion": {
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
             "type": "array",
             "items": {
               "type": "object",
@@ -56,20 +58,18 @@
               ],
               "properties": {
                 "before": {
-                  "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）"
+                  "description": "修正前のテキスト（該当箇所を引用）",
+                  "type": "string"
                 },
                 "after": {
-                  "type": "string",
-                  "description": "修正後のテキスト"
+                  "description": "修正後のテキスト",
+                  "type": "string"
                 }
               }
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+            }
           }
         }
-      },
-      "description": "指摘事項の配列"
+      }
     }
   }
 }

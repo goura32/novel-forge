@@ -8,8 +8,8 @@
   ],
   "properties": {
     "issues": {
-      "type": "array",
       "description": "指摘事項の配列",
+      "type": "array",
       "items": {
         "type": "object",
         "required": [
@@ -20,16 +20,17 @@
         ],
         "properties": {
           "severity": {
+            "description": "修正の緊急性。致命的・重大=必須修正、重要=強推奨、軽微=任意。",
             "type": "string",
             "enum": [
               "致命的",
               "重大",
               "重要",
               "軽微"
-            ],
-            "description": "修正の緊急性。致命的・重大=必須修正、重要=強推奨、軽微=任意。"
+            ]
           },
           "category": {
+            "description": "指摘のカテゴリ。",
             "type": "string",
             "enum": [
               "必須フィールド欠落",
@@ -37,23 +38,22 @@
               "テーマ一貫性",
               "感情弧の質",
               "シーン配分"
-            ],
-            "description": "指摘のカテゴリ。"
+            ]
           },
           "description": {
-            "type": "string",
-            "description": "問題の説明"
+            "description": "問題の説明",
+            "type": "string"
           },
           "affected_elements": {
+            "description": "問題が特定の要素に関わる場合、該当名を列挙。",
             "type": "array",
             "items": {
               "type": "string"
-            },
-            "description": "問題が特定の要素に関わる場合、該当名を列挙。"
+            }
           },
           "suggestion": {
-            "type": "array",
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
+            "type": "array",
             "items": {
               "type": "object",
               "required": [
@@ -62,12 +62,12 @@
               ],
               "properties": {
                 "before": {
-                  "type": "string",
-                  "description": "修正前のテキスト（該当箇所を引用）"
+                  "description": "修正前のテキスト（該当箇所を引用）",
+                  "type": "string"
                 },
                 "after": {
-                  "type": "string",
-                  "description": "修正後のテキスト"
+                  "description": "修正後のテキスト",
+                  "type": "string"
                 }
               }
             }

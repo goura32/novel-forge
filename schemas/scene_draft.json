@@ -8,12 +8,12 @@
   ],
   "properties": {
     "title": {
-      "type": "string",
-      "description": "シーンタイトル（最大128文字）"
+      "description": "シーンタイトル（最大128文字）",
+      "type": "string"
     },
     "content": {
-      "type": "string",
-      "description": "シーンの本文（最低3000文字以上）"
+      "description": "シーンの本文（最低3000文字以上）",
+      "type": "string"
     }
   }
 }
