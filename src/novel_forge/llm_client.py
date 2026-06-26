@@ -137,9 +137,14 @@ class LLMClient:
         api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
         think_value = self._ollama_options.get("think", True)
 
-        # Replace {schema} placeholder with the full JSON schema text
+        # Replace {schema} placeholder with the full JSON schema text + instruction
         if schema is not None:
-            user_prompt = user_prompt.replace("{schema}", json.dumps(schema, ensure_ascii=False))
+            schema_text = json.dumps(schema, ensure_ascii=False)
+            replacement = (
+                f"以下のスキーマに従って、実際のデータ値を埋めた JSON のみを出力すること。"
+                f"スキーマ構造そのものを返さないこと。\n\n{schema_text}"
+            )
+            user_prompt = user_prompt.replace("{schema}", replacement)
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
@@ -197,6 +202,20 @@ class LLMClient:
                 )
                 self._write_raw_log(f"response_{attempt}", raw_text)
                 parsed = parse_json_response(raw)
+
+                # スキーマ構造が返ってきたか判定（properties/$schema トップレベルを持つ）
+                if self._is_schema_echo(parsed):
+                    self._log.warning(
+                        "  [SCHEMA ECHO] kind=%s attempt=%d/%d — LLM returned schema structure, retrying",
+                        kind, attempt + 1, self.max_retries,
+                    )
+                    current_prompt = (
+                        f"前回の出力はスキーマ構造そのものでした。データ値を返してください。\\n"
+                        f"必ずスキーマの properties に従って、実際のデータ値を埋めた JSON のみを出力してください。\\n\\n"
+                        f"元の指示:\\n{user_prompt}"
+                    )
+                    continue
+
                 if schema:
                     parsed = coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
@@ -268,6 +287,18 @@ class LLMClient:
             str(last_error)[:100],
         )
         raise last_error or LLMError("LLM request failed")
+
+    @staticmethod
+    def _is_schema_echo(parsed: dict[str, Any]) -> bool:
+        """LLMがスキーマ構造をそのまま返したか判定。"""
+        schema_keys = {"$schema", "title", "type", "properties", "required", "description"}
+        if not isinstance(parsed, dict):
+            return False
+        # トップレベルのキーの大部分がスキーマのメタキーなら「スキーマ返り」と判定
+        keys = set(parsed.keys())
+        schema_key_count = len(keys & schema_keys)
+        # $schema + type + properties があればスキーマ構造
+        return schema_key_count >= 2 and "properties" in keys
 
     @staticmethod
     def _parse_ndjson(text: str) -> tuple[str, str]:
