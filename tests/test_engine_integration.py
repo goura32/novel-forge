@@ -305,7 +305,7 @@ class TestPlanReviewLoop:
         # Simulate revision: core generates, review fails, revision happens
         mock_llm.add_sequence("series_plan_core", _make_plan_response())
         mock_llm.add_sequence("series_plan_core_review", review_fail)
-        mock_llm.add_sequence("series_plan_core_revision", _make_plan_response(title="修正版"))
+        mock_llm.add_sequence("series_plan_core", _make_plan_response(title="修正版"))
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -316,7 +316,9 @@ class TestPlanReviewLoop:
         result = engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan_core_revision" in kinds
+        # After revision, the core is called again (same kind, no separate revision kind)
+        core_count = kinds.count("series_plan_core")
+        assert core_count >= 2  # at least initial + revision
         assert result["title"] == "修正版"
 
     def test_plan_stops_after_max_retries(self, engine, mock_llm):
@@ -333,7 +335,7 @@ class TestPlanReviewLoop:
         mock_llm.add_sequence("series_plan_core", _make_plan_response())
         for _ in range(3):
             mock_llm.add_sequence("series_plan_core_review", review_fail)
-            mock_llm.add_sequence("series_plan_core_revision", _make_plan_response())
+            mock_llm.add_sequence("series_plan_core", _make_plan_response())
             mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
@@ -347,7 +349,7 @@ class TestPlanReviewLoop:
         # Plan should complete (not raise) regardless of review failures
         assert result["title"] == "テストシリーズ"
         kinds = [k for k, _ in mock_llm._call_log]
-        revision_count = kinds.count("series_plan_core_revision")
+        revision_count = kinds.count("series_plan_core") - 1  # subtract initial call
         # With max_retries=3, at most 3 revisions should happen
         assert revision_count <= 3
 
@@ -365,7 +367,8 @@ class TestPlanReviewLoop:
         result = engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan_core_revision" not in kinds
+        # No separate revision kind — revision reuses series_plan_core
+        assert kinds.count("series_plan_core") == 1  # only initial, no revision
 
 
 # ── Outline tests ──────────────────────────────────────────────────────

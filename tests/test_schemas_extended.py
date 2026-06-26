@@ -23,7 +23,6 @@ class TestListSchemas:
             "chapter_design",
             "scene_design",
             "scene_draft",
-            "scene_revision",
             "scene_review",
             "scene_summary_and_bible_update",
         ]
@@ -116,12 +115,13 @@ class TestValidate:
         errors = validate("scene_draft", data)
         assert len(errors) == 0
 
-    def test_valid_scene_revision(self):
+    def test_valid_scene_draft_revision(self):
+        """Scene revision now uses the same schema as scene_draft."""
         data = {
             "title": "シーン1改訂",
             "content": "改訂された本文です。",
         }
-        errors = validate("scene_revision", data)
+        errors = validate("scene_draft", data)
         assert len(errors) == 0
 
     def test_valid_scene_review(self):

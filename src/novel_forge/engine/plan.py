@@ -248,8 +248,8 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     def _revise_plan_core(self, core: dict, review: dict, system: str, seed_offset: int = 0) -> dict:
         review_text = self._format_review_text(review)
         prompt = self._prompts.render("series_plan_core_revision.md",
-                                      {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text, "lang": self._lang})
-        return self._llm.complete_json("series_plan_core_revision", system, prompt, get_schema("series_plan_core_revision"))
+                                      {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text})
+        return self._llm.complete_json("series_plan_core", system, prompt, get_schema("series_plan_core"))
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
 
@@ -281,8 +281,8 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         review_text = self._format_review_text(review)
         prompt = self._prompts.render("series_plan_characters_revision.md",
                                       {"current_characters": json.dumps(characters, ensure_ascii=False),
-                                       "review": review_text, "lang": self._lang})
-        return self._llm.complete_json("series_plan_characters_revision", system, prompt, get_schema("series_plan_characters_revision"))
+                                       "review": review_text})
+        return self._llm.complete_json("series_plan_characters", system, prompt, get_schema("series_plan_characters"))
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
 
@@ -313,8 +313,8 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         review_text = self._format_review_text(review)
         prompt = self._prompts.render("series_plan_volumes_revision.md",
                                       {"current_volumes": json.dumps(volumes, ensure_ascii=False),
-                                       "review": review_text, "lang": self._lang})
-        return self._llm.complete_json("series_plan_volumes_revision", system, prompt, get_schema("series_plan_volumes_revision"))
+                                       "review": review_text})
+        return self._llm.complete_json("series_plan_volumes", system, prompt, get_schema("series_plan_volumes"))
 
     # ── Utility ──────────────────────────────────────────────────────────
 

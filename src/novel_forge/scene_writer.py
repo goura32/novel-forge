@@ -310,8 +310,8 @@ class SceneWriter:
                 "lang": lang,
             },
         )
-        schema = get_schema("scene_revision")
-        result = self._llm.complete_json("scene_revision", system, user, schema, seed_offset=seed_offset)
+        schema = get_schema("scene_draft")
+        result = self._llm.complete_json("scene_draft", system, user, schema, seed_offset=seed_offset)
         return result.get("content", draft_text)
 
     # ── summarize → blackboard update ───────────────────────────────
