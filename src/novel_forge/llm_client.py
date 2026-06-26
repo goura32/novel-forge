@@ -207,7 +207,9 @@ class LLMClient:
                 if self._is_schema_echo(parsed):
                     self._log.warning(
                         "  [SCHEMA ECHO] kind=%s attempt=%d/%d — LLM returned schema structure, retrying",
-                        kind, attempt + 1, self.max_retries,
+                        kind,
+                        attempt + 1,
+                        self.max_retries,
                     )
                     current_prompt = (
                         f"前回の出力はスキーマ構造そのものでした。データ値を返してください。\\n"
