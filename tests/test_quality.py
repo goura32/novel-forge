@@ -28,17 +28,4 @@ class TestQualityGate:
         )
         assert result.passed is False
 
-    def test_check_volume_pass(self):
-        qg = QualityGate()
-        result = qg.check_volume([{"issues": []}, {"issues": []}])
-        assert result["passed"] is True
 
-    def test_check_volume_fail(self):
-        qg = QualityGate()
-        result = qg.check_volume([{"issues": [{"severity": "致命的"}]}])
-        assert result["passed"] is False
-
-    def test_check_volume_force_exported(self):
-        qg = QualityGate()
-        result = qg.check_volume([{"issues": [{"severity": "致命的"}]}])
-        assert result["passed"] is False

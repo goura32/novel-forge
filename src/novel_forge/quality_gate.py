@@ -70,31 +70,4 @@ class QualityGate:
         """レビュー結果に基づきシーン品質を判定する。"""
         return self.check(review_result, stage="scene")
 
-    def check_volume(
-        self,
-        scene_results: list[dict],
-        structural_validity: bool = True,
-    ) -> dict:
-        """巻全体の品質を判定する。
 
-        判定ルール:
-        - 全シーンの issues を集約し、check() と同じ基準で判定
-        - structural_validity が false は巻デザイン未合格を意味し、不合格
-        """
-        all_issues: list[dict] = []
-        for result in scene_results:
-            all_issues.extend(result.get("issues", []))
-
-        blocker_count = sum(1 for i in all_issues if i.get("severity") == "致命的")
-        critical_count = sum(1 for i in all_issues if i.get("severity") == "重大")
-        major_count = sum(1 for i in all_issues if i.get("severity") == "重要")
-
-        passed = blocker_count == 0 and critical_count == 0 and major_count < 2 and structural_validity
-
-        return {
-            "passed": passed,
-            "issue_count": len(all_issues),
-            "blocker_count": blocker_count,
-            "critical_count": critical_count,
-            "major_count": major_count,
-        }

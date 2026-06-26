@@ -184,13 +184,7 @@ class TestQualityGate:
         )
         assert result.passed is False
 
-    def test_volume_check_caps_score_with_force_exported(self):
-        qg = QualityGate()
-        result = qg.check_volume([{"issues": [{"severity": "致命的"}]}])
-        assert result["passed"] is False
 
-
-# ── Schemas ────────────────────────────────────────────────────────────
 
 class TestSchemas:
     def test_list_schemas(self):

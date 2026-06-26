@@ -192,9 +192,6 @@ class SceneWriter:
                 self._log.warning(msg)
                 if log_fn:
                     log_fn(msg)
-                lang_issues = self._extract_language_issues(review)
-                if lang_issues:
-                    review["language_issues"] = lang_issues
                 seed_offset += 1
                 draft_text = self._revise_scene(draft_text, review, ctx.lang, seed_offset=seed_offset)
                 record.draft_version += 1
@@ -250,9 +247,7 @@ class SceneWriter:
         for attempt in range(3):
             try:
                 result = self._llm.complete_json("scene_review", system, user, schema, seed_offset=seed_offset)
-                if "revision_needed" not in result:
-                    result["revision_needed"] = self._quality.check(result).revision_needed
-                self._log.info("  [REVIEW DONE] revision_needed=%s", result.get("revision_needed"))
+                self._log.info("  [REVIEW DONE] issues=%d", len(result.get("issues", [])))
                 return result
             except Exception as e:
                 if attempt < 2:
@@ -260,20 +255,6 @@ class SceneWriter:
                     continue
                 raise
         return {"issues": [], "revision_needed": True}
-
-    # ── language issue extraction ────────────────────────────────────
-
-    def _extract_language_issues(self, review: dict) -> list[str]:
-        issues = review.get("issues", [])
-        lang_issues = []
-        for issue in issues:
-            desc = issue.get("description", "")
-            if any(kw in desc for kw in [
-                "言語", "英語", "簡体字", "ハングル", "中国語",
-                "language_purity",
-            ]):
-                lang_issues.append(desc)
-        return lang_issues
 
     # ── revise ───────────────────────────────────────────────────────
 
@@ -289,14 +270,6 @@ class SceneWriter:
             lines.append(f"  [{sev}] {cat}: {desc}")
             if sug:
                 lines.append(f"    提案: {sug}")
-        for s in review.get("strengths", []):
-            lines.append(f"  強み: {s}")
-        for r in review.get("recommendations", []):
-            lines.append(f"  推奨: {r}")
-        if review.get("kanji_issues"):
-            lines.append(f"  簡体字問題: {', '.join(review['kanji_issues'])}")
-        if review.get("language_issues"):
-            lines.append(f"  言語問題: {'; '.join(review['language_issues'])}")
         return "\n".join(lines)
 
     def _revise_scene(self, draft_text: str, review: dict, lang: str, seed_offset: int = 0) -> str:
