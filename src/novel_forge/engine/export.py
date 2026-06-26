@@ -37,11 +37,15 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         self._state.status = vol.status
         slug = getattr(self, "_slug", "?")
         self._save()
+        # exports はシリーズディレクトリ内に作成
+        series_dir = self._series_dir
+        exports_dir = series_dir / "exports"
+        exports_dir.mkdir(parents=True, exist_ok=True)
         self._log.info(f"✓ Export: series='{slug}' vol={vol_num}")
         return {
-            "manuscript_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_manuscript.md"),
-            "metadata_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_metadata.json"),
-            "report_path": str(self._workdir / "exports" / f"vol{vol_num:02d}_kdp_readiness_report.md"),
+            "manuscript_path": str(exports_dir / f"vol{vol_num:02d}_manuscript.md"),
+            "metadata_path": str(exports_dir / f"vol{vol_num:02d}_metadata.json"),
+            "report_path": str(exports_dir / f"vol{vol_num:02d}_kdp_readiness_report.md"),
         }
 
     def resume(self) -> dict[str, Any]:
