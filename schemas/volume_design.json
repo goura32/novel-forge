@@ -89,7 +89,9 @@
           }
         },
         "description": "chaptersの配列"
-      }
+      },
+      "minItems": 3,
+      "maxItems": 10
     }
   },
   "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"

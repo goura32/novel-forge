@@ -6,7 +6,8 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "シリーズのタイトル（想定: 100文字)"
+      "description": "シリーズのタイトル（想定: 100文字)",
+      "maxLength": 100
     },
     "slug": {
       "type": "string",
@@ -14,7 +15,8 @@
     },
     "logline": {
       "type": "string",
-      "description": "シリーズのあらすじ（1-2文、想定: 800文字）"
+      "description": "シリーズのあらすじ（1-2文、想定: 800文字）",
+      "maxLength": 800
     },
     "genre": {
       "type": "array",
@@ -26,7 +28,8 @@
     },
     "target_audience": {
       "type": "string",
-      "description": "ターゲット読者（想定: 500文字）"
+      "description": "ターゲット読者（想定: 500文字）",
+      "maxLength": 500
     },
     "themes": {
       "type": "array",
@@ -50,14 +53,16 @@
       "properties": {
         "summary": {
           "type": "string",
-          "description": "世界観の概要（想定: 1000文字）"
+          "description": "世界観の概要（想定: 1000文字）",
+          "maxLength": 1000
         },
         "rules": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "世界観の独自ルール（1-5条、各想定: 200文字）"
+          "description": "世界観の独自ルール（1-5条、各想定: 200文字）",
+          "maxLength": 200
         }
       }
     }

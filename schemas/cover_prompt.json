@@ -105,11 +105,11 @@
         "composition": {
           "type": "string",
           "enum": [
-            "portrait",
-            "landscape",
-            "action",
-            "symbolic",
-            "atmospheric"
+            "縦構図",
+            "横構図",
+            "アクション",
+            "象徴的",
+            "雰囲気的"
           ],
           "description": "構図タイプ"
         }

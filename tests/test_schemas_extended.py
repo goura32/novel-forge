@@ -113,7 +113,7 @@ class TestValidate:
     def test_valid_scene_draft(self):
         data = {
             "title": "シーン1",
-            "content": "これはテストシーンの本文です。",
+            "content": "これはテストシーンの本文です。" * 200,
         }
         errors = validate("scene_draft", data)
         assert len(errors) == 0
@@ -122,7 +122,7 @@ class TestValidate:
         """Scene revision now uses the same schema as scene_draft."""
         data = {
             "title": "シーン1改訂",
-            "content": "改訂された本文です。",
+            "content": "改訂された本文です。" * 400,
         }
         errors = validate("scene_draft", data)
         assert len(errors) == 0
@@ -141,7 +141,7 @@ class TestValidate:
             "issues": [
                 {
                     "severity": "重要",
-                    "category": "pov_consistency",
+                    "category": "POV一貫性",
                     "description": "視点が揺れている",
                     "suggestion": [{"before": "揺れている", "after": "統一する"}],
                 }
@@ -175,6 +175,14 @@ class TestValidate:
                 {
                     "title": "プロローグ",
                     "purpose": "導入",
+                },
+                {
+                    "title": "事件の発生",
+                    "purpose": "展開",
+                },
+                {
+                    "title": "決戦",
+                    "purpose": "収束",
                 },
             ],
         }

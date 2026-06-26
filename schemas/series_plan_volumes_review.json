@@ -58,7 +58,8 @@
           }
         },
         "description": "指摘事項の配列"
-      }
+      },
+      "description": "指摘事項の配列"
     }
   }
 }

@@ -27,19 +27,19 @@
               "重要",
               "軽微"
             ],
-            "description": "修正の緊急性。重大=必須修正、重要=強推�、軽微=任意修正。"
+            "description": "修正の緊急性。重大=必須修正、重要=強推奨、軽微=任意修正。"
           },
           "category": {
             "type": "string",
             "enum": [
-              "missing_field",
-              "title_power",
-              "logline_quality",
-              "genre_fit",
-              "world_consistency",
-              "language_purity"
+              "必須フィールド欠落",
+              "タイトルの力",
+              "あらすじの質",
+              "ジャンル適合",
+              "世界観一貫性",
+              "言語純度"
             ],
-            "description": "指摘のカテゴリ。missing_field=必須フィールド欠落、title_power=タイトルの力、logline_quality=あらすじの質、genre_fit=ジャンル適合、world_consistency=世界観の一貫性、language_purity=言語純度。"
+            "description": "指摘のカテゴリ。"
           },
           "description": {
             "type": "string",
@@ -63,15 +63,13 @@
                   "type": "string",
                   "description": "修正後のテキスト。"
                 }
-              },
-              "description": "suggestionの配列"
+              }
             }
           },
           "affected_elements": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "affected_elementsの配列"
+              "type": "string"
             },
             "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。"
           }

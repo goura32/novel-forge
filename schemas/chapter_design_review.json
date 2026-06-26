@@ -9,6 +9,7 @@
   "properties": {
     "issues": {
       "type": "array",
+      "description": "指摘事項の配列",
       "items": {
         "type": "object",
         "required": [
@@ -21,15 +22,23 @@
           "severity": {
             "type": "string",
             "enum": [
+              "致命的",
               "重大",
               "重要",
               "軽微"
             ],
-            "description": "修正の緊急性。重大=必須修正（致命的・重大フィールド欠落等）、重要=強推（品質問題）、軽微=任意（改善提案）。"
+            "description": "修正の緊急性。致命的・重大=必須修正、重要=強推奨、軽微=任意。"
           },
           "category": {
             "type": "string",
-            "description": "指摘のカテゴリ（例: missing_field, role_validity, theme_coherence, scene_distribution）。"
+            "enum": [
+              "必須フィールド欠落",
+              "章役割妥当性",
+              "テーマ一貫性",
+              "感情弧の質",
+              "シーン配分"
+            ],
+            "description": "指摘のカテゴリ。"
           },
           "description": {
             "type": "string",
@@ -38,12 +47,13 @@
           "affected_elements": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "affected_elementsの配列"
-            }
+              "type": "string"
+            },
+            "description": "問題が特定の要素に関わる場合、該当名を列挙。"
           },
           "suggestion": {
             "type": "array",
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
             "items": {
               "type": "object",
               "required": [
@@ -59,13 +69,10 @@
                   "type": "string",
                   "description": "修正後のテキスト"
                 }
-              },
-              "description": "suggestionの配列"
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+              }
+            }
           }
-        },
-        "description": "指摘事項の配列"
+        }
       }
     }
   }

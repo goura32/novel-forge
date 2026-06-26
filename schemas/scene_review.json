@@ -29,17 +29,18 @@
           "category": {
             "type": "string",
             "enum": [
-              "opening_hook",
-              "character_distinction",
-              "sensory_coverage",
-              "scene_closure",
-              "dialogue_naturalness",
-              "tone_consistency",
-              "scene_completeness",
-              "scene_length",
-              "language_purity",
-              "pov_consistency"
-            ]
+              "冒頭フック",
+              "キャラ立ち",
+              "感覚描写",
+              "シーン末尾",
+              "台詞自然さ",
+              "文体統一",
+              "シーン完結",
+              "シーン文字数",
+              "言語純度",
+              "POV一貫性"
+            ],
+            "description": "指摘カテゴリ"
           },
           "description": {
             "type": "string",
@@ -62,14 +63,13 @@
                   "type": "string",
                   "description": "修正後のテキスト"
                 }
-              },
-              "description": "suggestionの配列"
+              }
             },
             "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
           }
-        },
-        "description": "指摘事項の配列"
-      }
+        }
+      },
+      "description": "指摘事項の配列"
     }
   }
 }

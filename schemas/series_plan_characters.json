@@ -11,43 +11,53 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "キャラクター名（フルネーム、想定: 500文字）"
+            "description": "キャラクター名（フルネーム、想定: 500文字）",
+            "maxLength": 64
           },
           "role": {
             "type": "string",
-            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間等）"
+            "description": "役割（例: 主人公、ヒロイン、相棒、敵対者、師匠、仲間等）",
+            "maxLength": 64
           },
           "personality": {
             "type": "string",
-            "description": "性格・特徴（想定: 1000文字）"
+            "description": "性格・特徴（想定: 1000文字）",
+            "maxLength": 200
           },
           "motivation": {
             "type": "string",
-            "description": "動機・目標（想定: 1000文字）"
+            "description": "動機・目標（想定: 1000文字）",
+            "maxLength": 200
           },
           "flaw": {
             "type": "string",
-            "description": "欠点・弱み（想定: 1000文字）"
+            "description": "欠点・弱み（想定: 1000文字）",
+            "maxLength": 200
           },
           "arc": {
             "type": "string",
-            "description": "シリーズを通じた成長・変化（想定: 600文字）"
+            "description": "シリーズを通じた成長・変化（想定: 600文字）",
+            "maxLength": 500
           },
           "age": {
             "type": "string",
-            "description": "年齢（例: 28歳、想定: 500文字）"
+            "description": "年齢（例: 28歳、想定: 500文字）",
+            "maxLength": 32
           },
           "occupation": {
             "type": "string",
-            "description": "職業・立場（想定: 500文字）"
+            "description": "職業・立場（想定: 500文字）",
+            "maxLength": 128
           },
           "appearance": {
             "type": "string",
-            "description": "外見的特徴（想定: 500文字）"
+            "description": "外見的特徴（想定: 500文字）",
+            "maxLength": 200
           },
           "background": {
             "type": "string",
-            "description": "過去・経歴（想定: 1000文字）"
+            "description": "過去・経歴（想定: 1000文字）",
+            "maxLength": 500
           }
         },
         "description": "main_charactersの配列"

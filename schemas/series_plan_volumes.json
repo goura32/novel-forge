@@ -39,7 +39,8 @@
           }
         },
         "description": "巻構成一覧"
-      }
+      },
+      "description": "巻構成一覧（3巻固定）"
     }
   },
   "required": [

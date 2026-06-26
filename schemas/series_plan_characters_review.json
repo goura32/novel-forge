@@ -9,6 +9,7 @@
   "properties": {
     "issues": {
       "type": "array",
+      "description": "指摘事項の配列",
       "items": {
         "type": "object",
         "required": [
@@ -20,15 +21,23 @@
           "severity": {
             "type": "string",
             "enum": [
+              "致命的",
               "重大",
               "重要",
               "軽微"
             ],
-            "description": "修正の緊急性。重大=必須修正、重要=強推、軽微=任意。"
+            "description": "修正の緊急性。致命的・重大=必須修正、重要=強推奨、軽微=任意。"
           },
           "category": {
             "type": "string",
-            "description": "指摘のカテゴリ（例: missing_field, world_consistency, differentiation）。"
+            "enum": [
+              "必須フィールド欠落",
+              "設定一貫性",
+              "キャラクター差別化",
+              "成長弧",
+              "世界観適合"
+            ],
+            "description": "指摘のカテゴリ。"
           },
           "description": {
             "type": "string",
@@ -36,6 +45,7 @@
           },
           "suggestion": {
             "type": "array",
+            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
             "items": {
               "type": "object",
               "required": [
@@ -51,13 +61,10 @@
                   "type": "string",
                   "description": "修正後のテキスト"
                 }
-              },
-              "description": "suggestionの配列"
-            },
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。"
+              }
+            }
           }
-        },
-        "description": "指摘事項の配列"
+        }
       }
     }
   }
