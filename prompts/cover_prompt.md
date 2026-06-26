@@ -10,7 +10,11 @@
 - シリーズ企画: `{series_plan}`
 - 巻デザイン: `{design}`
 
-## 出力スキーマ
+## 出力
+
+下記のスキーマに適合するJSONのみを出力すること。
+
+下記のスキーマに適合するJSONのみを出力すること。
 
 {schema} に適合する JSON を出力すること。
 - `style.composition` は「portrait」「landscape」「action」「symbolic」「atmospheric」から選択すること。
