@@ -43,9 +43,9 @@ class ExportMixin(NovelEngineBase):  # type: ignore[misc]
         exports_dir.mkdir(parents=True, exist_ok=True)
         self._log.info(f"✓ Export: series='{slug}' vol={vol_num}")
         return {
-            "manuscript_path": str(exports_dir / f"vol{vol_num:02d}_manuscript.md"),
-            "metadata_path": str(exports_dir / f"vol{vol_num:02d}_metadata.json"),
-            "report_path": str(exports_dir / f"vol{vol_num:02d}_kdp_readiness_report.md"),
+            "manuscript_path": str(exports_dir / f"{slug}_vol{vol_num:02d}.md"),
+            "metadata_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_metadata.json"),
+            "report_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md"),
         }
 
     def resume(self) -> dict[str, Any]:

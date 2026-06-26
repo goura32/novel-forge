@@ -119,8 +119,8 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         if slug and slug.strip():
             if len(slug) > 32:
                 errors.append("slug: 32文字以内である必要があります")
-            if not re.match(r'^[a-z0-9]+(-[a-z0-9]+)*$', slug):
-                errors.append("slug: 英数字とハイフンのみ")
+            if not re.match(r'^[a-z0-9]+(_[a-z0-9]+)*$', slug):
+                errors.append("slug: 英数字とアンダースコアのみ")
             if slug in self._get_existing_slugs():
                 errors.append(f"slug: '{slug}' は既存と重複")
         world = data.get("world", {})

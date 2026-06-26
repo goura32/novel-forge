@@ -99,7 +99,7 @@ class MockLLMClient:
         if kind == "series_plan_core":
             return {
                 "title": "テストシリーズ",
-                "slug": "test-series",
+                "slug": "test_series",
                 "logline": "テストのあらすじ",
                 "genre": ["fantasy"],
                 "target_audience": "10代後半〜30代",
@@ -133,7 +133,7 @@ def _make_plan_response(**overrides) -> dict:
     """Create a valid series plan core response."""
     base = {
         "title": "テストシリーズ",
-        "slug": "test-series",
+        "slug": "test_series",
         "logline": "テストのあらすじ",
         "genre": ["fantasy"],
         "target_audience": "10代後半〜30代",

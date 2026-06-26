@@ -10,7 +10,7 @@
     },
     "slug": {
       "type": "string",
-      "description": "a-z0-9と-のみからなる32文字以内のURL識別子"
+      "description": "a-z0-9と_のみからなる32文字以内のスラッグ（アンダースコア区切り）"
     },
     "logline": {
       "type": "string",
