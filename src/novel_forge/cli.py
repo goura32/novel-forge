@@ -35,7 +35,7 @@ def plan(
     """Generate a series plan from keywords."""
     engine = make_engine(
         workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="plan",
-        max_review_retries=3 if not strict else 999,
+        max_review_retries=3,
     )
     engine._strict = strict
     result = engine.plan(keywords)

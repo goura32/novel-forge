@@ -137,9 +137,10 @@ class LLMClient:
         api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
         think_value = self._ollama_options.get("think", True)
 
-        # Replace {schema} placeholder with the full JSON schema text + instruction
         if schema is not None:
-            schema_text = json.dumps(schema, ensure_ascii=False)
+            # LLMがスキーマのメタデータを模倣しないよう、データ構造のみ抽出
+            schema_data = {k: v for k, v in schema.items() if k not in ("$schema", "title", "description")}
+            schema_text = json.dumps(schema_data, ensure_ascii=False)
             replacement = (
                 f"以下のスキーマに従って、実際のデータ値を埋めた JSON のみを出力すること。"
                 f"スキーマ構造そのものを返さないこと。\n\n{schema_text}"
