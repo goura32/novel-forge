@@ -26,8 +26,8 @@ src/novel_forge/
 │   ├── __init__.py         # NovelEngine クラス定義 (thin facade)
 │   ├── infra.py            # make_engine(), ロック, status/doctor
 │   ├── base.py             # NovelEngineBase — __init__, state, DI
-│   ├── plan.py             # plan() 3フェーズ (core → characters → volumes)
-│   ├── design.py           # design() 3フェーズ (volume → chapter → scene)
+│   ├── plan.py             # plan() — 3フェーズ (core → characters → volumes)
+│   ├── design.py           # design() — 3フェーズ (volume → chapter → scene)
 │   ├── write.py            # write() — シーン執筆ループ
 │   ├── export.py           # export(), resume(), status()
 │   └── review.py           # generate_and_review(), format_review_text()
@@ -37,8 +37,8 @@ src/novel_forge/
 ├── json_parser.py          # NDJSON パース・型変換
 ├── schemas.py              # JSON Schema スキーマローダ
 ├── name_registry.py        # キャラクター名重複排除
-├── logging_config.py       # ログ出力（[YYYY-MM-DD HH:MM:SS] [PID] [series:X] [LEVEL]）
-├── quality_gate.py         # シーン品質ゲート（issues severity ベース）
+├── logging_config.py       # ログ出力
+├── quality_gate.py         # シーン品質ゲート (issues severity ベース)
 └── prompts.py              # プロンプト管理
 ```
 
@@ -46,9 +46,9 @@ src/novel_forge/
 
 | モジュール | 責務 |
 |---|---|
-| `NovelEngine` | plan/design/write/export のオーケストレーション（thin facade） |
-| `plan()` | シリーズ企画生成（3フェーズ） |
-| `design()` | 巻デザイン生成（3フェーズ） |
+| `NovelEngine` | plan/design/write/export のオーケストレーション (thin facade) |
+| `plan()` | シリーズ企画生成 (3フェーズ) |
+| `design()` | 巻デザイン生成 (3フェーズ) |
 | `write()` | シーン執筆ループ |
 | `export()` | KDP 出力、レポート生成 |
 | `review()` | generate_and_review — レビュー→改稿ループ |
@@ -145,6 +145,35 @@ if schema is not None:
 - **レビュー修正**: revise_fn で seed 変えて再生成
 - **revision_needed**: コード側で機械判定（致命的→true, 重大→true, 重要≥2→true）
 
+### レビュースキーマ (統一)
+
+全レビューで同じ構造。`category` enum のみ各スキーマで異なる:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["issues"],
+  "properties": {
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description", "suggestion", "before", "after"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["致命的", "重大", "重要", "軽微"] },
+          "category": { "type": "string", "enum": ["<各スキーマ固有>"] },
+          "description": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "before": { "type": "string" },
+          "after": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+```
+
 ### generate_and_review パターン
 
 ```python
@@ -170,6 +199,7 @@ result = generate_and_review(
 
 - `load_used_names()`: 既読名を set で返す
 - `record_names()`: Plan完了時に新規名を記録
+- `plan()` の `_generate_plan_characters` で既存名をプロンプトに含める
 
 ---
 
@@ -178,7 +208,7 @@ result = generate_and_review(
 ```
 キーワード
   → plan()     → series_plan.json
-  → design()   → vol01.json + ch*/sc*.json
+  → design()   → vol01.json + ch*/sc*..json (全巻)
   → write()    → sc*.md (初稿 + 改稿) + blackboard/bible 更新
   → export()   → series_dir/exports/slug_vol01.md + metadata + kdp_report
 ```
@@ -201,9 +231,9 @@ Scene:  計画中 → 初稿済 → 修正済 / 強制出力済
 ├── used_names.json                # 使用済みキャラクター名
 ├── blackboard.json                # 事実記録（サマリー、連続性）
 ├── _raw_logs/                     # LLM 生データ
-│   ├── plan/
-│   ├── design/
-│   └── write/
+│   ├── plan/                      # plan_{attempt}_{seed}/
+│   ├── design/                    # design_{attempt}_{seed}/
+│   └── write/                     # write_{attempt}_{seed}/
 ├── vol01/
 │   ├── vol01.json                 # 巻デザイン
 │   ├── vol01_ch01/
@@ -216,6 +246,19 @@ Scene:  計画中 → 初稿済 → 修正済 / 強制出力済
     ├── <slug>_vol01_metadata.json
     └── <slug>_vol01_kdp_readiness_report.md
 ```
+
+### RAWデータ構造
+
+```
+_raw_logs/plan/18319_series_plan_core/
+├── request_0_0.json.gz            # attempt=0, seed_offset=0
+├── response_0_0.json.gz           # LLM 生出力
+├── response.json.gz               # 最終レスポンス
+├── request_1_0.json.gz            # attempt=1, seed_offset=0 (revision)
+└── response_1_0.json.gz
+```
+
+ファイル名: `request_{attempt}_{seed_offset}.json.gz` / `response_{attempt}_{seed_offset}.json.gz`
 
 ---
 
@@ -235,18 +278,42 @@ Scene:  計画中 → 初稿済 → 修正済 / 強制出力済
 
 1. **プロンプト/スキーマ分離**: プロンプトに構造を埋め込まない。`{schema}` プレースホルダ + コードで置換
 2. **revision_needed はコード判定**: LLM は boolean を推測せず、severity ベースでコード計算
-3. **新規slug 生成時にキャラクター名重複排除**: `name_registry.py` で既存名チェック
-4. **xxx_revision.json 不要**: 改訂も生成と同じスキーマを使用
-5. **Mixin 排除**: 多重継承を避け、スタンドアロン関数 + thin facade パターンを採用
-6. **依存性注入**: テスト時にモックを注入可能
+3. **既存slug 重複排除**: 新規slug 生成時に `_get_existing_slugs` で既存ディレクトリからslugを収集
+4. **既存キャラクター名重複排除**: `name_registry.py` で管理、プロンプトに含める
+7. **Mixin 排除**: 多重継承を避け、スタンドアロン関数 + thin facade パターンを採用
+8. **依存性注入**: テスト時にモックを注入可能
+9. **レビュースキーマ統一**: 全フェーズで同じスキーマ構造、`category` enum のみ異なる
+10. **--strict モード**: `generate_and_review` で `strict=True` 時、最大回数到達で `RuntimeError` 発生（パイプライン停止）。`strict=False` 時は best-effort（結果を返して次フェーズ進む）
 
 ---
 
 ## 8. ログ・RAWデータ
 
 - ログ: `workdir/novel_forge.log`（追記モード、全シリーズ共通）
-- RAW: `_raw_logs/{phase}/{pid}_{kind}/`（gzip）
+- RAW: `_raw_logs/{phase}/{pid}_{kind}/`（gzip、试行×シード別）
+
+## 9. プロンプトテンプレート一覧
+
+| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{core_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` |
+|---|---|---|---|---|---|---|---|---|
+| system.md | 全共通 | - | - | - | - | - | - | - |
+| series_plan_core.md | Plan (1) | ✓ | ✓ | - | - | - | - | ✓ |
+| series_plan_core_revision.md | Plan (1) 修正 | ✓ | - | ✓ | - | - | - | - |
+| series_plan_characters.md | Plan (2) | ✓ | - | ✓ | - | - | ✓ | - |
+| series_plan_characters_revision.md | Plan (2) 修正 | ✓ | - | ✓ | ✓ | - | - | - |
+| series_plan_volumes.md | Plan (3) | ✓ | - | ✓ | ✓ | - | - | - |
+| series_plan_volumes_revision.md | Plan (3) 修正 | ✓ | - | ✓ | ✓ | - | - | - |
+| volume_design.md | Design (1) | ✓ | - | - | - | ✓ | - | - |
+| volume_design_revision.md | Design (1) 修正 | ✓ | - | - | - | ✓ | - | - |
+| chapter_design.md | Design (2) | ✓ | - | - | ✓ | - | - | - |
+| chapter_design_revision.md | Design (2) 修正 | ✓ | - | - | ✓ | - | - | - |
+| scene_design.md | Design (3) | ✓ | - | - | - | - | - | - |
+| scene_design_revision.md | Design (3) 修正 | ✓ | - | - | - | - | - | - |
+| scene_draft.md | Write | ✓ | - | - | - | - | - | - |
+| scene_revision.md | Write 修正 | ✓ | - | - | ✓ | - | - | - |
+| scene_summary_and_bible_update.md | Write 後処理 | ✓ | - | - | - | - | - | - |
+| *_review (共通) | レビュー | ✓ | - | - | - | - | - | - |
 
 ---
 
-*Last updated: 2026-06-27*
+*Last updated: 2026-06-28*

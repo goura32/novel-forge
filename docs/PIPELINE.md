@@ -46,7 +46,7 @@ novel-forge doctor
 | コマンド | 説明 |
 |---|---|
 | `plan` | キーワードからシリーズ企画を生成 |
-| `design` | 巻デザイン（章・シーン構成）を生成 |
+| `design` | 巻デザイン（章・シーン構成）を生成。`--volume 0` で全巻一括生成 |
 | `write` | シーン本文を生成 |
 | `export` | KDP 向け出力を生成 |
 | `complete` | plan → design → write → export を一括実行 |
@@ -152,17 +152,18 @@ for attempt in range(max_retries):
     blocker_issues = [i for i in review['issues'] if i['severity'] == '致命的']
     critical_issues = [i for i in review['issues'] if i['severity'] == '重大']
     major_issues = [i for i in review['issues'] if i['severity'] == '重要']
-    revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
+    revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
     if not revision_needed:
         return result
     result = revise(result, review, seed_offset=attempt)
-return result  # max_retries後にbest effort
+return result  # max_retries後にbest effort (--strict時はRuntimeError)
 ```
 
 - **バリデーションエラー** → seed を変えて再生成（プロンプトは変更しない）
 - **レビュー修正** → 修正後もバリデーション再チェック
 - **revision_needed** はコード側で機械判定（LLMに任せない）
 - 合計 max_retries 回まで（デフォルト3回）
+- **`--strict` モード**: max_retries 到達で `RuntimeError` 発生しパイプライン停止。非 strict 時は best-effort で結果を返して次フェーズ進む
 
 ---
 
@@ -292,10 +293,11 @@ LLM呼び出しの生データを `_raw_logs/{phase}/{pid}_{kind}/` に gzip 保
 
 | イベント | ファイル名 | 内容 |
 |---|---|---|
-| LLM呼び出し前 | `request_N.json.gz` | リクエストペイロード |
-| LLM呼び出し後 | `response_N.json.gz` | パース前の生データ |
+| LLM呼び出し前 | `request_{attempt}_{seed_offset}.json.gz` | リクエストペイロード |
+| LLM呼び出し後 | `response_{attempt}_{seed_offset}.json.gz` | パース前の生データ |
 
 - 各リトライで異なるファイル名（上書きしない）
+- ファイル名: `request_{attempt}_{seed_offset}.json.gz` / `response_{attempt}_{seed_offset}.json.gz`
 - `raw_log: false` の場合は保存しない
 
 ---
@@ -393,4 +395,4 @@ Scene status:
 
 ---
 
-*Last updated: 2026-06-27*
+*Last updated: 2026-06-28*

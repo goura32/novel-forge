@@ -40,12 +40,12 @@ uv run novel-forge doctor
 ```bash
 # 段階的に進める
 uv run novel-forge plan    --workdir /mnt/hdd/novel --keywords "近未来東京 記憶探偵"
-uv run novel-forge design  --workdir /mnt/hdd/novel
+uv run novel-forge design  --workdir /mnt/hdd/novel --volume 0  # 全巻一括生成
 uv run novel-forge write   --workdir /mnt/hdd/novel
 uv run novel-forge export  --workdir /mnt/hdd/novel
 
-# 次巻へ進む
-uv run novel-forge design  --workdir /mnt/hdd/novel --volume 2
+# --strict モード（レビュー/バリデーション失敗時にリトライ上限で停止）
+uv run novel-forge plan --workdir /mnt/hdd/novel --strict " keywords"
 
 # 中断・再開
 uv run novel-forge status  --workdir /mnt/hdd/novel
@@ -57,7 +57,7 @@ uv run novel-forge resume  --workdir /mnt/hdd/novel
 | 機能 | 説明 | 人間介入 |
 |---|---|---|
 | シリーズ企画 | キーワードから世界観・キャラクター・構成案を生成 | 確認（暗黙承認） |
-| 巻デザイン | 3フェーズ（章構成→章設計→シーン設計）で生成 | なし（LLM自律） |
+| 巻デザイン | 3フェーズ（章構成→章設計→シーン設計）で生成。`--volume 0` で全巻一括生成 | なし（LLM自律） |
 | シーン執筆 | Blackboard + Bible による継続性維持 | なし（LLM自律） |
 | 自律レビュー | 全工程 LLM が自己レビュー・改稿・品質ゲート | なし（LLM自律） |
 | Bible 管理 | キャラクター、伏線、関係性、サブプロットの自動追跡 | なし（LLM自律） |

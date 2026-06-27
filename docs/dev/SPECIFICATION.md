@@ -192,6 +192,22 @@ engine = NovelEngine(
 )
 ```
 
+## 6. --strict モード
+
+`plan` / `design` / `write` の各コマンドで `--strict` フラグを指定可能。
+
+```bash
+novel-forge plan --workdir /mnt/hdd/novel --strict "キーワード"
+novel-forge design --workdir /mnt/hdd/novel --strict
+novel-forge write --workdir /mnt/hdd/novel --strict
+```
+
+動作:
+- **`strict=True`**: `generate_and_review()` で max_retries 到達時 → `RuntimeError` 発生 → パイプライン停止
+- **`strict=False` (default)**: max_retries 到達時 → 警告ログ + 結果を返して次フェーズに進む（best-effort）
+
+`--strict` はバリデーション失敗とレビューの最大回数の両方に適用される。
+
 ---
 
-*Last updated: 2026-06-27*
+*Last updated: 2026-06-28*
