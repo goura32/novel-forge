@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from novel_forge.engine.review import format_review_text, generate_and_review
@@ -152,20 +153,18 @@ def _slugify(title: str) -> str:
 
 
 def _generate_plan_core(engine: "NovelEngineBase", keywords: str, system: str, existing_slugs: set[str]) -> tuple[dict, dict]:
-    hint = ""
-    if existing_slugs:
-        hint = f"\n\n## 注意: 以下のslugは既存シリーズで使用済み: {', '.join(sorted(existing_slugs))}\n重複しないslugを生成すること。"
-    prompt = (
-        engine._prompts.render("series_plan_core.md", {"keywords": keywords, "lang": engine._lang})
-        + hint
+    slugs_text = ", ".join(sorted(existing_slugs)) if existing_slugs else "（なし）"
+    prompt = engine._prompts.render(
+        "series_plan_core.md",
+        {"keywords": keywords, "lang": engine._lang, "existing_slugs": slugs_text},
     )
     return generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "series_plan_core", system, p, get_schema("series_plan_core"), seed_offset=s
         ),
         validate_fn=_validate_plan_core,
-        review_fn=lambda r, sys: _review_plan_core(engine, r, sys),
-        revise_fn=lambda r, rv, sys, so=0: _revise_plan_core(engine, r, rv, sys, so),
+        review_fn=lambda r, sys: _review_plan_core(engine, r, sys, get_schema("series_plan_core_review")),
+        revise_fn=lambda r, rv, sys, so=0: _revise_plan_core(engine, r, rv, sys, so, get_schema("series_plan_core")),
         system=system,
         user_prompt=prompt,
         kind="series_plan_core",
@@ -175,7 +174,7 @@ def _generate_plan_core(engine: "NovelEngineBase", keywords: str, system: str, e
     )
 
 
-def _review_plan_core(engine: "NovelEngineBase", core: dict, system: str) -> dict:
+def _review_plan_core(engine: "NovelEngineBase", core: dict, system: str, schema: dict | None = None) -> dict:
     text = (
         f"タイトル: {core.get('title', '')}\nあらすじ: {core.get('logline', '')}\n"
         f"ジャンル: {', '.join(core.get('genre', []))}\nターゲット読者: {core.get('target_audience', '')}\n"
@@ -186,38 +185,29 @@ def _review_plan_core(engine: "NovelEngineBase", core: dict, system: str) -> dic
     user = engine._prompts.render(
         "series_plan_core_review.md", {"plan_text": text, "lang": engine._lang}
     )
-    return engine._llm.complete_json(
-        "series_plan_core_review", system, user, get_schema("series_plan_core_review")
-    )
+    return engine._llm.complete_json("series_plan_core_review", system, user, schema)
 
 
 def _revise_plan_core(
-    engine: "NovelEngineBase", core: dict, review: dict, system: str, seed_offset: int = 0
+    engine: "NovelEngineBase", core: dict, review: dict, system: str, seed_offset: int = 0, schema: dict | None = None
 ) -> dict:
     review_text = format_review_text(review)
     prompt = engine._prompts.render(
         "series_plan_core_revision.md",
         {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text},
     )
-    return engine._llm.complete_json(
-        "series_plan_core", system, prompt, get_schema("series_plan_core")
-    )
+    return engine._llm.complete_json("series_plan_core", system, prompt, schema)
 
 
 def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str, used_names: set[str]) -> tuple[dict, dict]:
-    existing_hint = ""
-    if used_names:
-        existing_hint = f"\n\n## 注意: 以下の名前は既存シリーズで使用済みのため使用不可: {', '.join(sorted(used_names))}\n新しいキャラクターには、これらの名前と重複しない名前を割り当てること。"
-    prompt = (
-        engine._prompts.render(
-            "series_plan_characters.md",
-            {
-                "world_summary": core.get("world", {}).get("summary", ""),
-                "world_rules": "; ".join(core.get("world", {}).get("rules", [])),
-                "lang": engine._lang,
-            },
-        )
-        + existing_hint
+    prompt = engine._prompts.render(
+        "series_plan_characters.md",
+        {
+            "world_summary": core.get("world", {}).get("summary", ""),
+            "world_rules": "; ".join(core.get("world", {}).get("rules", [])),
+            "lang": engine._lang,
+            "used_names": ", ".join(sorted(used_names)) if used_names else "（なし）",
+        },
     )
     return generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
