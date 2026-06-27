@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SceneReview",
+  "title": "Review",
+  "description": "自己レビュー結果",
   "type": "object",
   "required": [
     "issues"
   ],
   "properties": {
     "issues": {
-      "description": "指摘事項の配列",
+      "description": "指摘事項のリスト",
       "type": "array",
       "items": {
         "type": "object",
@@ -15,20 +16,23 @@
           "severity",
           "category",
           "description",
-          "suggestion"
+          "suggestion",
+          "before",
+          "after"
         ],
         "properties": {
           "severity": {
+            "description": "修正の緊急性。致命的=必須修正、重大=必須修正、重要=強推奨、軽微=任意。",
             "type": "string",
             "enum": [
-              "軽微",
-              "重要",
+              "致命的",
               "重大",
-              "致命的"
+              "重要",
+              "軽微"
             ]
           },
           "category": {
-            "description": "指摘カテゴリ",
+            "description": "指摘のカテゴリ。",
             "type": "string",
             "enum": [
               "冒頭フック",
@@ -48,25 +52,16 @@
             "type": "string"
           },
           "suggestion": {
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "description": "修正前のテキスト（該当箇所を引用）",
-                  "type": "string"
-                },
-                "after": {
-                  "description": "修正後のテキスト",
-                  "type": "string"
-                }
-              }
-            }
+            "description": "修正の提案（自由記述）",
+            "type": "string"
+          },
+          "before": {
+            "description": "修正前のテキスト（該当箇所を引用）",
+            "type": "string"
+          },
+          "after": {
+            "description": "修正後のテキスト",
+            "type": "string"
           }
         }
       }

@@ -143,7 +143,9 @@ class TestValidate:
                     "severity": "重要",
                     "category": "POV一貫性",
                     "description": "視点が揺れている",
-                    "suggestion": [{"before": "揺れている", "after": "統一する"}],
+                    "suggestion": "視点を統一する",
+                    "before": "揺れている",
+                    "after": "統一する",
                 }
             ],
             "revision_needed": True,

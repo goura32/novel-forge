@@ -1,27 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SeriesPlanCoreReview",
-  "description": "シリーズ企画（核）の自己レビュー結果",
+  "title": "Review",
+  "description": "自己レビュー結果",
   "type": "object",
   "required": [
     "issues"
   ],
   "properties": {
     "issues": {
-      "description": "指摘事項のリスト。",
+      "description": "指摘事項のリスト",
       "type": "array",
       "items": {
         "type": "object",
-        "description": "個別の指摘事項。必ず suggestion（修正前後のペア）を含める。",
         "required": [
           "severity",
           "category",
           "description",
-          "suggestion"
+          "suggestion",
+          "before",
+          "after"
         ],
         "properties": {
           "severity": {
-            "description": "修正の緊急性。重大=必須修正、重要=強推奨、軽微=任意修正。",
+            "description": "修正の緊急性。致命的=必須修正、重大=必須修正、重要=強推奨、軽微=任意。",
             "type": "string",
             "enum": [
               "致命的",
@@ -43,36 +44,20 @@
             ]
           },
           "description": {
-            "description": "指摘の詳細。何がなぜ問題か、どのような影響があるかを具体的に記述する。",
+            "description": "問題の説明",
             "type": "string"
           },
           "suggestion": {
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含む。",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "description": "修正前のテキスト（該当箇所を引用）。",
-                  "type": "string"
-                },
-                "after": {
-                  "description": "修正後のテキスト。",
-                  "type": "string"
-                }
-              }
-            }
+            "description": "修正の提案（自由記述）",
+            "type": "string"
           },
-          "affected_elements": {
-            "description": "問題が特定の要素に関わる場合、該当名（キャラクター名・巻番号等）を列挙。",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "before": {
+            "description": "修正前のテキスト（該当箇所を引用）",
+            "type": "string"
+          },
+          "after": {
+            "description": "修正後のテキスト",
+            "type": "string"
           }
         }
       }

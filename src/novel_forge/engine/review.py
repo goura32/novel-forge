@@ -25,9 +25,13 @@ def format_review_text(review: dict) -> str:
         cat = issue.get("category", "")
         desc = issue.get("description", "")
         sug = issue.get("suggestion", "")
+        before = issue.get("before", "")
+        after = issue.get("after", "")
         lines.append(f"  [{sev}] {cat}: {desc}")
         if sug:
             lines.append(f"    提案: {sug}")
+        if before or after:
+            lines.append(f"    修正: {before} → {after}")
     return "\n".join(lines)
 
 
