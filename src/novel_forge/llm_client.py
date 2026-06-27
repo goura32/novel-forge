@@ -223,7 +223,7 @@ class LLMClient:
         for attempt in range(max(self.max_retries, 1)):
             payload["messages"][1]["content"] = current_prompt
             payload["options"]["seed"] = 42 + attempt + seed_offset
-            self._write_raw_log(f"request_{seed_offset}_{attempt}", json.dumps(payload, ensure_ascii=False))
+            self._write_raw_log(f"request_{attempt}_{seed_offset}", json.dumps(payload, ensure_ascii=False))
 
             meta = self._build_meta()
             self._log.debug(
@@ -241,7 +241,7 @@ class LLMClient:
                     "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
                     kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
                 )
-                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
 
                 parsed = parse_json_response(raw)
 
@@ -265,20 +265,20 @@ class LLMClient:
 
             except RuntimeError as e:
                 # --strict mode: propagate after saving raw log
-                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
-                raise
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
+                continue
             except JsonParseError as e:
                 current_prompt = self._handle_retry_error(e, user_prompt, "JSON parse error")
                 continue
             except SchemaValidationError as e:
-                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 current_prompt = self._handle_retry_error(e, user_prompt, "schema validation error")
                 continue
             except LLMError:
-                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 continue
             except Exception:
-                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 raise
 
         raise LLMError("LLM request failed") from None
