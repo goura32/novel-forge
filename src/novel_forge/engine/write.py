@@ -33,7 +33,7 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
     design_obj = VolumeOutline(
         volume_number=vol_num,
         title=design_data.get("title", ""),
-        premise=premise if (premise := design_data.get("premise")) else "",
+        premise=design_data.get("premise", ""),
         chapters=chapters_clean,
         scenes=scenes,
     )

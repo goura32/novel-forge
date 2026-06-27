@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from novel_forge.engine.review import format_review_text
+from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.schemas import get_schema
 
 if TYPE_CHECKING:
@@ -69,7 +69,6 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
     series_plan = engine._ctx_builder.get_series_plan_summary()
 
     # Phase 1: Volume design (chapters)
-    from novel_forge.engine.review import generate_and_review
     engine._log.info(f"  ▶ volume_design — vol={vol_num}/{total_vol}")
     chapters = generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(

@@ -11,7 +11,7 @@ import json
 import re
 from typing import TYPE_CHECKING, Any
 
-from novel_forge.engine.review import format_review_text
+from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.name_registry import load_used_names, record_names
 from novel_forge.schemas import get_schema
 
@@ -159,7 +159,7 @@ def _generate_plan_core(engine: "NovelEngineBase", keywords: str, system: str, e
         engine._prompts.render("series_plan_core.md", {"keywords": keywords, "lang": engine._lang})
         + hint
     )
-    return engine._generate_and_review(
+    return generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "series_plan_core", system, p, get_schema("series_plan_core"), seed_offset=s
         ),
@@ -169,6 +169,9 @@ def _generate_plan_core(engine: "NovelEngineBase", keywords: str, system: str, e
         system=system,
         user_prompt=prompt,
         kind="series_plan_core",
+        llm=engine._llm,
+        quality=engine._quality,
+        strict=engine._strict,
     )
 
 
@@ -216,7 +219,7 @@ def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str
         )
         + existing_hint
     )
-    return engine._generate_and_review(
+    return generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "series_plan_characters",
             system,
@@ -230,6 +233,9 @@ def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str
         system=system,
         user_prompt=prompt,
         kind="series_plan_characters",
+        llm=engine._llm,
+        quality=engine._quality,
+        strict=engine._strict,
     )
 
 
@@ -277,7 +283,7 @@ def _generate_plan_volumes(engine: "NovelEngineBase", core: dict, characters: di
             "lang": engine._lang,
         },
     )
-    return engine._generate_and_review(
+    return generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "series_plan_volumes", system, p, get_schema("series_plan_volumes"), seed_offset=s
         ),
@@ -287,6 +293,9 @@ def _generate_plan_volumes(engine: "NovelEngineBase", core: dict, characters: di
         system=system,
         user_prompt=prompt,
         kind="series_plan_volumes",
+        llm=engine._llm,
+        quality=engine._quality,
+        strict=engine._strict,
     )
 
 

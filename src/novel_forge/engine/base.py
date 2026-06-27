@@ -284,14 +284,3 @@ class NovelEngineBase:
         record = SceneRecord(scene_number=scene_number)
         vol.scenes.append(record)
         return record
-
-    def _generate_and_review(self, *args, **kwargs) -> tuple[dict, dict]:
-        """Delegate to review.generate_and_review. (backward compatibility)"""
-        from novel_forge.engine.review import generate_and_review
-        return generate_and_review(
-            *args,
-            llm=self._llm,
-            quality=self._quality,
-            strict=self._strict,
-            **kwargs,
-        )
