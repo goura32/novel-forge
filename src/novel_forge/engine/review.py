@@ -66,6 +66,8 @@ def generate_and_review(
         if errors:
             if seed_offset >= max_retries:
                 msg = f"  [VALIDATION FAIL] {kind}: {errors} (max retries reached)"
+                if strict:
+                    raise RuntimeError(msg + " (--strict mode)")
                 _log.warning(msg)
             else:
                 _log.warning(
@@ -86,6 +88,8 @@ def generate_and_review(
 
         if seed_offset >= max_retries:
             msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({seed_offset}/{max_retries})"
+            if strict:
+                raise RuntimeError(msg + " (--strict mode)")
             _log.warning(msg)
             return result, review
 
