@@ -88,6 +88,13 @@ class NovelEngineBase:
         verbose: bool | None = None,
         raw_log_enabled: bool | None = None,
         phase: str = "",
+        # -- Dependency injection for testing --
+        storage: StateStorage | None = None,
+        bb_storage: BlackboardStorage | None = None,
+        bible_storage: BibleStorage | None = None,
+        ctx_builder: ContextBuilder | None = None,
+        bible_mgr: BibleManager | None = None,
+        scene_writer: SceneWriter | None = None,
     ):
         self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
@@ -127,9 +134,9 @@ class NovelEngineBase:
             )
 
         self._log = get_logger("novel_forge.engine")
-        self._storage = StateStorage(self._series_dir)
-        self._bb_storage = BlackboardStorage(self._series_dir)
-        self._bible_storage = BibleStorage(self._series_dir)
+        self._storage = storage or StateStorage(self._series_dir)
+        self._bb_storage = bb_storage or BlackboardStorage(self._series_dir)
+        self._bible_storage = bible_storage or BibleStorage(self._series_dir)
 
         lock_path = Path(workdir) / ".lock"
         if lock_path.exists():
@@ -179,9 +186,9 @@ class NovelEngineBase:
         self._quality = QualityGate(max_retries=quality_retries)
         self._state = self._storage.load()
 
-        self._ctx_builder = ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
-        self._bible_mgr = BibleManager(self._bible_storage)
-        self._scene_writer = SceneWriter(
+        self._ctx_builder = ctx_builder or ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
+        self._bible_mgr = bible_mgr or BibleManager(self._bible_storage)
+        self._scene_writer = scene_writer or SceneWriter(
             workdir,
             self._llm,
             self._prompts,
