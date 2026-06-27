@@ -708,34 +708,7 @@ class TestSceneWriter:
         result = writer.load_scene_draft(vol_num=1, scene_number=1, chapter_number=1)
         assert result is not None
 
-    def test_assemble_chapter(self, tmp_workdir):
-        """assemble_chapter() should combine scenes into chapter."""
-        from novel_forge.models import ChapterOutline
-        from novel_forge.prompts import PromptManager
-        from novel_forge.quality_gate import QualityGate
 
-        writer = SceneWriter(
-            workdir=tmp_workdir,
-            llm_client=MockLLMClient(),
-            prompt_manager=PromptManager(prompt_dir=tmp_workdir / "prompts"),
-            quality=QualityGate(),
-            blackboard_storage=BlackboardStorage(tmp_workdir),
-            bible_storage=BibleStorage(tmp_workdir),
-        )
-        ch_dir = tmp_workdir / "vol01" / "vol01_ch01"
-        ch_dir.mkdir(parents=True)
-        (ch_dir / "vol01_ch01_sc01.md").write_text("# Scene 1", encoding="utf-8")
-        (ch_dir / "vol01_ch01_sc02.md").write_text("# Scene 2", encoding="utf-8")
-        result = writer.assemble_chapter(
-            vol_num=1,
-            chapter=ChapterOutline(number=1, title="章1", purpose="導入"),
-            scene_texts=["# Scene 1", "# Scene 2"],
-            scene_numbers=[1, 2],
-        )
-        assert Path(result).exists()
-
-
-# ── Quality gate tests ─────────────────────────────────────────────────
 
 
 class TestQualityGate:

@@ -6,7 +6,6 @@ Also manages scene summarization and Bible updates after each scene.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -28,8 +27,7 @@ from novel_forge.storage import BibleStorage, BlackboardStorage
 class SceneWriter:
     """Handles scene drafting, review, revision, and post-processing."""
 
-    _RE_SCENE_MARKER_FULL = re.compile(r"^シーン\d+[\uff08\(]第\d+章[\uff09\)]\s*[：:]\s*")
-    _RE_SCENE_MARKER_SIMPLE = re.compile(r"^シーン\d+\s*[：:]\s*")
+
 
     def __init__(
         self,
@@ -356,38 +354,4 @@ class SceneWriter:
             return plain.read_text(encoding="utf-8")
         return ""
 
-    def assemble_chapter(
-        self, vol_num: int, chapter, scene_texts: list[str], scene_numbers: list[int] | None = None
-    ) -> str:
-        vol_dir = self._series_dir / f"vol{vol_num:02d}"
-        ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}"
-        ch_dir.mkdir(parents=True, exist_ok=True)
 
-        if scene_numbers is None:
-            scene_numbers = list(range(1, len(scene_texts) + 1))
-        for sc_num, _text in zip(scene_numbers, scene_texts, strict=True):
-            max_version = 0
-            for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v*.md"):
-                try:
-                    v = int(f.stem.split("_v")[-1])
-                    if v > max_version:
-                        max_version = v
-                except ValueError:
-                    pass
-            if max_version > 0:
-                latest = (
-                    ch_dir
-                    / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v{max_version}.md"
-                )
-                final_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}.md"
-                final_path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
-
-        ch_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
-        cleaned_texts = []
-        for text in scene_texts:
-            cleaned = self._RE_SCENE_MARKER_FULL.sub("", text.strip())
-            cleaned = self._RE_SCENE_MARKER_SIMPLE.sub("", cleaned)
-            cleaned_texts.append(cleaned)
-        content = f"# {chapter.title}\n\n" + "\n\n---\n\n".join(cleaned_texts)
-        ch_path.write_text(content, encoding="utf-8")
-        return str(ch_path)

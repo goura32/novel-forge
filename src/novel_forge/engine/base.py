@@ -16,7 +16,7 @@ from typing import Any
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
-from novel_forge.llm_client import LLMClient, load_config
+from novel_forge.llm_client import LLMClient, _build_ollama_options, load_config
 from novel_forge.logging_config import console, get_logger, setup_logging
 from novel_forge.models import (
     ProjectState,
@@ -28,25 +28,6 @@ from novel_forge.quality_gate import QualityGate
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.schemas import validate_schemas
 from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
-
-_OLLAMA_OPTION_KEYS = [
-    "temperature", "top_k", "top_p", "repeat_penalty",
-    "presence_penalty", "frequency_penalty", "num_ctx",
-    "num_predict", "seed", "stop", "tfs_z", "typical_p",
-    "mirostat", "mirostat_tau", "mirostat_eta", "penalize_newline",
-]
-
-
-def _build_ollama_options(llm_cfg: dict) -> dict:
-    """config.yaml から ollama options 辞書を構築する。"""
-    options = dict(llm_cfg.get("ollama_options") or {})
-    for key in _OLLAMA_OPTION_KEYS:
-        if key in llm_cfg and llm_cfg[key] is not None:
-            options[key] = llm_cfg[key]
-    if "think" in llm_cfg:
-        options["think"] = llm_cfg["think"]
-    return options
-
 
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID exists."""
@@ -67,9 +48,6 @@ class NovelEngineBase:
     """
 
     _signal_cleanup: Any = None
-    _BLOCKER = "致命的"
-    _CRITICAL = "重大"
-    _MAJOR = "重要"
     _DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
     _DEFAULT_NUM_PREDICT = -1
     _DEFAULT_NUM_CTX = 262144

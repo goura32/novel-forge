@@ -14,6 +14,24 @@ from novel_forge.logging_config import Console, get_logger
 
 console = Console()
 
+_OLLAMA_OPTION_KEYS = [
+    "temperature", "top_k", "top_p", "repeat_penalty",
+    "presence_penalty", "frequency_penalty", "num_ctx",
+    "num_predict", "seed", "stop", "tfs_z", "typical_p",
+    "mirostat", "mirostat_tau", "mirostat_eta", "penalize_newline",
+]
+
+
+def _build_ollama_options(llm_cfg: dict) -> dict:
+    """config.yaml から ollama options 辞書を構築する。"""
+    options = dict(llm_cfg.get("ollama_options") or {})
+    for key in _OLLAMA_OPTION_KEYS:
+        if key in llm_cfg and llm_cfg[key] is not None:
+            options[key] = llm_cfg[key]
+    if "think" in llm_cfg:
+        options["think"] = llm_cfg["think"]
+    return options
+
 
 class LLMError(Exception):
     pass
@@ -327,18 +345,9 @@ class LLMClient:
                         now = time.time()
                         if now - self._last_progress_log >= 60:
                             elapsed_total = now - call_start
-                            meta = ""
-                            if self._series_slug:
-                                meta += f" series={self._series_slug}"
-                            if self._volume:
-                                meta += f" vol={self._volume}"
-                            elapsed_total = now - call_start
                             self._log.info(
                                 "  [LLM PROGRESS] chunks=%d bytes=%d elapsed=%.1fs%s",
-                                chunk_count,
-                                total_bytes,
-                                elapsed_total,
-                                meta,
+                                chunk_count, total_bytes, elapsed_total, self._build_meta(),
                             )
                             self._last_progress_log = now
         except httpx.TimeoutException:
