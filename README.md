@@ -12,7 +12,7 @@ KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足を
 |---|---|
 | [docs/PIPELINE.md](docs/PIPELINE.md) | パイプライン設計（CLI コマンド、エンジン、状態遷移） |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | プロンプト管理（一覧、役割定義、言語制約） |
-| [docs/dev/ARCHITECTURE.md](docs/dev/ARCHITECTURE.md) | アー�テクチャ（レイヤー構成、データフロー、LLM通信） |
+| [docs/dev/ARCHITECTURE.md](docs/dev/ARCHITECTURE.md) | アーキテクチャ（レイヤー構成、データフロー、LLM通信） |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | 用語集 |
 
 ---
@@ -71,7 +71,6 @@ uv run novel-forge resume  --workdir /mnt/hdd/novel
 
 - `series_dir/.lock` ファイルで排他制御
 - ロック保持プロセスが終了していたら自動回収（stale lock detection）
-- 5分以上経過したロックも stale として強制取得
 - `status` はロック不要（読み取り専用）
 
 ```bash
@@ -93,12 +92,43 @@ cli.py → engine/ → scene_writer.py
 ```
 
 - **CLI Interface** (`cli.py`): ユーザー対話、排他制御
-- **NovelEngine** (`engine/`): オーケストレーション層（Mixin パターン）
+- **NovelEngine** (`engine/`): オーケストレーション層（thin facade + standalone functions）
 - **SceneWriter** (`scene_writer.py`): シーン執筆パイプライン（draft/review/revise/summarize）
 - **LLMClient** (`llm_client.py`): LLM API 通信（`{schema}` 置換、リトライ、ログ）
 - **json_parser** (`json_parser.py`): NDJSON ストリームパース、型変換
 - **name_registry** (`name_registry.py`): キャラクター名重複排除
 - **QualityGate** (`quality_gate.py`): シーン品質評価（severity ベース）
+
+### Mixin 排除
+
+従来の Mixin パターンを排除し、スタンドアロン関数 + thin facade パターンを採用:
+
+```python
+# 従来（Mixin パターン）
+class NovelEngine(NovelEngineBase, PlanMixin, DesignMixin, WriteMixin, ExportMixin):
+    pass
+
+# 最新（thin facade + standalone functions）
+class NovelEngine(NovelEngineBase):
+    def plan(self, keywords: str) -> dict:
+        return plan(self, keywords)
+    def design(self, volume_number: int | None = None) -> dict:
+        return design(self, volume_number)
+    ...
+```
+
+### 依存性注入
+
+テスト時にモックを注入可能:
+
+```python
+engine = NovelEngine(
+    workdir=tmp_path,
+    llm_client=MockLLMClient(),
+    storage=MockStorage(),
+    scene_writer=MockSceneWriter(),
+)
+```
 
 ## テスト
 

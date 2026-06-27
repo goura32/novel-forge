@@ -39,46 +39,38 @@ novel-forge/
 │   ├── scene_summary_and_bible_update.md
 │   ├── kdp_metadata.md
 │   └── cover_prompt.md
-├── schemas/                      # JSON Schema 定義（28ファイル）
+├── schemas/                      # JSON Schema 定義
 │   ├── series_plan_core.json
 │   ├── series_plan_core_review.json
-│   ├── series_plan_core_revision.json
 │   ├── series_plan_characters.json
 │   ├── series_plan_characters_review.json
-│   ├── series_plan_characters_revision.json
 │   ├── series_plan_volumes.json
 │   ├── series_plan_volumes_review.json
-│   ├── series_plan_volumes_revision.json
 │   ├── volume_design.json
 │   ├── volume_design_review.json
-│   ├── volume_design_revision.json
 │   ├── chapter_design.json
 │   ├── chapter_design_review.json
-│   ├── chapter_design_revision.json
 │   ├── scene_design.json
 │   ├── scene_design_review.json
-│   ├── scene_design_revision.json
 │   ├── scene_draft.json
 │   ├── scene_review.json
-│   ├── scene_revision.json
-│   ├── scene_summary.json
 │   ├── scene_summary_and_bible_update.json
-│   ├── bible.json
-│   ├── bible_update.json
 │   ├── blackboard.json
-│   ├── kdp_metadata.json
-│   └── cover_prompt.json
+│   ├── bible.json
+│   └── kdp_metadata.json
 ├── src/
 │   └── novel_forge/
 │       ├── __init__.py
 │       ├── cli.py               # CLI エントリポイント + 排他制御
 │       ├── engine/              # NovelEngine (オーケストレーション)
-│       │   ├── __init__.py      # NovelEngine クラス定義
-│       │   ├── base.py          # NovelEngineBase (初期化, state, _review_and_revise)
-│       │   ├── plan.py          # PlanMixin (シリーズ企画)
-│       │   ├── design.py        # DesignMixin (巻デザイン)
-│       │   ├── write.py         # WriteMixin (シーン執筆)
-│       │   └── export.py        # ExportMixin (KDP出力)
+│       │   ├── __init__.py      # NovelEngine クラス定義 (thin facade)
+│       │   ├── base.py          # NovelEngineBase (初期化, state, DI)
+│       │   ├── plan.py          # plan() — 3フェーズ
+│       │   ├── design.py        # design() — 3フェーズ
+│       │   ├── write.py         # write() — シーン執筆ループ
+│       │   ├── export.py        # export(), resume(), status()
+│       │   ├── review.py        # generate_and_review(), format_review_text()
+│       │   └── infra.py         # make_engine(), ロック, status/doctor
 │       ├── scene_writer.py      # SceneWriter (シーン執筆パイプライン)
 │       ├── context_builder.py   # ContextBuilder (コンテキスト構築)
 │       ├── bible_manager.py     # BibleManager (Bible 管理)
@@ -86,10 +78,10 @@ novel-forge/
 │       ├── llm_client.py        # LLM クライアント
 │       ├── json_parser.py       # JSON パース・型変換
 │       ├── prompts.py           # プロンプト管理
-│       ├── quality_gate.py      # QualityGate + recalc_review_score
+│       ├── quality_gate.py      # QualityGate
 │       ├── schemas.py           # スキーマレジストリ
 │       ├── storage.py           # 永続化
-│       └── kanji_data.py        # 常用漢字データ
+│       └── name_registry.py     # キャラクター名重複排除
 └── tests/
     └── test_*.py
 ```
@@ -111,18 +103,20 @@ novel-forge/
 | `SubplotItem` | `models.py` | サブプロット |
 | `GlossaryItem` | `models.py` | 用語 |
 | `VolumeOutline` | `models.py` | 巻アウトライン |
+| `SceneWriteContext` | `models.py` | シーン生成用コンテキスト |
+| `QualityGateResult` | `quality_gate.py` | 品質ゲート結果 |
 
 ### 2.2 ステータス値
 
-**シリーズのステータス**: `計画中` / `デザイン済` / `執筆中` / `初稿済` / `強制出力済` / `出力済`
+**プロジェクトのステータス**: `計画中` / `デザイン済` / `執筆中` / `初稿済` / `出力済` / `強制出力済`
 
-**巻のステータス**: `計画中` / `デザイン済` / `執筆中` / `初稿済` / `強制出力済` / `出力済`
+**巻のステータス**: `計画中` / `デザイン済` / `執筆中` / `初稿済` / `出力済` / `強制出力済`
 
 **シーンのステータス**: `計画中` / `初稿済` / `修正済` / `強制出力済`
 
 ## 3. 設定ファイル (config.yaml)
 
-`config.yaml` は作業ディレクトリに自動生成されます。存在しない場合はコード内のデフォルト値が使用されます。
+`config.yaml` は作業ディレクトリに自動検索されます。存在しない場合はコード内のデフォルト値が使用されます。
 
 ```yaml
 llm:
@@ -130,12 +124,20 @@ llm:
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 2
-  ollama_options:
-    think: true
+  max_retries: 5
+  ollama_host: "192.168.1.31:11434"
+  think: true
+
+logging:
+  verbose: true
+  raw_log: true
+  log_level: "DEBUG"
+
+quality:
+  max_review_retries: 3
 ```
 
-> **注意**: `ollama_host` は環境に応じて設定してください。デフォルトではリモートホストに接続します。
+優先順位: CLI引数 > config.yaml > デフォルト値
 
 ## 4. 永続化
 
@@ -147,137 +149,49 @@ llm:
 | `blackboard.json` | 事実記録 | シーン完了時 |
 | `bible.json` | 設定資料集 | シーン完了時 |
 | `series_plan.json` | シリーズ企画 | plan 完了時 |
-| `design.json` | 巻デザイン | design 完了時 |
-| `.lock` | 排他ロック | 全 engineering コマンド実行中 |
+| `vol01.json` | 巻デザイン | design 完了時 |
+| `vol01_ch01.json` | 章設計 | design 完了時 |
+| `vol01_ch01_sc01.json` | シーンデザイン | design 完了時 |
+| `vol01_ch01_sc01.md` | シーン本文 | write 完了時 |
+| `used_names.json` | 使用済みキャラクター名 | plan 完了時 |
 
-### 4.2 原子的書き込み
+### 4.2 アトミック書き込み
 
-全 JSON ファイルは原子的書き込み（一時ファイル → fsync → rename）で保存。既存ファイルは `.bak` に退避。
+`storage.py` の全クラスが `tempfile.mkstemp` + `os.rename` でアトミック書き込みを実装。
 
-## 5. LLM クライアント
+## 5. 依存性注入
 
-### 5.1 エンドポイント
+`NovelEngineBase.__init__` で依存性を注入可能:
 
-`/api/chat` を使用。`format: schema` + `think: true`。
+```python
+class NovelEngineBase:
+    def __init__(
+        self,
+        workdir: Path,
+        llm_client: LLMClient | None = None,
+        storage: StateStorage | None = None,
+        bb_storage: BlackboardStorage | None = None,
+        bible_storage: BibleStorage | None = None,
+        ctx_builder: ContextBuilder | None = None,
+        bible_mgr: BibleManager | None = None,
+        scene_writer: SceneWriter | None = None,
+        ...
+    ):
+```
 
-### 5.2 リトライ
+テスト時の使用例:
 
-- 最大リトライ: 2回（合計3回試行）
-- JSON パースエラーやスキーマ検証エラーはフィードバック付きでリトライ
-- リトライ時に seed をインクリメント
-
-### 5.3 JSON パースパイプライン
-
-`json_parser.py` の `parse_json_response()` が担当:
-
-1. 直接 parse
-2. Markdown fence 除去
-3. 改行エスケープ
-4. 括弧修正（`「...」` → `"..."`）
-5. シングルクォート修正
-6. クォートなし値修正
-7. コロン修正
-8. 範囲抽出
-
-### 5.4 型変換パイプライン
-
-`json_parser.py` の `coerce_types()` が担当:
-
-- dict → string, list → string, string → array
-- float → integer (score フィールドは 0-100 範囲チェック)
-- object は再帰的に変換、不足フィールドを補完
-
-## 6. デザイン生成（3フェーズパイプライン）
-
-### 6.1 Phase 1: 章構成
-
-`volume_design.md` + `volume_design.json` — 章のタイトルと役割（導入/展開/転換/クライマックス/収束）
-
-### 6.2 Phase 2: 章設計
-
-`chapter_design.md` + `chapter_design.json` — 各章のテーマ、感情弧、伏線メモ、サブプロットメモ
-
-### 6.3 Phase 3: シーン設計
-
-`scene_design.md` + `scene_design.json` — 各シーンの目標/結果/葛藤/視点/登場人物
-
-## 7. 品質ゲート
-
-### 7.1 評価カテゴリ（9次元 + α）
-
-| カテゴリ | 説明 |
-|---|---|
-| `opening_hook` | 冒頭のフック |
-| `character_distinction` | キャラ立ち |
-| `sensory_coverage` | 五感の網羅 |
-| `scene_closure` | シーン末尾の引き |
-| `dialogue_naturalness` | 台詞の自然さ |
-| `tone_consistency` | 文体の一貫性 |
-| `scene_completeness` | シーン完結 |
-| `language_purity` | 言語純度 |
-| `pov_consistency` | 視点の一貫性 |
-
-### 7.2 合格基準
-
-- `score >= 70`（0-100スケール）かつ `critical` / `blocker` issue が0件
-- 不合格時は自動改稿 → 再評価（最大2回）。2回不合格 → `強制出力済`
-
-### 7.3 スコア再計算
-
-`quality_gate.recalc_review_score()` が Python 側でスコアを再計算:
-
-- サブスコアの平均をベースに計算
-- critical issue → score ≤ 50
-- major issue 3つ以上 → score ≤ 65
-- minor only → score ≥ 70
-
-## 8. 言語制約
-
-### 8.1 禁止事項
-
-1. **英語**: 日本語として定着した語以外は日本語に翻訳
-2. **中国語**: 簡体字・繁体字の混入禁止
-3. **韓国語**: ハングル禁止
-
-### 8.2 例外
-
-- `slug` フィールドのみローマ字許可
-- 技術用語（CPU, GPU, SSD, USB, URL, HTML, RAM, ROM, DNS, VPN, SSH, FTP, API, SDK, LAN, WAN, GPS, LED, LCD, OLED, DNA, RNA, CT, MRI, X線, IoT, PC, AI, ICU）は英語のまま許可
-- 日本語として定着した語（データ、ファイル、兵器、扉、走る等）は通常の日本語として使用可能
-
-## 9. 依存要件
-
-### 9.1 前巻必須
-
-**次巻のデザイン生成には、前巻の `design.json` が必須。**
-
-- `design -V N`（N >= 2）実行時、`vol{N-1:02d}/design.json` が存在しない場合は `RuntimeError`
-
-### 9.2 前巻シーン参照（continuity）
-
-各シーンの執筆時、`build_continuity()` が前シーンの全文を注入。
-
-- 巻内の連続性: 前シーン全文 + 直近シーン要約 + 引き継ぎメモ
-- 巻間の連続性: 前巻の `scene_summaries` が Blackboard に蓄積され、continuity に含まれる
-
-## 10. テスト
-
-### 10.1 テストファイル
-
-| ファイル | 内容 |
-|---|---|
-| `test_models.py` | データモデルテスト |
-| `test_storage.py` | 永続化テスト |
-| `test_prompts.py` | プロンプトテスト |
-| `test_quality.py` | 品質ゲートテスト |
-| `test_engine_integration.py` | エンジン統合テスト |
-
-### 10.2 実行
-
-```bash
-uv run pytest tests/ -x -q
+```python
+engine = NovelEngine(
+    workdir=tmp_path,
+    llm_client=MockLLMClient(),
+    storage=MockStateStorage(),
+    bb_storage=MockBlackboardStorage(),
+    bible_storage=MockBibleStorage(),
+    scene_writer=MockSceneWriter(),
+)
 ```
 
 ---
 
-*Last updated: 2026-08-07*
+*Last updated: 2026-06-27*

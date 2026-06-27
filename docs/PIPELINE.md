@@ -45,12 +45,12 @@ novel-forge doctor
 
 | コマンド | 説明 |
 |---|---|
-| `plan` | キー�ードからシを生成 |
+| `plan` | キーワードからシリーズ企画を生成 |
 | `design` | 巻デザイン（章・シーン構成）を生成 |
 | `write` | シーン本文を生成 |
 | `export` | KDP 向け出力を生成 |
 | `complete` | plan → design → write → export を一括実行 |
-| `status` | 現在の進�を表示 |
+| `status` | 現在の進捗を表示 |
 | `resume` | 中断した工程から再開 |
 | `list` | シリーズ一覧を表示 |
 | `doctor` | Ollama 接続診断 |
@@ -59,29 +59,46 @@ novel-forge doctor
 
 ## 2. エンジン構成
 
-### 2.1 Mixin パターン
+### 2.1 Thin Facade パターン
 
 ```python
-class NovelEngine(
-    NovelEngineBase,    # __init__, helpers, state, _generate_and_review
-    PlanMixin,          # plan() — 3-phase: core → characters → volumes
-    DesignMixin,        # design() — 3-phase: volume → chapter → scene
-    WriteMixin,         # write()
-    ExportMixin,        # export()
-):
-    pass
+class NovelEngine(NovelEngineBase):
+    """NovelEngine — all phase methods defined directly.
+
+    No mixins. Each method delegates to a standalone function.
+    """
+
+    def plan(self, keywords: str) -> dict:
+        return plan(self, keywords)
+
+    def design(self, volume_number: int | None = None) -> dict:
+        return design(self, volume_number)
+
+    def write(self, volume_number: int | None = None) -> list:
+        return write(self, volume_number)
+
+    def export(self, volume_number: int | None = None) -> dict:
+        return export(self, volume_number)
+
+    def resume(self) -> dict:
+        return resume(self)
+
+    def status(self) -> dict:
+        return status(self)
 ```
 
 ### 2.2 ファイル構成
 
 ```
 engine/
-├── base.py           # NovelEngineBase — __init__, ロック, 状態管理, _generate_and_review
-├── infra.py          # ロック取得, エンジン生成, フェーズ解決, status/doctor
-├── plan.py           # PlanMixin — plan() 3フェーズ
-├── design.py         # DesignMixin — design() 3フェーズ
-├── write.py          # WriteMixin — write()
-└── export.py         # ExportMixin — export()
+├── __init__.py         # NovelEngine クラス定義 (thin facade)
+├── infra.py            # ロック取得, エンジン生成, status/doctor
+├── base.py             # NovelEngineBase — __init__, state, DI
+├── plan.py             # plan() — 3-phase: core → characters → volumes
+├── design.py           # design() — 3-phase: volume → chapter → scene
+├── write.py            # write() — シーン執筆ループ
+├── export.py           # export(), resume(), status()
+└── review.py           # generate_and_review(), format_review_text()
 ```
 
 ### 2.3 外部モジュール
@@ -100,23 +117,22 @@ engine/
 
 ---
 
-## 3. シリーズ企画パイプライン (PlanMixin)
+## 3. シリーズ企画パイプライン (plan())
 
-3フェーズでシリーズ企画を生成。各フェーズが `_generate_and_review()` で生成→レビュー→改稿ループ。
+3フェーズでシリーズ企画を生成。各フェーズが `generate_and_review()` で生成→レビュー→改稿ループ。
 
 ### Phase 1: Core
 - **入力**: キーワード
 - **出力**: タイトル、あらすじ、ジャンル、テーマ、世界観、キャラクター一覧
 - **スキーマ**: `series_plan_core.json`
 - **バリデーション**: `title`, `slug`, `logline`, `genre`, `themes`, `selling_points`, `world`, `target_audience`, `main_characters` 必須
-- **slug 重複チェック**: 既存シリーズの slug 一覧をプロンプトに渡して「追加name_registry」に使用
+- **slug 重複チェック**: 既存シリーズの slug 一覧をプロンプトに渡す
 - **キャラクター名重複バリデーション**: 名前レジストリで重複排除
 
 ### Phase 2: Characters
 - **入力**: Phase 1 の世界観・キャラクター
 - **出力**: 全キャラクターの詳細プロフィール（personality, motivation, flaw, arc, skills）
 - **スキーマ**: `series_plan_characters.json`
-- **スキーマフィールド**: name, role, personality, motivation, flaw, arc, skills（追加: skillsは newer）
 
 ### Phase 3: Volumes
 - **入力**: Phase 1 + Phase 2
@@ -124,7 +140,7 @@ engine/
 - **スキーマ**: `series_plan_volumes.json`
 - **制約**: 3巻固定、クリフハンガー必須（最終巻除く）
 
-### `_generate_and_review()` ループ
+### generate_and_review() ループ
 
 ```python
 for attempt in range(max_retries):
@@ -150,7 +166,7 @@ return result  # max_retries後にbest effort
 
 ---
 
-## 4. 巻デザイン�イプライン (DesignMixin)
+## 4. 巻デザイン�イプライン (design())
 
 3フェーズで。
 
@@ -173,7 +189,7 @@ return result  # max_retries後にbest effort
 
 ---
 
-## 5. シーン執筆パイプライン (WriteMixin → SceneWriter)
+## 5. シーン執筆パイプライン (write() → SceneWriter)
 
 ### 5.1 処理順序
 
@@ -188,7 +204,7 @@ for chapter in chapters:
 
 ### 5.2 Draft
 
-SceneWriter.write_scene() で以下の情報を基に初稿生成:
+SceneWriter._draft_scene() で以下の情報を基に初稿生成:
 - シリーズ企画、巻デザイン、シーン定義
 - 前シーン全文 + 直近シーン要約 + 引き継ぎメモ
 - Bible（キャラクター、伏線、関係性、用語、世界観ルール）
@@ -197,7 +213,7 @@ SceneWriter.write_scene() で以下の情報を基に初稿生成:
 
 1. **Review**: 初稿を評価し、改善点を抽出（`scene_review.json`）
 2. **Quality Gate**: レビュー結果に基づき code側で 合格/不合格 を機械判定
-3. **Revise**: 不合格の場合、レビュー結果に基づき自動改稿（`scene_revision.json` 不要、`scene_draft` スキーマ使用）
+3. **Revise**: 不合格の場合、レビュー結果に基づき自動改稿（`scene_draft` スキーマ使用）
 4. **最大2回**まで繰り返す。2回不合格 → `強制出力済`
 
 ### 5.4 Summarize + Bible Update
@@ -237,7 +253,6 @@ SceneWriter.write_scene() で以下の情報を基に初稿生成:
 
 - **Plan 完了時**: キャラクター名を `record_names()` で記録
 - **新規 Plan**: `load_used_names()` で既読名を取得し、プロンプトに「使用不可名」として渡す
-- **バリデーション**: `_validate_plan_plan` で同一シリーズ内の重複チェック
 
 ---
 
@@ -246,10 +261,11 @@ SceneWriter.write_scene() で以下の情報を基に初稿生成:
 ### 8.1 フォーマット
 
 ```
-[YYYY-MM-DD HH:MM:SS] [PID XXXX]【LEVEL】message
+[YYYY-MM-DD HH:MM:SS] [series:X] [PID XXXXX] [LEVEL] message
 ```
 
 - `PID`: プロセスID（マルチプロセス時の区別）
+- `series`: シリーズslug（Design/Write/Export フェーズ）
 - ログファイル: `workdir/novel_forge.log`（追記モード）
 - stderr: WARNING 以上（verbose 時は DEBUG）
 
@@ -325,7 +341,7 @@ Scene status:
 
 任意の状態から再開可能。状態は `state.json` から読み込まれる。
 
-| 狀態 | 再開動作 |
+| 状態 | 再開動作 |
 |---|---|
 | 計画中 | plan から再開 |
 | デザイン済 | design から再開 |
@@ -339,7 +355,7 @@ Scene status:
 | 介入ポイント | タイミング | 内容 |
 |---|---|---|
 | シリーズ企画の確認 | plan 直後 | LLM自己レビュー結果を人間が確認（暗黙承認） |
-| 最終レビュー | export 直后 | kdp_readiness_report.md の確認（任意） |
+| 最終レビュー | export 直後 | kdp_readiness_report.md の確認（任意） |
 
 **それ以外の工程はすべて LLM 自律。**
 
@@ -358,16 +374,14 @@ Scene status:
 │   ├── vol01.json
 │   ├── vol01_ch01/
 │   │   ├── vol01_ch01.json
-│   │   ├── vol01_ch01_sc01/
-│   │   │   ├── vol01_ch01_sc01.json
-│   │   │   └── vol01_ch01_sc01.md
+│   │   ├── vol01_ch01_sc01.json
 │   │   └── ...
 │   └── ...
 ├── used_names.json
 └── exports/
     ├── <slug>_vol01.md
     ├── <slug>_vol01_metadata.json
-    └── <slug>_vol01_kdp
+    └── <slug>_vol01_kdp_readiness_report.md
 ```
 
 ---
@@ -379,4 +393,4 @@ Scene status:
 
 ---
 
-*Last updated: 2026-06-26*
+*Last updated: 2026-06-27*
