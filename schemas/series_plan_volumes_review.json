@@ -32,11 +32,11 @@
             "description": "指摘のカテゴリ（例: missing_field, volume_uniqueness, series_flow, cliffhanger, theme_consistency）。",
             "type": "string",
             "enum": [
-              "必須フィールド欠落",
-              "巻の独自性",
-              "シリーズ流れ",
-              "クライフハンガー",
-              "テーマ一貫性"
+              "必須フィールド",
+              "独自性",
+              "流れ",
+              "フック",
+              "テーマ"
             ]
           },
           "description": {

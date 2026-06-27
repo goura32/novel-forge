@@ -18,7 +18,7 @@ class WriteMixin(NovelEngineBase):  # type: ignore[misc]
     def write(self, volume_number: int | None = None) -> list[dict[str, Any]]:
         vol_num = volume_number or self._state.current_volume
         self._state.current_volume = vol_num
-        self._state.status = "執筆中"
+        self.state_status = "執筆中"
         slug = getattr(self, "_slug", "?")
         design_data = self._load_path(vol_num, f"vol{vol_num:02d}.json")
         vol_title = design_data.get("title", f"第{vol_num}巻")

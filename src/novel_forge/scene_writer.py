@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
+from novel_forge.engine.review import format_review_text
 from novel_forge.logging_config import get_logger
 from novel_forge.models import (
     Bible,
@@ -292,23 +293,9 @@ class SceneWriter:
 
     # ── revise ───────────────────────────────────────────────────────
 
-    @staticmethod
-    def _build_review_text(review: dict) -> str:
-        """Build a human-readable review text from a review dict."""
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            sev = issue.get("severity", "")
-            cat = issue.get("category", "")
-            desc = issue.get("description", "")
-            sug = issue.get("suggestion", "")
-            lines.append(f"  [{sev}] {cat}: {desc}")
-            if sug:
-                lines.append(f"    提案: {sug}")
-        return "\n".join(lines)
-
     def _revise_scene(self, draft_text: str, review: dict, lang: str, seed_offset: int = 0) -> str:
         system = self._prompts.render("system.md", {"lang": lang})
-        review_text = self._build_review_text(review)
+        review_text = format_review_text(review)
         user = self._prompts.render(
             "scene_revision.md",
             {

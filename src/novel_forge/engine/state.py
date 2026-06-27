@@ -1,4 +1,8 @@
-"""NovelEngine base — __init__, helpers, state management."""
+"""Engine state — all runtime state in one place.
+
+This replaces NovelEngineBase. Phase functions receive this as their
+first argument instead of self, making dependencies visible and testable.
+"""
 
 from __future__ import annotations
 
@@ -6,13 +10,11 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
-from novel_forge.engine.review import generate_and_review, format_review_text
 from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.logging_config import console, get_logger, setup_logging
 from novel_forge.models import (
@@ -35,7 +37,6 @@ _OLLAMA_OPTION_KEYS = [
 
 
 def _build_ollama_options(llm_cfg: dict) -> dict:
-    """config.yaml から ollama options 辞書を構築する。"""
     options = dict(llm_cfg.get("ollama_options") or {})
     for key in _OLLAMA_OPTION_KEYS:
         if key in llm_cfg and llm_cfg[key] is not None:
@@ -46,7 +47,6 @@ def _build_ollama_options(llm_cfg: dict) -> dict:
 
 
 def _is_process_alive(pid: int) -> bool:
-    """Check if a process with the given PID exists."""
     try:
         os.kill(pid, 0)
         return True
@@ -56,23 +56,16 @@ def _is_process_alive(pid: int) -> bool:
         return True
 
 
-class NovelEngineBase:
-    """Base class for NovelEngine — __init__, helpers, state management."""
+class EngineState:
+    """Mutable state for all engine phases.
 
-    _signal_cleanup: Any = None
-    _BLOCKER = "致命的"
-    _CRITICAL = "重大"
-    _MAJOR = "重要"
-    _DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
-    _DEFAULT_NUM_PREDICT = -1
-    _DEFAULT_NUM_CTX = 262144
-    _DEFAULT_TIMEOUT = 3600
-    _DEFAULT_MAX_RETRIES = 2
+    Phase functions receive this as their first argument instead of self.
+    """
 
     def __init__(
         self,
         workdir: Path,
-        model: str | None = None,
+        model: str | None = None,  # type: ignore[assignment]
         lang: str = "ja",
         llm_client: LLMClient | None = None,
         prompt_manager: PromptManager | None = None,
@@ -84,9 +77,10 @@ class NovelEngineBase:
     ):
         self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
+        self._phase = phase
+        self._strict = False
 
         cfg = config if config is not None else load_config()
-
         log_cfg = cfg.get("logging", {})
         self._verbose = verbose if verbose is not None else log_cfg.get("verbose", False)
         self._raw_log_enabled = (
@@ -94,10 +88,8 @@ class NovelEngineBase:
         )
         self._log_level = log_cfg.get("log_level", "DEBUG")
         self._slug = ""
-        self._phase = phase
-        self._strict = False
 
-        # ログは全シリーズ共通で config.yaml と同じフォルダに出力
+        # Logging
         log_dir = Path(workdir)
         log_slug = ""
         if (log_dir / "series_plan.json").exists():
@@ -120,10 +112,8 @@ class NovelEngineBase:
             )
 
         self._log = get_logger("novel_forge.engine")
-        self._storage = StateStorage(self._series_dir)
-        self._bb_storage = BlackboardStorage(self._series_dir)
-        self._bible_storage = BibleStorage(self._series_dir)
 
+        # Lock check
         lock_path = Path(workdir) / ".lock"
         if lock_path.exists():
             try:
@@ -135,19 +125,17 @@ class NovelEngineBase:
                 lock_path.unlink(missing_ok=True)
                 console.print(f"[dim]⚠ Removed corrupted lock: {lock_path}[/dim]")
 
+        # LLM client
         if llm_client is None:
             llm_cfg = cfg.get("llm", {})
-            model = model or self._DEFAULT_MODEL
-            model = llm_cfg.get("model", model)
-            if model is None:
-                model = self._DEFAULT_MODEL
-            timeout = llm_cfg.get("timeout_seconds", self._DEFAULT_TIMEOUT)
-            max_retries = llm_cfg.get("max_retries", self._DEFAULT_MAX_RETRIES)
-            num_predict = llm_cfg.get("num_predict", self._DEFAULT_NUM_PREDICT)
-            num_ctx = llm_cfg.get("num_ctx", self._DEFAULT_NUM_CTX)
+            default_model = "qwen3.6:35b-a3b-mtp-q4_K_M"
+            model = model or llm_cfg.get("model") or default_model
+            timeout = llm_cfg.get("timeout_seconds", 3600)
+            max_retries = llm_cfg.get("max_retries", 2)
+            num_predict = llm_cfg.get("num_predict", -1)
+            num_ctx = llm_cfg.get("num_ctx", 262144)
             host = llm_cfg.get("ollama_host", None)
             api_url = f"http://{host}/api/chat" if host else None
-            vol = ""
             llm_client = LLMClient(
                 api_url=api_url,
                 model=model,
@@ -160,54 +148,168 @@ class NovelEngineBase:
                 num_ctx=num_ctx,
                 ollama_options=_build_ollama_options(llm_cfg),
                 series_slug=self._slug,
-                volume=vol,
+                volume="",
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
+
         quality_retries = (
             max_review_retries
             if max_review_retries is not None
             else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
         )
         self._quality = QualityGate(max_retries=quality_retries)
-        self._state = self._storage.load()
 
-        self._ctx_builder = ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
-        self._bible_mgr = BibleManager(self._bible_storage)
-        self._scene_writer = SceneWriter(
-            workdir,
-            self._llm,
-            self._prompts,
-            self._quality,
-            self._bb_storage,
-            self._bible_storage,
-            series_dir=self._series_dir,
-        )
+        # Storage (lazy)
+        self._storage: StateStorage | None = None
+        self._bb_storage: BlackboardStorage | None = None
+        self._bible_storage: BibleStorage | None = None
+        self._ctx_builder: ContextBuilder | None = None
+        self._bible_mgr: BibleManager | None = None
+        self._scene_writer: SceneWriter | None = None
 
-    @property
-    def state(self) -> ProjectState:
-        return self._state
+        # Load state
+        self._state = self._storage_loaded_state()
+
+    def _storage_loaded_state(self) -> ProjectState:
+        return StateStorage(self._resolve_series_dir()).load()
+
+    # -- Properties ------------------------------------------------------
 
     @property
     def workdir(self) -> Path:
         return self._workdir
 
     @property
+    def slug(self) -> str:
+        return self._slug
+
+    @slug.setter
+    def slug(self, value: str) -> None:
+        self._slug = value
+        self._cached_series_dir = None
+
+    @property
+    def lang(self) -> str:
+        return self._lang
+
+    @property
+    def phase(self) -> str:
+        return self._phase
+
+    @property
+    def strict(self) -> bool:
+        return self._strict
+
+    @strict.setter
+    def strict(self, value: bool) -> None:
+        self._strict = value
+
+    @property
+    def status(self) -> str:
+        return self._state.status
+
+    @status.setter
+    def status(self, value: str) -> None:
+        self._state.status = value
+
+    @property
+    def volumes(self):
+        return self._state.volumes
+
+    @property
+    def llm(self) -> LLMClient:
+        return self._llm  # type: ignore[return-value]
+
+    @property
+    def prompts(self) -> PromptManager:
+        return self._prompts
+
+    @property
+    def quality(self) -> QualityGate:
+        return self._quality
+
+    @property
+    def log(self):
+        return self._log
+
+    @property
+    def state(self) -> ProjectState:
+        return self._state
+
+    @property
     def _series_dir(self) -> Path:
-        """Series output directory: {workdir}/{slug}/ (temp during plan)."""
-        if hasattr(self, "_cached_series_dir"):
-            return self._cached_series_dir
         if not self._slug:
             if not hasattr(self, "_tmp_dir"):
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
-            self._cached_series_dir = self._tmp_dir
             return self._tmp_dir
-        result = self._workdir / self._slug
-        self._cached_series_dir = result
-        return result
+        return self._workdir / self._slug
 
-    def _move_to_final_dir(self) -> None:
-        """Move temp directory contents to final {slug}/ directory."""
+    @_series_dir.setter
+    def _series_dir(self, value: Path) -> None:
+        pass  # No-op; managed internally
+
+    def _resolve_series_dir(self) -> Path:
+        if not self._slug:
+            if not hasattr(self, "_tmp_dir"):
+                self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
+            return self._tmp_dir
+        return self._workdir / self._slug
+
+    # -- Storage (lazy init) -------------------------------------------
+
+    @property
+    def storage(self) -> StateStorage:
+        if self._storage is None:
+            self._storage = StateStorage(self._series_dir)
+        return self._storage
+
+    @property
+    def bb_storage(self) -> BlackboardStorage:
+        if self._bb_storage is None:
+            self._bb_storage = BlackboardStorage(self._series_dir)
+        return self._bb_storage
+
+    @property
+    def bible_storage(self) -> BibleStorage:
+        if self._bible_storage is None:
+            self._bible_storage = BibleStorage(self._series_dir)
+        return self._bible_storage
+
+    @property
+    def ctx_builder(self) -> ContextBuilder:
+        if self._ctx_builder is None:
+            self._ctx_builder = ContextBuilder(
+                self._series_dir, self.bb_storage, self.bible_storage
+            )
+        return self._ctx_builder
+
+    @property
+    def bible_mgr(self) -> BibleManager:
+        if self._bible_mgr is None:
+            self._bible_mgr = BibleManager(self.bible_storage)
+        return self._bible_mgr
+
+    @property
+    def scene_writer(self) -> SceneWriter:
+        if self._scene_writer is None:
+            self._scene_writer = SceneWriter(
+                self._workdir,
+                self._llm,
+                self._prompts,
+                self._quality,
+                self.bb_storage,
+                self.bible_storage,
+                series_dir=self._series_dir,
+            )
+        return self._scene_writer
+
+    # -- State management -----------------------------------------------
+
+    def save(self) -> None:
+        self.storage.save(self._state)
+
+    def move_to_final_dir(self) -> None:
         if hasattr(self, "_tmp_dir") and self._tmp_dir.exists():
             final_dir = self._series_dir
             if not final_dir.exists():
@@ -225,13 +327,8 @@ class NovelEngineBase:
                         shutil.move(str(item), str(dest))
                 shutil.rmtree(self._tmp_dir, ignore_errors=True)
             self._log.info(f"Moved to final dir: {final_dir}")
-        if hasattr(self, "_cached_series_dir"):
-            del self._cached_series_dir
 
-    def _save(self) -> None:
-        self._storage.save(self._state)
-
-    def _current_volume(self) -> VolumeProgress:
+    def current_volume(self) -> VolumeProgress:
         vol_num = self._state.current_volume
         for v in self._state.volumes:
             if v.volume_number == vol_num:
@@ -240,10 +337,17 @@ class NovelEngineBase:
         self._state.volumes.append(vol)
         return vol
 
-    def _save_path(
-        self, vol_num: int, filename: str, data: Any, version: int | None = None
-    ) -> None:
-        """Save data to path. If version > 0, append _v{N} before extension."""
+    def get_or_create_scene_record(self, vol: VolumeProgress, scene_number: int) -> SceneRecord:
+        for s in vol.scenes:
+            if s.scene_number == scene_number:
+                return s
+        record = SceneRecord(scene_number=scene_number)
+        vol.scenes.append(record)
+        return record
+
+    # -- File I/O -------------------------------------------------------
+
+    def save_path(self, vol_num: int, filename: str, data: Any, version: int | None = None) -> None:
         if version is not None and version > 0:
             stem = Path(filename).stem
             suffix = Path(filename).suffix
@@ -258,7 +362,7 @@ class NovelEngineBase:
         )
         path.write_text(content, encoding="utf-8")
 
-    def _load_path(self, vol_num: int, filename: str) -> dict:
+    def load_path(self, vol_num: int, filename: str) -> dict:
         path = self._series_dir / f"vol{vol_num:02d}" / filename
         if not path.exists():
             for d in sorted(self._workdir.iterdir(), reverse=True):
@@ -270,36 +374,16 @@ class NovelEngineBase:
             raise FileNotFoundError(f"File not found: {path}")
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def _get_or_create_scene_record(self, vol: VolumeProgress, scene_number: int) -> SceneRecord:
-        for s in vol.scenes:
-            if s.scene_number == scene_number:
-                return s
-        record = SceneRecord(scene_number=scene_number)
-        vol.scenes.append(record)
-        return record
+    # -- Slugify --------------------------------------------------------
 
-    def _generate_and_review(
-        self,
-        generate_fn: Callable,
-        validate_fn: Callable[[dict], list[str]],
-        review_fn: Callable,
-        revise_fn: Callable,
-        system: str,
-        user_prompt: str,
-        kind: str,
-        on_revise: Callable | None = None,
-    ) -> tuple[dict, dict]:
-        """generate → validate → review → revise loop. Returns (data, review)."""
-        return generate_and_review(
-            generate_fn=generate_fn,
-            validate_fn=validate_fn,
-            review_fn=review_fn,
-            revise_fn=revise_fn,
-            system=system,
-            user_prompt=user_prompt,
-            kind=kind,
-            llm=self._llm,
-            quality=self._quality,
-            strict=self._strict,
-            on_revise=on_revise,
-        )
+    @staticmethod
+    def slugify(title: str) -> str:
+        import hashlib, re
+        romaji_parts = re.findall(r"[a-zA-Z][a-zA-Z0-9]*", title)
+        if romaji_parts:
+            slug = "_".join(p.lower() for p in romaji_parts)
+            slug = re.sub(r"[^a-z0-9_]", "", slug)
+            if slug:
+                return slug[:32]
+        h = hashlib.md5(title.encode()).hexdigest()[:12]
+        return f"series_{h}"

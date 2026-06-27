@@ -6,9 +6,10 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from novel_forge.bible_manager import BibleManager
+from novel_forge.engine.review import format_review_text
 from novel_forge.name_registry import load_used_names, record_names
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BibleStorage, BlackboardStorage
@@ -22,19 +23,117 @@ else:
 class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     """Series plan generation methods for NovelEngine."""
 
+    # ── Orchestrator ──────────────────────────────────────────────────
+
+    def plan(self, keywords: str) -> dict:
+        """Generate a complete series plan (core → characters → volumes)."""
+        system = self._prompts.render("system.md", {"lang": self._lang})
+
+        # Phase 1: Core (title, logline, world)
+        self._log.info(f"▶ Plan: keywords='{keywords}'")
+        existing_slugs = self._get_existing_slugs()
+        core, core_review = self._generate_plan_core(keywords, system, existing_slugs)
+        title = core.get("title", "")
+        slug = core.get("slug", "")
+        if not slug:
+            slug = self._slugify(title)
+        slug = slug[:32]
+        self._slug = slug
+
+        # Phase 2: Characters
+        used_names = load_used_names(self._workdir)
+        characters, chars_review = self._generate_plan_characters(core, system, used_names)
+
+        # Phase 3: Volumes
+        volumes, vols_review = self._generate_plan_volumes(core, characters, system)
+
+        # Add number to each volume
+        planned_volumes = []
+        for i, v in enumerate(volumes.get("planned_volumes", []), 1):
+            planned_volumes.append({**v, "number": i})
+
+        # Save reviews
+        self._move_to_final_dir()
+        self._save_path(0, "series_core_review.json", {"issues": core_review.get("issues", [])})
+        self._save_path(0, "series_characters_review.json", {"issues": chars_review.get("issues", [])})
+        self._save_path(0, "series_volumes_review.json", {"issues": vols_review.get("issues", [])})
+
+        # Assemble and save
+        result = {
+            "title": title,
+            "slug": slug,
+            **characters,
+            "main_characters": characters.get("main_characters", []),
+            "planned_volumes": planned_volumes,
+        }
+
+        # Save to series_dir/series_plan.json
+        self._save_path(0, "series_plan.json", result)
+        self._state.status = "企画済"
+        self._save()
+        self._log.info(f"✓ Plan complete: title='{title}' slug='{slug}'")
+
+        # Record character names for future dedup
+        new_names = {c.get("name", "") for c in characters.get("main_characters", []) if c.get("name")}
+        if new_names:
+            record_names(self._workdir, new_names)
+
+        return result
+
     # ── Validation helpers ─────────────────────────────────────────────
 
-    @staticmethod
-    def _validate_required(data: dict, required_fields: list[str], label: str) -> list[str]:
+    def _validate_plan_core(self, core: dict) -> list[str]:
+        required = ["title", "logline", "genre", "world"]
         errors = []
-        for field in required_fields:
-            val = data.get(field)
+        for field in required:
+            val = core.get(field)
             if (
                 val is None
                 or (isinstance(val, str) and not val.strip())
                 or (isinstance(val, list) and len(val) == 0)
             ):
                 errors.append(field)
+        if isinstance(core.get("world"), dict):
+            if not core["world"].get("summary"):
+                errors.append("world.summary")
+        else:
+            errors.append("world")
+        return errors
+
+    def _validate_plan_characters(self, characters: dict) -> list[str]:
+        required = ["main_characters"]
+        errors = []
+        for field in required:
+            val = characters.get(field)
+            if (
+                val is None
+                or (isinstance(val, str) and not val.strip())
+                or (isinstance(val, list) and len(val) == 0)
+            ):
+                errors.append(field)
+        if not errors:
+            for i, c in enumerate(characters["main_characters"]):
+                if not c.get("name"):
+                    errors.append(f"main_characters[{i}].name")
+                if not c.get("role"):
+                    errors.append(f"main_characters[{i}].role")
+        return errors
+
+    def _validate_plan_volumes(self, volumes: dict) -> list[str]:
+        required = ["planned_volumes"]
+        errors = []
+        for field in required:
+            val = volumes.get(field)
+            if (
+                val is None
+                or (isinstance(val, str) and not val.strip())
+                or (isinstance(val, list) and len(val) == 0)
+            ):
+                errors.append(field)
+        if not errors:
+            for i, v in enumerate(volumes["planned_volumes"]):
+                if not v.get("title"):
+                    errors.append(f"planned_volumes[{i}].title")
         return errors
 
     def _get_existing_slugs(self) -> set[str]:
@@ -56,245 +155,9 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
                     pass
         return existing
 
-    def _generate_and_review(
-        self,
-        generate_fn: Callable,
-        validate_fn: Callable[[dict], list[str]],
-        review_fn: Callable,
-        revise_fn: Callable,
-        system: str,
-        user_prompt: str,
-        kind: str,
-        on_revise: Callable | None = None,
-        existing_slugs: set[str] | None = None,
-    ) -> dict:
-        """generation → validation → review → revise ループ。"""
-        max_retries = self._quality.max_retries
-        seed_offset = 0
-        result = None
+    # ── Phase 1: Core ──────────────────────────────────────────────────
 
-        while seed_offset < max_retries:
-            result = generate_fn(user_prompt, seed_offset)
-            seed_offset += 1
-
-            errors = validate_fn(result)
-            if errors:
-                if seed_offset >= max_retries:
-                    msg = f"  [VALIDATION FAIL] {kind}: {errors} (max retries reached)"
-                    if self._strict:
-                        raise RuntimeError(msg + " (--strict mode)")
-                self._log.warning(
-                    "  [VALIDATION FAIL] %s: %s attempt=%d/%d",
-                    kind,
-                    errors,
-                    seed_offset,
-                    max_retries,
-                )
-                continue
-
-            review = review_fn(result, system)
-            blocker = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
-            critical = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
-            major = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
-            revision_needed = len(blocker) > 0 or len(critical) > 0 or len(major) >= 2
-
-            if not revision_needed:
-                return result
-
-            if seed_offset >= max_retries:
-                msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({seed_offset}/{max_retries})"
-                if self._strict:
-                    raise RuntimeError(msg + " (--strict mode)")
-                self._log.warning(msg)
-                return result
-
-            result = revise_fn(result, review, system, seed_offset)
-            seed_offset += 1
-
-            if on_revise:
-                on_revise(result, seed_offset)
-
-            errors = validate_fn(result)
-            if errors:
-                self._log.warning(
-                    "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
-                    kind,
-                    errors,
-                    seed_offset,
-                    max_retries,
-                )
-                continue
-
-            review = review_fn(result, system)
-            blocker = [i for i in review.get("issues", []) if i.get("severity") == self._BLOCKER]
-            critical = [i for i in review.get("issues", []) if i.get("severity") == self._CRITICAL]
-            major = [i for i in review.get("issues", []) if i.get("severity") == self._MAJOR]
-            if len(blocker) == 0 and len(critical) == 0 and len(major) < 2:
-                return result
-
-        return result
-
-    def _validate_plan_core(self, data: dict) -> list[str]:
-        errors = self._validate_required(
-            data,
-            [
-                "title",
-                "slug",
-                "logline",
-                "genre",
-                "themes",
-                "selling_points",
-                "target_audience",
-            ],
-            "plan_core",
-        )
-        slug = data.get("slug", "")
-        if slug and slug.strip():
-            if len(slug) > 32:
-                errors.append("slug: 32文字以内である必要があります")
-            if not re.match(r"^[a-z0-9]+(_[a-z0-9]+)*$", slug):
-                errors.append("slug: 英数字とアンダースコアのみ")
-            if slug in self._get_existing_slugs():
-                errors.append(f"slug: '{slug}' は既存と重複")
-        world = data.get("world", {})
-        if not world.get("summary", "").strip():
-            errors.append("world.summary")
-        if not world.get("rules") or len(world.get("rules", [])) == 0:
-            errors.append("world.rules")
-        return errors
-
-    def _validate_plan_characters(self, data: dict) -> list[str]:
-        errors = self._validate_required(data, ["main_characters"], "plan_characters")
-        if errors:
-            return errors
-
-        # Name dedup: within same series + across existing series
-        existing_names = load_used_names(self._workdir)
-        seen = set()
-        for ch in data.get("main_characters", []):
-            name = ch.get("name", "")
-            if not name:
-                errors.append("character: name is required")
-                continue
-            if name in seen:
-                errors.append(f"character: duplicate name '{name}' in this series")
-            elif name in existing_names:
-                errors.append(f"character: '{name}' is already used in another series")
-            seen.add(name)
-        return errors
-
-    def _validate_plan_volumes(self, data: dict) -> list[str]:
-        return self._validate_required(data, ["planned_volumes"], "plan_volumes")
-
-    # ── Main pipeline ──────────────────────────────────────────────────
-
-    def plan(self, keywords: str) -> dict[str, Any]:
-        slug = getattr(self, "_slug", "")
-        self._log.info(f"▶ Plan: keywords='{keywords}'")
-        system = self._prompts.render("system.md", {"lang": self._lang})
-
-        # Lock check
-        if self._slug and (self._workdir / self._slug).exists():
-            raise FileNotFoundError(f"Series '{slug}' already exists in {self._workdir}")
-
-        existing_slugs = self._get_existing_slugs()
-        used_names = load_used_names(self._workdir)
-
-        # Phase 1: Core
-        self._log.info("  ▶ core — [1/3]")
-        core = self._generate_plan_core(keywords, system, existing_slugs)
-        self._log.info(
-            f"  ✓ core — title='{core.get('title', '?')}' slug='{core.get('slug', '?')}'"
-        )
-
-        self._log.info("  ▶ characters — [2/3]")
-        characters = self._generate_plan_characters(core, system, used_names)
-        self._log.info(f"  ✓ characters — {len(characters.get('main_characters', []))} chars")
-
-        self._log.info("  ▶ volumes — [3/3]")
-        volumes = self._generate_plan_volumes(core, characters, system)
-        self._log.info(f"  ✓ volumes — {len(volumes.get('planned_volumes', []))} vols")
-
-        # Save results
-        self._save_path(0, "series_core.json", core)
-        self._save_path(0, "series_characters.json", characters)
-        self._save_path(0, "series_volumes.json", volumes)
-        self._save_path(
-            0,
-            "series_core_review.json",
-            {
-                "reviews": [
-                    {"version": 0, "issues": self._review_plan_core(core, system).get("issues", [])}
-                ]
-            },
-        )
-        self._save_path(
-            0,
-            "series_characters_review.json",
-            {
-                "reviews": [
-                    {
-                        "version": 0,
-                        "issues": self._review_plan_characters(characters, core, system).get(
-                            "issues", []
-                        ),
-                    }
-                ]
-            },
-        )
-        self._save_path(
-            0,
-            "series_volumes_review.json",
-            {
-                "reviews": [
-                    {
-                        "version": 0,
-                        "issues": self._review_plan_volumes(volumes, core, characters, system).get(
-                            "issues", []
-                        ),
-                    }
-                ]
-            },
-        )
-
-        # Merge
-        result = {k: v for k, v in {**core, **characters, **volumes}.items() if k != "changes"}
-        if not result.get("slug"):
-            result["slug"] = self._slugify(result.get("title", ""))
-
-        # Record new character names
-        new_names = {
-            c.get("name", "") for c in characters.get("main_characters", []) if c.get("name")
-        }
-        if new_names:
-            record_names(self._workdir, new_names)
-
-        for i, vol in enumerate(result.get("planned_volumes", []), 1):
-            vol["number"] = i
-
-        # Update state
-        self._state.series_title = result.get("title", "")
-        self._state.status = "計画中"
-        if hasattr(self, "_cached_series_dir"):
-            del self._cached_series_dir
-        self._slug = result.get("slug", "")
-        self._move_to_final_dir()
-        self._scene_writer._series_dir = self._series_dir
-        self._ctx_builder._series_dir = self._series_dir
-        self._bb_storage = BlackboardStorage(self._series_dir)
-        self._bible_storage = BibleStorage(self._series_dir)
-        self._bible_mgr = BibleManager(self._bible_storage)
-        self._scene_writer._bb_storage = self._bb_storage
-        self._scene_writer._bible_storage = self._bible_storage
-        self._scene_writer._bible_mgr = self._bible_mgr
-        self._save_path(0, "series_plan.json", result)
-        self._save()
-        self._log.info(f"✓ Plan complete: title='{result.get('title', '?')}' slug='{self._slug}'")
-        return result
-
-    # ── Phase 1: Core ────────────────────────────────────────────────────
-
-    def _generate_plan_core(self, keywords: str, system: str, existing_slugs: set[str]) -> dict:
+    def _generate_plan_core(self, keywords: str, system: str, existing_slugs: set[str]) -> tuple[dict, dict]:
         hint = ""
         if existing_slugs:
             hint = f"\n\n## 注意: 以下のslugは既存シリーズで使用済み: {', '.join(sorted(existing_slugs))}\n重複しないslugを生成すること。"
@@ -312,7 +175,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
             system=system,
             user_prompt=prompt,
             kind="series_plan_core",
-            existing_slugs=existing_slugs,
         )
 
     def _review_plan_core(self, core: dict, system: str) -> dict:
@@ -333,7 +195,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     def _revise_plan_core(
         self, core: dict, review: dict, system: str, seed_offset: int = 0
     ) -> dict:
-        review_text = self._format_review_text(review)
+        review_text = format_review_text(review)
         prompt = self._prompts.render(
             "series_plan_core_revision.md",
             {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text},
@@ -344,7 +206,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
     # ── Phase 2: Characters ──────────────────────────────────────────────
 
-    def _generate_plan_characters(self, core: dict, system: str, used_names: set[str]) -> dict:
+    def _generate_plan_characters(self, core: dict, system: str, used_names: set[str]) -> tuple[dict, dict]:
         existing_hint = ""
         if used_names:
             existing_hint = f"\n\n## 注意: 以下の名前は既存シリーズで使用済みのため使用不可: {', '.join(sorted(used_names))}\n新しいキャラクターには、これらの名前と重複しない名前を割り当てること。"
@@ -393,7 +255,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     def _revise_plan_characters(
         self, characters: dict, review: dict, system: str, seed_offset: int = 0
     ) -> dict:
-        review_text = self._format_review_text(review)
+        review_text = format_review_text(review)
         prompt = self._prompts.render(
             "series_plan_characters_revision.md",
             {
@@ -407,7 +269,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
 
     # ── Phase 3: Volumes ─────────────────────────────────────────────────
 
-    def _generate_plan_volumes(self, core: dict, characters: dict, system: str) -> dict:
+    def _generate_plan_volumes(self, core: dict, characters: dict, system: str) -> tuple[dict, dict]:
         char_lines = ["メインキャラクター:"]
         for c in characters.get("main_characters", []):
             char_lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
@@ -452,7 +314,7 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
     def _revise_plan_volumes(
         self, volumes: dict, review: dict, system: str, seed_offset: int = 0
     ) -> dict:
-        review_text = self._format_review_text(review)
+        review_text = format_review_text(review)
         prompt = self._prompts.render(
             "series_plan_volumes_revision.md",
             {"current_volumes": json.dumps(volumes, ensure_ascii=False), "review": review_text},
@@ -462,21 +324,6 @@ class PlanMixin(NovelEngineBase):  # type: ignore[misc]
         )
 
     # ── Utility ──────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _format_review_text(review: dict) -> str:
-        lines = ["レビュー結果:"]
-        for issue in review.get("issues", []):
-            sev = issue.get("severity", "")
-            cat = issue.get("category", "")
-            desc = issue.get("description", "")
-            sug = issue.get("suggestion", "")
-            lines.append(f"  [{sev}] {cat}: {desc}")
-            if sug:
-                lines.append(f"    提案: {sug}")
-        for s in review.get("suggestions", []):
-            lines.append(f"  推奨: {s}")
-        return "\n".join(lines)
 
     @staticmethod
     def _slugify(title: str) -> str:
