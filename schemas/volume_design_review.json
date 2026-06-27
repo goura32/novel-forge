@@ -30,13 +30,17 @@
             ]
           },
           "category": {
-            "description": "指摘のカテゴリ。",
+            "description": "指摘のカテゴリ。必須フィールド、構成、一貫性、ペース。",
             "type": "string",
             "enum": [
               "必須フィールド",
+              "必須フィールド欠落",
               "構成",
+              "構成の妥当性",
               "一貫性",
-              "ペース"
+              "シーン一貫性",
+              "ペース",
+              "ペース配分"
             ]
           },
           "description": {
@@ -51,25 +55,8 @@
             }
           },
           "suggestion": {
-            "description": "修正前後のペアリスト。各要素は before（修正前）と after（修正後）を含むオブジェクト。",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "before",
-                "after"
-              ],
-              "properties": {
-                "before": {
-                  "description": "修正前のテキスト（該当箇所を引用）",
-                  "type": "string"
-                },
-                "after": {
-                  "description": "修正後のテキスト",
-                  "type": "string"
-                }
-              }
-            }
+            "description": "修正の提案。",
+            "type": "string"
           }
         }
       }

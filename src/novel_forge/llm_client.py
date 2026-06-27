@@ -164,9 +164,12 @@ class LLMClient:
         user_prompt: str,
         schema: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        """APIリクエストのpayload を構築する。"""
+        """APIリクエストの payload を構築する。"""
         api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
         think_value = self._ollama_options.get("think", True)
+
+        self._log.debug("build_payload called: schema=%s, user_prompt_len=%d, has_schema=%s",
+                        type(schema).__name__, len(user_prompt), "{schema}" in user_prompt)
 
         if schema is not None:
             schema_data = {k: v for k, v in schema.items() if k not in ("$schema", "title", "description")}
@@ -175,9 +178,15 @@ class LLMClient:
                 f"以下のスキーマに従って、実際のデータ値を埋めた JSON のみを出力すること。"
                 f"スキーマ構造そのものを返さないこと。\n\n{schema_text}"
             )
-            user_prompt = user_prompt.replace("{schema}", replacement)
+            if "{schema}" in user_prompt:
+                user_prompt = user_prompt.replace("{schema}", replacement)
+                self._log.debug("build_payload: {schema} replaced (schema_len=%d)", len(schema_text))
+            else:
+                self._log.warning("build_payload: {schema} not found in user_prompt (prompt_len=%d)", len(user_prompt))
+        else:
+            self._log.warning("build_payload: schema is None")
 
-        return {
+        payload = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -192,6 +201,11 @@ class LLMClient:
             "format": "json",
             "think": think_value,
         }
+
+        self._log.debug("build_payload: payload user_prompt_len=%d, has_schema=%s",
+                        len(payload["messages"][1]["content"]), "{schema}" in payload["messages"][1]["content"])
+
+        return payload
 
     def _retry_call(
         self,
@@ -208,7 +222,7 @@ class LLMClient:
         for attempt in range(max(self.max_retries, 1)):
             payload["messages"][1]["content"] = current_prompt
             payload["options"]["seed"] = 42 + attempt + seed_offset
-            self._write_raw_log(f"request_{attempt}", json.dumps(payload, ensure_ascii=False))
+            self._write_raw_log(f"request_{seed_offset}_{attempt}", json.dumps(payload, ensure_ascii=False))
 
             meta = self._build_meta()
             self._log.debug(
@@ -226,14 +240,14 @@ class LLMClient:
                     "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
                     kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
                 )
-                self._write_raw_log(f"response_{attempt}", raw_text)
+                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
 
                 parsed = parse_json_response(raw)
 
                 if self._is_schema_echo(parsed):
                     self._log.warning(
-                        "  [SCHEMA ECHO] kind=%s attempt=%d/%d — LLM returned schema structure, retrying",
-                        kind, attempt + 1, self.max_retries,
+                        "  [SCHEMA ECHO] kind=%s retry=%d — LLM returned schema structure, retrying",
+                        kind, seed_offset,
                     )
                     current_prompt = (
                         f"前回の出力はスキーマ構造そのものでした。データ値を返してください。\\n"
@@ -248,18 +262,22 @@ class LLMClient:
                     validate_or_raise(kind, parsed)
                 return parsed
 
+            except RuntimeError as e:
+                # --strict mode: propagate after saving raw log
+                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
+                raise
             except JsonParseError as e:
                 current_prompt = self._handle_retry_error(e, user_prompt, "JSON parse error")
                 continue
             except SchemaValidationError as e:
-                self._write_raw_log(f"response_{attempt}", raw_text)
+                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
                 current_prompt = self._handle_retry_error(e, user_prompt, "schema validation error")
                 continue
             except LLMError:
-                self._write_raw_log(f"response_{attempt}", raw_text)
+                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
                 continue
             except Exception:
-                self._write_raw_log(f"response_{attempt}", raw_text)
+                self._write_raw_log(f"response_{seed_offset}_{attempt}", raw_text)
                 raise
 
         raise LLMError("LLM request failed") from None
