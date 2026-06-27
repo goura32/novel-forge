@@ -121,7 +121,7 @@ class NovelEngineBase:
         schema_errors = validate_schemas()
         if schema_errors:
             for err in schema_errors:
-                print(f"[Schema Error] {err}")
+                console.print(f"[red]Schema Error: {err}[/red]")
             raise SystemExit(
                 f"Schema validation failed — {len(schema_errors)} file(s) have errors."
             )
@@ -202,15 +202,16 @@ class NovelEngineBase:
     @property
     def _series_dir(self) -> Path:
         """Series output directory: {workdir}/{slug}/ (temp during plan)."""
-        if hasattr(self, "_cached_series_dir"):
-            return self._cached_series_dir
+        cached = self.__dict__.get("_cached_series_dir")
+        if cached is not None:
+            return cached
         if not self._slug:
             if not hasattr(self, "_tmp_dir"):
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
-            self._cached_series_dir = self._tmp_dir
+            self.__dict__["_cached_series_dir"] = self._tmp_dir
             return self._tmp_dir
         result = self._workdir / self._slug
-        self._cached_series_dir = result
+        self.__dict__["_cached_series_dir"] = result
         return result
 
     def _move_to_final_dir(self) -> None:
@@ -232,8 +233,8 @@ class NovelEngineBase:
                         shutil.move(str(item), str(dest))
                 shutil.rmtree(self._tmp_dir, ignore_errors=True)
             self._log.info(f"Moved to final dir: {final_dir}")
-        if hasattr(self, "_cached_series_dir"):
-            del self._cached_series_dir
+        if "_cached_series_dir" in self.__dict__:
+            del self.__dict__["_cached_series_dir"]
 
     def _save(self) -> None:
         self._storage.save(self._state)

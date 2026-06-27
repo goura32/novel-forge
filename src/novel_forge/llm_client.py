@@ -10,7 +10,9 @@ from typing import Any
 import httpx
 
 from novel_forge.json_parser import JsonParseError, coerce_types, parse_json_response
-from novel_forge.logging_config import get_logger
+from novel_forge.logging_config import Console, get_logger
+
+console = Console()
 
 
 class LLMError(Exception):
@@ -21,10 +23,20 @@ class SchemaValidationError(LLMError):
     pass
 
 
+def _try_import_yaml():
+    try:
+        import yaml
+        return yaml
+    except ImportError:
+        return None
+
+
+_YAML = _try_import_yaml()
+
+
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
     """config.yaml を読み込んで設定 dict を返す。"""
-    yaml = _try_import_yaml()
-    if yaml is None:
+    if _YAML is None:
         return {}
 
     paths_to_try = []
@@ -44,21 +56,12 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
     for p in paths_to_try:
         try:
             with open(p, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+                data = _YAML.safe_load(f)
             if isinstance(data, dict):
                 return data
         except Exception:
             pass
     return {}
-
-
-def _try_import_yaml():
-    try:
-        import yaml
-
-        return yaml
-    except ImportError:
-        return None
 
 
 class LLMClient:
@@ -101,9 +104,9 @@ class LLMClient:
         self._last_progress_log: float = 0.0
         self._current_kind: str = ""
         if self._ollama_options.get("think", False):
-            print(
-                "⚠ think=True is enabled — qwen3.6 thinking models may return empty "
-                "content with format='json'. Consider think=False for production use."
+            console.print(
+                "[yellow]⚠ think=True is enabled — qwen3.6 thinking models may return empty "
+                "content with format='json'. Consider think=False for production use.[/yellow]"
             )
 
     def _detect_max_ctx(self) -> int:

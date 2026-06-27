@@ -190,8 +190,6 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
     engine._save()
     engine._log.info(f"✓ Design: series='{slug}' vol={vol_num} — {len(chapters)} ch, {len(scenes)} sc")
     return result
-
-
 def _review_volume_design(engine: "NovelEngineBase", data: dict, system: str) -> dict:
     text = f"巻設計:\n  タイトル: {data.get('title', '')}\n  章数: {len(data.get('chapters', []))}"
     user = engine._prompts.render("volume_design_review.md",
