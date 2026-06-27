@@ -184,7 +184,6 @@ class LLMClient:
         seed_offset: int,
     ) -> dict[str, Any]:
         """リトライ付きで API を呼び出す。"""
-        last_error: Exception | None = None
         current_prompt = user_prompt
         self._current_kind = kind
 
@@ -221,7 +220,7 @@ class LLMClient:
                     current_prompt = (
                         f"前回の出力はスキーマ構造そのものでした。データ値を返してください。\\n"
                         f"必ずスキーマの properties に従って、実際のデータ値を埋めた JSON のみを出力してください。\\n\\n"
-                        f"元の指示:\\n{user_prompt}"
+                        f"元の指示:\n{user_prompt}"
                     )
                     continue
 
@@ -232,24 +231,11 @@ class LLMClient:
                 return parsed
 
             except JsonParseError as e:
-                error_hint = str(e)[:100]
-                current_prompt = (
-                    f"前回の出力はJSONとして解析できませんでした。\n"
-                    f"エラー: {error_hint}\n"
-                    f"必ず有効なJSONのみを出力してください。\n"
-                    f"JSON以外のテキストは一切含めないでください。\n\n"
-                    f"元の指示:\n{user_prompt}"
-                )
+                current_prompt = self._handle_retry_error(e, user_prompt, "JSON parse error")
                 continue
             except SchemaValidationError as e:
                 self._write_raw_log(f"response_{attempt}", raw_text)
-                error_hint = str(e)[:200]
-                current_prompt = (
-                    f"前回の出力はスキーマ検証に失敗しました。\n"
-                    f"エラー: {error_hint}\n"
-                    f"不足・不正なフィールドを修正し、必ず有効なJSONのみを出力してください。\n\n"
-                    f"元の指示:\n{user_prompt}"
-                )
+                current_prompt = self._handle_retry_error(e, user_prompt, "schema validation error")
                 continue
             except LLMError:
                 self._write_raw_log(f"response_{attempt}", raw_text)
@@ -259,6 +245,16 @@ class LLMClient:
                 raise
 
         raise LLMError("LLM request failed") from None
+
+    def _handle_retry_error(self, e: Exception, user_prompt: str, error_type: str) -> str:
+        """リトライ時のエラーメッセージを生成する。"""
+        error_hint = str(e)[:200]
+        return (
+            f"前回の出力は{error_type}でした。\n"
+            f"エラー: {error_hint}\n"
+            f"修正し、必ず有効なJSONのみを出力してください。\n\n"
+            f"元の指示:\n{user_prompt}"
+        )
 
     def _build_meta(self) -> str:
         """ログ用のメタ文字列を構築する。"""
