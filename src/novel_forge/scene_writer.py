@@ -109,7 +109,6 @@ class SceneWriter:
         scene,
         record: SceneRecord,
         ctx: SceneWriteContext,
-        log_fn=None,
     ) -> dict[str, Any]:
         system = self._prompts.render("system.md", {"lang": ctx.lang})
         context = ctx.build_context_fn()
@@ -119,8 +118,6 @@ class SceneWriter:
         self._log.info(
             "  [DRAFT START] vol%d ch%d sc%d", ctx.vol_num, chapter.number, record.scene_number
         )
-        if log_fn:
-            log_fn(f"  [DRAFT START] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number}")
         user = self._prompts.render(
             "scene_draft.md",
             {
@@ -147,10 +144,6 @@ class SceneWriter:
             record.scene_number,
             len(draft_text),
         )
-        if log_fn:
-            log_fn(
-                f"  [DRAFT END] vol{ctx.vol_num} ch{chapter.number} sc{record.scene_number} len={len(draft_text)}"
-            )
         record.status = "初稿済"
         record.draft_version = 1
         draft_path = self.save_scene_draft(
@@ -160,7 +153,7 @@ class SceneWriter:
 
         # Review → Quality Gate → revise loop
         draft_text, record = self._run_review_loop(
-            draft_text, record, design_obj, scene, ctx, chapter.number, log_fn=log_fn
+            draft_text, record, design_obj, scene, ctx, chapter.number
         )
 
         if record.status == "初稿済":
@@ -182,7 +175,6 @@ class SceneWriter:
         scene,
         ctx: SceneWriteContext,
         chapter_number: int,
-        log_fn=None,
     ) -> tuple[str, SceneRecord]:
         """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
         seed_offset = 0
@@ -202,17 +194,20 @@ class SceneWriter:
             if qg_result.passed:
                 record.status = "修正済"
                 record.quality_gate = qg_result
-                msg = f"  [REVIEW PASS] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} issues={len(qg_result.issues)} retry={retry}"
-                self._log.info(msg)
-                if log_fn:
-                    log_fn(msg)
+                self._log.info(
+                    "  [REVIEW PASS] vol%d ch%d sc%d issues=%d retry=%d",
+                    ctx.vol_num, chapter_number, record.scene_number,
+                    len(qg_result.issues), retry,
+                )
                 break
 
             if retry < self._quality.max_retries:
-                msg = f"  [REVIEW FAIL] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count} retry={retry}/{self._quality.max_retries}"
-                self._log.warning(msg)
-                if log_fn:
-                    log_fn(msg)
+                self._log.warning(
+                    "  [REVIEW FAIL] vol%d ch%d sc%d blocker=%d critical=%d major=%d retry=%d/%d",
+                    ctx.vol_num, chapter_number, record.scene_number,
+                    qg_result.blocker_count, qg_result.critical_count, qg_result.major_count,
+                    retry, self._quality.max_retries,
+                )
                 seed_offset += 1
                 draft_text = self._revise_scene(
                     draft_text, review, ctx.lang, seed_offset=seed_offset
@@ -233,7 +228,6 @@ class SceneWriter:
                     )
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
-                # 強制出力も版付きで保存
                 record.draft_version += 1
                 draft_path = self.save_scene_draft(
                     ctx.vol_num,
@@ -243,10 +237,11 @@ class SceneWriter:
                     version=record.draft_version,
                 )
                 record.draft_path = draft_path
-                msg = f"  [REVIEW FORCED] vol{ctx.vol_num} ch{chapter_number} sc{record.scene_number} blocker={qg_result.blocker_count} critical={qg_result.critical_count} major={qg_result.major_count}"
-                self._log.warning(msg)
-                if log_fn:
-                    log_fn(msg)
+                self._log.warning(
+                    "  [REVIEW FORCED] vol%d ch%d sc%d blocker=%d critical=%d major=%d",
+                    ctx.vol_num, chapter_number, record.scene_number,
+                    qg_result.blocker_count, qg_result.critical_count, qg_result.major_count,
+                )
 
         return draft_text, record
 

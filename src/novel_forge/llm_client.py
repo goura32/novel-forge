@@ -137,11 +137,20 @@ class LLMClient:
         schema: dict[str, Any] | None = None,
         seed_offset: int = 0,
     ) -> dict[str, Any]:
+        payload = self._build_payload(system_prompt, user_prompt, schema)
+        return self._retry_call(kind, payload, user_prompt, schema, seed_offset)
+
+    def _build_payload(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        schema: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """APIリクエストのpayload を構築する。"""
         api_options = {k: v for k, v in self._ollama_options.items() if k != "think"}
         think_value = self._ollama_options.get("think", True)
 
         if schema is not None:
-            # LLMがスキーマのメタデータを模倣しないよう、データ構造のみ抽出
             schema_data = {k: v for k, v in schema.items() if k not in ("$schema", "title", "description")}
             schema_text = json.dumps(schema_data, ensure_ascii=False)
             replacement = (
@@ -149,7 +158,8 @@ class LLMClient:
                 f"スキーマ構造そのものを返さないこと。\n\n{schema_text}"
             )
             user_prompt = user_prompt.replace("{schema}", replacement)
-        payload: dict[str, Any] = {
+
+        return {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -161,59 +171,52 @@ class LLMClient:
                 "seed": 42,
                 **api_options,
             },
+            "format": "json",
+            "think": think_value,
         }
-        payload["format"] = "json"
-        payload["think"] = think_value
+
+    def _retry_call(
+        self,
+        kind: str,
+        payload: dict[str, Any],
+        user_prompt: str,
+        schema: dict[str, Any] | None,
+        seed_offset: int,
+    ) -> dict[str, Any]:
+        """リトライ付きで API を呼び出す。"""
         last_error: Exception | None = None
         current_prompt = user_prompt
         self._current_kind = kind
-        raw_text, thinking = "", ""
-        chunk_count = 0
-        total_bytes = 0
+
         for attempt in range(max(self.max_retries, 1)):
-            raw_text, thinking = "", ""
+            payload["messages"][1]["content"] = current_prompt
+            payload["options"]["seed"] = 42 + attempt + seed_offset
+            self._write_raw_log(f"request_{attempt}", json.dumps(payload, ensure_ascii=False))
+
+            meta = self._build_meta()
+            self._log.debug(
+                "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
+                kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset, meta,
+            )
+
+            raw_text = ""
             try:
-                payload["messages"][1]["content"] = current_prompt
-                payload["options"]["seed"] = 42 + attempt + seed_offset
-                self._write_raw_log(f"request_{attempt}", json.dumps(payload, ensure_ascii=False))
-                meta = ""
-                if self._series_slug:
-                    meta += f" series={self._series_slug}"
-                if self._volume:
-                    meta += f" vol={self._volume}"
-                self._log.debug(
-                    "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
-                    kind,
-                    attempt + 1,
-                    self.max_retries,
-                    self.model,
-                    42 + attempt + seed_offset,
-                    meta,
-                )
                 _call_start = time.time()
-                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(
-                    payload
-                )
+                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
                 _call_elapsed = time.time() - _call_start
+
                 self._log.debug(
                     "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
-                    kind,
-                    chunk_count,
-                    total_bytes,
-                    _call_elapsed,
-                    meta,
-                    done_reason,
+                    kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
                 )
                 self._write_raw_log(f"response_{attempt}", raw_text)
+
                 parsed = parse_json_response(raw)
 
-                # スキーマ構造が返ってきたか判定（properties/$schema トップレベルを持つ）
                 if self._is_schema_echo(parsed):
                     self._log.warning(
                         "  [SCHEMA ECHO] kind=%s attempt=%d/%d — LLM returned schema structure, retrying",
-                        kind,
-                        attempt + 1,
-                        self.max_retries,
+                        kind, attempt + 1, self.max_retries,
                     )
                     current_prompt = (
                         f"前回の出力はスキーマ構造そのものでした。データ値を返してください。\\n"
@@ -225,18 +228,10 @@ class LLMClient:
                 if schema:
                     parsed = coerce_types(parsed, schema)
                     from novel_forge.schemas import validate_or_raise
-
                     validate_or_raise(kind, parsed)
                 return parsed
+
             except JsonParseError as e:
-                last_error = e
-                self._log.warning(
-                    "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
-                    kind,
-                    attempt + 1,
-                    self.max_retries,
-                    str(e)[:100],
-                )
                 error_hint = str(e)[:100]
                 current_prompt = (
                     f"前回の出力はJSONとして解析できませんでした。\n"
@@ -247,15 +242,7 @@ class LLMClient:
                 )
                 continue
             except SchemaValidationError as e:
-                last_error = e
                 self._write_raw_log(f"response_{attempt}", raw_text)
-                self._log.warning(
-                    "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
-                    kind,
-                    attempt + 1,
-                    self.max_retries,
-                    str(e)[:100],
-                )
                 error_hint = str(e)[:200]
                 current_prompt = (
                     f"前回の出力はスキーマ検証に失敗しました。\n"
@@ -264,35 +251,23 @@ class LLMClient:
                     f"元の指示:\n{user_prompt}"
                 )
                 continue
-            except LLMError as e:
-                last_error = e
+            except LLMError:
                 self._write_raw_log(f"response_{attempt}", raw_text)
-                self._log.warning(
-                    "  [LLM RETRY] kind=%s attempt=%d/%d error=%s",
-                    kind,
-                    attempt + 1,
-                    self.max_retries,
-                    str(e)[:100],
-                )
                 continue
-            except Exception as e:
-                last_error = e
+            except Exception:
                 self._write_raw_log(f"response_{attempt}", raw_text)
-                self._log.warning(
-                    "  [LLM ERROR] kind=%s attempt=%d/%d error=%s",
-                    kind,
-                    attempt + 1,
-                    self.max_retries,
-                    str(e)[:200],
-                )
                 raise
-        self._log.error(
-            "  [LLM FAILED] kind=%s attempts=%d error=%s",
-            kind,
-            self.max_retries,
-            str(last_error)[:100],
-        )
-        raise last_error or LLMError("LLM request failed")
+
+        raise LLMError("LLM request failed") from None
+
+    def _build_meta(self) -> str:
+        """ログ用のメタ文字列を構築する。"""
+        meta = ""
+        if self._series_slug:
+            meta += f" series={self._series_slug}"
+        if self._volume:
+            meta += f" vol={self._volume}"
+        return meta
 
     @staticmethod
     def _is_schema_echo(parsed: dict[str, Any]) -> bool:
@@ -331,7 +306,10 @@ class LLMClient:
         return "".join(parts), "".join(thinking_parts)
 
     def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str, int, int]:
-        """Call Ollama API with stream=True and return (raw_text, content, thinking, done_reason, chunk_count, total_bytes)."""
+        """Call Ollama API with stream=True.
+
+        Returns: (raw_text, content, thinking, done_reason, chunk_count, total_bytes)
+        """
         stream_payload = {**payload, "stream": True}
         lines: list[str] = []
         chunk_count = 0
@@ -392,7 +370,7 @@ class LLMClient:
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
-    def _write_raw_log(self, file_type: str, raw_text: str, payload: dict | None = None) -> None:
+    def _write_raw_log(self, file_type: str, raw_text: str) -> None:
         """1回のLLM呼び出しで2ファイルを書き出す。
 
         file_type: "request" または "response"
