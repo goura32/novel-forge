@@ -216,7 +216,8 @@ class LLMClient:
         seed_offset: int,
     ) -> dict[str, Any]:
         """リトライ付きで API を呼び出す。"""
-        current_prompt = user_prompt
+        # payload["messages"][1]["content"] already has {schema} replaced by _build_payload
+        current_prompt = payload["messages"][1]["content"]
         self._current_kind = kind
 
         for attempt in range(max(self.max_retries, 1)):
