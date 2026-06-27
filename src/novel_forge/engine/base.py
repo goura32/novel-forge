@@ -1,4 +1,9 @@
-"""NovelEngine base — __init__, helpers, state management."""
+"""NovelEngine base — __init__, helpers, state management.
+
+NovelEngine holds all runtime state (LLM, storage, prompts, quality).
+Phase methods (plan, design, write, export) are provided by NovelEngine,
+which delegates to standalone functions in plan.py, design.py, etc.
+"""
 
 from __future__ import annotations
 
@@ -6,13 +11,11 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
-from novel_forge.engine.review import generate_and_review, format_review_text
 from novel_forge.llm_client import LLMClient, load_config
 from novel_forge.logging_config import console, get_logger, setup_logging
 from novel_forge.models import (
@@ -57,7 +60,11 @@ def _is_process_alive(pid: int) -> bool:
 
 
 class NovelEngineBase:
-    """Base class for NovelEngine — __init__, helpers, state management."""
+    """Base class for NovelEngine — __init__, helpers, state management.
+
+    This class holds all runtime state. Phase methods are provided by
+    NovelEngine, which delegates to standalone functions.
+    """
 
     _signal_cleanup: Any = None
     _BLOCKER = "致命的"
@@ -278,28 +285,13 @@ class NovelEngineBase:
         vol.scenes.append(record)
         return record
 
-    def _generate_and_review(
-        self,
-        generate_fn: Callable,
-        validate_fn: Callable[[dict], list[str]],
-        review_fn: Callable,
-        revise_fn: Callable,
-        system: str,
-        user_prompt: str,
-        kind: str,
-        on_revise: Callable | None = None,
-    ) -> tuple[dict, dict]:
-        """generate → validate → review → revise loop. Returns (data, review)."""
+    def _generate_and_review(self, *args, **kwargs) -> tuple[dict, dict]:
+        """Delegate to review.generate_and_review. (backward compatibility)"""
+        from novel_forge.engine.review import generate_and_review
         return generate_and_review(
-            generate_fn=generate_fn,
-            validate_fn=validate_fn,
-            review_fn=review_fn,
-            revise_fn=revise_fn,
-            system=system,
-            user_prompt=user_prompt,
-            kind=kind,
+            *args,
             llm=self._llm,
             quality=self._quality,
             strict=self._strict,
-            on_revise=on_revise,
+            **kwargs,
         )

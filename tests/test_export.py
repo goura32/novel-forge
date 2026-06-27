@@ -80,13 +80,19 @@ class TestExportMixin:
         (ch_dir / "vol01_ch01.md").write_text("# 第1章\n\n本文です。", encoding="utf-8")
 
         # Bind real methods
-        from novel_forge.engine.export import ExportMixin
+        from novel_forge.engine.export import (
+            export,
+            _assemble_manuscript,
+            _write_export,
+            _generate_kdp_metadata,
+            _generate_readiness_report,
+        )
 
-        engine.export = ExportMixin.export.__get__(engine)
-        engine._assemble_manuscript = ExportMixin._assemble_manuscript.__get__(engine)
-        engine._write_export = ExportMixin._write_export.__get__(engine)
-        engine._generate_kdp_metadata = ExportMixin._generate_kdp_metadata.__get__(engine)
-        engine._generate_readiness_report = ExportMixin._generate_readiness_report.__get__(engine)
+        engine.export = export.__get__(engine)
+        engine._assemble_manuscript = _assemble_manuscript.__get__(engine)
+        engine._write_export = _write_export.__get__(engine)
+        engine._generate_kdp_metadata = _generate_kdp_metadata.__get__(engine)
+        engine._generate_readiness_report = _generate_readiness_report.__get__(engine)
 
         return engine
 
@@ -189,7 +195,7 @@ class TestResume:
 
     @pytest.fixture
     def mock_engine(self, tmp_path):
-        from novel_forge.engine.export import ExportMixin
+        from novel_forge.engine.export import resume
 
         engine = MagicMock()
         engine._state = MagicMock()
@@ -199,7 +205,7 @@ class TestResume:
         vol = VolumeProgress(volume_number=1, status="計画中")
         engine._current_volume = MagicMock(return_value=vol)
 
-        engine.resume = ExportMixin.resume.__get__(engine)
+        engine.resume = resume.__get__(engine)
         return engine
 
     def test_resume_when_drafting(self, mock_engine):
@@ -239,7 +245,7 @@ class TestStatus:
 
     @pytest.fixture
     def mock_engine(self, tmp_path):
-        from novel_forge.engine.export import ExportMixin
+        from novel_forge.engine.export import status
 
         engine = MagicMock()
         engine._state = MagicMock()
@@ -256,7 +262,7 @@ class TestStatus:
         ]
         engine._current_volume = MagicMock(return_value=vol)
 
-        engine.status = ExportMixin.status.__get__(engine)
+        engine.status = status.__get__(engine)
         return engine
 
     def test_status_returns_all_fields(self, mock_engine):
