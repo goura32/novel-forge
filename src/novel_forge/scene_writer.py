@@ -1,6 +1,6 @@
 """Scene writer for drafting, reviewing, and revising scenes.
 
-Handles the full scene writing pipeline: draft → review → quality gate → revise.
+Handles the full scene writing pipeline: draft -> review -> quality gate -> revise.
 Also manages scene summarization and Bible updates after each scene.
 """
 
@@ -28,7 +28,6 @@ from novel_forge.storage import BibleStorage, BlackboardStorage
 class SceneWriter:
     """Handles scene drafting, review, revision, and post-processing."""
 
-    # Pre-compiled regex patterns for chapter assembly
     _RE_SCENE_MARKER_FULL = re.compile(r"^シーン\d+[\uff08\(]第\d+章[\uff09\)]\s*[：:]\s*")
     _RE_SCENE_MARKER_SIMPLE = re.compile(r"^シーン\d+\s*[：:]\s*")
 
@@ -54,22 +53,17 @@ class SceneWriter:
         self._log = get_logger("novel_forge.scene_writer")
         self._strict = False
 
-    # ── Bible caching ──────────────────────────────────────────────────
+    # -- Bible helpers --
 
     def _get_bible(self) -> Bible:
-        """Get Bible, loading from storage only once per instance."""
         if self._bible_cache is None:
             self._bible_cache = self._bible_storage.load()
         return self._bible_cache
 
     def _invalidate_bible_cache(self) -> None:
-        """Invalidate bible cache after updates."""
         self._bible_cache = None
 
-    # ── Bible text helpers for prompts ─────────────────────────────────
-
     def _get_subplots_text(self) -> str:
-        """Get current subplots as formatted text."""
         bible = self._get_bible()
         if not bible.subplots:
             return "（なし）"
@@ -80,7 +74,6 @@ class SceneWriter:
         return "\n".join(lines) if lines else "（進行中のサブプロットなし）"
 
     def _get_relationships_text(self) -> str:
-        """Get current character relationships as formatted text."""
         bible = self._get_bible()
         if not bible.relationships:
             return "（なし）"
@@ -93,14 +86,13 @@ class SceneWriter:
         return "\n".join(lines)
 
     def _get_foreshadowing_to_resolve_text(self) -> str:
-        """Get unresolved foreshadowing as formatted text."""
         bible = self._get_bible()
         unresolved = [fh for fh in bible.foreshadowing if not fh.resolved]
         if not unresolved:
             return "（なし）"
         return "\n".join(f"- {fh.description}" for fh in unresolved)
 
-    # ── main write pipeline ──────────────────────────────────────────
+    # -- main pipeline --
 
     def write_scene(
         self,
@@ -110,49 +102,14 @@ class SceneWriter:
         record: SceneRecord,
         ctx: SceneWriteContext,
     ) -> dict[str, Any]:
-        system = self._prompts.render("system.md", {"lang": ctx.lang})
-        context = ctx.build_context_fn()
-        continuity = ctx.build_continuity_fn(record.scene_number, ctx.vol_num)
-
-        # Draft
-        self._log.info(
-            "  [DRAFT START] vol%d ch%d sc%d", ctx.vol_num, chapter.number, record.scene_number
-        )
-        user = self._prompts.render(
-            "scene_draft.md",
-            {
-                "series_plan": ctx.get_series_plan_summary_fn(),
-                "outline": ctx.get_outline_summary_fn(design_obj),
-                "scene": ctx.get_scene_summary_fn(scene),
-                "chapter_title": chapter.title,
-                "chapter_purpose": chapter.purpose,
-                "context": context,
-                "continuity": continuity,
-                "subplots": self._get_subplots_text(),
-                "relationships": self._get_relationships_text(),
-                "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
-                "lang": ctx.lang,
-            },
-        )
-        draft_schema = get_schema("scene_draft")
-        draft_result = self._llm.complete_json("scene_draft", system, user, draft_schema)
-        draft_text = draft_result.get("content", "")
-        self._log.info(
-            "  [DRAFT END] vol%d ch%d sc%d len=%d",
-            ctx.vol_num,
-            chapter.number,
-            record.scene_number,
-            len(draft_text),
-        )
+        draft_text = self._draft_scene(design_obj, chapter, scene, ctx, record)
         record.status = "初稿済"
         record.draft_version = 1
-        draft_path = self.save_scene_draft(
+        record.draft_path = self.save_scene_draft(
             ctx.vol_num, record.scene_number, draft_text, chapter.number, version=1
         )
-        record.draft_path = draft_path
 
-        # Review → Quality Gate → revise loop
-        draft_text, record = self._run_review_loop(
+        draft_text, record = self._review_scene(
             draft_text, record, design_obj, scene, ctx, chapter.number
         )
 
@@ -165,9 +122,47 @@ class SceneWriter:
 
         return {"scene_number": record.scene_number, "status": record.status}
 
-    # ── review loop ───────────────────────────────────────────────────
+    def _draft_scene(
+        self,
+        design_obj: VolumeOutline,
+        chapter,
+        scene,
+        ctx: SceneWriteContext,
+        record: SceneRecord,
+    ) -> str:
+        """シーンの draft を生成する。"""
+        self._log.info(
+            "  [DRAFT START] vol%d ch%d sc%d",
+            ctx.vol_num, chapter.number, record.scene_number,
+        )
+        system = self._prompts.render("system.md", {"lang": ctx.lang})
+        user = self._prompts.render(
+            "scene_draft.md",
+            {
+                "series_plan": ctx.get_series_plan_summary_fn(),
+                "outline": ctx.get_outline_summary_fn(design_obj),
+                "scene": ctx.get_scene_summary_fn(scene),
+                "chapter_title": chapter.title,
+                "chapter_purpose": chapter.purpose,
+                "context": ctx.build_context_fn(),
+                "continuity": ctx.build_continuity_fn(record.scene_number, ctx.vol_num),
+                "subplots": self._get_subplots_text(),
+                "relationships": self._get_relationships_text(),
+                "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
+                "lang": ctx.lang,
+            },
+        )
+        draft_result = self._llm.complete_json(
+            "scene_draft", system, user, get_schema("scene_draft")
+        )
+        draft_text = draft_result.get("content", "")
+        self._log.info(
+            "  [DRAFT END] vol%d ch%d sc%d len=%d",
+            ctx.vol_num, chapter.number, record.scene_number, len(draft_text),
+        )
+        return draft_text
 
-    def _run_review_loop(
+    def _review_scene(
         self,
         draft_text: str,
         record: SceneRecord,
@@ -176,18 +171,10 @@ class SceneWriter:
         ctx: SceneWriteContext,
         chapter_number: int,
     ) -> tuple[str, SceneRecord]:
-        """Run review → quality gate → revise loop. Returns (final_draft, updated_record)."""
+        """review -> quality gate -> revise ループを実行する。"""
         seed_offset = 0
         for retry in range(self._quality.max_retries):
-            review = self._review_scene(
-                draft_text,
-                design_obj,
-                scene,
-                ctx.lang,
-                ctx.build_context_fn,
-                ctx.get_outline_summary_fn,
-                seed_offset=seed_offset,
-            )
+            review = self._call_review_api(draft_text, design_obj, scene, ctx)
             qg_result = self._quality.check_scene(review)
             record.quality_retries = retry + 1
 
@@ -209,34 +196,25 @@ class SceneWriter:
                     retry, self._quality.max_retries,
                 )
                 seed_offset += 1
-                draft_text = self._revise_scene(
-                    draft_text, review, ctx.lang, seed_offset=seed_offset
-                )
+                draft_text = self._revise_scene(draft_text, review, ctx.lang, seed_offset=seed_offset)
                 record.draft_version += 1
-                draft_path = self.save_scene_draft(
-                    ctx.vol_num,
-                    record.scene_number,
-                    draft_text,
-                    chapter_number,
-                    version=record.draft_version,
+                record.draft_path = self.save_scene_draft(
+                    ctx.vol_num, record.scene_number, draft_text,
+                    chapter_number, version=record.draft_version,
                 )
-                record.draft_path = draft_path
             else:
                 if getattr(self, "_strict", False):
                     raise RuntimeError(
-                        f"Scene {record.scene_number}: review retry exhausted ({self._quality.max_retries}) (--strict mode)"
+                        f"Scene {record.scene_number}: review retry exhausted "
+                        f"({self._quality.max_retries}) (--strict mode)"
                     )
                 record.status = "強制出力済"
                 record.quality_gate = qg_result
                 record.draft_version += 1
-                draft_path = self.save_scene_draft(
-                    ctx.vol_num,
-                    record.scene_number,
-                    draft_text,
-                    chapter_number,
-                    version=record.draft_version,
+                record.draft_path = self.save_scene_draft(
+                    ctx.vol_num, record.scene_number, draft_text,
+                    chapter_number, version=record.draft_version,
                 )
-                record.draft_path = draft_path
                 self._log.warning(
                     "  [REVIEW FORCED] vol%d ch%d sc%d blocker=%d critical=%d major=%d",
                     ctx.vol_num, chapter_number, record.scene_number,
@@ -245,37 +223,32 @@ class SceneWriter:
 
         return draft_text, record
 
-    # ── review ───────────────────────────────────────────────────────
-
-    def _review_scene(
+    def _call_review_api(
         self,
         draft_text: str,
         design_obj: VolumeOutline,
         scene,
-        lang: str,
-        build_context_fn,
-        get_outline_summary_fn,
-        seed_offset: int = 0,
+        ctx: SceneWriteContext,
     ) -> dict:
-        system = self._prompts.render("system.md", {"lang": lang})
+        """review API を呼び出す。リトライは3回まで。"""
+        system = self._prompts.render("system.md", {"lang": ctx.lang})
         user = self._prompts.render(
             "scene_review.md",
             {
                 "scene": draft_text,
-                "outline": get_outline_summary_fn(design_obj),
-                "context": build_context_fn(),
+                "outline": ctx.get_outline_summary_fn(design_obj),
+                "context": ctx.build_context_fn(),
                 "subplots": self._get_subplots_text(),
                 "relationships": self._get_relationships_text(),
-                "lang": lang,
+                "lang": ctx.lang,
             },
         )
         schema = get_schema("scene_review")
         self._log.info("  [REVIEW START]")
-        # Retry up to 3 times on failure (timeout, parse error, etc.)
         for attempt in range(3):
             try:
                 result = self._llm.complete_json(
-                    "scene_review", system, user, schema, seed_offset=seed_offset
+                    "scene_review", system, user, schema, seed_offset=0
                 )
                 self._log.info("  [REVIEW DONE] issues=%d", len(result.get("issues", [])))
                 return result
@@ -286,7 +259,7 @@ class SceneWriter:
                 raise
         return {"issues": [], "revision_needed": True}
 
-    # ── revise ───────────────────────────────────────────────────────
+    # -- revise --
 
     def _revise_scene(self, draft_text: str, review: dict, lang: str, seed_offset: int = 0) -> str:
         system = self._prompts.render("system.md", {"lang": lang})
@@ -305,7 +278,7 @@ class SceneWriter:
         )
         return result.get("content", draft_text)
 
-    # ── summarize → blackboard update ───────────────────────────────
+    # -- summarize --
 
     def summarize_and_update_bible(
         self,
@@ -314,12 +287,6 @@ class SceneWriter:
         lang: str,
         get_bible_text_fn,
     ) -> None:
-        """Combined summarize + bible update in a single LLM call.
-
-        Uses scene_summary_and_bible_update.md prompt to extract both
-        scene summary and bible updates simultaneously, reducing
-        LLM calls from 2 to 1 per scene.
-        """
         system = self._prompts.render("system.md", {"lang": lang})
         current_bible_text = get_bible_text_fn()
 
@@ -334,7 +301,6 @@ class SceneWriter:
         schema = get_schema("scene_summary_and_bible_update")
         result = self._llm.complete_json("scene_summary_and_bible_update", system, user, schema)
 
-        # Update blackboard (summary + facts + continuity)
         bb = self._bb_storage.load()
         bb.scene_summaries[str(scene_number)] = result.get("summary", "")
         for fact_data in result.get("facts", []):
@@ -342,13 +308,10 @@ class SceneWriter:
         bb.continuity_notes.extend(result.get("continuity_notes", []))
         self._bb_storage.save(bb)
 
-        # Update bible (delegated to BibleManager)
         self._bible_mgr.apply_update(result, scene_number)
         self._invalidate_bible_cache()
 
-    # ── bible update ─────────────────────────────────────────────────
-
-    # ── scene draft I/O ──────────────────────────────────────────────
+    # -- file I/O --
 
     def save_scene_draft(
         self,
@@ -358,11 +321,6 @@ class SceneWriter:
         chapter_number: int = 1,
         version: int = 1,
     ) -> str:
-        """シーン本文を保存し、ファイルパスを返す。
-
-        版管理: version=1 → sc01_v1.md, version=2 → sc01_v2.md
-        最終版: version=0 → sc01.md（assemble_chapter で使用）
-        """
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
         ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}"
         ch_dir.mkdir(parents=True, exist_ok=True)
@@ -376,15 +334,9 @@ class SceneWriter:
         return str(path)
 
     def load_scene_draft(self, vol_num: int, scene_number: int, chapter_number: int = 1) -> str:
-        """最新版のシーン本文を読み込む。
-
-        優先順位: v2 > v1 > version=0（接尾辞なし）
-        assemble_chapter が生成した最終版（version=0）も読める。
-        """
         ch_dir = self._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{chapter_number:02d}"
         if not ch_dir.exists():
             return ""
-        # 1. 最大バージョン付きファイルを探す（v1, v2, ...）
         max_version = 0
         for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v*.md"):
             try:
@@ -399,31 +351,21 @@ class SceneWriter:
                 / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v{max_version}.md"
             )
             return path.read_text(encoding="utf-8")
-        # 2. version=0（接尾辞なし）ファイルを探す
         plain = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
         if plain.exists():
             return plain.read_text(encoding="utf-8")
         return ""
 
-    # ── chapter assembly ─────────────────────────────────────────────
-
     def assemble_chapter(
         self, vol_num: int, chapter, scene_texts: list[str], scene_numbers: list[int] | None = None
     ) -> str:
-        """章を組み立てて保存し、ファイルパスを返す。
-
-        各シーンの最終版を version=0（接尾辞なし）でも保存する。
-        scene_numbers: 各シーンの番号リスト。None の場合は 1, 2, ... を仮定。
-        """
         vol_dir = self._series_dir / f"vol{vol_num:02d}"
         ch_dir = vol_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}"
         ch_dir.mkdir(parents=True, exist_ok=True)
 
-        # 各シーンの最終版を version=0 で保存
         if scene_numbers is None:
             scene_numbers = list(range(1, len(scene_texts) + 1))
         for sc_num, _text in zip(scene_numbers, scene_texts, strict=True):
-            # 最新版の v*.md を探して、その内容で version=0 を保存
             max_version = 0
             for f in ch_dir.glob(f"vol{vol_num:02d}_ch{chapter.number:02d}_sc{sc_num:02d}_v*.md"):
                 try:
@@ -441,7 +383,6 @@ class SceneWriter:
                 final_path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
 
         ch_path = ch_dir / f"vol{vol_num:02d}_ch{chapter.number:02d}.md"
-        # Remove scene markers
         cleaned_texts = []
         for text in scene_texts:
             cleaned = self._RE_SCENE_MARKER_FULL.sub("", text.strip())
