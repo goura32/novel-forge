@@ -85,7 +85,7 @@ class NovelEngineBase:
             raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
         )
         self._log_level = log_cfg.get("log_level", "DEBUG")
-        self._slug = ""
+        self._slug = workdir.name if isinstance(workdir, Path) and (workdir / "series_plan.json").exists() else ""
         self._phase = phase
         self._strict = False
 

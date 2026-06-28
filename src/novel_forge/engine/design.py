@@ -50,7 +50,8 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
     vol_num = volume_number or engine.state.current_volume
     engine.state.current_volume = vol_num
     engine._state.status = "デザイン済"
-    slug = engine._slug or engine.workdir.name
+    engine._slug = engine._slug or engine.workdir.name
+    slug = engine._slug
     if not slug:
         raise ValueError("Design: slug is empty — run 'plan' first or specify --series")
 

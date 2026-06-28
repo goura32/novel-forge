@@ -14,7 +14,7 @@
       "type": "string"
     },
     "purpose": {
-      "description": "章の役割。物語全体におけるこの章の機能。",
+      "description": "章の役割（導入/展開/転換/クライマックス/収束から選択）",
       "type": "string",
       "enum": [
         "導入",
