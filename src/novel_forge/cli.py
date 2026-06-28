@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 from pathlib import Path
 
 import typer
@@ -45,7 +46,7 @@ def plan(
 
 @app.command()
 def design(
-    volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
+    volume: int = typer.Option(1, "--volume", "-V", help="Volume number (0=all)"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
@@ -63,8 +64,20 @@ def design(
             series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="design"
         )
         engine._strict = strict
-        engine.design(volume)
-        console.print(f"[green]✓[/green] Volume {volume} design generated")
+        if volume == 0:
+            # Generate all volumes
+            plan_path = series_dir / "series_plan.json"
+            if plan_path.exists():
+                plan = json.loads(plan_path.read_text(encoding="utf-8"))
+                total_vol = len(plan.get("planned_volumes", []))
+            else:
+                total_vol = 2
+            for v in range(1, total_vol + 1):
+                engine.design(v)
+                console.print(f"[green]✓[/green] Volume {v}/{total_vol} design generated")
+        else:
+            engine.design(volume)
+            console.print(f"[green]✓[/green] Volume {volume} design generated")
 
 
 @app.command()

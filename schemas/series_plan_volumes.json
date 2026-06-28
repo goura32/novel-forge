@@ -5,8 +5,10 @@
   "type": "object",
   "properties": {
     "planned_volumes": {
-      "description": "巻構成一覧（3巻固定）",
+      "description": "巻構成一覧（2〜8巻、ストーリーに必要な数を自律判断）",
       "type": "array",
+      "minItems": 2,
+      "maxItems": 8,
       "items": {
         "type": "object",
         "properties": {
