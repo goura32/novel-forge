@@ -172,12 +172,19 @@
       "description": "世界観ルール",
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "rule": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "rule": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "type": "string"
           }
-        },
+        ],
         "description": "更新された世界観ルール"
       }
     }
