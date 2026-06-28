@@ -15,8 +15,9 @@
       "type": "string"
     },
     "chapters": {
-      "description": "章のリスト（3〜10章）",
+      "description": "章のリスト（2章以上）",
       "type": "array",
+      "minItems": 2,
       "items": {
         "type": "object",
         "required": [

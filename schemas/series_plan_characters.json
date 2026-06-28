@@ -5,8 +5,9 @@
   "type": "object",
   "properties": {
     "main_characters": {
-      "description": "メインキャラクター（2-5人）",
+      "description": "メインキャラクター（1人以上）",
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "properties": {
@@ -15,7 +16,7 @@
             "type": "string"
           },
           "role": {
-            "description": "役割（主人公、ヒロイン、相棒、敵対者、師匠、仲間等、最大64文字）",
+            "description": "役割（具体的に記述。最大64文字）",
             "type": "string"
           },
           "personality": {

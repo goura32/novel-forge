@@ -12,8 +12,9 @@
       "type": "string"
     },
     "content": {
-      "description": "シーンの本文（最低3000文字以上）",
-      "type": "string"
+      "description": "シーンの本文（目安3000-6000文字。シーンの性質に応じて増減）",
+      "type": "string",
+      "minLength": 1000
     }
   }
 }
