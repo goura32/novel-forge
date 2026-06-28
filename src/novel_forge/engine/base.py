@@ -85,7 +85,14 @@ class NovelEngineBase:
             raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
         )
         self._log_level = log_cfg.get("log_level", "DEBUG")
-        self._slug = workdir.name if isinstance(workdir, Path) and (workdir / "series_plan.json").exists() else ""
+        # If workdir is an existing series directory (contains series_plan.json),
+        # use it directly as _series_dir and derive slug from it.
+        workdir_path = Path(workdir) if isinstance(workdir, str) else workdir
+        if (workdir_path / "series_plan.json").exists():
+            self._slug = workdir_path.name
+            self.__dict__["_cached_series_dir"] = workdir_path
+        else:
+            self._slug = ""
         self._phase = phase
         self._strict = False
 
