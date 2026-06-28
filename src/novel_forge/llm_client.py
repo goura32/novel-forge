@@ -4,6 +4,7 @@ import gzip
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -121,6 +122,7 @@ class LLMClient:
         self._log = get_logger("novel_forge.llm")
         self._last_progress_log: float = 0.0
         self._current_kind: str = ""
+        self._run_timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self._ollama_options.get("think", False):
             console.print(
                 "[yellow]⚠ think=True is enabled — qwen3.6 thinking models may return empty "
@@ -387,13 +389,17 @@ class LLMClient:
         return text, result, thinking_combined, "", chunk_count, total_bytes
 
     def _make_call_dir(self, kind: str) -> Path:
-        """1回のLLM呼び出し用のディレクトリを作成して返す。"""
+        """1回のLLM呼び出し用のディレクトリを作成して返す。
+
+        Format: {raw_log_dir}/{phase}/{timestamp}_{kind}/
+        """
         if not self.raw_log_dir:
             return Path("/dev/null")  # dummy
         phase = self.phase if self.phase else "unknown"
-        pid = os.getpid()
-        run_dir = self.raw_log_dir / phase / f"{pid}_{kind}"
+        run_dir = self.raw_log_dir / phase / f"{self._run_timestamp}_{kind}"
         run_dir.mkdir(parents=True, exist_ok=True)
+        # Create details/ subdirectory for JSON.gz files
+        (run_dir / "details").mkdir(exist_ok=True)
         return run_dir
 
     def _write_raw_log(self, file_type: str, raw_text: str) -> None:
@@ -405,11 +411,7 @@ class LLMClient:
             return
         call_dir = self._make_call_dir(self._current_kind)
         try:
-            call_dir.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            return
-        try:
-            gz_path = call_dir / f"{file_type}.json.gz"
+            gz_path = call_dir / "details" / f"{file_type}.json.gz"
             with gzip.open(gz_path, "wb") as f:
                 f.write(raw_text.encode("utf-8"))
         except Exception as e:
