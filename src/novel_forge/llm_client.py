@@ -224,6 +224,7 @@ class LLMClient:
             payload["messages"][1]["content"] = current_prompt
             payload["options"]["seed"] = 42 + attempt + seed_offset
             self._write_raw_log(f"request_{attempt}_{seed_offset}", json.dumps(payload, ensure_ascii=False))
+            self._append_raw_summary(f"request_{attempt}_{seed_offset}", json.dumps(payload, ensure_ascii=False))
 
             meta = self._build_meta()
             self._log.debug(
@@ -242,6 +243,7 @@ class LLMClient:
                     kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
                 )
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
+                self._append_raw_summary(f"response_{attempt}_{seed_offset}", raw_text)
 
                 parsed = parse_json_response(raw)
 
@@ -401,7 +403,6 @@ class LLMClient:
         """
         if not self.raw_log_dir or not self.raw_log_enabled:
             return
-        # kind は呼び出し元で設定する（_call_api の前で _kind をセット）
         call_dir = self._make_call_dir(self._current_kind)
         try:
             call_dir.mkdir(parents=True, exist_ok=True)
@@ -413,3 +414,49 @@ class LLMClient:
                 f.write(raw_text.encode("utf-8"))
         except Exception as e:
             self._log.debug("  [RAW LOG WRITE FAILED] %s", e)
+
+    def _append_raw_summary(self, file_type: str, raw_text: str) -> None:
+        """raw_summary.md に人が読める形式で追記する。"""
+        if not self.raw_log_dir or not self.raw_log_enabled:
+            return
+        call_dir = self._make_call_dir(self._current_kind)
+        summary_path = call_dir / "raw_summary.md"
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        content = self._format_for_summary(file_type, raw_text)
+        try:
+            with open(summary_path, "a", encoding="utf-8") as f:
+                f.write(f"\n## {ts} — {file_type}\n\n{content}\n")
+        except Exception as e:
+            self._log.debug("  [RAW SUMMARY WRITE FAILED] %s", e)
+
+    def _format_for_summary(self, file_type: str, raw_text: str) -> str:
+        """RAWテキストを人が読める形式に整形する。"""
+        if file_type.startswith("request"):
+            try:
+                payload = json.loads(raw_text)
+                messages = payload.get("messages", [])
+                parts = []
+                for i, msg in enumerate(messages):
+                    role = msg.get("role", "?")
+                    content = msg.get("content", "")
+                    # Unescape
+                    content = content.replace("\\n", "\n").replace('\\"', '"')
+                    parts.append(f"### messages[{i}] ({role})\n\n{content}\n")
+                return "\n".join(parts)
+            except (json.JSONDecodeError, TypeError):
+                return raw_text.replace("\\n", "\n").replace('\\"', '"')
+        else:
+            # response
+            try:
+                parsed = parse_json_response(raw_text)
+                if isinstance(parsed, dict):
+                    # Remove thinking (too long for summary)
+                    parsed.pop("thinking", None)
+                    parsed.pop("thinking_combined", None)
+                    return "```json\n" + json.dumps(parsed, ensure_ascii=False, indent=2) + "\n```\n"
+                return "```\n" + str(parsed) + "\n```\n"
+            except Exception:
+                # Raw text fallback, unescape
+                text = raw_text.replace("\\n", "\n").replace('\\"', '"')
+                return text
