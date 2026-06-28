@@ -60,6 +60,15 @@ class MockLLMClient:
         for kind, response in items:
             self._sequence.append((kind, response))
 
+    def add_repeated(self, kind: str, response: Any, count: int) -> None:
+        """Add a response that will be reused up to `count` times for the same kind.
+
+        Each call returns a fresh deep copy so modifications don't leak.
+        """
+        import copy
+        for _ in range(count):
+            self._sequence.append((kind, copy.deepcopy(response)))
+
     def complete_json(
         self,
         kind: str,
@@ -259,15 +268,16 @@ def planned_engine(tmp_workdir, mock_llm):
     mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
     mock_llm.add_sequence("volume_design", _make_design_response())
     mock_llm.add_sequence("volume_design_review", {"issues": [], "suggestions": []})
-    mock_llm.add_sequence("chapter_design", {"title": "第1章", "purpose": "導入", "theme": "テーマ", "emotional_arc": "感情"})
-    mock_llm.add_sequence("chapter_design_review", {"issues": [], "suggestions": []})
-    # 2 chapters → 2 scene_design
-    mock_llm.add_sequence("scene_design", {"number": 1, "chapter_number": 1, "title": "シーン1", "goal": "目標", "conflict": "葛藤", "outcome": "結果"})
-    mock_llm.add_sequence("scene_design_review", {"issues": [], "suggestions": []})
-    mock_llm.add_sequence("scene_design", {"number": 2, "chapter_number": 2, "title": "シーン2", "goal": "目標2", "conflict": "葛藤2", "outcome": "結果2"})
-    mock_llm.add_sequence("scene_design_review", {"issues": [], "suggestions": []})
-    # 2 scenes → 2 scene_draft + 2 scene_review + 2 scene_summary
-    for _ in range(2):
+    # 4 chapters → 4 chapter_design calls
+    for _ in range(4):
+        mock_llm.add_sequence("chapter_design", {"title": "第1章", "purpose": "導入", "theme": "テーマ", "emotional_arc": "感情"})
+        mock_llm.add_sequence("chapter_design_review", {"issues": [], "suggestions": []})
+    # 4 chapters × ~2 scenes each → up to 8 scene_design calls
+    for _ in range(8):
+        mock_llm.add_sequence("scene_design", {"number": 1, "chapter_number": 1, "title": "シーン1", "goal": "目標", "conflict": "葛藤", "outcome": "結果"})
+        mock_llm.add_sequence("scene_design_review", {"issues": [], "suggestions": []})
+    # scene_draft + scene_review + scene_summary for each scene
+    for _ in range(8):
         mock_llm.add_sequence("scene_draft", {"title": "シーン", "content": "本文" * 2000})
         mock_llm.add_sequence("scene_review", {"issues": []})
         mock_llm.add_sequence("scene_summary_and_bible_update", {"summary": "要約"})

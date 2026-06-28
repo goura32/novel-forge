@@ -71,7 +71,7 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
 
     # Phase 1: Volume design (chapters)
     engine._log.info(f"  ▶ volume_design — vol={vol_num}/{total_vol}")
-    chapters = generate_and_review(
+    vol_design_data = generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "volume_design", system, p, get_schema("volume_design"), seed_offset=s),
         validate_fn=_validate_volume_design,
@@ -88,73 +88,89 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
         quality=engine._quality,
         strict=engine._strict,
     )
-    if isinstance(chapters, dict):
-        chapters = chapters.get("chapters", [chapters])
+    if isinstance(vol_design_data, tuple):
+        vol_design_data = vol_design_data[0]
+    if isinstance(vol_design_data, dict):
+        chapters = vol_design_data.get("chapters", [vol_design_data])
+        vol_title = vol_design_data.get("title", f"第{vol_num}巻")
+        vol_premise = vol_design_data.get("premise", "")
+    else:
+        chapters = []
+        vol_title = f"第{vol_num}巻"
+        vol_premise = ""
     chapters_count = len(chapters)
     engine._log.info(f"  ✓ volume_design — vol={vol_num} {chapters_count} ch done")
 
-    # Phase 2: Chapter design
+    # Phase 2: Chapter design — one call per chapter
     engine._log.info(f"  ▶ chapter_design — vol={vol_num} {chapters_count} ch")
-    chapters = generate_and_review(
-        generate_fn=lambda p, s: engine._llm.complete_json(
-            "chapter_design", system, p, get_schema("chapter_design"), seed_offset=s),
-        validate_fn=_validate_chapter_design,
-        review_fn=lambda r, sys: _review_chapter_design(engine, r, sys),
-        revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
-            "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
-                {"current_chapter": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
-            get_schema("chapter_design"), seed_offset=so),
-        system=system,
-        user_prompt=engine._prompts.render("chapter_design.md",
-            {"series_plan": series_plan, "volume_number": str(vol_num), "lang": engine._lang}),
-        kind="chapter_design",
-        on_revise=lambda r, so: _update_chapter_designs(engine, r, so),
-        llm=engine._llm,
-        quality=engine._quality,
-        strict=engine._strict,
-    )
-    if isinstance(chapters, dict):
-        chapters = chapters.get("chapters", [chapters])
-    # Assign chapter numbers
-    for i, ch in enumerate(chapters, 1):
-        if isinstance(ch, dict):
-            ch["number"] = i
-    engine._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)}/{chapters_count} ch done")
-
-    # Phase 3: Scene design — iterate over chapters
-    est_scenes = sum(_estimate_scene_count(ch.get("purpose", "展開")) for ch in chapters)
-    engine._log.info(f"  ▶ scene_design — vol={vol_num} {chapters_count} ch (~{est_scenes} sc)")
-    scenes: list[dict] = []
-    for ch in chapters:
-        ch_num = ch.get("number", 0)
-        ch_scenes_data = generate_and_review(
-            generate_fn=lambda p, s, cn=ch_num: engine._llm.complete_json(
-                "scene_design", system, p, get_schema("scene_design"),
-                seed_offset=s),
-            validate_fn=_validate_scene_design,
-            review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
+    chapter_results = []
+    for ch_idx in range(1, chapters_count + 1):
+        ch_data = chapters[ch_idx - 1] if ch_idx <= len(chapters) else {}
+        ch_prompt = engine._prompts.render("chapter_design.md",
+            {"series_plan": series_plan, "volume_number": str(vol_num),
+             "chapter_number": str(ch_idx), "chapter_title": ch_data.get("title", ""),
+             "chapter_purpose": ch_data.get("purpose", ""),
+             "lang": engine._lang})
+        ch_result = generate_and_review(
+            generate_fn=lambda p, s: engine._llm.complete_json(
+                "chapter_design", system, p, get_schema("chapter_design"), seed_offset=s),
+            validate_fn=_validate_chapter_design,
+            review_fn=lambda r, sys: _review_chapter_design(engine, r, sys),
             revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
-                "scene_design", sys, engine._prompts.render("scene_design_revision.md",
-                    {"current_scene": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
-                get_schema("scene_design"), seed_offset=so),
+                "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
+                    {"current_chapter": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                get_schema("chapter_design"), seed_offset=so),
             system=system,
-            user_prompt=engine._prompts.render("scene_design.md",
-                {"series_plan": series_plan, "volume_number": str(vol_num),
-                 "chapter_number": str(ch_num), "lang": engine._lang}),
-            kind="scene_design",
+            user_prompt=ch_prompt,
+            kind="chapter_design",
             llm=engine._llm,
             quality=engine._quality,
             strict=engine._strict,
         )
-        scene_obj = ch_scenes_data[0] if isinstance(ch_scenes_data, tuple) else ch_scenes_data
-        if isinstance(scene_obj, dict):
-            scene_obj["chapter_number"] = scene_obj.get("chapter_number", ch_num)
-            scenes.append(scene_obj)
-    engine._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)}/{est_scenes} sc done")
+        if isinstance(ch_result, tuple):
+            ch_result = ch_result[0]
+        chapter_results.append(ch_result)
+    chapters = chapter_results
+    engine._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)}/{chapters_count} ch done")
 
-    # Assign scene numbers
-    for i, sc in enumerate(scenes, 1):
-        sc["number"] = i
+    # Phase 3: Scene design — generate estimated number of scenes per chapter
+    est_scenes = sum(_estimate_scene_count(ch.get("purpose", "展開")) for ch in chapters)
+    engine._log.info(f"  ▶ scene_design — vol={vol_num} {chapters_count} ch (~{est_scenes} sc)")
+    scenes: list[dict] = []
+    scene_counter = 0
+    for ch in chapters:
+        ch_num = ch.get("number", 0)
+        ch_purpose = ch.get("purpose", "展開")
+        ch_est = _estimate_scene_count(ch_purpose)
+        for _ in range(ch_est):
+            scene_counter += 1
+            sc_prompt = engine._prompts.render("scene_design.md",
+                {"series_plan": series_plan, "volume_number": str(vol_num),
+                 "chapter_number": str(ch_num), "scene_number": str(scene_counter),
+                 "lang": engine._lang})
+            sc_data = generate_and_review(
+                generate_fn=lambda p, s: engine._llm.complete_json(
+                    "scene_design", system, p, get_schema("scene_design"),
+                    seed_offset=s),
+                validate_fn=_validate_scene_design,
+                review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
+                revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
+                    "scene_design", sys, engine._prompts.render("scene_design_revision.md",
+                        {"current_scene": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                    get_schema("scene_design"), seed_offset=so),
+                system=system,
+                user_prompt=sc_prompt,
+                kind="scene_design",
+                llm=engine._llm,
+                quality=engine._quality,
+                strict=engine._strict,
+            )
+            scene_obj = sc_data[0] if isinstance(sc_data, tuple) else sc_data
+            if isinstance(scene_obj, dict):
+                scene_obj["chapter_number"] = scene_obj.get("chapter_number", ch_num)
+                scene_obj["number"] = scene_counter
+                scenes.append(scene_obj)
+    engine._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)}/{est_scenes} sc done")
 
     # Build result
     chapters_with_scenes = []
@@ -169,9 +185,11 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
 
     vol = engine._current_volume()
     vol.status = "デザイン済"
+    # Use volume title from volume_design if available
+    vol_title = engine._state.title if hasattr(engine._state, 'title') and engine._state.title else f"第{vol_num}巻"
     result = {
-        "title": f"第{vol_num}巻",
-        "premise": "",
+        "title": vol_title,
+        "premise": vol_premise,
         "chapters": chapters_with_scenes,
         "scenes": scenes,
     }
