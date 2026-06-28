@@ -152,6 +152,10 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
             scenes.append(scene_obj)
     engine._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)}/{est_scenes} sc done")
 
+    # Assign scene numbers
+    for i, sc in enumerate(scenes, 1):
+        sc["number"] = i
+
     # Build result
     chapters_with_scenes = []
     for i, ch in enumerate(chapters, 1):
