@@ -44,8 +44,12 @@ def _validate_plan_characters(characters: dict) -> list[str]:
     errors = []
     for field in required:
         val = characters.get(field)
-        if val is None or (isinstance(val, str) and not val.strip()) or (isinstance(val, list) and len(val) == 0):
-            errors.append(field)
+        if val is None:
+            errors.append(f"{field} (missing)")
+        elif isinstance(val, str) and not val.strip():
+            errors.append(f"{field} (empty)")
+        elif isinstance(val, list) and len(val) == 0:
+            errors.append(f"{field} (empty list)")
     if not errors:
         for i, c in enumerate(characters["main_characters"]):
             if not c.get("name"):
@@ -60,8 +64,12 @@ def _validate_plan_volumes(volumes: dict) -> list[str]:
     errors = []
     for field in required:
         val = volumes.get(field)
-        if val is None or (isinstance(val, str) and not val.strip()) or (isinstance(val, list) and len(val) == 0):
-            errors.append(field)
+        if val is None:
+            errors.append(f"{field} (missing)")
+        elif isinstance(val, str) and not val.strip():
+            errors.append(f"{field} (empty)")
+        elif isinstance(val, list) and len(val) == 0:
+            errors.append(f"{field} (empty list)")
     if not errors:
         for i, v in enumerate(volumes["planned_volumes"]):
             if not v.get("title"):
