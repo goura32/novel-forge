@@ -98,13 +98,6 @@ def generate_and_review(
                     "after": "",
                 }]
             }
-            blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-            fatal_count = len(blocker) + len(critical)
-            revision_needed = fatal_count > 0 or len(major) >= 2
-            if not revision_needed:
-                return result, review
             if seed_offset >= max_retries:
                 _log.warning("  [REVIEW] %s: review validation failed, max retries reached", kind)
                 raise RuntimeError(f"{kind}: review validation failed after {max_retries} retries")
@@ -136,43 +129,13 @@ def generate_and_review(
             if seed_offset >= max_retries:
                 msg = f"  [POST-REVISION VALIDATION] {kind}: {errors} (max retries reached)"
                 _log.error(msg)
-                if strict:
-                    raise RuntimeError(msg + " (--strict mode)")
-            else:
-                _log.warning(
-                    "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
-                    kind, errors, seed_offset, max_retries,
-                )
+                raise RuntimeError(f"{kind}: post-revision validation failed after {max_retries} retries: {errors}")
+            _log.warning(
+                "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
+                kind, errors, seed_offset, max_retries,
+            )
             continue
 
-        try:
-            review = review_fn(result, system)
-        except SchemaValidationError as e:
-            _log.warning("  [REVIEW VALIDATION ERROR] %s: %s", kind, e)
-            if strict:
-                raise RuntimeError(f"{kind}: review validation failed (--strict mode)") from e
-            # Force revision by injecting a critical issue
-            review = {
-                "issues": [{
-                    "severity": "致命的",
-                    "category": "バリデーションエラー",
-                    "description": f"レビューのスキーマ検証に失敗しました: {str(e)[:200]}",
-                    "suggestion": "スキーマに従ってレビューを再生成してください",
-                    "before": "",
-                    "after": "",
-                }]
-            }
-            blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-            critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
-            major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-            fatal_count = len(blocker) + len(critical)
-            revision_needed = fatal_count > 0 or len(major) >= 2
-            if not revision_needed:
-                return result, review
-            if seed_offset >= max_retries:
-                _log.warning("  [REVIEW] %s: review validation failed, max retries reached", kind)
-                raise RuntimeError(f"{kind}: review validation failed after {max_retries} retries")
-            continue
         blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
         critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
         major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]

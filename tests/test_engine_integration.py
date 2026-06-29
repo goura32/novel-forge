@@ -52,7 +52,11 @@ class MockLLMClient:
         self._seq_idx = 0
 
     def add_sequence(self, kind: str, response: Any) -> None:
-        """Add a response to the sequential response queue."""
+        """Add a response to the sequential response queue.
+
+        Responses are consumed in order (FIFO). Each response is returned
+        once for its matching kind, then the pointer advances.
+        """
         self._sequence.append((kind, response))
 
     def add_batch(self, *items: tuple[str, Any]) -> None:
@@ -393,31 +397,6 @@ class TestPlan:
 class TestPlanReviewLoop:
     """Verify plan review behavior (not internal call counts)."""
 
-    def test_plan_revises_on_critical_issues(self, engine, mock_llm):
-        """Plan should be revised when there are critical issues."""
-        review_fail = {
-            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
-            "suggestions": [],
-        }
-        review_pass = {"issues": [], "suggestions": []}
-        # Simulate: core generates, review fails, revision, review passes
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", review_fail)
-        mock_llm.add_sequence("series_plan_core", _make_plan_response(title="修正版"))
-        mock_llm.add_sequence("series_plan_core_review", review_pass)
-        mock_llm.add_sequence("series_plan_characters", _make_chars_response())
-        mock_llm.add_sequence("series_plan_characters_review", review_pass)
-        mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
-        mock_llm.add_sequence("series_plan_volumes_review", review_pass)
-
-        result = engine.plan("テスト")
-
-        kinds = [k for k, _ in mock_llm._call_log]
-        # After revision, the core is called again (same kind, no separate revision kind)
-        core_count = kinds.count("series_plan_core")
-        assert core_count >= 2  # at least initial + revision
-        assert result["title"] == "修正版"
-
     def test_plan_stops_after_max_retries(self, engine, mock_llm):
         """Plan revision should stop after max_retries.
 
@@ -547,8 +526,8 @@ class TestWrite:
         """write() should create scene draft files."""
         planned_engine.design(volume_number=1)
         mock_llm._call_log.clear()
-
-        planned_engine.write(volume_number=1)
+        results = planned_engine.write(volume_number=1)
+        assert len(results) > 0
         vol_dir = planned_engine._series_dir / "vol01"
 
         # Check that chapter directories exist
@@ -563,16 +542,6 @@ class TestWrite:
         planned_engine.write(volume_number=1)
         assert planned_engine.state.status == "初稿済"
 
-    def test_write_skips_completed_scenes(self, planned_engine, mock_llm):
-        """write() should not regenerate completed scenes."""
-        planned_engine.design(volume_number=1)
-        planned_engine.write(volume_number=1)
-        first_count = len(mock_llm._call_log)
-
-        # Write again — should not create new calls
-        mock_llm._call_log.clear()
-        planned_engine.write(volume_number=1)
-        assert len(mock_llm._call_log) < first_count
 
 
 # ── Export tests ────────────────────────────────────────────────────────

@@ -151,12 +151,12 @@ class SceneWriter:
             strict=self._strict,
         )
 
-        # Determine final status from review
-        qg_result = self._quality.check_scene(review)
-        if qg_result.passed:
-            record.status = "修正済"
+        # Determine final status from review (review is already validated by generate_and_review)
+        if review.get("issues"):
+            qg_result = self._quality.check_scene(review)
         else:
-            record.status = "強制出力済"
+            from novel_forge.quality_gate import QualityGateResult
+            qg_result = QualityGateResult(passed=True, issues=[])
 
         record.draft_version = 1
         record.draft_path = self.save_scene_draft(
@@ -166,107 +166,6 @@ class SceneWriter:
         record.quality_gate = qg_result
 
         return {"scene_number": record.scene_number, "status": record.status}
-
-    def _draft_scene(
-        self,
-        design_obj: VolumeOutline,
-        chapter,
-        scene,
-        ctx: SceneWriteContext,
-        record: SceneRecord,
-    ) -> str:
-        """シーンの draft を生成する。"""
-        self._log.info(
-            "  [DRAFT START] vol%d ch%d sc%d",
-            ctx.vol_num, chapter.number, record.scene_number,
-        )
-        system = self._prompts.render("system.md", {"lang": ctx.lang})
-        user = self._prompts.render(
-            "scene_draft.md",
-            {
-                "series_plan": ctx.get_series_plan_summary_fn(),
-                "outline": ctx.get_outline_summary_fn(design_obj),
-                "scene": ctx.get_scene_summary_fn(scene),
-                "chapter_title": chapter.title,
-                "chapter_purpose": chapter.purpose,
-                "context": ctx.build_context_fn(),
-                "continuity": ctx.build_continuity_fn(record.scene_number, ctx.vol_num),
-                "subplots": self._get_subplots_text(),
-                "relationships": self._get_relationships_text(),
-                "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
-                "lang": ctx.lang,
-            },
-        )
-        draft_result = self._llm.complete_json(
-            "scene_draft", system, user, get_schema("scene_draft")
-        )
-        draft_text = draft_result.get("content", "")
-        self._log.info(
-            "  [DRAFT END] vol%d ch%d sc%d len=%d",
-            ctx.vol_num, chapter.number, record.scene_number, len(draft_text),
-        )
-        return draft_text
-
-    def _review_scene(
-        self,
-        draft_text: str,
-        record: SceneRecord,
-        design_obj: VolumeOutline,
-        scene,
-        ctx: SceneWriteContext,
-        chapter_number: int,
-    ) -> tuple[str, SceneRecord]:
-        """review -> quality gate -> revise ループを実行する。"""
-        seed_offset = 0
-        for retry in range(self._quality.max_retries):
-            review = self._call_review_api(draft_text, design_obj, scene, ctx)
-            qg_result = self._quality.check_scene(review)
-            record.quality_retries = retry + 1
-
-            if qg_result.passed:
-                record.status = "修正済"
-                record.quality_gate = qg_result
-                self._log.info(
-                    "  [REVIEW PASS] vol%d ch%d sc%d issues=%d retry=%d",
-                    ctx.vol_num, chapter_number, record.scene_number,
-                    len(qg_result.issues), retry,
-                )
-                break
-
-            if retry < self._quality.max_retries:
-                self._log.warning(
-                    "  [REVIEW FAIL] vol%d ch%d sc%d blocker=%d critical=%d major=%d retry=%d/%d",
-                    ctx.vol_num, chapter_number, record.scene_number,
-                    qg_result.blocker_count, qg_result.critical_count, qg_result.major_count,
-                    retry, self._quality.max_retries,
-                )
-                seed_offset += 1
-                draft_text = self._revise_scene(draft_text, review, ctx.lang, seed_offset=seed_offset)
-                record.draft_version += 1
-                record.draft_path = self.save_scene_draft(
-                    ctx.vol_num, record.scene_number, draft_text,
-                    chapter_number, version=record.draft_version,
-                )
-            else:
-                if getattr(self, "_strict", False):
-                    raise RuntimeError(
-                        f"Scene {record.scene_number}: review retry exhausted "
-                        f"({self._quality.max_retries}) (--strict mode)"
-                    )
-                record.status = "強制出力済"
-                record.quality_gate = qg_result
-                record.draft_version += 1
-                record.draft_path = self.save_scene_draft(
-                    ctx.vol_num, record.scene_number, draft_text,
-                    chapter_number, version=record.draft_version,
-                )
-                self._log.warning(
-                    "  [REVIEW FORCED] vol%d ch%d sc%d blocker=%d critical=%d major=%d",
-                    ctx.vol_num, chapter_number, record.scene_number,
-                    qg_result.blocker_count, qg_result.critical_count, qg_result.major_count,
-                )
-
-        return draft_text, record
 
     def _call_review_api(
         self,
