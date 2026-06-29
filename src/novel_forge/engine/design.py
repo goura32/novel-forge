@@ -88,8 +88,7 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
         quality=engine._quality,
         strict=engine._strict,
     )
-    if isinstance(vol_design_data, tuple):
-        vol_design_data = vol_design_data[0]
+    vol_design_data = vol_design_data[0] if isinstance(vol_design_data, tuple) else vol_design_data
     if isinstance(vol_design_data, dict):
         chapters = vol_design_data.get("chapters", [vol_design_data])
         vol_title = vol_design_data.get("title", f"第{vol_num}巻")
@@ -239,16 +238,6 @@ def _review_scene_design(engine: "NovelEngineBase", data: dict, system: str) -> 
         {"design": text, "lang": engine._lang})
     return engine._llm.complete_json("scene_design_review", system, user,
                                        get_schema("scene_design_review"))
-
-
-def _update_chapter_designs(engine: "NovelEngineBase", revised: dict, seed_offset: int) -> None:
-    """Revised chapter design may update title/purpose."""
-    pass
-
-
-def _update_scene_designs(engine: "NovelEngineBase", revised: dict, seed_offset: int, chapters: list) -> None:
-    """Revised scene design may update title/goal/outcome."""
-    pass
 
 
 def _default_purpose(i: int, total: int) -> str:

@@ -19,7 +19,7 @@ from novel_forge.models import (
     SceneWriteContext,
     VolumeOutline,
 )
-from novel_forge.quality_gate import QualityGate
+from novel_forge.quality_gate import QualityGate, QualityGateResult
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
@@ -151,12 +151,12 @@ class SceneWriter:
             strict=self._strict,
         )
 
-        # Determine final status from review (review is already validated by generate_and_review)
-        if review.get("issues"):
-            qg_result = self._quality.check_scene(review)
+        # Determine final status from review
+        qg_result = self._quality.check_scene(review)
+        if qg_result.passed:
+            record.status = "修正済"
         else:
-            from novel_forge.quality_gate import QualityGateResult
-            qg_result = QualityGateResult(passed=True, issues=[])
+            record.status = "強制出力済"
 
         record.draft_version = 1
         record.draft_path = self.save_scene_draft(

@@ -47,7 +47,6 @@ def generate_and_review(
     llm: Any,
     quality: Any,
     strict: bool = False,
-    on_revise=None,
 ) -> tuple[dict, dict]:
     """Generate → validate → review → revise loop. Returns (data, review).
 
@@ -120,9 +119,6 @@ def generate_and_review(
 
         result = revise_fn(result, review, system, seed_offset)
         seed_offset += 1
-
-        if on_revise:
-            on_revise(result, seed_offset)
 
         errors = validate_fn(result)
         if errors:
