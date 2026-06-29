@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from novel_forge.bible_manager import BibleManager
-from novel_forge.engine.review import format_review_text
+from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.logging_config import get_logger
 from novel_forge.models import (
     Bible,
@@ -91,7 +91,6 @@ class SceneWriter:
         return "\n".join(f"- {fh.description}" for fh in unresolved)
 
     # -- main pipeline --
-
     def write_scene(
         self,
         design_obj: VolumeOutline,
@@ -100,23 +99,71 @@ class SceneWriter:
         record: SceneRecord,
         ctx: SceneWriteContext,
     ) -> dict[str, Any]:
-        draft_text = self._draft_scene(design_obj, chapter, scene, ctx, record)
-        record.status = "初稿済"
+        """Write scene drafts for a volume using generate_and_review."""
+        system = self._prompts.render("system.md", {"lang": ctx.lang})
+        user = self._prompts.render(
+            "scene_draft.md",
+            {
+                "series_plan": ctx.get_series_plan_summary_fn(),
+                "outline": ctx.get_outline_summary_fn(design_obj),
+                "scene": ctx.get_scene_summary_fn(scene),
+                "chapter_title": chapter.title,
+                "chapter_purpose": chapter.purpose,
+                "context": ctx.build_context_fn(),
+                "continuity": ctx.build_continuity_fn(record.scene_number, ctx.vol_num),
+                "subplots": self._get_subplots_text(),
+                "relationships": self._get_relationships_text(),
+                "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
+                "lang": ctx.lang,
+            },
+        )
+
+        def _generate_fn(prompt, seed_offset):
+            result = self._llm.complete_json(
+                "scene_draft", system, prompt, get_schema("scene_draft"), seed_offset=seed_offset
+            )
+            return result
+
+        def _validate_fn(result: dict) -> list[str]:
+            errors = []
+            content = result.get("content", "")
+            if len(content) < 3000:
+                errors.append(f"content too short ({len(content)} < 3000)")
+            return errors
+
+        def _review_fn(result: dict, sys: str) -> dict:
+            return self._call_review_api(result.get("content", ""), design_obj, scene, ctx)
+
+        def _revise_fn(result: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
+            revised_text = self._revise_scene(result.get("content", ""), review, ctx.lang, seed_offset=seed_offset)
+            return {"content": revised_text}
+
+        draft_result, review = generate_and_review(
+            generate_fn=_generate_fn,
+            validate_fn=_validate_fn,
+            review_fn=_review_fn,
+            revise_fn=_revise_fn,
+            system=system,
+            user_prompt=user,
+            kind="scene_draft",
+            llm=self._llm,
+            quality=self._quality,
+            strict=self._strict,
+        )
+
+        # Determine final status from review
+        qg_result = self._quality.check_scene(review)
+        if qg_result.passed:
+            record.status = "修正済"
+        else:
+            record.status = "強制出力済"
+
         record.draft_version = 1
         record.draft_path = self.save_scene_draft(
-            ctx.vol_num, record.scene_number, draft_text, chapter.number, version=1
+            ctx.vol_num, record.scene_number, draft_result.get("content", ""), chapter.number, version=1
         )
-
-        draft_text, record = self._review_scene(
-            draft_text, record, design_obj, scene, ctx, chapter.number
-        )
-
-        if record.status == "初稿済":
-            self._log.warning(
-                "  [WARNING] シーン%d: 品質ゲートループ後に初稿済のまま。強制出力済に変更。",
-                record.scene_number,
-            )
-            record.status = "強制出力済"
+        record.quality_retries = 1
+        record.quality_gate = qg_result
 
         return {"scene_number": record.scene_number, "status": record.status}
 

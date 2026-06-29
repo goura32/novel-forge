@@ -147,6 +147,8 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
             sc_prompt = engine._prompts.render("scene_design.md",
                 {"series_plan": series_plan, "volume_number": str(vol_num),
                  "chapter_number": str(ch_num), "scene_number": str(scene_counter),
+                 "chapter_scene_number": str(scene_counter),
+                 "chapter_scene_count": str(ch_est),
                  "lang": engine._lang})
             sc_data = generate_and_review(
                 generate_fn=lambda p, s: engine._llm.complete_json(

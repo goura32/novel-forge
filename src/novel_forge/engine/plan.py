@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def _validate_plan_core(core: dict) -> list[str]:
-    required = ["title", "logline", "genre", "target_audience", "themes", "world", "main_characters", "planned_volumes"]
+    required = ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world"]
     errors = []
     for field in required:
         val = core.get(field)
@@ -36,16 +36,6 @@ def _validate_plan_core(core: dict) -> list[str]:
             errors.append("world.summary")
     else:
         errors.append("world")
-    # Validate character fields
-    for i, c in enumerate(core.get("main_characters", [])):
-        if not c.get("name"):
-            errors.append(f"main_characters[{i}].name")
-        if not c.get("role"):
-            errors.append(f"main_characters[{i}].role")
-    # Validate volume fields
-    for i, v in enumerate(core.get("planned_volumes", [])):
-        if not v.get("title"):
-            errors.append(f"planned_volumes[{i}].title")
     return errors
 
 
