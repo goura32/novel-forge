@@ -77,19 +77,8 @@ def generate_and_review(
             if seed_offset >= max_retries:
                 if strict:
                     raise RuntimeError(f"  [VALIDATION FAIL] {kind}: {errors} (--strict mode)")
-                _log.warning("  [VALIDATION FAIL] %s: max retries reached, using best-effort", kind)
-                # Force revision_needed by treating as critical review issue
-                review = {
-                    "issues": [{
-                        "severity": "致命的",
-                        "category": "バリデーションエラー",
-                        "description": f"データ検証に失敗しました: {errors}",
-                        "suggestion": "必須フィールドをすべて含めて再生成してください",
-                        "before": "",
-                        "after": "",
-                    }]
-                }
-                return result, review
+                _log.warning("  [VALIDATION FAIL] %s: max retries reached, still failing", kind)
+                raise RuntimeError(f"  [VALIDATION FAIL] {kind}: validation failed after {max_retries} retries: {errors}")
             continue
 
         try:

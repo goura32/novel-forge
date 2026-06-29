@@ -165,6 +165,8 @@ def _make_plan_response(**overrides) -> dict:
         "themes": ["冒険", "成長"],
         "selling_points": ["ユニークな世界観"],
         "world": {"summary": "魔法の世界", "rules": ["魔法が存在する"]},
+        "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
+        "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
     }
     base.update(overrides)
     return base
