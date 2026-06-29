@@ -250,15 +250,21 @@ Scene:  計画中 → 初稿済 → 修正済 / 強制出力済
 ### RAWデータ構造
 
 ```
-_raw_logs/plan/18319_series_plan_core/
-├── request_0_0.json.gz            # attempt=0, seed_offset=0
-├── response_0_0.json.gz           # LLM 生出力
-├── response.json.gz               # 最終レスポンス
-├── request_1_0.json.gz            # attempt=1, seed_offset=0 (revision)
-└── response_1_0.json.gz
+_raw_logs/plan/20260629_064606_series_plan_core/
+├── raw_summary.md              # 人が読める形式（追記）
+│                               # - request: messagesのcontentを出力
+│                               # - response: contentを出力（thinking除外）
+│                               # - タイムスタンプ付きで追記
+└── details/                    # 元データ（gzip）
+    ├── request_0_0.json.gz     # attempt=0, seed_offset=0
+    ├── response_0_0.json.gz    # LLM 生出力
+    ├── request_0_1.json.gz     # attempt=0, seed_offset=1 (revision)
+    └── response_0_1.json.gz
 ```
 
-ファイル名: `request_{attempt}_{seed_offset}.json.gz` / `response_{attempt}_{seed_offset}.json.gz`
+- ディレクトリ名: `{YYYYMMDD_HHMMSS}_{kind}`（実行単位の識別）
+- `raw_summary.md` は追記モード。新しいLLM呼び出しのたびに追記される
+- `thinking` は長いため `raw_summary.md` では除外される
 
 ---
 
@@ -290,7 +296,9 @@ _raw_logs/plan/18319_series_plan_core/
 ## 8. ログ・RAWデータ
 
 - ログ: `workdir/novel_forge.log`（追記モード、全シリーズ共通）
-- RAW: `_raw_logs/{phase}/{pid}_{kind}/`（gzip、试行×シード別）
+- RAW: `_raw_logs/{phase}/{YYYYMMDD_HHMMSS}_{kind}/`
+  - `raw_summary.md`: 人が読める形式（追記、`--raw-log` 時のみ）
+  - `details/`: gzip 元データ（リクエスト・レスポンス）
 
 ## 9. プロンプトテンプレート一覧
 
@@ -316,4 +324,4 @@ _raw_logs/plan/18319_series_plan_core/
 
 ---
 
-*Last updated: 2026-06-28*
+*Last updated: 2026-06-29*

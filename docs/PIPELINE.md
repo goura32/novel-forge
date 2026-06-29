@@ -175,7 +175,7 @@ return result  # max_retries後にbest effort (--strict時はRuntimeError)
 - **入力**: シリーズ企画、ジャンル
 - **出力**: 各章の title, purpose, theme
 - **スキーマ**: `volume_design.json`
-- **制約**: 5〜6章、**「収束」必須**、7章以上禁止
+- **制約**: ストーリーに必要な章数を自律的に判断すること（最低2章）。必ず「収束」の章を含めること
 
 ### Phase 2: Chapter Design
 - **入力**: Phase 1 の章構成
@@ -289,15 +289,25 @@ SceneWriter._draft_scene() で以下の情報を基に初稿生成:
 
 ## 9. RAWデータ保存
 
-LLM呼び出しの生データを `_raw_logs/{phase}/{pid}_{kind}/` に gzip 保存。
+LLM呼び出しの生データを `_raw_logs/{phase}/{timestamp}_{kind}/` に保存。
 
-| イベント | ファイル名 | 内容 |
-|---|---|---|
-| LLM呼び出し前 | `request_{attempt}_{seed_offset}.json.gz` | リクエストペイロード |
-| LLM呼び出し後 | `response_{attempt}_{seed_offset}.json.gz` | パース前の生データ |
+```
+_raw_logs/plan/20260629_064606_series_plan_core/
+├── raw_summary.md              # 人が読める形式（追記）
+└── details/                    # 元データ（gzip）
+    ├── request_0_0.json.gz
+    └── response_0_0.json.gz
+```
 
-- 各リトライで異なるファイル名（上書きしない）
-- ファイル名: `request_{attempt}_{seed_offset}.json.gz` / `response_{attempt}_{seed_offset}.json.gz`
+| ファイル | 内容 |
+|---|---|
+| `raw_summary.md` | request/response を人が読める形式で追記。`--raw-log` 時のみ保存 |
+| `details/*.json.gz` | 元のリクエストペイロード・レスポンス（gzip） |
+
+- ディレクトリ名: `{YYYYMMDD_HHMMSS}_{kind}`（実行単位の識別）
+- `raw_summary.md` は追記モード。新しいLLM呼び出しのたびに追記される
+- request: `messages` の `content` を出力。エスケープされた改行は復元
+- response: `content` を出力。`thinking` は長いため除外
 - `raw_log: false` の場合は保存しない
 
 ---
@@ -369,9 +379,15 @@ Scene status:
 <series_dir>/
 ├── state.json
 ├── series_plan.json
-├── _raw_logs/plan/{pid}_{kind}/
-├── _raw_logs/design/{pid}_{kind}/
-├── _raw_logs/write/{pid}_{kind}/
+├── _raw_logs/plan/20260629_064606_series_plan_core/
+│   ├── raw_summary.md
+│   └── details/
+├── _raw_logs/design/20260629_094252_volume_design/
+│   ├── raw_summary.md
+│   └── details/
+├── _raw_logs/write/20260629_120000_scene_draft/
+│   ├── raw_summary.md
+│   └── details/
 ├── vol01/
 │   ├── vol01.json
 │   ├── vol01_ch01/
@@ -395,4 +411,4 @@ Scene status:
 
 ---
 
-*Last updated: 2026-06-28*
+*Last updated: 2026-06-29*
