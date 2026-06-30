@@ -5,9 +5,9 @@
   "type": "object",
   "properties": {
     "main_characters": {
-      "description": "メインキャラクター。3〜5個推奨。",
+      "description": "メインキャラクター。3〜5個推奨。最低3人。",
       "type": "array",
-      "minItems": 1,
+      "minItems": 3,
       "items": {
         "type": "object",
         "required": ["name", "role"],

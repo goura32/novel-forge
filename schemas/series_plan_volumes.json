@@ -5,16 +5,16 @@
   "type": "object",
   "properties": {
     "planned_volumes": {
-      "description": "巻構成一覧。2〜8個推奨。",
+      "description": "巻構成一覧。4〜8個推奨。最低4巻（起承転結の各段階を最低1巻ずつ）。",
       "type": "array",
-      "minItems": 2,
+      "minItems": 4,
       "maxItems": 8,
       "items": {
         "type": "object",
         "required": ["title", "premise", "theme", "emotional_arc", "key_events", "cliffhanger"],
         "properties": {
           "title": {
-            "description": "巻タイトル。10〜500文字推奨。",
+            "description": "巻タイトル。3〜64文字推奨。",
             "type": "string"
           },
           "premise": {
