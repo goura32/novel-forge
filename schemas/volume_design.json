@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeDesign",
   "type": "object",
-  "description": "LLM は chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。",
+  "description": "LLM は chapters ごとに title, purpose を生成する。number と chapter_number は engine で機械採番されるため含めない。",
   "required": [
     "chapters"
   ],
@@ -41,59 +41,6 @@
               "クライマックス",
               "収束"
             ]
-          },
-          "scenes": {
-            "description": "シーンのリスト。2〜4個推奨。",
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "title",
-                "goal",
-                "outcome"
-              ],
-              "properties": {
-                "title": {
-                  "description": "シーンタイトル。3〜100文字推奨。",
-                  "type": "string"
-                },
-                "pov": {
-                  "description": "視点（誰の視点で描くか）",
-                  "type": "string"
-                },
-                "goal": {
-                  "description": "シーンの目標。",
-                  "type": "string"
-                },
-                "conflict": {
-                  "description": "シーンの葛藤。",
-                  "type": "string"
-                },
-                "outcome": {
-                  "description": "シーンの結果。",
-                  "type": "string",
-                  "minLength": 1
-                },
-                "characters": {
-                  "description": "登場キャラクター。1〜10個推奨。",
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "key_events": {
-                  "description": "主要イベント。1〜5個推奨。",
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "setting": {
-                  "description": "舞台設定。",
-                  "type": "string"
-                }
-              }
-            }
           }
         }
       }
