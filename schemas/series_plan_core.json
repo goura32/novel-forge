@@ -8,10 +8,6 @@
       "description": "シリーズのタイトル（最大100文字）",
       "type": "string"
     },
-    "slug": {
-      "description": "a-z0-9と_のみからなる32文字以内のスラッグ（アンダースコア区切り）",
-      "type": "string"
-    },
     "logline": {
       "description": "シリーズのあらすじ（1-2文、最大800文字）",
       "type": "string"

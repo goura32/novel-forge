@@ -32,6 +32,10 @@ class CharacterProfile(BaseModel):
     appearance: str = ""
     personality: str = ""
     motivation: str = ""
+    flaw: str = ""
+    age: str = ""
+    occupation: str = ""
+    background: str = ""
     state: str = ""
 
 
@@ -146,6 +150,10 @@ class VolumeOutline(BaseModel):
 class VolumePlanItem(BaseModel):
     title: str = Field(max_length=128, default="")
     premise: str = Field(max_length=200, default="")
+    theme: str = Field(max_length=200, default="")
+    emotional_arc: str = Field(max_length=200, default="")
+    key_events: list[str] = Field(default_factory=list)
+    cliffhanger: str = Field(max_length=200, default="")
 
 
 class SeriesPlan(BaseModel):
