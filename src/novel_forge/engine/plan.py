@@ -219,6 +219,11 @@ def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str
     prompt = engine._prompts.render(
         "series_plan_characters.md",
         {
+            "title": core.get("title", ""),
+            "logline": core.get("logline", ""),
+            "genre": ", ".join(core.get("genre", [])),
+            "target_audience": core.get("target_audience", ""),
+            "themes": ", ".join(core.get("themes", [])),
             "world_summary": core.get("world_summary", ""),
             "world_rules": "; ".join(core.get("world_rules", [])),
             "lang": engine._lang,
