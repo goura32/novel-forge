@@ -10,6 +10,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
+        "required": ["name", "role"],
         "properties": {
           "name": {
             "description": "キャラクター名（フルネーム、最大64文字）",

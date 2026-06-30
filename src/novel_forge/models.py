@@ -158,6 +158,7 @@ class VolumePlanItem(BaseModel):
 
 class SeriesPlan(BaseModel):
     title: str = ""
+    slug: str = ""
     logline: str = Field(default="", max_length=400)
     genre: list[str] = Field(default_factory=list)
     target_audience: str = Field(default="", max_length=200)
