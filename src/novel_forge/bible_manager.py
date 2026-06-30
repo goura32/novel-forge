@@ -140,6 +140,10 @@ class BibleManager:
                         personality=ch_data.get("personality", ""),
                         appearance=ch_data.get("appearance", ""),
                         motivation=ch_data.get("motivation", ""),
+                        flaw=ch_data.get("flaw", ""),
+                        age=ch_data.get("age", ""),
+                        occupation=ch_data.get("occupation", ""),
+                        background=ch_data.get("background", ""),
                         arc=ch_data.get("arc") or "",
                     )
                 )

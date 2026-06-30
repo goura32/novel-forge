@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def _validate_plan_core(core: dict) -> list[str]:
-    required = ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world"]
+    required = ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world_summary", "world_rules"]
     errors = []
     for field in required:
         val = core.get(field)
@@ -31,11 +31,6 @@ def _validate_plan_core(core: dict) -> list[str]:
             errors.append(f"{field} (empty)")
         elif isinstance(val, list) and len(val) == 0:
             errors.append(f"{field} (empty list)")
-    if isinstance(core.get("world"), dict):
-        if not core["world"].get("summary"):
-            errors.append("world.summary")
-    else:
-        errors.append("world")
     return errors
 
 
@@ -142,7 +137,8 @@ def plan(engine: "NovelEngineBase", keywords: str) -> dict[str, Any]:
         "target_audience": core.get("target_audience", ""),
         "themes": core.get("themes", []),
         "selling_points": core.get("selling_points", []),
-        "world": core.get("world", {}),
+        "world_summary": core.get("world_summary", ""),
+        "world_rules": core.get("world_rules", []),
         "main_characters": characters.get("main_characters", []),
         "planned_volumes": planned_volumes,
     }
@@ -223,8 +219,8 @@ def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str
     prompt = engine._prompts.render(
         "series_plan_characters.md",
         {
-            "world_summary": core.get("world", {}).get("summary", ""),
-            "world_rules": "; ".join(core.get("world", {}).get("rules", [])),
+            "world_summary": core.get("world_summary", ""),
+            "world_rules": "; ".join(core.get("world_rules", [])),
             "lang": engine._lang,
             "used_names": ", ".join(sorted(used_names)) if used_names else "（なし）",
         },
@@ -250,7 +246,7 @@ def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str
 
 
 def _review_plan_characters(engine: "NovelEngineBase", characters: dict, core: dict, system: str) -> dict:
-    lines = ["世界観:", core.get("world", {}).get("summary", ""), "", "メインキャラクター:"]
+    lines = ["世界観:", core.get("world_summary", ""), "", "メインキャラクター:"]
     for c in characters.get("main_characters", []):
         lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
     text = "\n".join(lines)

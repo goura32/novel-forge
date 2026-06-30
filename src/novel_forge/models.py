@@ -164,7 +164,8 @@ class SeriesPlan(BaseModel):
     target_audience: str = Field(default="", max_length=200)
     themes: list[str] = Field(default_factory=list)
     selling_points: list[str] = Field(default_factory=list)
-    world: dict[str, Any] = Field(default_factory=lambda: {"summary": "", "rules": []})
+    world_summary: str = ""
+    world_rules: list[str] = Field(default_factory=list)
     main_characters: list[CharacterProfile] = Field(default_factory=list)
     planned_volumes: list[VolumePlanItem] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)

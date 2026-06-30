@@ -40,11 +40,11 @@ class ContextBuilder:
             f"ターゲット読者: {data.get('target_audience', '')}",
             f"テーマ: {', '.join(data.get('themes', []))}",
         ]
-        world = data.get("world", {})
-        if world:
-            lines.append(f"世界観: {world.get('summary', '')}")
-            for rule in world.get("rules", []):
-                lines.append(f"  ルール: {rule}")
+        world_summary = data.get("world_summary", "")
+        if world_summary:
+            lines.append(f"世界観: {world_summary}")
+        for rule in data.get("world_rules", []):
+            lines.append(f"  ルール: {rule}")
         chars = data.get("main_characters", [])
         if chars:
             lines.append("メインキャラクター:")
