@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "main_characters": {
-      "description": "メインキャラクター（1人以上）",
+      "description": "メインキャラクター。3〜5個推奨。",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -13,47 +13,46 @@
         "required": ["name", "role"],
         "properties": {
           "name": {
-            "description": "キャラクター名（フルネーム、最大64文字）",
+            "description": "キャラクター名。2〜64文字。",
             "type": "string"
           },
           "role": {
-            "description": "役割（具体的に記述。最大64文字）",
+            "description": "役割。具体的に記述。10〜128文字。",
             "type": "string"
           },
           "personality": {
-            "description": "性格・特徴（最大200文字）",
+            "description": "性格・特徴。50〜300文字推奨。",
             "type": "string"
           },
           "motivation": {
-            "description": "動機・目標（最大200文字）",
+            "description": "動機・目標。50〜300文字推奨。",
             "type": "string"
           },
           "flaw": {
-            "description": "欠点・弱み（最大200文字）",
+            "description": "欠点・弱み。30〜200文字推奨。",
             "type": "string"
           },
           "arc": {
-            "description": "シリーズを通じた成長・変化（最大500文字）",
+            "description": "シリーズを通じた成長・変化。100〜500文字推奨。",
             "type": "string"
           },
           "age": {
-            "description": "年齢（最大32文字）",
+            "description": "年齢。",
             "type": "string"
           },
           "occupation": {
-            "description": "職業・立場（最大128文字）",
+            "description": "職業・立場。5〜128文字推奨。",
             "type": "string"
           },
           "appearance": {
-            "description": "外見的特徴（最大200文字）",
+            "description": "外見的特徴。20〜200文字推奨。",
             "type": "string"
           },
           "background": {
-            "description": "過去・経歴（最大500文字）",
+            "description": "過去・経歴。50〜500文字推奨。",
             "type": "string"
           }
-        },
-        "description": "main_charactersの配列"
+        }
       }
     }
   },

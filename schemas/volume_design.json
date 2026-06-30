@@ -2,20 +2,21 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VolumeDesign",
   "type": "object",
+  "description": "LLM は chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。",
   "required": [
     "chapters"
   ],
   "properties": {
     "title": {
-      "description": "巻タイトル",
+      "description": "巻タイトル。10〜100文字推奨。",
       "type": "string"
     },
     "premise": {
-      "description": "巻の前提・あらすじ",
+      "description": "巻の前提・あらすじ。200〜800文字推奨。",
       "type": "string"
     },
     "chapters": {
-      "description": "章のリスト（2章以上）",
+      "description": "章のリスト。2〜8個推奨。",
       "type": "array",
       "minItems": 2,
       "items": {
@@ -26,11 +27,11 @@
         ],
         "properties": {
           "title": {
-            "description": "章タイトル",
+            "description": "章タイトル。5〜100文字推奨。",
             "type": "string"
           },
           "purpose": {
-            "description": "章の役割（導入/展開/転換/クライマックス/収束）",
+            "description": "章の役割。",
             "type": "string",
             "minLength": 1,
             "enum": [
@@ -42,7 +43,7 @@
             ]
           },
           "scenes": {
-            "description": "シーンのリスト。1章あたり2-4シーンが標準。",
+            "description": "シーンのリスト。2〜4個推奨。",
             "type": "array",
             "items": {
               "type": "object",
@@ -53,48 +54,49 @@
               ],
               "properties": {
                 "title": {
+                  "description": "シーンタイトル。3〜100文字推奨。",
                   "type": "string"
                 },
                 "pov": {
+                  "description": "視点（誰の視点で描くか）",
                   "type": "string"
                 },
                 "goal": {
+                  "description": "シーンの目標。",
                   "type": "string"
                 },
                 "conflict": {
+                  "description": "シーンの葛藤。",
                   "type": "string"
                 },
                 "outcome": {
+                  "description": "シーンの結果。",
                   "type": "string",
                   "minLength": 1
                 },
                 "characters": {
+                  "description": "登場キャラクター。1〜10個推奨。",
                   "type": "array",
                   "items": {
-                    "type": "string",
-                    "description": "charactersの配列"
+                    "type": "string"
                   }
                 },
                 "key_events": {
-                  "description": "主要イベント",
+                  "description": "主要イベント。1〜5個推奨。",
                   "type": "array",
                   "items": {
-                    "type": "string",
-                    "description": "key_eventsの配列"
+                    "type": "string"
                   }
                 },
                 "setting": {
-                  "description": "舞台設定",
+                  "description": "舞台設定。",
                   "type": "string"
                 }
-              },
-              "description": "scenesの配列"
+              }
             }
           }
-        },
-        "description": "chaptersの配列"
+        }
       }
     }
-  },
-  "description": "LLMは chapters ごとに title, purpose, scenes を生成する。number と chapter_number は engine で機械採番されるため含めない。"
+  }
 }
