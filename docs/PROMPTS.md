@@ -6,28 +6,9 @@
 
 **用語の定義**: [GLOSSARY.md](GLOSSARY.md)
 
-## プロンプト一覧
+## プロンプトとスキーマの対応
 
-```
-prompts/
-├── system.md                              # 共通システムプロンプト（日本語固定 + JSON出力）
-├── series_plan_core.md                    # シリーズ企画（核）生成
-├── series_plan_core_review.md             # シリーズ企画（核）レビュー
-├── series_plan_core_revision.md           # シリーズ企画（核）改訂
-├── series_plan_characters.md              # シリーズ企画（キャラクター）生成
-├── series_plan_characters_review.md       # シリーズ企画（キャラクター）レビュー
-├── series_plan_characters_revision.md     # シリーズ企画（キャラクター）改訂
-├── series_plan_volumes.md                 # シリーズ企画（各巻）生成
-├── series_plan_volumes_review.md          # シリーズ企画（各巻）レビュー
-├── series_plan_volumes_revision.md        # シリーズ企画（各巻）改訂
-├── volume_design.md                       # 巻デザイン Phase 1: 章構成
-├── volume_design_review.md                # 巻デザインレビュー
-├── chapter_design.md                      # 巻デザイン Phase 2: 章設計
-├── chapter_design_review.md               # 章デザインレビュー
-├── scene_design.md                        # 巻デザイン Phase 3: シーンデザイン
-├── scene_design_review.md                 # シーンデザインレビュー
-├── scene_draft.md                         # シーン初稿執筆
-├── scene_review.md                        # シーンレビュー
+詳細な対応表は [PROMPT_SCHEMA_MAP.md](PROMPT_SCHEMA_MAP.md) を参照してください。
 ├── scene_revision.md                      # シーン改稿
 ├── scene_summary_and_bible_update.md      # シーン要約 + Bible 更新（統合）
 ├── kdp_metadata.md                        # KDP メタデータ生成
@@ -109,4 +90,4 @@ prompts/
 
 ---
 
-*Last updated: 2026-06-26*
+*Last updated: 2026-06-30*

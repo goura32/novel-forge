@@ -11,8 +11,6 @@
 
 ## 評価基準
 
-0. **必須フィールド** (`missing_field`)
-   - 必須フィールド（name, role, personality, motivation, flaw, growth）がすべて含まれているか
    - 欠落があれば severity=「重大」
 
 1. **設定一貫性** (`consistency`)

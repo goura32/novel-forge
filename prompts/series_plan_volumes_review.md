@@ -11,7 +11,6 @@
 
 ## 評価基準
 
-0. **必須フィールド** (`missing_field`)
    - title, premise, theme, emotional_arc, key_events, cliffhanger がすべて含まれているか
 
 1. **巻の独自性** (`volume_uniqueness`)
