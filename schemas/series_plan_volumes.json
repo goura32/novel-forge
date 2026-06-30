@@ -11,6 +11,7 @@
       "maxItems": 8,
       "items": {
         "type": "object",
+        "required": ["title", "premise", "theme", "emotional_arc", "key_events", "cliffhanger"],
         "properties": {
           "title": {
             "description": "巻タイトル（最大500文字）",

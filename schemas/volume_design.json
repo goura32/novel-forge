@@ -32,6 +32,7 @@
           "purpose": {
             "description": "章の役割（導入/展開/転換/クライマックス/収束）",
             "type": "string",
+            "minLength": 1,
             "enum": [
               "導入",
               "展開",
@@ -64,7 +65,8 @@
                   "type": "string"
                 },
                 "outcome": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1
                 },
                 "characters": {
                   "type": "array",

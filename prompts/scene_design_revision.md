@@ -7,7 +7,7 @@
 以下のレビュー結果に基づいて、シーン設計を改訂せよ。
 
 ## 現在のシーン設計
-{current_design}
+{current_scene}
 
 ## レビュー結果
 {review}

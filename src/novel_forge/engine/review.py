@@ -59,7 +59,16 @@ def generate_and_review(
     review: dict = {"issues": []}
 
     while seed_offset < max_retries:
-        result = generate_fn(user_prompt, seed_offset)
+        try:
+            result = generate_fn(user_prompt, seed_offset)
+        except SchemaValidationError as e:
+            path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
+            _log.warning("  [GENERATE VALIDATION ERROR] %s: path=%s msg=%s attempt=%d/%d",
+                         kind, path, e.message, seed_offset, max_retries)
+            if seed_offset >= max_retries - 1:
+                raise RuntimeError(f"{kind}: generate validation failed after {max_retries} retries: path={path} msg={e.message}")
+            seed_offset += 1
+            continue
         seed_offset += 1
 
         if llm._is_schema_echo(result):
@@ -69,8 +78,10 @@ def generate_and_review(
         try:
             errors = validate_fn(result)
         except SchemaValidationError as e:
-            _log.warning("  [VALIDATION FAIL] %s: %s (exception)", kind, e)
-            errors = [str(e)]
+            # Log detailed path info for debugging
+            path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
+            _log.warning("  [VALIDATION FAIL] %s: path=%s msg=%s (exception)", kind, path, e.message)
+            errors = [f"path={path} msg={e.message}"]
         if errors:
             _log.warning("  [VALIDATION FAIL] %s: %s attempt=%d/%d", kind, errors, seed_offset, max_retries)
             if seed_offset >= max_retries:
@@ -83,7 +94,8 @@ def generate_and_review(
         try:
             review = review_fn(result, system)
         except SchemaValidationError as e:
-            _log.warning("  [REVIEW VALIDATION ERROR] %s: %s", kind, e)
+            path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
+            _log.warning("  [REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
             if strict:
                 raise RuntimeError(f"{kind}: review validation failed (--strict mode)") from e
             # Force revision by injecting a critical issue

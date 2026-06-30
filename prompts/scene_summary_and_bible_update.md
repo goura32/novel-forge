@@ -15,10 +15,12 @@
 
 下記のスキーマに適合するJSONのみを出力すること。
 
-{schema}
+
 
 **制約:**
 - `foreshadowing[].type` は「設置」「回収」から選択
 - `relationships[].change_direction` は「改善」「悪化」「変化」「変化なし」から選択
 - `subplots[].status` は「未着手」「進行中」「完了」から選択
 - **サブプロット/伏線**: 物語の進行に応じて適切に更新。新規要素の追加は必須ではない
+
+{schema}

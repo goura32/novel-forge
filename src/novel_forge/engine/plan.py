@@ -98,17 +98,20 @@ def _get_existing_slugs(engine: "NovelEngineBase") -> set[str]:
 
 
 def plan(engine: "NovelEngineBase", keywords: str) -> dict[str, Any]:
-    """Generate a complete series plan (core → characters → volumes)."""
+    """Generate a complete series plan (core → characters → volumes).
+
+    The final series_plan.json is assembled entirely from LLM-generated values.
+    No mechanical fallback values are used for content fields.
+    """
     system = engine._prompts.render("system.md", {"lang": engine._lang})
 
     # Phase 1: Core (title, logline, world)
     engine._log.info(f"▶ Plan: keywords='{keywords}'")
     existing_slugs = _get_existing_slugs(engine)
     core, core_review = _generate_plan_core(engine, keywords, system, existing_slugs)
-    title = core.get("title", "")
-    slug = core.get("slug", "")
-    if not slug:
-        slug = _slugify(title)
+
+    # Use LLM-generated slug; fall back to LLM-generated title only if missing
+    slug = core.get("slug") or _slugify(core.get("title", ""))
     slug = slug[:32]
     engine._slug = slug
 
@@ -119,7 +122,7 @@ def plan(engine: "NovelEngineBase", keywords: str) -> dict[str, Any]:
     # Phase 3: Volumes
     volumes, vols_review = _generate_plan_volumes(engine, core, characters, system)
 
-    # Add number to each volume
+    # Add number to each volume (mechanical — not content)
     planned_volumes = []
     for i, v in enumerate(volumes.get("planned_volumes", []), 1):
         planned_volumes.append({**v, "number": i})
@@ -130,11 +133,16 @@ def plan(engine: "NovelEngineBase", keywords: str) -> dict[str, Any]:
     engine._save_path(0, "series_characters_review.json", {"issues": chars_review.get("issues", [])})
     engine._save_path(0, "series_volumes_review.json", {"issues": vols_review.get("issues", [])})
 
-    # Assemble and save
+    # Assemble and save — all content comes from LLM
     result = {
-        "title": title,
+        "title": core.get("title", ""),
         "slug": slug,
-        **characters,
+        "logline": core.get("logline", ""),
+        "genre": core.get("genre", []),
+        "target_audience": core.get("target_audience", ""),
+        "themes": core.get("themes", []),
+        "selling_points": core.get("selling_points", []),
+        "world": core.get("world", {}),
         "main_characters": characters.get("main_characters", []),
         "planned_volumes": planned_volumes,
     }
@@ -142,7 +150,7 @@ def plan(engine: "NovelEngineBase", keywords: str) -> dict[str, Any]:
     engine._save_path(0, "series_plan.json", result)
     engine._state.status = "企画済"
     engine._save()
-    engine._log.info(f"✓ Plan complete: title='{title}' slug='{slug}'")
+    engine._log.info(f"✓ Plan complete: title='{result['title']}' slug='{slug}'")
 
     # Record character names for future dedup
     new_names = {c.get("name", "") for c in characters.get("main_characters", []) if c.get("name")}

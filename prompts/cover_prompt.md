@@ -16,7 +16,7 @@
 
 下記のスキーマに適合するJSONのみを出力すること。
 
-{schema}
+
 
 - `style.composition` は「portrait」「landscape」「action」「symbolic」「atmospheric」から選択すること。
 - `visual_elements.subject.description` は英語の画像生成プロンプトとして記述すること。
@@ -26,3 +26,5 @@
 2. メインキャラクター・世界観を反映すること
 3. 商業的に訴求力を意識すること
 4. 画像生成ツール（Stable Diffusion等）で使える形式にすること
+
+{schema}

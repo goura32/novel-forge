@@ -19,18 +19,41 @@ def _extract_json_text(text: str) -> str:
 def parse_json_response(text: str) -> Any:
     """Parse JSON from LLM response.
 
-    Ollama format=json ensures valid JSON output, so direct parsing is sufficient.
-    Fallback: extract JSON object boundaries if direct parse fails.
+    Ollama streaming format returns NDJSON (one JSON object per line).
+    Each line has a "content" field that must be concatenated.
+    The final assembled JSON is then parsed.
     """
     text = _extract_json_text(text)
 
-    # Direct parse (primary path for format=json)
+    # Try direct parse first (single JSON object)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # Fallback: extract JSON object boundaries
+    # NDJSON streaming format: parse each line and concatenate content
+    lines = text.strip().split("\n")
+    content_parts = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+            chunk = obj.get("message", {}).get("content", "")
+            if chunk:
+                content_parts.append(chunk)
+        except json.JSONDecodeError:
+            continue
+
+    if content_parts:
+        full_content = "".join(content_parts)
+        try:
+            return json.loads(full_content)
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback: extract JSON object boundaries from text
     start = text.find("{")
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:

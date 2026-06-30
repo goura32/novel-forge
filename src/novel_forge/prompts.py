@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 _PROMPT_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
@@ -30,4 +31,26 @@ class PromptManager:
             if not path.exists():
                 raise FileNotFoundError(f"Prompt not found: {path}")
             self._cache[name] = path.read_text(encoding="utf-8")
-        return render_prompt(self._cache[name], variables)
+        # {schema} が含まれている場合、スキーマを自動的に取得して置換
+        result = self._cache[name]
+        if "{schema}" in result:
+            from novel_forge.schemas import get_schema
+            # プロンプト名からスキーマ名を推定
+            schema_name = name
+            if schema_name.endswith(".md"):
+                schema_name = schema_name[:-3]
+            # まず元の名前で試す
+            try:
+                schema_json = json.dumps(get_schema(schema_name), ensure_ascii=False, indent=2)
+            except FileNotFoundError:
+                # _review, _revision を除去して再試行
+                for suffix in ["_review", "_revision"]:
+                    if schema_name.endswith(suffix):
+                        schema_name = schema_name[:-len(suffix)]
+                        break
+                try:
+                    schema_json = json.dumps(get_schema(schema_name), ensure_ascii=False, indent=2)
+                except FileNotFoundError:
+                    schema_json = "{}"
+            result = result.replace("{schema}", schema_json)
+        return render_prompt(result, variables)

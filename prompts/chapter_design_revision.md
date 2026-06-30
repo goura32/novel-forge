@@ -7,7 +7,7 @@
 以下のレビュー結果に基づいて、章設計を改訂せよ。
 
 ## 現在の章設計
-{current_design}
+{current_chapter}
 
 ## レビュー結果
 {review}

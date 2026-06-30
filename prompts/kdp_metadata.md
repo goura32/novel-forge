@@ -16,7 +16,9 @@
 
 下記のスキーマに適合するJSONのみを出力すること。
 
-{schema}
+
 
 - `keywords` は最大7件
 - `categories` はKDPのカテゴリ名から選択すること
+
+{schema}

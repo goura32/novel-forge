@@ -29,6 +29,10 @@ def _validate_chapter_design(data: dict) -> list[str]:
         errors.append("title")
     if not data.get("purpose"):
         errors.append("purpose")
+    if not data.get("theme") or not str(data.get("theme", "")).strip():
+        errors.append("theme (empty)")
+    if not data.get("emotional_arc") or not str(data.get("emotional_arc", "")).strip():
+        errors.append("emotional_arc (empty)")
     return errors
 
 
@@ -71,6 +75,14 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
 
     # Phase 1: Volume design (chapters)
     engine._log.info(f"  ▶ volume_design — vol={vol_num}/{total_vol}")
+    prev_design = ""
+    if vol_num > 1:
+        prev_vol_path = engine._series_dir / f"vol{vol_num - 1:02d}" / f"vol{vol_num - 1:02d}.json"
+        if prev_vol_path.exists():
+            try:
+                prev_design = prev_vol_path.read_text(encoding="utf-8")
+            except Exception:
+                pass
     vol_design_data = generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "volume_design", system, p, get_schema("volume_design"), seed_offset=s),
@@ -78,11 +90,13 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
         review_fn=lambda r, sys: _review_volume_design(engine, r, sys),
         revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
             "volume_design", sys, engine._prompts.render("volume_design_revision.md",
-                {"current_volume": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                {"current_volume": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv),
+                 "previous_design": prev_design}),
             get_schema("volume_design"), seed_offset=so),
         system=system,
         user_prompt=engine._prompts.render("volume_design.md",
-            {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre, "lang": engine._lang}),
+            {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,
+             "previous_design": prev_design, "lang": engine._lang}),
         kind="volume_design",
         llm=engine._llm,
         quality=engine._quality,
@@ -103,12 +117,24 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
     # Phase 2: Chapter design — one call per chapter
     engine._log.info(f"  ▶ chapter_design — vol={vol_num} {chapters_count} ch")
     chapter_results = []
+    prev_chapter_outcome = ""
+    prev_volume_summary = ""
+    if vol_num > 1:
+        prev_vol_path = engine._series_dir / f"vol{vol_num - 1:02d}" / f"vol{vol_num - 1:02d}.json"
+        if prev_vol_path.exists():
+            try:
+                prev_vol = json.loads(prev_vol_path.read_text(encoding="utf-8"))
+                prev_volume_summary = prev_vol.get("summary", "") or prev_vol.get("premise", "")
+            except Exception:
+                pass
     for ch_idx in range(1, chapters_count + 1):
         ch_data = chapters[ch_idx - 1] if ch_idx <= len(chapters) else {}
         ch_prompt = engine._prompts.render("chapter_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num),
              "chapter_number": str(ch_idx), "chapter_title": ch_data.get("title", ""),
              "chapter_purpose": ch_data.get("purpose", ""),
+             "previous_chapter_outcome": prev_chapter_outcome,
+             "previous_volume_summary": prev_volume_summary,
              "lang": engine._lang})
         ch_result = generate_and_review(
             generate_fn=lambda p, s: engine._llm.complete_json(
@@ -129,6 +155,8 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
         if isinstance(ch_result, tuple):
             ch_result = ch_result[0]
         chapter_results.append(ch_result)
+        if isinstance(ch_result, dict):
+            prev_chapter_outcome = ch_result.get("outcome", "") or ch_result.get("emotional_arc", "")
     chapters = chapter_results
     engine._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)}/{chapters_count} ch done")
 
@@ -137,6 +165,7 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
     engine._log.info(f"  ▶ scene_design — vol={vol_num} {chapters_count} ch (~{est_scenes} sc)")
     scenes: list[dict] = []
     scene_counter = 0
+    prev_outcome = ""
     for ch in chapters:
         ch_num = ch.get("number", 0)
         ch_purpose = ch.get("purpose", "展開")
@@ -146,8 +175,10 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
             sc_prompt = engine._prompts.render("scene_design.md",
                 {"series_plan": series_plan, "volume_number": str(vol_num),
                  "chapter_number": str(ch_num), "scene_number": str(scene_counter),
+                 "scene_count": str(est_scenes),
                  "chapter_scene_number": str(scene_counter),
                  "chapter_scene_count": str(ch_est),
+                 "previous_outcome": prev_outcome,
                  "lang": engine._lang})
             sc_data = generate_and_review(
                 generate_fn=lambda p, s: engine._llm.complete_json(
@@ -171,6 +202,7 @@ def design(engine: "NovelEngineBase", volume_number: int | None = None) -> dict[
                 scene_obj["chapter_number"] = scene_obj.get("chapter_number", ch_num)
                 scene_obj["number"] = scene_counter
                 scenes.append(scene_obj)
+                prev_outcome = scene_obj.get("outcome", "")
     engine._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)}/{est_scenes} sc done")
 
     # Build result
