@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "VolumeDesign",
+  "title": "VolumeDesignRevision",
+  "description": "巻設計の改訂用スキーマ",
   "type": "object",
-  "description": "LLM は chapters ごとに title, purpose を生成する。number と chapter_number は engine で機械採番されるため含めない。",
   "required": [
     "chapters"
   ],
@@ -25,7 +25,6 @@
           "purpose": {
             "description": "章の役割。",
             "type": "string",
-            "minLength": 1,
             "enum": [
               "導入",
               "展開",

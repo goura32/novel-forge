@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanVolumesRevision",
+  "description": "シリーズ企画の各巻設計改訂用スキーマ",
+  "type": "object",
+  "properties": {
+    "planned_volumes": {
+      "description": "巻構成一覧。4〜8個推奨。最低4巻（起承転結の各段階を最低1巻ずつ）。",
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["title", "premise", "theme", "emotional_arc", "key_events", "cliffhanger"],
+        "properties": {
+          "title": {
+            "description": "巻タイトル。3〜64文字推奨。",
+            "type": "string"
+          },
+          "premise": {
+            "description": "巻のあらすじ。300〜1000文字推奨。",
+            "type": "string"
+          },
+          "theme": {
+            "description": "巻のテーマ。100〜600文字推奨。",
+            "type": "string"
+          },
+          "emotional_arc": {
+            "description": "巻全体の感情の弧。100〜500文字推奨。",
+            "type": "string"
+          },
+          "key_events": {
+            "description": "巻内の主要イベント。3〜10個推奨、各最大200文字。",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "cliffhanger": {
+            "description": "次巻へのフック（最終巻以外必須）。100〜1000文字推奨。",
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "planned_volumes"
+  ]
+}

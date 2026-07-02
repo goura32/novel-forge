@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from novel_forge.engine.review import format_review_text, generate_and_review
@@ -72,7 +71,7 @@ def _validate_plan_volumes(volumes: dict) -> list[str]:
     return errors
 
 
-def _get_existing_slugs(engine: "NovelEngineBase") -> set[str]:
+def _get_existing_slugs(engine: NovelEngineBase) -> set[str]:
     existing = set()
     workdir = engine.workdir
     if not workdir.exists():
@@ -92,7 +91,7 @@ def _get_existing_slugs(engine: "NovelEngineBase") -> set[str]:
     return existing
 
 
-def plan(engine: "NovelEngineBase", keywords: str) -> dict[str, Any]:
+def plan(engine: NovelEngineBase, keywords: str) -> dict[str, Any]:
     """Generate a complete series plan (core → characters → volumes).
 
     The final series_plan.json is assembled entirely from LLM-generated values.
@@ -168,7 +167,7 @@ def _slugify(title: str) -> str:
     return f"series_{h}"
 
 
-def _generate_plan_core(engine: "NovelEngineBase", keywords: str, system: str, existing_slugs: set[str]) -> tuple[dict, dict]:
+def _generate_plan_core(engine: NovelEngineBase, keywords: str, system: str, existing_slugs: set[str]) -> tuple[dict, dict]:
     slugs_text = ", ".join(sorted(existing_slugs)) if existing_slugs else "（なし）"
     prompt = engine._prompts.render(
         "series_plan_core.md",
@@ -186,17 +185,16 @@ def _generate_plan_core(engine: "NovelEngineBase", keywords: str, system: str, e
         kind="series_plan_core",
         llm=engine._llm,
         quality=engine._quality,
-        strict=engine._strict,
     )
 
 
-def _review_plan_core(engine: "NovelEngineBase", core: dict, system: str, schema: dict | None = None) -> dict:
+def _review_plan_core(engine: NovelEngineBase, core: dict, system: str, schema: dict | None = None) -> dict:
     text = (
         f"タイトル: {core.get('title', '')}\nあらすじ: {core.get('logline', '')}\n"
         f"ジャンル: {', '.join(core.get('genre', []))}\nターゲット読者: {core.get('target_audience', '')}\n"
         f"テーマ: {', '.join(core.get('themes', []))}\n売りポイント: {'; '.join(core.get('selling_points', []))}\n"
-        f"世界観: {core.get('world', {}).get('summary', '')}\n"
-        f"世界観ルール: {'; '.join(core.get('world', {}).get('rules', []))}"
+        f"世界観: {core.get('world_summary', '')}\n"
+        f"世界観ルール: {'; '.join(core.get('world_rules', []))}"
     )
     user = engine._prompts.render(
         "series_plan_core_review.md", {"plan_text": text, "lang": engine._lang}
@@ -205,17 +203,25 @@ def _review_plan_core(engine: "NovelEngineBase", core: dict, system: str, schema
 
 
 def _revise_plan_core(
-    engine: "NovelEngineBase", core: dict, review: dict, system: str, seed_offset: int = 0, schema: dict | None = None
+    engine: NovelEngineBase, core: dict, review: dict, system: str, seed_offset: int = 0, schema: dict | None = None
 ) -> dict:
     review_text = format_review_text(review)
+    # Format current_plan in human-readable field-by-field format for LLM clarity
+    plan_text = (
+        f"タイトル: {core.get('title', '')}\nあらすじ: {core.get('logline', '')}\n"
+        f"ジャンル: {', '.join(core.get('genre', []))}\nターゲット読者: {core.get('target_audience', '')}\n"
+        f"テーマ: {', '.join(core.get('themes', []))}\n売りポイント: {'; '.join(core.get('selling_points', []))}\n"
+        f"世界観: {core.get('world_summary', '')}\n"
+        f"世界観ルール: {'; '.join(core.get('world_rules', []))}"
+    )
     prompt = engine._prompts.render(
         "series_plan_core_revision.md",
-        {"current_plan": json.dumps(core, ensure_ascii=False), "review": review_text},
+        {"current_plan": plan_text, "review": review_text},
     )
     return engine._llm.complete_json("series_plan_core", system, prompt, schema)
 
 
-def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str, used_names: set[str]) -> tuple[dict, dict]:
+def _generate_plan_characters(engine: NovelEngineBase, core: dict, system: str, used_names: set[str]) -> tuple[dict, dict]:
     prompt = engine._prompts.render(
         "series_plan_characters.md",
         {
@@ -250,7 +256,7 @@ def _generate_plan_characters(engine: "NovelEngineBase", core: dict, system: str
     )
 
 
-def _review_plan_characters(engine: "NovelEngineBase", characters: dict, core: dict, system: str) -> dict:
+def _review_plan_characters(engine: NovelEngineBase, characters: dict, core: dict, system: str) -> dict:
     lines = ["世界観:", core.get("world_summary", ""), "", "メインキャラクター:"]
     for c in characters.get("main_characters", []):
         lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
@@ -267,7 +273,7 @@ def _review_plan_characters(engine: "NovelEngineBase", characters: dict, core: d
 
 
 def _revise_plan_characters(
-    engine: "NovelEngineBase", characters: dict, review: dict, system: str, seed_offset: int = 0
+    engine: NovelEngineBase, characters: dict, review: dict, system: str, seed_offset: int = 0
 ) -> dict:
     review_text = format_review_text(review)
     prompt = engine._prompts.render(
@@ -282,7 +288,7 @@ def _revise_plan_characters(
     )
 
 
-def _generate_plan_volumes(engine: "NovelEngineBase", core: dict, characters: dict, system: str) -> tuple[dict, dict]:
+def _generate_plan_volumes(engine: NovelEngineBase, core: dict, characters: dict, system: str) -> tuple[dict, dict]:
     char_lines = ["メインキャラクター:"]
     for c in characters.get("main_characters", []):
         char_lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
@@ -311,7 +317,7 @@ def _generate_plan_volumes(engine: "NovelEngineBase", core: dict, characters: di
 
 
 def _review_plan_volumes(
-    engine: "NovelEngineBase", volumes: dict, core: dict, characters: dict, system: str
+    engine: NovelEngineBase, volumes: dict, core: dict, characters: dict, system: str
 ) -> dict:
     lines = [
         f"シリーズ核:\n  タイトル: {core.get('title', '')}\n  あらすじ: {core.get('logline', '')}",
@@ -330,7 +336,7 @@ def _review_plan_volumes(
 
 
 def _revise_plan_volumes(
-    engine: "NovelEngineBase", volumes: dict, review: dict, system: str, seed_offset: int = 0
+    engine: NovelEngineBase, volumes: dict, review: dict, system: str, seed_offset: int = 0
 ) -> dict:
     review_text = format_review_text(review)
     prompt = engine._prompts.render(

@@ -40,7 +40,10 @@ def parse_json_response(text: str) -> Any:
             continue
         try:
             obj = json.loads(line)
-            chunk = obj.get("message", {}).get("content", "")
+            if isinstance(obj, dict):
+                chunk = obj.get("message", {}).get("content", "")
+            else:
+                chunk = ""
             if chunk:
                 content_parts.append(chunk)
         except json.JSONDecodeError:

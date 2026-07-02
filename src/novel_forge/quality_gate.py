@@ -42,8 +42,15 @@ class QualityGate:
 
     DEFAULT_MAX_RETRIES = 3
 
-    def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES):
+    def __init__(
+        self,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        validation_max_retries: int | None = None,
+        review_max_retries: int | None = None,
+    ):
         self.max_retries = max_retries
+        self.validation_max_retries = validation_max_retries or max_retries
+        self.review_max_retries = review_max_retries or max_retries
 
     def _check(self, review_result: dict) -> QualityGateResult:
         """レビュー結果に基づき品質を判定する。

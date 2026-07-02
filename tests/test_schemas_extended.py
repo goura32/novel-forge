@@ -66,7 +66,8 @@ class TestValidate:
             "target_audience": "10代後半〜30代",
             "themes": ["adventure"],
             "selling_points": ["Unique world"],
-            "world": {"summary": "Magic world", "rules": ["magic exists"]},
+            "world_summary": "Magic world",
+            "world_rules": ["magic exists"],
         }
         errors = validate("series_plan_core", data)
         assert len(errors) == 0
@@ -90,7 +91,8 @@ class TestValidate:
             "target_audience": "10代",
             "themes": ["adventure"],
             "selling_points": ["Unique"],
-            "world": {"summary": "World", "rules": []},
+            "world_summary": "World",
+            "world_rules": [],
             "extra_field": "should be allowed",
         }
         errors = validate("series_plan_core", data)
@@ -233,7 +235,8 @@ class TestValidateOrRaise:
             "target_audience": "10代",
             "themes": ["adventure"],
             "selling_points": ["Unique"],
-            "world": {"summary": "World", "rules": []},
+            "world_summary": "World",
+            "world_rules": [],
         }
         # Should not raise
         validate_or_raise("series_plan_core", data)
@@ -252,7 +255,8 @@ class TestSchemaFieldCoverage:
 
     def test_series_plan_core_has_world(self):
         schema = get_schema("series_plan_core")
-        assert "world" in schema["properties"]
+        assert "world_summary" in schema["properties"]
+        assert "world_rules" in schema["properties"]
 
     def test_series_plan_core_has_slug(self):
         schema = get_schema("series_plan_core")

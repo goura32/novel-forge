@@ -39,7 +39,11 @@ class LLMError(Exception):
 
 
 class SchemaValidationError(LLMError):
-    pass
+    """Schema validation error with path information."""
+    def __init__(self, message: str, absolute_path: list | None = None):
+        super().__init__(message)
+        self.message = message
+        self.absolute_path = absolute_path or []
 
 
 def _try_import_yaml():
@@ -174,17 +178,9 @@ class LLMClient:
                         type(schema).__name__, len(user_prompt), "{schema}" in user_prompt)
 
         if schema is not None:
-            schema_data = {k: v for k, v in schema.items() if k not in ("$schema", "title", "description")}
-            schema_text = json.dumps(schema_data, ensure_ascii=False)
-            replacement = (
-                f"以下のスキーマに従って、実際のデータ値を埋めた JSON のみを出力すること。"
-                f"スキーマ構造そのものを返さないこと。\n\n{schema_text}"
-            )
-            if "{schema}" in user_prompt:
-                user_prompt = user_prompt.replace("{schema}", replacement)
-                self._log.debug("build_payload: {schema} replaced (schema_len=%d)", len(schema_text))
-            else:
-                self._log.warning("build_payload: {schema} not found in user_prompt (prompt_len=%d)", len(user_prompt))
+            # Schema should already be injected by PromptManager.render()
+            # Just verify schema is available for validation later
+            pass
         else:
             self._log.warning("build_payload: schema is None")
 
@@ -200,7 +196,6 @@ class LLMClient:
                 "seed": 42,
                 **api_options,
             },
-            "format": "json",
             "think": think_value,
         }
 
@@ -267,7 +262,7 @@ class LLMClient:
                     validate_or_raise(kind, parsed)
                 return parsed
 
-            except RuntimeError as e:
+            except RuntimeError:
                 # --strict mode: propagate after saving raw log
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 continue
@@ -391,12 +386,15 @@ class LLMClient:
     def _make_call_dir(self, kind: str) -> Path:
         """1回のLLM呼び出し用のディレクトリを作成して返す。
 
-        Format: {raw_log_dir}/{phase}/{timestamp}_{kind}/
+        Format: {raw_log_dir}/{phase}/{timestamp}_{pid}_{kind}/
+        pidで実行単位を識別 → 中断再開でも同じPIDのログが纏まる
         """
         if not self.raw_log_dir:
             return Path("/dev/null")  # dummy
         phase = self.phase if self.phase else "unknown"
-        run_dir = self.raw_log_dir / phase / f"{self._run_timestamp}_{kind}"
+        import os as _os
+        pid = _os.getpid()
+        run_dir = self.raw_log_dir / phase / f"{self._run_timestamp}_{pid}_{kind}"
         run_dir.mkdir(parents=True, exist_ok=True)
         # Create details/ subdirectory for JSON.gz files
         (run_dir / "details").mkdir(exist_ok=True)

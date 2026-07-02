@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ChapterDesign",
+  "title": "ChapterDesignRevision",
+  "description": "章設計の改訂用スキーマ",
   "type": "object",
   "required": [
     "title",

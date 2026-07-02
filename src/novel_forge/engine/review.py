@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from novel_forge.logging_config import get_logger
 from novel_forge.llm_client import SchemaValidationError
+from novel_forge.logging_config import get_logger
 
 _log = get_logger("novel_forge.engine.review")
 
@@ -23,12 +23,13 @@ def format_review_text(review: dict) -> str:
     lines = ["レビュー結果:"]
     for issue in review.get("issues", []):
         sev = issue.get("severity", "")
+        field = issue.get("field", "")
         cat = issue.get("category", "")
         desc = issue.get("description", "")
         sug = issue.get("suggestion", "")
         before = issue.get("before", "")
         after = issue.get("after", "")
-        lines.append(f"  [{sev}] {cat}: {desc}")
+        lines.append(f"  [{sev}] {cat} ({field}): {desc}")
         if sug:
             lines.append(f"    提案: {sug}")
         if before or after:
@@ -46,33 +47,44 @@ def generate_and_review(
     kind: str,
     llm: Any,
     quality: Any,
-    strict: bool = False,
+    validation_max_retries: int | None = None,
+    review_max_retries: int | None = None,
 ) -> tuple[dict, dict]:
     """Generate → validate → review → revise loop. Returns (data, review).
 
-    Stateful dependencies (LLM client, quality gate, strict) are passed
+    Stateful dependencies (LLM client, quality gate) are passed
     in, not captured — making this fully testable with mocks.
+
+    Strict mode is ALWAYS ON: revision failure after max retries raises RuntimeError.
     """
     max_retries = quality.max_retries
+    validation_max = validation_max_retries if validation_max_retries is not None else quality.validation_max_retries
+    review_max = review_max_retries if review_max_retries is not None else quality.review_max_retries
     seed_offset = 0
+    review_attempt = 0  # Separate counter for review attempts
     result: dict = {}
     review: dict = {"issues": []}
 
     while seed_offset < max_retries:
+        # Check if we've exceeded review max for this attempt
+        if review_attempt >= review_max and seed_offset > 0:
+            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({seed_offset}/{review_max})"
+            raise RuntimeError(msg)
+
         try:
             result = generate_fn(user_prompt, seed_offset)
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
             _log.warning("  [GENERATE VALIDATION ERROR] %s: path=%s msg=%s attempt=%d/%d",
-                         kind, path, e.message, seed_offset, max_retries)
-            if seed_offset >= max_retries - 1:
-                raise RuntimeError(f"{kind}: generate validation failed after {max_retries} retries: path={path} msg={e.message}")
+                         kind, path, e.message, seed_offset, validation_max)
+            if seed_offset >= validation_max - 1:
+                raise RuntimeError(f"{kind}: generate validation failed after {validation_max} retries: path={path} msg={e.message}") from e
             seed_offset += 1
             continue
-        seed_offset += 1
 
         if llm._is_schema_echo(result):
-            _log.warning("  [SCHEMA ECHO] %s retry=%d", kind, seed_offset - 1)
+            _log.warning("  [SCHEMA ECHO] %s retry=%d", kind, seed_offset)
+            seed_offset += 1
             continue
 
         try:
@@ -83,21 +95,19 @@ def generate_and_review(
             _log.warning("  [VALIDATION FAIL] %s: path=%s msg=%s (exception)", kind, path, e.message)
             errors = [f"path={path} msg={e.message}"]
         if errors:
-            _log.warning("  [VALIDATION FAIL] %s: %s attempt=%d/%d", kind, errors, seed_offset, max_retries)
-            if seed_offset >= max_retries:
-                if strict:
-                    raise RuntimeError(f"  [VALIDATION FAIL] {kind}: {errors} (--strict mode)")
-                _log.warning("  [VALIDATION FAIL] %s: max retries reached, still failing", kind)
-                raise RuntimeError(f"  [VALIDATION FAIL] {kind}: validation failed after {max_retries} retries: {errors}")
+            _log.warning("  [VALIDATION FAIL] %s: %s attempt=%d/%d", kind, errors, seed_offset, validation_max)
+            if seed_offset >= validation_max - 1:
+                raise RuntimeError(f"  [VALIDATION FAIL] {kind}: validation failed after {validation_max} retries: {errors}")
+            seed_offset += 1
             continue
 
+        # First review (after initial generation)
         try:
             review = review_fn(result, system)
+            review_attempt += 1
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
             _log.warning("  [REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
-            if strict:
-                raise RuntimeError(f"{kind}: review validation failed (--strict mode)") from e
             # Force revision by injecting a critical issue
             review = {
                 "issues": [{
@@ -109,10 +119,10 @@ def generate_and_review(
                     "after": "",
                 }]
             }
-            if seed_offset >= max_retries:
-                _log.warning("  [REVIEW] %s: review validation failed, max retries reached", kind)
-                raise RuntimeError(f"{kind}: review validation failed after {max_retries} retries")
+            if review_attempt >= review_max - 1:
+                raise RuntimeError(f"{kind}: review validation failed after {review_max} retries") from e
             continue
+
         blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
         critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
         major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
@@ -122,32 +132,48 @@ def generate_and_review(
         if not revision_needed:
             return result, review
 
-        if seed_offset >= max_retries:
-            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({seed_offset}/{max_retries})"
-            if strict:
-                raise RuntimeError(msg + " (--strict mode)")
-            _log.warning(msg)
-            return result, review
+        if review_attempt >= review_max:  # Use review_attempt instead of seed_offset
+            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({review_attempt}/{review_max})"
+            raise RuntimeError(msg)
 
         result = revise_fn(result, review, system, seed_offset)
         seed_offset += 1
 
         errors = validate_fn(result)
         if errors:
-            if seed_offset >= max_retries:
-                msg = f"  [POST-REVISION VALIDATION] {kind}: {errors} (max retries reached)"
-                _log.error(msg)
-                raise RuntimeError(f"{kind}: post-revision validation failed after {max_retries} retries: {errors}")
             _log.warning(
                 "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
-                kind, errors, seed_offset, max_retries,
+                kind, errors, seed_offset, validation_max,
             )
+            if seed_offset >= validation_max - 1:
+                raise RuntimeError(f"{kind}: post-revision validation failed after {validation_max} retries: {errors}")
+            continue
+
+        # Re-review the revised result
+        try:
+            review = review_fn(result, system)
+            review_attempt += 1  # Count this as a review attempt
+        except SchemaValidationError as e:
+            path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
+            _log.warning("  [POST-REVISION REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
+            if review_attempt >= review_max:
+                raise RuntimeError(f"{kind}: post-revision review validation failed after {review_max} retries") from e
             continue
 
         blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
         critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
         major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-        if len(blocker) == 0 and len(critical) == 0 and len(major) < 2:
+        fatal_count = len(blocker) + len(critical) + len(major)  # Include major in fatal count for strict mode check
+
+        # Check review max separately for post-revision review
+        if fatal_count > 0 and review_attempt >= review_max:
+            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({review_attempt}/{review_max})"
+            raise RuntimeError(msg)
+
+        if len(blocker) == 0 and len(critical) == 0 and len(major) == 0:
             return result, review
+
+        # Still has issues after revision - always raise in strict mode
+        raise RuntimeError(f"  [REVIEW] {kind}: issues remain after revision ({fatal_count} issues)")
 
     return result, review

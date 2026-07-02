@@ -97,62 +97,8 @@ class MockLLMClient:
 
     @staticmethod
     def _is_schema_echo(parsed: dict[str, Any]) -> bool:
+        """Check if parsed response is just the JSON schema echoed back."""
         return False
-
-        # Fall back to responses dict
-        if kind in self._responses:
-            resp = self._responses[kind]
-            if callable(resp):
-                return resp(kind=kind, system=system_prompt, user=user_prompt, schema=schema)
-            if isinstance(resp, dict):
-                return resp
-            return resp
-
-        # Default responses per kind
-        if kind == "series_plan_core":
-            return {
-                "title": "テストシリーズ",
-                "slug": "test_series",
-                "logline": "テストのあらすじ",
-                "genre": ["fantasy"],
-                "target_audience": "10代後半〜30代",
-                "themes": ["冒険", "成長"],
-                "selling_points": ["ユニークな世界観"],
-                "world": {"summary": "魔法の世界", "rules": ["魔法が存在する"]},
-            }
-        if kind == "series_plan_characters":
-            return {"main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}]}
-        if kind == "series_plan_volumes":
-            return {"planned_volumes": [{"title": "第1巻", "premise": "始まり"}]}
-        if "review" in kind:
-            return {"issues": [], "suggestions": []}
-        if "revision" in kind:
-            return {"title": "テストシリーズ", "slug": "test-series"}
-        if "design" in kind:
-            return {"title": "タイトル", "chapters": [{"title": "章1", "purpose": "導入"}]}
-        if kind == "scene_draft":
-            return {"title": "シーン", "content": "本文"}
-        if kind == "scene_review":
-            return {
-                "score": 80.0,
-                "issues": [],
-                "strengths": ["良い"],
-                "recommendations": [],
-                "dimensions": {},
-            }
-        if kind == "scene_summary_and_bible_update":
-            return {
-                "summary": "要約",
-                "facts": [],
-                "continuity_notes": [],
-                "characters": [],
-                "foreshadowing": [],
-                "relationships": [],
-                "subplots": [],
-                "glossary": [],
-                "world_rules": [],
-            }
-        return {}
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -168,7 +114,8 @@ def _make_plan_response(**overrides) -> dict:
         "target_audience": "10代後半〜30代",
         "themes": ["冒険", "成長"],
         "selling_points": ["ユニークな世界観"],
-        "world": {"summary": "魔法の世界", "rules": ["魔法が存在する"]},
+        "world_summary": "魔法の世界",
+        "world_rules": ["魔法が存在する"],
         "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
         "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
     }

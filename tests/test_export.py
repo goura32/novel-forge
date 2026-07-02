@@ -81,11 +81,11 @@ class TestExportMixin:
 
         # Bind real methods
         from novel_forge.engine.export import (
-            export,
             _assemble_manuscript,
-            _write_export,
             _generate_kdp_metadata,
             _generate_readiness_report,
+            _write_export,
+            export,
         )
 
         engine.export = export.__get__(engine)

@@ -40,17 +40,41 @@ class PromptManager:
             if schema_name.endswith(".md"):
                 schema_name = schema_name[:-3]
             # まず元の名前で試す
-            try:
-                schema_json = json.dumps(get_schema(schema_name), ensure_ascii=False, indent=2)
-            except FileNotFoundError:
+            schema_dict = get_schema(schema_name)
+            if not schema_dict:
                 # _review, _revision を除去して再試行
                 for suffix in ["_review", "_revision"]:
                     if schema_name.endswith(suffix):
                         schema_name = schema_name[:-len(suffix)]
                         break
-                try:
-                    schema_json = json.dumps(get_schema(schema_name), ensure_ascii=False, indent=2)
-                except FileNotFoundError:
-                    schema_json = "{}"
+                schema_dict = get_schema(schema_name)
+            # schema構造そのものを返さないよう、descriptionを中心とした構造化テキストを生成
+            if schema_dict:
+                schema_json = _build_simplified_schema(schema_dict)
+            else:
+                schema_json = "{}"
             result = result.replace("{schema}", schema_json)
         return render_prompt(result, variables)
+
+
+def _build_simplified_schema(schema: dict) -> str:
+    """Build a simplified schema text focusing on descriptions for both top-level and nested properties."""
+    def extract_props(obj, indent=0) -> dict:
+        result = {}
+        if not isinstance(obj, dict):
+            return result
+        for prop_name, prop_def in obj.get("properties", {}).items():
+            entry = {"description": prop_def.get("description", "")}
+            # Include type if available
+            if "type" in prop_def:
+                entry["type"] = prop_def["type"]
+            # Handle nested items (arrays of objects)
+            if prop_def.get("type") == "array" and "items" in prop_def:
+                items = prop_def["items"]
+                if isinstance(items, dict) and "properties" in items:
+                    entry["items_properties"] = extract_props(items, indent + 2)
+            result[prop_name] = entry
+        return result
+    
+    simplified = extract_props(schema)
+    return json.dumps(simplified, ensure_ascii=False, indent=2)

@@ -29,6 +29,7 @@ from novel_forge.scene_writer import SceneWriter
 from novel_forge.schemas import validate_schemas
 from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
 
+
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID exists."""
     try:
@@ -94,7 +95,7 @@ class NovelEngineBase:
         else:
             self._slug = ""
         self._phase = phase
-        self._strict = False
+        self._strict = True
 
         # ログは全シリーズ共通で config.yaml と同じフォルダに出力
         log_dir = Path(workdir)
@@ -168,7 +169,13 @@ class NovelEngineBase:
             if max_review_retries is not None
             else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
         )
-        self._quality = QualityGate(max_retries=quality_retries)
+        validation_retries = cfg.get("quality", {}).get("max_validation_retries", quality_retries)
+        review_retries = cfg.get("quality", {}).get("max_review_retries", quality_retries)
+        self._quality = QualityGate(
+            max_retries=quality_retries,
+            validation_max_retries=validation_retries,
+            review_max_retries=review_retries,
+        )
         self._state = self._storage.load()
 
         self._ctx_builder = ctx_builder or ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)

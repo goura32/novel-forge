@@ -19,7 +19,7 @@ from novel_forge.models import (
     SceneWriteContext,
     VolumeOutline,
 )
-from novel_forge.quality_gate import QualityGate, QualityGateResult
+from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
@@ -148,7 +148,6 @@ class SceneWriter:
             kind="scene_draft",
             llm=self._llm,
             quality=self._quality,
-            strict=self._strict,
         )
 
         # Determine final status from review

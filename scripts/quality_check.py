@@ -25,7 +25,6 @@ def check_series(series_dir: Path):
     for vol_dir in sorted(series_dir.glob("vol*")):
         if not vol_dir.is_dir():
             continue
-        vol_num = int(vol_dir.name.replace("vol", ""))
         print(f"\n--- {vol_dir.name} ---")
 
         # Outline
@@ -61,7 +60,7 @@ def check_series(series_dir: Path):
     if not exports_dir.exists():
         exports_dir = series_dir / "exports"
     if exports_dir.exists():
-        print(f"\n--- 出力ファイル ---")
+        print("\n--- 出力ファイル ---")
         for f in sorted(exports_dir.iterdir()):
             print(f"  {f.name} ({f.stat().st_size:,} bytes)")
 

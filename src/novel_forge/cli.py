@@ -26,19 +26,15 @@ def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    lang: str = typer.Option("ja", "--lang", help="Output language"),
-    strict: bool = typer.Option(
-        False, "--strict", help="Stop on validation/review retry exhaustion (default: continue)"
-    ),
+    max_retries: int = typer.Option(3, "--max-retries", help="Max review retries per phase"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
 ):
     """Generate a series plan from keywords."""
     engine = make_engine(
-        workdir, model, lang, verbose=verbose, raw_log=raw_log, phase="plan",
-        max_review_retries=3,
+        workdir, model, "ja", verbose=verbose, raw_log=raw_log, phase="plan",
+        max_review_retries=max_retries,
     )
-    engine._strict = strict
     result = engine.plan(keywords)
     console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
     console.print(f"  [dim]Output: {engine._series_dir}[/dim]")
@@ -50,10 +46,7 @@ def design(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    lang: str = typer.Option("ja", "--lang", help="Output language"),
-    strict: bool = typer.Option(
-        False, "--strict", help="Stop on validation/review retry exhaustion (default: continue)"
-    ),
+    max_retries: int = typer.Option(3, "--max-retries", help="Max review retries per phase"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
 ):
@@ -61,9 +54,9 @@ def design(
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(
-            series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="design"
+            series_dir, model, "ja", verbose=verbose, raw_log=raw_log, phase="design",
+            max_review_retries=max_retries,
         )
-        engine._strict = strict
         if volume == 0:
             # Generate all volumes
             plan_path = series_dir / "series_plan.json"
@@ -86,11 +79,7 @@ def write(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    lang: str = typer.Option("ja", "--lang", help="Output language"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
-    strict: bool = typer.Option(
-        False, "--strict", help="Stop on validation/review retry exhaustion (default: continue)"
-    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
 ):
@@ -100,13 +89,12 @@ def write(
         engine = make_engine(
             series_dir,
             model,
-            lang,
+            "ja",
             max_review_retries=max_retries,
             verbose=verbose,
             raw_log=raw_log,
             phase="write",
         )
-        engine._strict = strict
         results = engine.write(volume)
         console.print(f"[green]✓[/green] {len(results)} scenes processed")
 
@@ -117,7 +105,6 @@ def export(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    lang: str = typer.Option("ja", "--lang", help="Output language"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
 ):
@@ -125,7 +112,7 @@ def export(
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(
-            series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="export"
+            series_dir, model, "ja", verbose=verbose, raw_log=raw_log, phase="export"
         )
         result = engine.export(volume)
         console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
@@ -147,8 +134,8 @@ def resume(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
+    max_retries: int = typer.Option(3, "--max-retries", help="Max review retries per phase"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
 ):
@@ -156,7 +143,8 @@ def resume(
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(
-            series_dir, model, lang, verbose=verbose, raw_log=raw_log, phase="resume"
+            series_dir, model, "ja", verbose=verbose, raw_log=raw_log, phase="resume",
+            max_review_retries=max_retries,
         )
         result = engine.resume()
         action = result["action"]
@@ -176,7 +164,6 @@ def complete(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    lang: str = typer.Option("ja", "--lang", help="Output language"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     max_retries: int = typer.Option(2, "--max-retries", help="Max review retries per scene"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
@@ -186,7 +173,7 @@ def complete(
     engine = make_engine(
         workdir,
         model,
-        lang,
+        "ja",
         max_review_retries=max_retries,
         verbose=verbose,
         raw_log=raw_log,

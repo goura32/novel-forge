@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanCoreRevision",
+  "description": "シリーズ企画の核の改訂用スキーマ",
+  "type": "object",
+  "properties": {
+    "title": {
+      "description": "シリーズのタイトル。30〜100文字推奨。",
+      "type": "string"
+    },
+    "slug": {
+      "description": "a-z0-9と_のみからなる128文字以内のスラッグ（アンダースコア区切り）。",
+      "type": "string"
+    },
+    "logline": {
+      "description": "シリーズのあらすじ。1-2文、200〜800文字推奨。",
+      "type": "string"
+    },
+    "genre": {
+      "description": "ジャンル。2〜5個推奨、各最大64文字。",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "target_audience": {
+      "description": "ターゲット読者。200〜500文字推奨。",
+      "type": "string"
+    },
+    "themes": {
+      "description": "テーマ。2〜5個推奨、各最大64文字。",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "selling_points": {
+      "description": "売りポイント。3〜7個推奨、各最大128文字。",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "world_summary": {
+      "description": "世界観の概要。300〜1000文字推奨。",
+      "type": "string"
+    },
+    "world_rules": {
+      "description": "世界観の独自ルール。1〜10個推奨、各最大200文字。",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "title",
+    "slug",
+    "logline",
+    "genre",
+    "themes",
+    "selling_points",
+    "world_summary",
+    "world_rules",
+    "target_audience"
+  ]
+}

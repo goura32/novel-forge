@@ -23,9 +23,17 @@ llm:
   # リトライ回数
   max_retries: 2
 
+  # バリデーションリトライ回数
+  validation_max_retries: 3
+
+  # レビューリトライ回数
+  review_max_retries: 2
+
   # Ollama ホスト（OLLAMA_HOST 環境変数より優先）
   ollama_host: "ws1.local:11434"
 
   # Ollama サンプリングオプション
   ollama_options:
-    think: true
+    think: false
+    temperature: 0.7
+    top_p: 0.9

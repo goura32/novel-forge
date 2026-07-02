@@ -43,12 +43,12 @@ class StateStorage:
         try:
             data = json.loads(self._state_path.read_text(encoding="utf-8"))
             return ProjectState(**data)
-        except json.JSONDecodeError, Exception:
+        except (json.JSONDecodeError, Exception):
             if self._backup_path.exists():
                 try:
                     data = json.loads(self._backup_path.read_text(encoding="utf-8"))
                     return ProjectState(**data)
-                except json.JSONDecodeError, Exception:
+                except (json.JSONDecodeError, Exception):
                     pass
             return ProjectState(workdir=str(self._workdir))
 

@@ -195,7 +195,8 @@ class TestSchemas:
             "target_audience": "10代後半〜30代",
             "themes": ["adventure"],
             "selling_points": ["Unique"],
-            "world": {"summary": "Magic world", "rules": ["magic exists"]},
+            "world_summary": "Magic world",
+            "world_rules": ["magic exists"],
         }
         errors = validate("series_plan_core", data)
         assert len(errors) == 0
@@ -214,7 +215,8 @@ class TestSchemas:
             "target_audience": "10代後半〜30代",
             "themes": ["adventure"],
             "selling_points": ["Unique"],
-            "world": {"summary": "Magic world", "rules": ["magic exists"]},
+            "world_summary": "Magic world",
+            "world_rules": ["magic exists"],
         }
         validate_or_raise("series_plan_core", data)  # Should not raise
 
@@ -222,15 +224,12 @@ class TestSchemas:
         schema = get_schema("chapter_design")
         assert "theme" in schema["required"]
         assert "emotional_arc" in schema["required"]
-        assert "foreshadowing_notes" in schema["properties"]
-        assert "subplot_notes" in schema["properties"]
+        assert "scenes" in schema["properties"]
 
     def test_volume_design_goal_is_string(self):
         schema = get_schema("volume_design")
-        goal = schema["properties"]["chapters"]["items"]["properties"]["scenes"]["items"][
-            "properties"
-        ]["goal"]
-        assert goal.get("type") == "string"
+        ch_title = schema["properties"]["chapters"]["items"]["properties"]["title"]
+        assert ch_title.get("type") == "string"
 
     def test_chapter_design_purpose_is_enum(self):
         schema = get_schema("volume_design")

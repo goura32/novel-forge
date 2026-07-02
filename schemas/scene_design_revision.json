@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDesignRevision",
+  "description": "シーン設計の改訂用スキーマ",
+  "type": "object",
+  "required": [
+    "title",
+    "goal",
+    "outcome"
+  ],
+  "properties": {
+    "title": {
+      "description": "シーンタイトル。3〜100文字推奨。",
+      "type": "string"
+    },
+    "pov": {
+      "description": "視点（誰の視点で描くか）",
+      "type": "string"
+    },
+    "goal": {
+      "description": "シーンの目標。",
+      "type": "string"
+    },
+    "conflict": {
+      "description": "シーンの葛藤。",
+      "type": "string"
+    },
+    "outcome": {
+      "description": "シーンの結果。",
+      "type": "string",
+      "minLength": 1
+    },
+    "characters": {
+      "description": "登場キャラクター。1〜10個推奨。",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "key_events": {
+      "description": "主要イベント。1〜5個推奨。",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "setting": {
+      "description": "舞台設定。",
+      "type": "string"
+    }
+  }
+}
