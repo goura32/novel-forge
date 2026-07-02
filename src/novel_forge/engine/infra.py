@@ -44,7 +44,7 @@ def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> P
     if lock_path.exists():
         try:
             lock_pid = int(lock_path.read_text().strip())
-        except ValueError, OSError:
+        except (ValueError, OSError):
             lock_pid = 0
         if lock_pid <= 0 or not _is_process_alive(lock_pid):
             console.print(f"[yellow]⚠ Stale lock (PID={lock_pid}) detected, removing.[/yellow]")
@@ -63,7 +63,7 @@ def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> P
         except FileExistsError:
             try:
                 lock_pid = int(lock_path.read_text().strip())
-            except ValueError, OSError:
+            except (ValueError, OSError):
                 lock_pid = 0
             if lock_pid > 0 and _is_process_alive(lock_pid):
                 if time.monotonic() >= deadline:
@@ -117,7 +117,8 @@ def make_engine(
     workdir: Path = Path("."),
     model: str = DEFAULT_MODEL,
     lang: str = "ja",
-    max_review_retries: int | None = None,
+    max_generation_count: int | None = None,
+    max_review_count: int | None = None,
     verbose: bool = False,
     raw_log: bool = False,
     phase: str = "",
@@ -130,7 +131,8 @@ def make_engine(
         workdir=workdir,
         model=model,
         lang=lang,
-        max_review_retries=max_review_retries,
+        max_review_count=max_review_count,
+        max_generation_count=max_generation_count,
         verbose=verbose,
         raw_log_enabled=raw_log,
         phase=phase,
@@ -186,7 +188,7 @@ def cmd_status(engine: NovelEngine) -> None:
                 table.add_row(f"[bold]🔒 lock: PID={lock_pid} (active, {age:.0f}s ago)[/bold]", "")
             else:
                 table.add_row(f"[dim]🔒 lock: PID={lock_pid} (stale, {age:.0f}s ago)[/dim]", "")
-        except ValueError, OSError:
+        except (ValueError, OSError):
             table.add_row("[dim]🔒 lock: corrupted[/dim]", "")
     console.print(table)
 

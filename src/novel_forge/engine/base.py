@@ -63,7 +63,8 @@ class NovelEngineBase:
         llm_client: LLMClient | None = None,
         prompt_manager: PromptManager | None = None,
         config: dict[str, Any] | None = None,
-        max_review_retries: int | None = None,
+        max_review_count: int | None = None,
+        max_generation_count: int | None = None,
         verbose: bool | None = None,
         raw_log_enabled: bool | None = None,
         phase: str = "",
@@ -165,15 +166,19 @@ class NovelEngineBase:
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
         quality_retries = (
-            max_review_retries
-            if max_review_retries is not None
-            else cfg.get("quality", {}).get("max_review_retries", QualityGate.DEFAULT_MAX_RETRIES)
+            max_review_count
+            if max_review_count is not None
+            else cfg.get("quality", {}).get("max_review_count", QualityGate.DEFAULT_MAX_RETRIES)
         )
-        validation_retries = cfg.get("quality", {}).get("max_validation_retries", quality_retries)
-        review_retries = cfg.get("quality", {}).get("max_review_retries", quality_retries)
+        generation_retries = (
+            max_generation_count
+            if max_generation_count is not None
+            else cfg.get("quality", {}).get("max_generation_count", quality_retries)
+        )
+        review_retries = cfg.get("quality", {}).get("max_review_count", quality_retries)
         self._quality = QualityGate(
             max_retries=quality_retries,
-            validation_max_retries=validation_retries,
+            generation_max_retries=generation_retries,
             review_max_retries=review_retries,
         )
         self._state = self._storage.load()

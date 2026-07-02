@@ -124,17 +124,13 @@ llm:
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 5
+  max_retries: 2          # LLM API 呼び出しエラー時のリトライ
   ollama_host: "192.168.1.31:11434"
   think: true
 
-logging:
-  verbose: true
-  raw_log: true
-  log_level: "DEBUG"
-
 quality:
-  max_review_retries: 3
+  max_generation_count: 3  # 生成API＋バリデーション最大リトライ（同一工程内）
+  max_review_count: 3      # レビュー→修正サイクル最大回数（複数工程にまたがる）
 ```
 
 優先順位: CLI引数 > config.yaml > デフォルト値

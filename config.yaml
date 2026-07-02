@@ -7,6 +7,14 @@
 #
 # OLLAMA_OPTIONS 環境変数は config.yaml よりも優先される（オーバーレイ）。
 
+# 品質ゲート設定
+quality:
+  # 生成API（APIエラー＋バリデーション）の最大リトライ回数
+  max_generation_count: 3
+
+  # レビュー（レビュー→修正サイクル）の最大回数
+  max_review_count: 3
+
 llm:
   # モデル名
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
@@ -20,14 +28,8 @@ llm:
   # API タイムアウト（秒）
   timeout_seconds: 3600
 
-  # リトライ回数
+  # リトライ回数（LLM API 呼び出しエラー時）
   max_retries: 2
-
-  # バリデーションリトライ回数
-  validation_max_retries: 3
-
-  # レビューリトライ回数
-  review_max_retries: 2
 
   # Ollama ホスト（OLLAMA_HOST 環境変数より優先）
   ollama_host: "ws1.local:11434"

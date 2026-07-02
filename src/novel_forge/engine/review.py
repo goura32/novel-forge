@@ -47,44 +47,59 @@ def generate_and_review(
     kind: str,
     llm: Any,
     quality: Any,
-    validation_max_retries: int | None = None,
-    review_max_retries: int | None = None,
+    generation_max_count: int | None = None,
+    review_max_count: int | None = None,
 ) -> tuple[dict, dict]:
     """Generate → validate → review → revise loop. Returns (data, review).
 
     Stateful dependencies (LLM client, quality gate) are passed
     in, not captured — making this fully testable with mocks.
 
-    Strict mode is ALWAYS ON: revision failure after max retries raises RuntimeError.
+    Strict mode is ALWAYS ON: revision failure after max count raises RuntimeError.
     """
-    max_retries = quality.max_retries
-    validation_max = validation_max_retries if validation_max_retries is not None else quality.validation_max_retries
-    review_max = review_max_retries if review_max_retries is not None else quality.review_max_retries
-    seed_offset = 0
-    review_attempt = 0  # Separate counter for review attempts
+    max_generation = (
+        generation_max_count
+        if generation_max_count is not None
+        else quality.max_generation_count
+    )
+    review_max = (
+        review_max_count
+        if review_max_count is not None
+        else quality.review_max_count
+    )
+    generation_cycles = 0  # Single counter for generation API + validation
+    review_cycles = 0      # Separate counter for review → revise cycles
     result: dict = {}
     review: dict = {"issues": []}
 
-    while seed_offset < max_retries:
+    while generation_cycles < max_generation:
         # Check if we've exceeded review max for this attempt
-        if review_attempt >= review_max and seed_offset > 0:
-            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({seed_offset}/{review_max})"
+        if review_cycles >= review_max and generation_cycles > 0:
+            msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
 
         try:
-            result = generate_fn(user_prompt, seed_offset)
+            result = generate_fn(user_prompt, generation_cycles)
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
-            _log.warning("  [GENERATE VALIDATION ERROR] %s: path=%s msg=%s attempt=%d/%d",
-                         kind, path, e.message, seed_offset, validation_max)
-            if seed_offset >= validation_max - 1:
-                raise RuntimeError(f"{kind}: generate validation failed after {validation_max} retries: path={path} msg={e.message}") from e
-            seed_offset += 1
+            _log.warning(
+                "  [GENERATE VALIDATION ERROR] %s: path=%s msg=%s attempt=%d/%d",
+                kind,
+                path,
+                e.message,
+                generation_cycles,
+                max_generation,
+            )
+            if generation_cycles >= max_generation - 1:
+                raise RuntimeError(
+                    f"{kind}: generate validation failed after {max_generation} retries: path={path} msg={e.message}"
+                ) from e
+            generation_cycles += 1
             continue
 
         if llm._is_schema_echo(result):
-            _log.warning("  [SCHEMA ECHO] %s retry=%d", kind, seed_offset)
-            seed_offset += 1
+            _log.warning("  [SCHEMA ECHO] %s retry=%d", kind, generation_cycles)
+            generation_cycles += 1
             continue
 
         try:
@@ -92,34 +107,40 @@ def generate_and_review(
         except SchemaValidationError as e:
             # Log detailed path info for debugging
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
-            _log.warning("  [VALIDATION FAIL] %s: path=%s msg=%s (exception)", kind, path, e.message)
+            _log.warning(
+                "  [VALIDATION FAIL] %s: path=%s msg=%s (exception)", kind, path, e.message
+            )
             errors = [f"path={path} msg={e.message}"]
         if errors:
-            _log.warning("  [VALIDATION FAIL] %s: %s attempt=%d/%d", kind, errors, seed_offset, validation_max)
-            if seed_offset >= validation_max - 1:
-                raise RuntimeError(f"  [VALIDATION FAIL] {kind}: validation failed after {validation_max} retries: {errors}")
-            seed_offset += 1
+            _log.warning(
+                "  [VALIDATION FAIL] %s: %s attempt=%d/%d", kind, errors, generation_cycles, max_generation
+            )
+            if generation_cycles >= max_generation - 1:
+                raise RuntimeError(f"{kind}: validation failed after {max_generation} retries: {errors}")
+            generation_cycles += 1
             continue
 
         # First review (after initial generation)
         try:
             review = review_fn(result, system)
-            review_attempt += 1
+            review_cycles += 1
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
             _log.warning("  [REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
             # Force revision by injecting a critical issue
             review = {
-                "issues": [{
-                    "severity": "致命的",
-                    "category": "バリデーションエラー",
-                    "description": f"レビューのスキーマ検証に失敗しました: {str(e)[:200]}",
-                    "suggestion": "スキーマに従ってレビューを再生成してください",
-                    "before": "",
-                    "after": "",
-                }]
+                "issues": [
+                    {
+                        "severity": "致命的",
+                        "category": "バリデーションエラー",
+                        "description": f"レビューのスキーマ検証に失敗しました: {str(e)[:200]}",
+                        "suggestion": "スキーマに従ってレビューを再生成してください",
+                        "before": "",
+                        "after": "",
+                    }
+                ]
             }
-            if review_attempt >= review_max - 1:
+            if review_cycles >= review_max - 1:
                 raise RuntimeError(f"{kind}: review validation failed after {review_max} retries") from e
             continue
 
@@ -132,31 +153,34 @@ def generate_and_review(
         if not revision_needed:
             return result, review
 
-        if review_attempt >= review_max:  # Use review_attempt instead of seed_offset
-            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({review_attempt}/{review_max})"
+        if review_cycles >= review_max:  # Use review_cycles instead of generation_cycles
+            msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
 
-        result = revise_fn(result, review, system, seed_offset)
-        seed_offset += 1
+        result = revise_fn(result, review, system, generation_cycles)
+        generation_cycles += 1
 
         errors = validate_fn(result)
         if errors:
             _log.warning(
                 "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
-                kind, errors, seed_offset, validation_max,
+                kind,
+                errors,
+                generation_cycles,
+                max_generation,
             )
-            if seed_offset >= validation_max - 1:
-                raise RuntimeError(f"{kind}: post-revision validation failed after {validation_max} retries: {errors}")
+            if generation_cycles >= max_generation - 1:
+                raise RuntimeError(f"{kind}: post-revision validation failed after {max_generation} retries: {errors}")
             continue
 
         # Re-review the revised result
         try:
             review = review_fn(result, system)
-            review_attempt += 1  # Count this as a review attempt
+            review_cycles += 1  # Count this as a review cycle
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
             _log.warning("  [POST-REVISION REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
-            if review_attempt >= review_max:
+            if review_cycles >= review_max:
                 raise RuntimeError(f"{kind}: post-revision review validation failed after {review_max} retries") from e
             continue
 
@@ -166,14 +190,19 @@ def generate_and_review(
         fatal_count = len(blocker) + len(critical) + len(major)  # Include major in fatal count for strict mode check
 
         # Check review max separately for post-revision review
-        if fatal_count > 0 and review_attempt >= review_max:
-            msg = f"  [REVIEW] {kind}: revision needed but max retries reached ({review_attempt}/{review_max})"
+        if fatal_count > 0 and review_cycles >= review_max:
+            msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
+
+        if len(major) > 0 and review_cycles >= review_max:
+            # Strict mode: stop if still has issues after review_max_count review cycles
+            raise RuntimeError(f"  [REVIEW] {kind}: issues remain after {review_cycles} review cycles ({fatal_count} issues)")
 
         if len(blocker) == 0 and len(critical) == 0 and len(major) == 0:
             return result, review
 
-        # Still has issues after revision - always raise in strict mode
-        raise RuntimeError(f"  [REVIEW] {kind}: issues remain after revision ({fatal_count} issues)")
+        result = revise_fn(result, review, system, generation_cycles)
+        generation_cycles += 1
+        # Loop back for another validation + review cycle
 
     return result, review

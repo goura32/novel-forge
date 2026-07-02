@@ -10,7 +10,8 @@
 | `--series` | `-s` | なし | 既存シリーズの slug |
 | `--volume` | `-V` | `1` | 処理対象の巻番号 |
 | `--model` | `-m` | 設定ファイル or デフォルト | LLM モデル名 |
-| `--max-retries` | | `2` | シーン品質ゲート最大リトライ回数 |
+| `--max-generation-count` | | `3` | 生成API（APIエラー＋バリデーション）の最大リトライ回数（同一工程内） |
+| `--max-review-count` | | `3` | レビュー→修正サイクルの最大回数（複数工程にまたがる） |
 | `--verbose` | `-v` | `false` | 詳細出力 |
 | `--raw-log` | | `false` | LLM生データを `_raw_logs/` に gzip 保存 |
 
@@ -143,27 +144,83 @@ engine/
 ### generate_and_review() ループ
 
 ```python
-for attempt in range(max_retries):
-    result = generate(prompt, seed_offset=attempt)
-    errors = validate(result)
-    if errors:
-        continue  # seed変えて再生成
-    review = review(result)
-    blocker_issues = [i for i in review['issues'] if i['severity'] == '致命的']
-    critical_issues = [i for i in review['issues'] if i['severity'] == '重大']
-    major_issues = [i for i in review['issues'] if i['severity'] == '重要']
-    revision_needed = len(blocker_issues) > 0 or len(critical_issues) > 0 or len(major_issues) >= 2
-    if not revision_needed:
-        return result
-    result = revise(result, review, seed_offset=attempt)
-return result  # max_retries後にbest effort (--strict時はRuntimeError)
-```
+# generation_cycles: 生成API＋バリデーション（同一工程内）
+# review_cycles: レビュー→修正サイクル（複数工程にまたがる）
 
-- **バリデーションエラー** → seed を変えて再生成（プロンプトは変更しない）
-- **レビュー修正** → 修正後もバリデーション再チェック
-- **revision_needed** はコード側で機械判定（LLMに任せない）
-- 合計 max_retries 回まで（デフォルト3回）
-- **`--strict` モード**: max_retries 到達で `RuntimeError` 発生しパイプライン停止。非 strict 時は best-effort で結果を返して次フェーズ進む
+max_generation = quality.generation_max_retries
+max_review = quality.review_max_retries
+generation_cycles = 0
+review_cycles = 0
+
+while generation_cycles < max_generation:
+    if review_cycles >= max_review and generation_cycles > 0:
+        raise RuntimeError("max review cycles reached")
+
+    try:
+        result = generate(prompt, seed_offset=generation_cycles)
+    except SchemaValidationError as e:
+        generation_cycles += 1
+        continue
+
+    if llm._is_schema_echo(result):
+        generation_cycles += 1
+        continue
+
+    try:
+        errors = validate_fn(result)
+    except SchemaValidationError as e:
+        errors = [f"path={...} msg={e.message}"]
+    if errors:
+        generation_cycles += 1
+        continue
+
+    # First review (after initial generation)
+    review = review_fn(result, system)
+    review_cycles += 1
+
+    blocker = [i for i in review['issues'] if i['severity'] == '致命的']
+    critical = [i for i in review['issues'] if i['severity'] == '重大']
+    major = [i for i in review['issues'] if i['severity'] == '重要']
+    fatal_count = len(blocker) + len(critical)
+    revision_needed = fatal_count > 0 or len(major) >= 2
+
+    if not revision_needed:
+        return result, review
+
+    if review_cycles >= max_review:
+        raise RuntimeError("max review cycles reached")
+
+    result = revise_fn(result, review, system, generation_cycles)
+    generation_cycles += 1
+
+    # Post-revision validation
+    errors = validate_fn(result)
+    if errors:
+        if generation_cycles >= max_generation - 1:
+            raise RuntimeError("post-revision validation failed")
+        continue
+
+    # Re-review
+    review = review_fn(result, system)
+    review_cycles += 1
+
+    # Check issues after re-review
+    blocker = [...]
+    critical = [...]
+    major = [...]
+    fatal_count = len(blocker) + len(critical) + len(major)
+
+    if fatal_count > 0 and review_cycles >= max_review:
+        raise RuntimeError("issues remain after max review cycles")
+
+    if not fatal_count:
+        return result, review
+
+    # Another revise cycle
+    result = revise_fn(result, review, system, generation_cycles)
+    generation_cycles += 1
+    # Loop back for another validation + review cycle
+```
 
 ---
 
@@ -320,17 +377,13 @@ llm:
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 5
+  max_retries: 2          # LLM API 呼び出しエラー時のリトライ
   ollama_host: "192.168.1.31:11434"
   think: true
 
-logging:
-  verbose: true
-  raw_log: true
-  log_level: "DEBUG"
-
 quality:
-  max_review_retries: 3
+  max_generation_count: 3  # 生成API＋バリデーション最大リトライ（同一工程内）
+  max_review_count: 3      # レビュー→修正サイクル最大回数（複数工程にまたがる）
 ```
 
 優先順位: CLI引数 > config.yaml > デフォルト値

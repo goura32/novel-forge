@@ -252,7 +252,6 @@ def _generate_plan_characters(engine: NovelEngineBase, core: dict, system: str, 
         kind="series_plan_characters",
         llm=engine._llm,
         quality=engine._quality,
-        strict=engine._strict,
     )
 
 
@@ -312,7 +311,6 @@ def _generate_plan_volumes(engine: NovelEngineBase, core: dict, characters: dict
         kind="series_plan_volumes",
         llm=engine._llm,
         quality=engine._quality,
-        strict=engine._strict,
     )
 
 

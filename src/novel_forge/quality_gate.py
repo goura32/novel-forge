@@ -45,11 +45,11 @@ class QualityGate:
     def __init__(
         self,
         max_retries: int = DEFAULT_MAX_RETRIES,
-        validation_max_retries: int | None = None,
+        generation_max_retries: int | None = None,
         review_max_retries: int | None = None,
     ):
         self.max_retries = max_retries
-        self.validation_max_retries = validation_max_retries or max_retries
+        self.generation_max_retries = generation_max_retries or max_retries
         self.review_max_retries = review_max_retries or max_retries
 
     def _check(self, review_result: dict) -> QualityGateResult:
