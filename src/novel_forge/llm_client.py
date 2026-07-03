@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -259,6 +260,10 @@ class LLMClient:
 
                 if schema:
                     parsed = coerce_types(parsed, schema)
+                    # Normalize slug before validation (LLM may output hyphens which
+                    # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
+                    if isinstance(parsed, dict) and "slug" in parsed:
+                        parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
                 return parsed

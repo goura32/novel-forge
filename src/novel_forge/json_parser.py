@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
+import sys
 from typing import Any
+
+from novel_forge.logging_config import get_logger
+
+_log = get_logger("novel_forge.json_parser")
 
 
 def _extract_json_text(text: str) -> str:
@@ -107,6 +113,34 @@ def coerce_types(data: dict, schema: dict) -> dict:
         # Handle enum fields: use first enum value as default when empty string
         if isinstance(value, str) and not value.strip() and "enum" in prop_schema:
             data[key] = prop_schema["enum"][0]
+            continue
+        
+        # ENUM强制补正：ENUM值にない文字列の場合は最も近い値を検索補正（日本語 keyword マッチ）
+        if isinstance(value, str) and "enum" in prop_schema and value not in prop_schema["enum"]:
+            candidate_enum = prop_schema["enum"]
+            # Strategy 1: exact substring match (e.g., '主人公の導入' -> '導入')
+            matched = None
+            for e in candidate_enum:
+                if len(e) >= 2 and (e in value or value[:min(5,len(value))] == e):
+                    matched = e
+                    break
+            # Strategy 2: prefix match first char
+            if not matched:
+                for e in candidate_enum:
+                    if value.strip().startswith(e[0]):
+                        matched = e
+                        break
+            if matched:
+                _log.debug("ENUM coerced '%s' -> '%s' (no match in %s)", value, matched, candidate_enum)
+                data[key] = matched
+                continue
+            
+            # Strategy 3: fallback to first enum value
+            _log.warning(
+                "ENUM coercion failed for '%s': no match in %s — defaulting to '%s'",
+                value, candidate_enum, candidate_enum[0]
+            )
+            data[key] = candidate_enum[0]
             continue
         
         if expected_type == "integer" and isinstance(value, float):

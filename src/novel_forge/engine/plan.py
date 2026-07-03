@@ -20,6 +20,12 @@ if TYPE_CHECKING:
 
 
 def _validate_plan_concept(concept: dict) -> list[str]:
+    # Normalize slug before validation (LLM may output hyphens/whitespace which 
+    # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
+    slug = concept.get("slug", "")
+    if isinstance(slug, str):
+        concept["slug"] = re.sub(r"[^a-z0-9_]", "_", slug.lower())
+    
     required = ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world_summary", "world_rules"]
     errors = []
     for field in required:
@@ -106,6 +112,8 @@ def plan(engine: NovelEngineBase, keywords: str) -> dict[str, Any]:
 
     # Use LLM-generated slug; fall back to LLM-generated title only if missing
     slug = concept.get("slug") or _slugify(concept.get("title", ""))
+    # Normalize: replace hyphens/whitespace with underscores to match regex ^[a-z0-9_]+$
+    slug = re.sub(r"[^a-z0-9_]", "_", slug.lower()) 
     slug = slug[:32]
     engine._slug = slug
 
