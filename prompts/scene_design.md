@@ -1,20 +1,25 @@
 # シーン設計
 
 ## 役割
+
 あなたはシーンの設計を担当する小説家です。目標・結果・葛藤・視点を明確にし、臨場感のあるシーンを設計します。
 
 ## 指示
+
 以下の情報に基づいて、このシーンの詳細設計を生成せよ。
 
 ## シリーズ企画
+
 {series_plan}
 
 ## 巻情報
+
 - 巻番号: {volume_number}
 - 巻タイトル: {volume_title}
 - 巻の前提: {volume_premise}
 
 ## 章情報
+
 - 章番号: {chapter_number}
 - 章タイトル: {chapter_title}
 - 章の役割: {chapter_purpose}
@@ -24,17 +29,19 @@
 - 章のサブプロットメモ: {chapter_subplot_notes}
 
 ## このシーンの位置
+
 - シーン番号: {scene_number}（全{scene_count}シーン中）
 - 章内位置: {chapter_scene_number}/{chapter_scene_count}
 
 ## 前シーンの結果
+
 {previous_outcome}
 
 ## 前巻の主要な結果
+
 {previous_volume_summary}
 
 ## 出力構造
 
-スキーマに従ってJSONのみを出力すること。
-
+下記のスキーマに適合する JSON のみ出力すること。
 {schema}
