@@ -927,12 +927,36 @@ class TestPromptInputCompleteness:
 
     def test_series_plan_review_receives_world_rules(self, engine, mock_llm, tmp_workdir):
         """Series plan review should receive world rules in the plan text."""
-        mock_llm.add_sequence(
-            "series_plan_concept",
-            _make_plan_response(
-                world={"summary": "魔法世界", "rules": ["魔法が存在する", "魔力には限りがある"]}
+        # Direct field overrides: _make_plan_response's 'world' kwarg is a legacy alias
+        # that was never expanded by callers — BUG.  Pass via the fields _review_plan_concept
+        # actually reads (world_summary + world_rules).
+        plan_data = {
+            "title": "テストシリーズ長いタイトル",
+            "slug": "test_series",
+            "logline": "テストのあらすじです。これは十分な長さのあらすじです。主人公が冒険に出ます。",
+            "genre": ["fantasy"],
+            "target_audience": (
+                "10代後半から30代の読者をターゲットにしたファンタジー小説で、"
+                "冒険と成長の物語を求める層に向けて書かれています。"
             ),
-        )
+            "themes": ["冒険", "成長"],
+            "selling_points": [
+                "ユニークな世界観と複雑な魔法システムが社会のあらゆる側面に影響を与えている",
+                "複雑なキャラクター関係がシリーズを通じて自然に進化していく",
+            ],
+            "world_summary": (
+                "魔法が存在し、古代の法則によって規制されている世界。"
+                "物語は若い魔法使いが自分の力を発見し、魔法能力が社会的地位を決定する社会を"
+                "ナビゲートすることを学ぶところから始まる。"
+            ),
+            "world_rules": [
+                "魔法には貴重な何かを犠牲にする必要がある",
+                "古代の法則がすべての呪文詠唱を支配し、違反は厳しく罰せられる",
+            ],
+            "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
+            "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
+        }
+        mock_llm.add_sequence("series_plan_concept", plan_data)
         mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
