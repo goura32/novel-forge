@@ -152,7 +152,7 @@ class TestValidate:
                 }
             ],
         }
-        errors = validate("scene_review", data)
+        errors = validate("review", data)
         assert len(errors) == 0
 
     def test_valid_bible_update(self):

@@ -13,9 +13,9 @@
         "required": ["field", "category", "description", "suggestion", "before", "after"],
         "properties": {
           "severity": {
-            "description": "修正の緊急性。致命的=必須修正、重大=必須修正、重要=強推奨、軽微=任意。",
-            "type": ["string", "null"],
-            "enum": ["致命的", "重大", "重要", "軽微"]
+            "description": "修正の緊急性。致命的=必須修正、重要=強推奨、軽微=任意。",
+            "type": "string",
+            "enum": ["致命的", "重要", "軽微"]
           },
           "field": {
             "description": "修正対象のフィールド名（各フェーズ固有のフィールド名を指定）",
