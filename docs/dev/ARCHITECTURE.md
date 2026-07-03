@@ -289,7 +289,7 @@ _raw_logs/plan/20260629_064606_series_plan_concept/
 4. **既存キャラクター名重複排除**: `name_registry.py` で管理、プロンプトに含める
 7. **Mixin 排除**: 多重継承を避け、スタンドアロン関数 + thin facade パターンを採用
 8. **依存性注入**: テスト時にモックを注入可能
-9. **レビュースキーマ統一**: 全フェーズで同じスキーマ構造、`category` enum のみ異なる
+9. **レビュースキーマ統一**: 全フェーズで同じスキーマ構造
 10. **strict mode既定**: `generate_and_review` デフォルトで strict=True（最大回数到達→`RuntimeError`→パイプライン停止）。非strict時はbest-effort
 
 ---

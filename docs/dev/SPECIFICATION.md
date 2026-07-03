@@ -206,14 +206,13 @@ novel-forge write --workdir /mnt/hdd/novel --strict
 
 ### 7. 統一レビュースキーマ (review.json)
 
-全レビューで単一の `review.json` スキーマを使用。`category` は任意フィールド。
+全レビューで単一の `review.json` スキーマを使用。
 
 ```json
 {
   "issues": [{
     "severity": "致命的|重要|軽微",
     "field": "対象フィールド名",
-    "category": "カテゴリ（任意）",
     "description": "問題の説明",
     "suggestion": "修正提案",
     "before": "修正前テキスト",
@@ -222,7 +221,7 @@ novel-forge write --workdir /mnt/hdd/novel --strict
 }
 ```
 
-機械的修正には `field` + `before` + `after` のみで十分。`category` は人間の確認用（表示のみ）。
+機械的修正には `field` + `before` + `after` のみで十分。
 
 ---
 
