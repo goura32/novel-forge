@@ -13,7 +13,7 @@
 
 ## シリーズ企画
 
-{plan_text}
+{review_text}
 
 ## レビュー観点
 

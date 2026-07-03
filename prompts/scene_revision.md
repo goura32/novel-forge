@@ -10,7 +10,7 @@
 
 ## シリーズ企画
 
-{concept_text}
+{concept_json}
 
 ## シーン本文
 
