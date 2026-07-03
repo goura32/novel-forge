@@ -19,7 +19,7 @@ class TestQualityGate:
         result = qg.check_scene(
             {
                 "score": 90,
-                "issues": [{"severity": "致命的", "category": "test", "description": "test"}],
+                "issues": [{"severity": "致命的", "field": "test", "description": "test", "suggestion": "", "before": "", "after": ""}],
             }
         )
         assert result.passed is False
@@ -29,7 +29,7 @@ class TestQualityGate:
         result = qg.check_scene(
             {
                 "score": 90,
-                "issues": [{"severity": "致命的", "category": "test", "description": "test"}],
+                "issues": [{"severity": "致命的", "field": "test", "description": "test", "suggestion": "", "before": "", "after": ""}],
             }
         )
         assert result.passed is False

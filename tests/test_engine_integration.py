@@ -532,7 +532,7 @@ class TestOutlineReviewLoop:
     def test_outline_revises_on_critical_issues(self, planned_engine, mock_llm):
         """Outline should be revised when critical issues found."""
         mock_llm._responses["volume_design_review"] = _make_review_response(
-            issues=[{"severity": "致命的", "category": "test", "description": "問題"}]
+            issues=[{"severity": "致命的", "field": "テスト", "description": "問題", "suggestion": "", "before": "", "after": ""}]
         )
         mock_llm._responses["volume_design_revision"] = _make_design_response(title="改訂版")
         mock_llm._call_log.clear()
@@ -739,7 +739,7 @@ class TestQualityGate:
         """check() should fail when blocker issues exist."""
         gate = QualityGate()
         review = {
-            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
+            "issues": [{"severity": "致命的", "field": "test", "description": "問題", "suggestion": "", "before": "", "after": ""}],
             "revision_needed": True,
             "ready_for_publication": False,
         }
@@ -751,8 +751,8 @@ class TestQualityGate:
         gate = QualityGate()
         review = {
             "issues": [
-                {"severity": "重要", "category": "test", "description": "問題1"},
-                {"severity": "重要", "category": "test", "description": "問題2"},
+                {"severity": "重要", "field": "test", "description": "問題1", "suggestion": "", "before": "", "after": ""},
+                {"severity": "重要", "field": "test", "description": "問題2", "suggestion": "", "before": "", "after": ""},
             ],
             "revision_needed": True,
             "ready_for_publication": False,
@@ -771,7 +771,7 @@ class TestQualityGateBoundary:
         """Single minor issue should pass."""
         gate = QualityGate()
         review = {
-            "issues": [{"severity": "軽微", "category": "test", "description": "軽微"}],
+            "issues": [{"severity": "軽微", "field": "test", "description": "軽微", "suggestion": "", "before": "", "after": ""}],
             "revision_needed": False,
             "ready_for_publication": True,
         }
@@ -782,7 +782,7 @@ class TestQualityGateBoundary:
         """Single major issue should pass (threshold is 2)."""
         gate = QualityGate()
         review = {
-            "issues": [{"severity": "重要", "category": "test", "description": "重要"}],
+            "issues": [{"severity": "重要", "field": "test", "description": "重要", "suggestion": "", "before": "", "after": ""}],
             "revision_needed": False,
             "ready_for_publication": True,
         }
@@ -793,7 +793,7 @@ class TestQualityGateBoundary:
         """Critical issue should always fail."""
         gate = QualityGate()
         review = {
-            "issues": [{"severity": "致命的", "category": "test", "description": "致命的"}],
+            "issues": [{"severity": "致命的", "field": "test", "description": "致命的", "suggestion": "", "before": "", "after": ""}],
             "revision_needed": True,
             "ready_for_publication": False,
         }
@@ -812,8 +812,8 @@ class TestQualityGateBoundary:
         gate = QualityGate()
         review = {
             "issues": [
-                {"severity": "致命的", "category": "test", "description": "致命的"},
-                {"severity": "軽微", "category": "test", "description": "軽微"},
+                {"severity": "致命的", "field": "test", "description": "致命的", "suggestion": "", "before": "", "after": ""},
+                {"severity": "軽微", "field": "test", "description": "軽微", "suggestion": "", "before": "", "after": ""},
             ],
             "revision_needed": True,
             "ready_for_publication": False,
@@ -826,8 +826,8 @@ class TestQualityGateBoundary:
         gate = QualityGate()
         review = {
             "issues": [
-                {"severity": "重要", "category": "test", "description": "重要1"},
-                {"severity": "重要", "category": "test", "description": "重要2"},
+                {"severity": "重要", "field": "test", "description": "重要1", "suggestion": "", "before": "", "after": ""},
+                {"severity": "重要", "field": "test", "description": "重要2", "suggestion": "", "before": "", "after": ""},
             ],
             "revision_needed": True,
             "ready_for_publication": False,
@@ -839,7 +839,7 @@ class TestQualityGateBoundary:
         """passed flag should be set correctly."""
         gate = QualityGate()
         review = {
-            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
+            "issues": [{"severity": "致命的", "field": "test", "description": "問題", "suggestion": "", "before": "", "after": ""}],
             "revision_needed": True,
         }
         result = gate.check_scene(review)
