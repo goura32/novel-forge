@@ -11,55 +11,64 @@
   "properties": {
     "title": {
       "description": "タイトル（最大100文字）",
-      "type": "string"
+      "type": "string",
+      "maxLength": 200
     },
     "subtitle": {
       "description": "サブタイトル（最大100文字）",
-      "type": "string"
+      "type": "string",
+      "maxLength": 200
     },
     "series_name": {
       "description": "シリーズ名（最大100文字）",
-      "type": "string"
+      "type": "string",
+      "maxLength": 200
     },
     "description": {
       "description": "商品説明（最大2000文字）",
-      "type": "string"
+      "type": "string",
+      "maxLength": 4000
     },
     "back_cover_text": {
       "description": "裏表紙テキスト（最大2000文字）",
-      "type": "string"
+      "type": "string",
+      "maxLength": 4000
     },
     "target_audience": {
       "description": "ターゲット読者（最大500文字）",
-      "type": "string"
+      "type": "string",
+      "maxLength": 1000
     },
     "keywords": {
       "description": "検索キーワード（最大7件、各最大32文字）",
       "type": "array",
+      "maxItems": 7,
       "items": {
         "type": "string",
-        "description": "キーワード"
+        "maxLength": 50
       }
     },
     "categories": {
       "description": "KDPカテゴリ（1-2件、各最大64文字）",
       "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
       "items": {
         "type": "string",
-        "description": "カテゴリ"
+        "maxLength": 128
       }
     },
     "content_warnings": {
       "description": "コンテンツ警告（暴力、性的描写等）",
       "type": "array",
       "items": {
-        "type": "string",
-        "description": "コンテンツ警告"
+        "type": "string"
       }
     },
     "author_note": {
-      "description": "著者ノート（最大1000文字）",
-      "type": "string"
+      "description": "著者ノート（最大1000文字ノート",
+      "type": "string",
+      "maxLength": 2000
     }
   }
 }

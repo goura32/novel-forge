@@ -24,12 +24,11 @@ def format_review_text(review: dict) -> str:
     for issue in review.get("issues", []):
         sev = issue.get("severity", "")
         field = issue.get("field", "")
-        cat = issue.get("category", "")
         desc = issue.get("description", "")
         sug = issue.get("suggestion", "")
         before = issue.get("before", "")
         after = issue.get("after", "")
-        lines.append(f"  [{sev}] {cat} ({field}): {desc}")
+        lines.append(f"  [{sev}] ({field}): {desc}")
         if sug:
             lines.append(f"    提案: {sug}")
         if before or after:
@@ -132,7 +131,7 @@ def generate_and_review(
                 "issues": [
                     {
                         "severity": "致命的",
-                        "category": "バリデーションエラー",
+                        "field": "review",
                         "description": f"レビューのスキーマ検証に失敗しました: {str(e)[:200]}",
                         "suggestion": "スキーマに従ってレビューを再生成してください",
                         "before": "",
@@ -145,10 +144,9 @@ def generate_and_review(
             continue
 
         blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-        critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
         major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-        fatal_count = len(blocker) + len(critical)
-        revision_needed = fatal_count > 0 or len(major) >= 2
+        minor = [i for i in review.get("issues", []) if i.get("severity") == "軽微"]
+        revision_needed = len(blocker) > 0 or len(major) >= 2
 
         if not revision_needed:
             return result, review
@@ -185,9 +183,8 @@ def generate_and_review(
             continue
 
         blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-        critical = [i for i in review.get("issues", []) if i.get("severity") == "重大"]
         major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-        fatal_count = len(blocker) + len(critical) + len(major)  # Include major in fatal count for strict mode check
+        fatal_count = len(blocker) + len(major)  # Include major in fatal count for strict mode check
 
         # Check review max separately for post-revision review
         if fatal_count > 0 and review_cycles >= review_max:
@@ -198,7 +195,7 @@ def generate_and_review(
             # Strict mode: stop if still has issues after review_max_count review cycles
             raise RuntimeError(f"  [REVIEW] {kind}: issues remain after {review_cycles} review cycles ({fatal_count} issues)")
 
-        if len(blocker) == 0 and len(critical) == 0 and len(major) == 0:
+        if len(blocker) == 0 and len(major) == 0:
             return result, review
 
         result = revise_fn(result, review, system, generation_cycles)

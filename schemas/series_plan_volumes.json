@@ -15,31 +15,43 @@
         "properties": {
           "title": {
             "description": "巻タイトル。3〜64文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
           },
           "premise": {
             "description": "巻のあらすじ。300〜1000文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 50,
+            "maxLength": 1000
           },
           "theme": {
             "description": "巻のテーマ。100〜600文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 30,
+            "maxLength": 600
           },
           "emotional_arc": {
             "description": "巻全体の感情の弧。100〜500文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 30,
+            "maxLength": 500
           },
           "key_events": {
             "description": "巻内の主要イベント。3〜10個推奨、各最大200文字。",
             "type": "array",
             "minItems": 1,
+            "maxItems": 10,
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             }
           },
           "cliffhanger": {
             "description": "次巻へのフック（最終巻以外必須）。100〜1000文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 30,
+            "maxLength": 1000
           }
         }
       }

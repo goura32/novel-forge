@@ -39,18 +39,19 @@ class PromptManager:
             schema_name = name
             if schema_name.endswith(".md"):
                 schema_name = schema_name[:-3]
-            # まず元の名前で試す
-            schema_dict = get_schema(schema_name)
-            if not schema_dict:
-                # _review, _revision を除去して再試行
-                for suffix in ["_review", "_revision"]:
-                    if schema_name.endswith(suffix):
-                        schema_name = schema_name[:-len(suffix)]
-                        break
-                schema_dict = get_schema(schema_name)
-            # レビュープロンプトの場合は統一 review スキーマを使用
-            if not schema_dict and ("_review" in name or "_revision" in name):
+            # レビュープロンプトの場合は統一 review スキーマを使用（優先）
+            if "_review" in schema_name or "_revision" in schema_name:
                 schema_dict = get_schema("review")
+            else:
+                # まず元の名前で試す
+                schema_dict = get_schema(schema_name)
+                if not schema_dict:
+                    # _review, _revision を除去して再試行
+                    for suffix in ["_review", "_revision"]:
+                        if schema_name.endswith(suffix):
+                            schema_name = schema_name[:-len(suffix)]
+                            break
+                    schema_dict = get_schema(schema_name)
             # schema構造そのものを返さないよう、descriptionを中心とした構造化テキストを生成
             if schema_dict:
                 schema_json = _build_simplified_schema(schema_dict)

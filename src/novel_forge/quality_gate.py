@@ -21,7 +21,8 @@ class QualityGateResult:
 
     @property
     def critical_count(self) -> int:
-        return sum(1 for i in self.issues if i.get("severity") == "重大")
+        # 旧スキーマ互換: "重大" も致命的として扱う
+        return sum(1 for i in self.issues if i.get("severity") in ("重大", "致命的"))
 
     @property
     def major_count(self) -> int:
@@ -33,14 +34,14 @@ class QualityGateResult:
 
     @property
     def revision_needed(self) -> bool:
-        """改稿が必要か。致命的・重大 issue、または重要 issue が2つ以上で true。"""
-        return self.blocker_count > 0 or self.critical_count > 0 or self.major_count >= 2
+        """改稿が必要か。致命的 issue、または重要 issue が2つ以上で true。"""
+        return self.blocker_count > 0 or self.major_count >= 2
 
 
 class QualityGate:
     """品質ゲート判定エンジン。"""
 
-    DEFAULT_MAX_RETRIES = 3
+    DEFAULT_MAX_RETRIES = 1
 
     def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES, generation_count: int | None = None, review_count: int | None = None):
         self.max_retries = max_retries
@@ -52,17 +53,15 @@ class QualityGate:
 
         判定ルール:
         - 致命的 issue が1つでもある → 不合格
-        - 重大 issue が1つでもある → 不合格
         - 重要 issue が2つ以上ある → 不合格
         - 軽微 issue のみ、または issue なし → 合格
         """
         issues = review_result.get("issues", [])
 
         blocker_count = sum(1 for i in issues if i.get("severity") == "致命的")
-        critical_count = sum(1 for i in issues if i.get("severity") == "重大")
         major_count = sum(1 for i in issues if i.get("severity") == "重要")
 
-        passed = blocker_count == 0 and critical_count == 0 and major_count < 2
+        passed = blocker_count == 0 and major_count < 2
 
         return QualityGateResult(
             passed=passed,

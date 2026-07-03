@@ -11,6 +11,7 @@
       "description": "章のリスト。2〜8個推奨。",
       "type": "array",
       "minItems": 2,
+      "maxItems": 8,
       "items": {
         "type": "object",
         "required": [
@@ -20,7 +21,9 @@
         "properties": {
           "title": {
             "description": "章タイトル。5〜100文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
           },
           "purpose": {
             "description": "章の役割。",

@@ -84,16 +84,28 @@ class MockLLMClient:
         self._call_count += 1
         self._call_log.append((kind, user_prompt))
 
+        # Map new unified "review" kind to old specific kinds for backward compatibility with tests.
+        # Tests register responses with old kind names (e.g., "series_plan_concept_review").
+        # Code now calls with "review" for all reviews.
+        lookup_kind = kind
+        if kind == "review":
+            # Find the next review-type entry in the sequence
+            for i in range(self._seq_idx, len(self._sequence)):
+                expected_kind, resp = self._sequence[i]
+                if expected_kind.endswith("_review") or expected_kind.endswith("_revision"):
+                    lookup_kind = expected_kind
+                    break
+
         # Kind-matching: scan from current position for matching kind
         for i in range(self._seq_idx, len(self._sequence)):
             expected_kind, resp = self._sequence[i]
-            if expected_kind == kind:
+            if expected_kind == lookup_kind:
                 self._seq_idx = i + 1
                 if isinstance(resp, dict):
                     return resp
                 return resp
 
-        raise RuntimeError(f"No response for kind={kind}")
+        raise RuntimeError(f"No response for kind={kind} (looked up as {lookup_kind})")
 
     @staticmethod
     def _is_schema_echo(parsed: dict[str, Any]) -> bool:
@@ -107,15 +119,15 @@ class MockLLMClient:
 def _make_plan_response(**overrides) -> dict:
     """Create a valid series plan core response."""
     base = {
-        "title": "テストシリーズ",
+        "title": "テストシリーズ長いタイトル",
         "slug": "test_series",
-        "logline": "テストのあらすじ",
+        "logline": "テストのあらすじです。これは十分な長さのあらすじです。主人公が冒険に出ます。",
         "genre": ["fantasy"],
-        "target_audience": "10代後半〜30代",
+        "target_audience": "10代後半から30代の読者をターゲットにしたファンタジー小説で、冒険と成長の物語を求める層に向けて書かれています。",
         "themes": ["冒険", "成長"],
-        "selling_points": ["ユニークな世界観"],
-        "world_summary": "魔法の世界",
-        "world_rules": ["魔法が存在する"],
+        "selling_points": ["ユニークな世界観と複雑な魔法システムが社会のあらゆる側面に影響を与えている", "複雑なキャラクター関係がシリーズを通じて自然に進化していく"],
+        "world_summary": "魔法が存在し、古代の法則によって規制されている世界。物語は若い魔法使いが自分の力を発見し、魔法能力が社会的地位を決定する社会をナビゲートすることを学ぶところから始まる。",
+        "world_rules": ["魔法には貴重な何かを犠牲にする必要がある", "古代の法則がすべての呪文詠唱を支配し、違反は厳しく罰せられる"],
         "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
         "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
     }
@@ -126,7 +138,19 @@ def _make_plan_response(**overrides) -> dict:
 def _make_chars_response(**overrides) -> dict:
     """Create a valid series plan characters response."""
     base = {
-        "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
+        "main_characters": [
+            {
+                "name": "主人公",
+                "role": "主人公",
+                "personality": "勇敢で好奇心旺盛な性格",
+                "background": "平凡な村で育った若者",
+                "arc": "無力から英雄への成長",
+                "relationships": ["師匠", "ライバル"],
+                "skills": ["魔法", "剣術"],
+                "flaws": ["未熟さ", "衝動的"],
+                "motivation": "世界を救う",
+            }
+        ],
     }
     base.update(overrides)
     return base
@@ -135,7 +159,11 @@ def _make_chars_response(**overrides) -> dict:
 def _make_volumes_response(**overrides) -> dict:
     """Create a valid series plan volumes response."""
     base = {
-        "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
+        "planned_volumes": [
+            {"title": "第一巻 旅立ちの刻", "premise": "主人公が村を出て冒険の旅に出る。道中で仲間と出会い、世界の秘密を知る。"},
+            {"title": "第二巻 試練の森", "premise": "仲間と共に試練の森へ入り、それぞれの過去と向き合う。"},
+            {"title": "第三巻 決戦の時", "premise": "最終決戦に向け、全ての伏線が回収され、世界の運命が決まる。"},
+        ],
     }
     base.update(overrides)
     return base
@@ -144,13 +172,55 @@ def _make_volumes_response(**overrides) -> dict:
 def _make_design_response(**overrides) -> dict:
     """Create a valid volume design response."""
     base = {
-        "title": "第1巻",
-        "premise": "始まり",
         "chapters": [
-            {"title": "プロローグ", "purpose": "導入"},
-            {"title": "転換", "purpose": "転換"},
-            {"title": "クライマックス", "purpose": "クライマックス"},
-            {"title": "収束", "purpose": "収束"},
+            {
+                "title": "プロローグ 旅立ちの朝",
+                "purpose": "導入",
+                "theme": "未知への挑戦と不安の克服",
+                "emotional_arc": "不安から希望へ、小さな一歩を踏み出す勇気",
+                "outcome": "主人公が旅立つ決意を固め、最初の一歩を踏み出す",
+                "scenes": [
+                    {
+                        "title": "出発の朝",
+                        "pov": "主人公",
+                        "goal": "家族に別れを告げ、旅立ちの準備を整える",
+                        "conflict": "不安と期待が入り混じる心情、父親の反対",
+                        "outcome": "父親の理解を得て、旅立つ決意を新たにする",
+                        "characters": ["主人公", "父親", "母親"],
+                        "key_events": ["荷物の最終確認", "父親との対話", "母親の手作り弁当", "門を出る瞬間"],
+                        "setting": "主人公の実家、早朝の台所から玄関、そして村道へ"
+                    },
+                    {
+                        "title": "最初の道",
+                        "pov": "主人公",
+                        "goal": "村を出て最初の街道を歩き始める",
+                        "conflict": "未知の世界への恐怖と、後ろ髪を引かれる故郷への思い",
+                        "outcome": "村の外れで老商人と出会い、旅の心構えを学ぶ",
+                        "characters": ["主人公", "老商人"],
+                        "key_events": ["村を出る決意", "街道に出る", "老商人との会話"],
+                        "setting": "村はずれの街道、朝もやの中に見える遠い山々"
+                    }
+                ]
+            },
+            {
+                "title": "第一章 出会いと別れ",
+                "purpose": "展開",
+                "theme": "新たな絆と別れの悲しみ",
+                "emotional_arc": "喜びから悲しみへ、そして決意へ",
+                "outcome": "最初の仲間を得るが、師匠を失う",
+                "scenes": [
+                    {
+                        "title": "運命の出会い",
+                        "pov": "主人公",
+                        "goal": "街で情報を集め、次の目的地を決める",
+                        "conflict": "怪しい人物に絡まれ、正体を隠す必要がある",
+                        "outcome": "謎の少女と出会い、共に行動することに",
+                        "characters": ["主人公", "謎の少女"],
+                        "key_events": ["街での情報収集", "トラブルに巻き込まれる", "少女との出会い"],
+                        "setting": "賑やかな街の市場、昼下がり"
+                    }
+                ]
+            }
         ],
     }
     base.update(overrides)
@@ -187,7 +257,7 @@ def mock_llm():
     return MockLLMClient()
 
 
-@pytest.fixture
+@ pytest.fixture
 def engine(tmp_workdir, mock_llm):
     """Create a NovelEngine with mock LLM.
 
@@ -201,7 +271,10 @@ def engine(tmp_workdir, mock_llm):
         model="test-model",
         llm_client=mock_llm,
         prompt_manager=prompts,
-        config={"llm": {"model": "test-model", "timeout_seconds": 10, "max_retries": 3}},
+        config={
+            "llm": {"model": "test-model", "timeout_seconds": 10, "max_retries": 3},
+            "quality": {"max_generation_count": 3, "max_review_count": 3},
+        },
     )
     return eng
 
@@ -223,7 +296,14 @@ def planned_engine(tmp_workdir, mock_llm):
     mock_llm.add_sequence("volume_design_review", {"issues": [], "suggestions": []})
     # 4 chapters → 4 chapter_design calls
     for _ in range(4):
-        mock_llm.add_sequence("chapter_design", {"title": "第1章", "purpose": "導入", "theme": "テーマ", "emotional_arc": "感情"})
+        mock_llm.add_sequence("chapter_design", {
+            "title": "第1章", 
+            "purpose": "導入", 
+            "theme": "テーマ", 
+            "emotional_arc": "感情",
+            "outcome": "結果",
+            "scenes": [{"title": "シーン1", "goal": "目標", "conflict": "葛藤", "outcome": "結果"}]
+        })
         mock_llm.add_sequence("chapter_design_review", {"issues": [], "suggestions": []})
     # 4 chapters × ~2 scenes each → up to 8 scene_design calls
     for _ in range(8):
@@ -237,7 +317,14 @@ def planned_engine(tmp_workdir, mock_llm):
     # second round
     mock_llm.add_sequence("volume_design", _make_design_response())
     mock_llm.add_sequence("volume_design_review", {"issues": [], "suggestions": []})
-    mock_llm.add_sequence("chapter_design", {"title": "第1章", "purpose": "導入", "theme": "テーマ", "emotional_arc": "感情"})
+    mock_llm.add_sequence("chapter_design", {
+                "title": "第1章",
+                "purpose": "導入",
+                "theme": "テーマ",
+                "emotional_arc": "感情",
+                "outcome": "結果",
+                "scenes": [{"title": "シーン1", "goal": "目標", "conflict": "葛藤", "outcome": "結果"}]
+            })
     mock_llm.add_sequence("chapter_design_review", {"issues": [], "suggestions": []})
     mock_llm.add_sequence("scene_design", {"number": 1, "chapter_number": 1, "title": "シーン1", "goal": "目標", "conflict": "葛藤", "outcome": "結果"})
     mock_llm.add_sequence("scene_design_review", {"issues": [], "suggestions": []})
@@ -281,7 +368,7 @@ class TestPlan:
         plan_path = engine._series_dir / "series_plan.json"
         assert plan_path.exists()
         saved = json.loads(plan_path.read_text(encoding="utf-8"))
-        assert saved["title"] == "テストシリーズ"
+        assert saved["title"] == "テストシリーズ長いタイトル"
 
     def test_plan_saves_review(self, engine, mock_llm, tmp_workdir):
         """plan() should save the review result."""
@@ -308,7 +395,7 @@ class TestPlan:
         engine.plan("テスト")
         kinds = [k for k, _ in mock_llm._call_log]
         assert "series_plan_concept" in kinds
-        assert "series_plan_concept_review" in kinds
+        assert "review" in kinds  # unified review kind
 
     def test_plan_volume_numbers_assigned(self, engine, mock_llm):
         """Engine should auto-assign volume numbers."""
@@ -351,8 +438,7 @@ class TestPlanReviewLoop:
         We verify the final result is valid regardless of retry count.
         """
         review_fail = {
-            "issues": [{"severity": "致命的", "category": "test", "description": "問題"}],
-            "suggestions": [],
+            "issues": [{"severity": "致命的", "field": "test", "description": "問題", "suggestion": "修正", "before": "a", "after": "b"}],
         }
         # Add enough entries for 3 revision attempts
         mock_llm.add_sequence("series_plan_concept", _make_plan_response())
@@ -377,7 +463,7 @@ class TestPlanReviewLoop:
         result = engine.plan("テスト")
 
         # Plan should complete (not raise) regardless of review failures
-        assert result["title"] == "テストシリーズ"
+        assert result["title"] == "テストシリーズ長いタイトル"
         kinds = [k for k, _ in mock_llm._call_log]
         revision_count = kinds.count("series_plan_concept") - 1  # subtract initial call
         # With max_retries=3, at most 3 revisions should happen
@@ -707,7 +793,7 @@ class TestQualityGateBoundary:
         """Critical issue should always fail."""
         gate = QualityGate()
         review = {
-            "issues": [{"severity": "重大", "category": "test", "description": "重大"}],
+            "issues": [{"severity": "致命的", "category": "test", "description": "致命的"}],
             "revision_needed": True,
             "ready_for_publication": False,
         }
@@ -864,10 +950,10 @@ class TestPromptInputCompleteness:
 
         engine.plan("テスト")
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_concept_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
-        assert "魔法が存在する" in review_prompt
+        assert "魔法が存在し" in review_prompt  # world_summary に含まれる (連用形)
 
     def test_series_plan_review_receives_character_arc(self, engine, mock_llm, tmp_workdir):
         """Series plan core review should receive series plan context."""
@@ -894,7 +980,7 @@ class TestPromptInputCompleteness:
 
         engine.plan("テスト")
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_concept_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
         assert "テストシリーズ" in review_prompt

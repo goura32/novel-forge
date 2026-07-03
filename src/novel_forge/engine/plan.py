@@ -199,7 +199,7 @@ def _review_plan_concept(engine: NovelEngineBase, concept: dict, system: str, sc
     user = engine._prompts.render(
         "series_plan_concept_review.md", {"plan_text": text, "lang": engine._lang}
     )
-    return engine._llm.complete_json("series_plan_concept_review", system, user, schema)
+    return engine._llm.complete_json("review", system, user, schema)
 
 
 def _revise_plan_concept(
@@ -260,10 +260,7 @@ def _review_plan_characters(engine: NovelEngineBase, characters: dict, concept: 
         "series_plan_characters_review.md", {"characters": text, "lang": engine._lang}
     )
     return engine._llm.complete_json(
-        "series_plan_characters_review",
-        system,
-        user,
-        get_schema("review"),
+        "review", system, user, get_schema("review"),
     )
 
 
@@ -325,7 +322,7 @@ def _review_plan_volumes(
         "series_plan_volumes_review.md", {"volumes": text, "lang": engine._lang}
     )
     return engine._llm.complete_json(
-        "series_plan_volumes_review", system, user, get_schema("review")
+        "review", system, user, get_schema("review")
     )
 
 

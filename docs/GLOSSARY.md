@@ -22,6 +22,7 @@
 | 環境変数 (environment variable) | `OLLAMA_HOST`, `NOVEL_FORGE_CONFIG` 等の設定 |
 | 強制出力済 (forced output) | 品質ゲート不合格が規定回数繰り返されたシーン。最終手段として出力される |
 | 共通システムプロンプト (system.md) | 全プロンプト共通の前提条件・制約（言語制約、JSON出力、役割定義） |
+| 言語純度 (language_purity) | レビューカテゴリ。日本語以外の文字（英語、簡体字、繁体字、ハングル等）が混在していないか |
 
 ## さ行
 
@@ -54,7 +55,7 @@
 
 | 用語 | 説明 |
 |---|---|
-| 品質ゲート (quality gate) | レビュー結果に基づき code側で revision_needed を判定する機構（severity=致命的/重大→true, 重要≥2→true） |
+| 品質ゲート (quality gate) | レビュー結果に基づき code側で revision_needed を判定する機構（severity=致命的/重要→true, 重要≥2→true） |
 | revision_needed | 改稿が必要か。コード側が severity ベースで機械判定（LLMは出力しない） |
 | 非決定的 (non-deterministic) | LLM 出力の非決定的な性質。リトライで多様性を確保 |
 | パイプライン (pipeline) | plan → design → write → export の一連の工程 |
@@ -92,4 +93,4 @@
 
 ---
 
-*Last updated: 2026-06-23*
+*Last updated: 2026-07-03*

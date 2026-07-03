@@ -6,54 +6,73 @@
   "properties": {
     "title": {
       "description": "シリーズのタイトル。30〜100文字推奨。",
-      "type": "string"
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 200
     },
     "slug": {
       "description": "a-z0-9と_のみからなる128文字以内のスラッグ（アンダースコア区切り）。",
-      "type": "string"
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z0-9_]+$"
     },
     "logline": {
       "description": "シリーズのあらすじ。1-2文、200〜800文字推奨。",
-      "type": "string"
+      "type": "string",
+      "minLength": 100,
+      "maxLength": 1000
     },
     "genre": {
       "description": "ジャンル。2〜5個推奨、各最大64文字。",
       "type": "array",
       "minItems": 1,
+      "maxItems": 10,
       "items": {
-        "type": "string"
+        "type": "string",
+        "maxLength": 64
       }
     },
     "target_audience": {
-      "description": "ターゲット読者。200〜500文字推奨。",
-      "type": "string"
+      "description": "ターゲット読者。100〜500文字推奨。",
+      "type": "string",
+      "minLength": 50,
+      "maxLength": 500
     },
     "themes": {
       "description": "テーマ。2〜5個推奨、各最大64文字。",
       "type": "array",
       "minItems": 1,
+      "maxItems": 10,
       "items": {
-        "type": "string"
+        "type": "string",
+        "maxLength": 64
       }
     },
     "selling_points": {
-      "description": "売りポイント。3〜7個推奨、各最大128文字。",
+      "description": "売りポイント。2〜7個推奨、各最大128文字。",
       "type": "array",
-      "minItems": 1,
+      "minItems": 2,
+      "maxItems": 7,
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 50,
+        "maxLength": 128
       }
     },
     "world_summary": {
-      "description": "世界観の概要。300〜1000文字推奨。",
-      "type": "string"
+      "description": "世界観の概要。200〜1000文字推奨。",
+      "type": "string",
+      "minLength": 100,
+      "maxLength": 1000
     },
     "world_rules": {
       "description": "世界観の独自ルール。1〜10個推奨、各最大200文字。",
       "type": "array",
       "minItems": 0,
+      "maxItems": 10,
       "items": {
-        "type": "string"
+        "type": "string",
+        "maxLength": 200
       }
     }
   },

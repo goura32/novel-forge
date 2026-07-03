@@ -143,11 +143,11 @@ if schema is not None:
 
 - **バリデーションエラー**: seed 変えて再生成（プロンプト変更しない）
 - **レビュー修正**: revise_fn で seed 変えて再生成
-- **revision_needed**: コード側で機械判定（致命的→true, 重大→true, 重要≥2→true）
+- **revision_needed**: コード側で機械判定（致命的→true, 重要→true, 重要≥2→true）
 
 ### レビュースキーマ (統一)
 
-全レビューで同じ構造。`category` enum のみ各スキーマで異なる:
+全レビューで同じ構造。`category` は任意フィールド（プロンプトでは自由文字列として扱う）:
 
 ```json
 {
@@ -159,10 +159,11 @@ if schema is not None:
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["severity", "category", "description", "suggestion", "before", "after"],
+        "required": ["severity", "field", "description", "suggestion", "before", "after"],
         "properties": {
-          "severity": { "type": "string", "enum": ["致命的", "重大", "重要", "軽微"] },
-          "category": { "type": "string", "enum": ["<各スキーマ固有>"] },
+          "severity": { "type": "string", "enum": ["致命的", "重要", "軽微"] },
+          "field": { "type": "string" },
+          "category": { "type": "string" },
           "description": { "type": "string" },
           "suggestion": { "type": "string" },
           "before": { "type": "string" },
@@ -173,6 +174,7 @@ if schema is not None:
   }
 }
 ```
+機械的修正には `field` + `before` + `after` のみで十分。`category` は人間の確認用（表示のみ）。
 
 ### generate_and_review パターン
 
@@ -302,26 +304,33 @@ _raw_logs/plan/20260629_064606_series_plan_concept/
 
 ## 9. プロンプトテンプレート一覧
 
-|| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{concept_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` ||
-||---|---|---|---|---|---|---|---|---|
-|| system.md | 全共通 | - | - | - | - | - | - | - ||
-|| series_plan_concept.md | Plan (1) | ✓ | ✓ | - | - | - | - | ✓ ||
-|| series_plan_concept_revision.md | Plan (1) 修正 | ✓ | - | ✓ | - | - | - | - ||
-|| series_plan_characters.md | Plan (2) | ✓ | - | ✓ | - | - | ✓ | - ||
-|| series_plan_characters_revision.md | Plan (2) 修正 | ✓ | - | ✓ | ✓ | - | - | - ||
-|| series_plan_volumes.md | Plan (3) | ✓ | - | ✓ | ✓ | - | - | - ||
-|| series_plan_volumes_revision.md | Plan (3) 修正 | ✓ | - | ✓ | ✓ | - | - | - ||
-|| volume_design.md | Design (1) | ✓ | - | - | - | ✓ | - | - ||
-|| volume_design_revision.md | Design (1) 修正 | ✓ | - | - | - | ✓ | - | - ||
-|| chapter_design.md | Design (2) | ✓ | - | - | ✓ | - | - | - ||
-|| chapter_design_revision.md | Design (2) 修正 | ✓ | - | - | ✓ | - | - | - ||
-|| scene_design.md | Design (3) | ✓ | - | - | - | - | - | - ||
-|| scene_design_revision.md | Design (3) 修正 | ✓ | - | - | - | - | - | - ||
-|| scene_draft.md | Write | ✓ | - | - | - | - | - | - ||
-|| scene_revision.md | Write 修正 | ✓ | - | - | ✓ | - | - | - ||
-|| scene_summary_and_bible_update.md | Write 後処理 | ✓ | - | - | - | - | - | - ||
-|| *_review (共通) | レビュー | ✓ | - | - | - | - | - | - ||
+||| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{concept_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` ||
+|||---|---|---|---|---|---|---|---|---|
+||| system.md | 全共通 | - | - | - | - | - | - | - ||
+||| series_plan_concept.md | Plan (1) | ✓ | ✓ | - | - | - | - | ✓ ||
+||| series_plan_concept_review.md | Plan (1) レビュー | ✓ | ✓ | - | - | - | - | - ||
+||| series_plan_concept_revision.md | Plan (1) 修正 | ✓ | - | ✓ | - | - | - | - ||
+||| series_plan_characters.md | Plan (2) | ✓ | - | ✓ | - | - | ✓ | - ||
+||| series_plan_characters_review.md | Plan (2) レビュー | ✓ | - | ✓ | - | - | - | - ||
+||| series_plan_characters_revision.md | Plan (2) 修正 | ✓ | - | ✓ | ✓ | - | - | - ||
+||| series_plan_volumes.md | Plan (3) | ✓ | - | ✓ | ✓ | - | - | - ||
+||| series_plan_volumes_review.md | Plan (3) レビュー | ✓ | - | ✓ | - | - | - | - ||
+||| series_plan_volumes_revision.md | Plan (3) 修正 | ✓ | - | ✓ | ✓ | - | - | - ||
+||| volume_design.md | Design (1) | ✓ | - | - | - | ✓ | - | - ||
+||| volume_design_review.md | Design (1) レビュー | ✓ | - | ✓ | - | - | - | - ||
+||| volume_design_revision.md | Design (1) 修正 | ✓ | - | - | - | ✓ | - | - ||
+||| chapter_design.md | Design (2) | ✓ | - | - | ✓ | - | - | - ||
+||| chapter_design_review.md | Design (2) レビュー | ✓ | - | ✓ | - | - | - | - ||
+||| chapter_design_revision.md | Design (2) 修正 | ✓ | - | - | ✓ | - | - | - ||
+||| scene_design.md | Design (3) | ✓ | - | - | - | - | - | - ||
+||| scene_design_review.md | Design (3) レビュー | ✓ | - | ✓ | - | - | - | - ||
+||| scene_design_revision.md | Design (3) 修正 | ✓ | - | - | - | - | - | - ||
+||| scene_draft.md | Write | ✓ | - | - | - | - | - | - ||
+||| scene_review.md | Write レビュー | ✓ | - | - | - | - | - | - ||
+||| scene_revision.md | Write 修正 | ✓ | - | - | ✓ | - | - | - ||
+||| scene_summary_and_bible_update.md | Write 後処理 | ✓ | - | - | - | - | - | - ||
+||| kdp_metadata.md | Export | ✓ | - | - | - | ✓ | - | - ||
 
 ---
 
-*Last updated: 2026-06-29*
+*Last updated: 2026-07-03*

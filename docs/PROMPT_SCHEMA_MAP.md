@@ -34,23 +34,23 @@
 
 | プロンプト | スキーマ | コード (review_fn) | 備考 |
 |---|---|---|---|
-| `series_plan_concept_review.md` | `series_plan_concept_review.json` | `_review_plan_concept` | LLM が指摘事項を生成 |
-| `series_plan_characters_review.md` | `series_plan_characters_review.json` | `_review_plan_characters` | LLM が指摘事項を生成 |
-| `series_plan_volumes_review.md` | `series_plan_volumes_review.json` | `_review_plan_volumes` | LLM が指摘事項を生成 |
+| `series_plan_concept_review.md` | `review.json` | `_review_plan_concept` | LLM が指摘事項を生成 |
+| `series_plan_characters_review.md` | `review.json` | `_review_plan_characters` | LLM が指摘事項を生成 |
+| `series_plan_volumes_review.md` | `review.json` | `_review_plan_volumes` | LLM が指摘事項を生成 |
 
 ### 2.2 Design レビュー
 
 | プロンプト | スキーマ | コード (review_fn) | 備考 |
 |---|---|---|---|
-| `volume_design_review.md` | `volume_design_review.json` | `_review_volume_design` | LLM が指摘事項を生成 |
-| `chapter_design_review.md` | `chapter_design_review.json` | `_review_chapter_design` | LLM が指摘事項を生成 |
-| `scene_design_review.md` | `scene_design_review.json` | `_review_scene_design` | LLM が指摘事項を生成 |
+| `volume_design_review.md` | `review.json` | `_review_volume_design` | LLM が指摘事項を生成 |
+| `chapter_design_review.md` | `review.json` | `_review_chapter_design` | LLM が指摘事項を生成 |
+| `scene_design_review.md` | `review.json` | `_review_scene_design` | LLM が指摘事項を生成 |
 
 ### 2.3 Write レビュー
 
 | プロンプト | スキーマ | コード (review_fn) | 備考 |
 |---|---|---|---|
-| `scene_review.md` | `scene_review.json` | `_call_review_api` | LLM が指摘事項を生成 |
+| `scene_review.md` | `review.json` | `_call_review_api` | LLM が指摘事項を生成 |
 
 ---
 
@@ -85,7 +85,9 @@
 | プロンプト | スキーマ | 用途 | 備考 |
 |---|---|---|---|
 | `scene_summary_and_bible_update.md` | `scene_summary_and_bible_update.json` | シーン要約・更新 | レビューとは別 |
+| `kdp_metadata.md` | `kdp_metadata.json` | KDPメタデータ生成 | 単体実行 |
 | `system.md` | なし | システムプロンプト | 全フェーズで使用 |
+| `cover_prompt.md` | なし | 表紙生成プロンプト | 未使用 |
 
 ---
 
@@ -95,35 +97,27 @@
 
 | スキーマ | 必須フィールド | コード |
 |---|---|---|
-| `series_plan_concept.json` | title, slug, logline, genre, target_audience, themes, selling_points, world | `_validate_plan_concept` |
-| `series_plan_characters.json` | main_characters (各キャラ: name, role) | `_validate_plan_characters` |
-| `series_plan_volumes.json` | planned_volumes (各巻: title) | `_validate_plan_volumes` |
+| `series_plan_concept.json` | title, slug, logline, genre, target_audience, themes, selling_points, world_summary, world_rules | `_validate_plan_concept` |
+| `series_plan_characters.json` | main_characters (各キャラ: name, role, personality, background, arc, relationships) | `_validate_plan_characters` |
+| `series_plan_volumes.json` | planned_volumes (各巻: title, premise) | `_validate_plan_volumes` |
 | `volume_design.json` | chapters | `_validate_volume_design` |
-| `chapter_design.json` | title, purpose, theme, emotional_arc | `_validate_chapter_design` |
-| `scene_design.json` | title, goal, conflict, outcome | `_validate_scene_design` |
-| `scene_draft.json` | content (minLength 3000) | `_validate_fn` |
+| `chapter_design.json` | title, purpose, theme, emotional_arc, outcome, scenes | `_validate_chapter_design` |
+| `scene_design.json` | title, goal, conflict, outcome, pov, characters, key_events, setting | `_validate_scene_design` |
+| `scene_draft.json` | title, content (minLength 3000) | `_validate_fn` |
+| `kdp_metadata.json` | title, description, keywords, categories | なし |
 
-### 5.2 レビュー出力スキーマ（category enum）
+### 5.2 統一レビュースキーマ（review.json）
 
-| スキーマ | category 一覧 |
-|---|---|
-| `series_plan_concept_review.json` | あらすじ, ジャンル, 世界観, ターゲット, 言語 |
-| `series_plan_characters_review.json` | 一貫性, 差別化, 成長弧, 世界観適合 |
-| `series_plan_volumes_review.json` | 独自性, 流れ, フック, テーマ |
-| `volume_design_review.json` | 構成, 一貫性, ペース |
-| `chapter_design_review.json` | 章役割, テーマ, 感情弧, シーン配分 |
-| `scene_design_review.json` | 目標結果, 葛藤, 舞台設定, 多様性 |
-| `scene_review.json` | 冒頭フック, キャラ立ち, 感覚描写, 感情描写, シーン末尾, 台詞自然さ, 文体統一, シーン完結, シーン文字数, シー文字数, 言語純度, POV一貫性, 論理一貫性, その他 |
+すべてのレビューで単一の `review.json` スキーマを使用。フィールドは以下のみ:
 
-### 5.3 レビューの before/after
-
-レビュースキーマ（`*_review.json`）の各 issue には `before`/`after` フィールドがあります。
-- `before`: 修正前の該当部分（LLM が生成）
-- `after`: 修正後の改善案（LLM が生成）
-
-これらは **レビュー工程で LLM が生成する** もので、生成されたデータに含まれるものではありません。
-
----
+| フィールド | 必須 | 説明 |
+|---|---|---|
+| `severity` | ✓ | 修正の緊急性: `致命的` / `重要` / `軽微` |
+| `field` | ✓ | 修正対象のフィールド名（各フェーズ固有） |
+| `description` | ✓ | 問題の説明。何がどう問題かを具体的に記述。 |
+| `suggestion` | ✓ | 修正の提案。どう改善すべきかの方向性を示す。 |
+| `before` | ✓ | 修正前のテキスト（当該フィールド内の該当箇所を引用） |
+| `after` | ✓ | 修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。 |
 
 ## 6. プレースホルダ自動置換
 
@@ -170,24 +164,20 @@ prompts/
 ├── scene_review.md                   # レビュー: シーン本文
 ├── scene_revision.md                 # 修正: シーン本文
 ├── scene_summary_and_bible_update.md # 要約・更新
+├── kdp_metadata.md                   # KDPメタデータ生成
 └── cover_prompt.md                   # カバー生成（未使用）
 
 schemas/
 ├── series_plan_concept.json             # シリーズ構想スキーマ
-├── series_plan_concept_review.json      # シリーズ構想レビュースキーマ
 ├── series_plan_characters.json       # キャラクター設計スキーマ
-├── series_plan_characters_review.json # キャラクター設計レビュースキーマ
 ├── series_plan_volumes.json          # 各巻設計スキーマ
-├── series_plan_volumes_review.json   # 各巻設計レビュースキーマ
 ├── volume_design.json                # 巻設計スキーマ
-├── volume_design_review.json         # 巻設計レビュースキーマ
 ├── chapter_design.json               # 章設計スキーマ
-├── chapter_design_review.json        # 章設計レビュースキーマ
 ├── scene_design.json                 # シーン設計スキーマ
-├── scene_design_review.json          # シーン設計レビュースキーマ
 ├── scene_draft.json                  # シーン本文スキーマ
-├── scene_review.json                 # シーン本文レビュースキーマ
+├── review.json                       # 統一レビュースキーマ（全フェーズ共通）
 ├── scene_summary_and_bible_update.json # 要約スキーマ
+├── kdp_metadata.json                 # KDPメタデータスキーマ
 └── cover_prompt.json                 # カバースキーマ（未使用）
 
 src/novel_forge/engine/
@@ -195,3 +185,7 @@ src/novel_forge/engine/
 ├── design.py                         # design() — 3フェーズ
 └── scene_writer.py                   # write_scene() — シーン執筆
 ```
+
+---
+
+*Last updated: 2026-07-03* (review.json category削除、config.yaml品質設定更新、DEFAULT_MAX_RETRIES=1)

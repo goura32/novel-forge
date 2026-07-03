@@ -10,7 +10,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["field", "category", "description", "suggestion", "before", "after"],
+        "required": ["field", "severity", "description", "suggestion", "before", "after"],
         "properties": {
           "severity": {
             "description": "修正の緊急性。致命的=必須修正、重要=強推奨、軽微=任意。",
@@ -19,10 +19,6 @@
           },
           "field": {
             "description": "修正対象のフィールド名（各フェーズ固有のフィールド名を指定）",
-            "type": "string"
-          },
-          "category": {
-            "description": "指摘のカテゴリ（各フェーズ固有のカテゴリを指定）",
             "type": "string"
           },
           "description": {

@@ -141,20 +141,20 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
              "previous_volume_summary": prev_volume_summary,
              "lang": engine._lang})
         ch_result = generate_and_review(
-                   generate_fn=lambda p, s: engine._llm.complete_json(
-                       "chapter_design", system, p, get_schema("chapter_design"), seed_offset=s),
-                   validate_fn=_validate_chapter_design,
-                   review_fn=lambda r, sys: _review_chapter_design(engine, r, sys),
-                   revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
-                       "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
-                           {"current_chapter": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
-                       get_schema("chapter_design"), seed_offset=so),
-                   system=system,
-                   user_prompt=ch_prompt,
-                   kind="chapter_design",
-                   llm=engine._llm,
-                   quality=engine._quality,
-               )
+                  generate_fn=lambda p, s: engine._llm.complete_json(
+                      "chapter_design", system, p, get_schema("chapter_design"), seed_offset=s),
+                  validate_fn=_validate_chapter_design,
+                  review_fn=lambda r, sys: _review_chapter_design(engine, r, sys),
+                  revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
+                      "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
+                          {"current_chapter": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                      get_schema("chapter_design"), seed_offset=so),
+                  system=system,
+                  user_prompt=ch_prompt,
+                  kind="chapter_design",
+                  llm=engine._llm,
+                  quality=engine._quality,
+              )
         if isinstance(ch_result, tuple):
             ch_result = ch_result[0]
         chapter_results.append(ch_result)
@@ -182,21 +182,21 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "previous_outcome": prev_outcome,
                  "lang": engine._lang})
             sc_result = generate_and_review(
-                           generate_fn=lambda p, s: engine._llm.complete_json(
-                               "scene_design", system, p, get_schema("scene_design"),
-                               seed_offset=s),
-                           validate_fn=_validate_scene_design,
-                           review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
-                           revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
-                               "scene_design", sys, engine._prompts.render("scene_design_revision.md",
-                                   {"current_scene": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
-                               get_schema("scene_design"), seed_offset=so),
-                           system=system,
-                           user_prompt=sc_prompt,
-                           kind="scene_design",
-                           llm=engine._llm,
-                           quality=engine._quality,
-                       )
+                          generate_fn=lambda p, s: engine._llm.complete_json(
+                              "scene_design", system, p, get_schema("scene_design"),
+                              seed_offset=s),
+                          validate_fn=_validate_scene_design,
+                          review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
+                          revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
+                              "scene_design", sys, engine._prompts.render("scene_design_revision.md",
+                                  {"current_scene": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                              get_schema("scene_design"), seed_offset=so),
+                          system=system,
+                          user_prompt=sc_prompt,
+                          kind="scene_design",
+                          llm=engine._llm,
+                          quality=engine._quality,
+                      )
             scene_obj = sc_result[0] if isinstance(sc_result, tuple) else sc_result
             if isinstance(scene_obj, dict):
                 scene_obj["chapter_number"] = scene_obj.get("chapter_number", ch_num)
@@ -249,29 +249,26 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
 
 def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    text = f"巻設計:\n  タイトル: {data.get('title', '')}\n  章数: {len(data.get('chapters', []))}"
+    text = f"巻設計:\\n  タイトル: {data.get('title', '')}\\n  章数: {len(data.get('chapters', []))}"
     user = engine._prompts.render("volume_design_review.md",
         {"design": text, "lang": engine._lang})
-    return engine._llm.complete_json("volume_design_review", system, user,
-                                       get_schema("review"))
+    return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    text = f"章設計:\n  タイトル: {data.get('title', '')}\n  目的: {data.get('purpose', '')}"
+    text = f"章設計:\\n  タイトル: {data.get('title', '')}\\n  目的: {data.get('purpose', '')}"
     user = engine._prompts.render("chapter_design_review.md",
         {"design": text, "lang": engine._lang})
-    return engine._llm.complete_json("chapter_design_review", system, user,
-                                       get_schema("review"))
+    return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    text = (f"シーン設計:\n  タイトル: {data.get('title', '')}\n"
-            f"  目標: {data.get('goal', '')}\n  葛藤: {data.get('conflict', '')}\n"
+    text = (f"シーン設計:\\n  タイトル: {data.get('title', '')}\\n"
+            f"  目標: {data.get('goal', '')}\\n  葛藤: {data.get('conflict', '')}\\n"
             f"  結果: {data.get('outcome', '')}")
     user = engine._prompts.render("scene_design_review.md",
         {"design": text, "lang": engine._lang})
-    return engine._llm.complete_json("scene_design_review", system, user,
-                                       get_schema("review"))
+    return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _default_purpose(i: int, total: int) -> str:

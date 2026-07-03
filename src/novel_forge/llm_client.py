@@ -190,6 +190,7 @@ class LLMClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            "format": "json",
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,

@@ -124,13 +124,13 @@ llm:
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 2          # LLM API 呼び出しエラー時のリトライ
-  ollama_host: "192.168.1.31:11434"
-  think: true
+  max_retries: 1          # LLM API 呼び出しエラー時のリトライ
+  ollama_host: "ws1.local:11434"
+  think: false
 
 quality:
-  max_generation_count: 3  # 生成API＋バリデーション最大リトライ（同一工程内）
-  max_review_count: 3      # レビュー→修正サイクル最大回数（複数工程にまたがる）
+  max_generation_count: 4  # 生成API＋バリデーション最大リトライ（同一工程内）
+  max_review_count: 7      # レビュー→修正サイクル最大回数（複数工程にまたがる）
 ```
 
 優先順位: CLI引数 > config.yaml > デフォルト値
@@ -188,7 +188,7 @@ engine = NovelEngine(
 )
 ```
 
-## 6. --strict モード
+### 6. --strict モード
 
 `plan` / `design` / `write` の各コマンドで `--strict` フラグを指定可能。
 
@@ -204,6 +204,26 @@ novel-forge write --workdir /mnt/hdd/novel --strict
 
 `--strict` はバリデーション失敗とレビューの最大回数の両方に適用される。
 
+### 7. 統一レビュースキーマ (review.json)
+
+全レビューで単一の `review.json` スキーマを使用。`category` は任意フィールド。
+
+```json
+{
+  "issues": [{
+    "severity": "致命的|重要|軽微",
+    "field": "対象フィールド名",
+    "category": "カテゴリ（任意）",
+    "description": "問題の説明",
+    "suggestion": "修正提案",
+    "before": "修正前テキスト",
+    "after": "修正後テキスト"
+  }]
+}
+```
+
+機械的修正には `field` + `before` + `after` のみで十分。`category` は人間の確認用（表示のみ）。
+
 ---
 
-*Last updated: 2026-06-28*
+*Last updated: 2026-07-03*

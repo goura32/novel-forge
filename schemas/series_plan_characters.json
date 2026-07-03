@@ -1,56 +1,71 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SeriesPlanCharacters",
-  "description": "シリーズ企画のキャラクター設計。世界観を踏まえてメインキャラクターを設計する。",
+  "description": "シリーズ企画のキャラクター設計。世界観とシリーズ企画に基づくメインキャラクターの詳細設定。",
   "type": "object",
   "properties": {
     "main_characters": {
       "description": "メインキャラクター。3〜5個推奨。最低3人。",
       "type": "array",
       "minItems": 3,
+      "maxItems": 5,
       "items": {
         "type": "object",
-        "required": ["name", "role"],
+        "required": ["name", "role", "personality", "motivation", "flaw", "arc", "occupation", "appearance", "background"],
         "properties": {
           "name": {
             "description": "キャラクター名。2〜64文字。",
-            "type": "string"
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
           },
           "role": {
             "description": "役割。具体的に記述。10〜128文字。",
-            "type": "string"
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200
           },
           "personality": {
             "description": "性格・特徴。50〜300文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 300
           },
           "motivation": {
             "description": "動機・目標。50〜300文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 300
           },
           "flaw": {
             "description": "欠点・弱み。30〜200文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
           },
           "arc": {
             "description": "シリーズを通じた成長・変化。100〜500文字推奨。",
-            "type": "string"
-          },
-          "age": {
-            "description": "年齢。",
-            "type": "string"
+            "type": "string",
+            "minLength": 30,
+            "maxLength": 500
           },
           "occupation": {
             "description": "職業・立場。5〜128文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
           },
           "appearance": {
             "description": "外見的特徴。20〜200文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
           },
           "background": {
             "description": "過去・経歴。50〜500文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 500
           }
         }
       }

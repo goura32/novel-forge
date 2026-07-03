@@ -12,8 +12,10 @@
   ],
   "properties": {
     "title": {
-      "description": "章タイトル",
-      "type": "string"
+      "description": "章タイトル（5〜100文字推奨）",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 200
     },
     "purpose": {
       "description": "章の役割。単語のみ",
@@ -27,67 +29,98 @@
       ]
     },
     "theme": {
-      "description": "章のテーマ",
-      "type": "string"
+      "description": "章のテーマ（20〜300文字推奨）",
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 300
     },
     "emotional_arc": {
-      "description": "感情の弧",
-      "type": "string"
+      "description": "感情の弧（30〜500文字推奨）",
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 500
     },
     "outcome": {
-      "description": "章の結果・結末。",
+      "description": "章の結果・結末（30〜300文字推奨）",
       "type": "string",
-      "minLength": 1
+      "minLength": 10,
+      "maxLength": 300
     },
     "scenes": {
       "description": "シーンのリスト。2〜4個推奨。",
       "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
       "items": {
         "type": "object",
         "required": [
           "title",
+          "pov",
           "goal",
-          "outcome"
+          "conflict",
+          "outcome",
+          "characters",
+          "key_events",
+          "setting"
         ],
         "properties": {
           "title": {
             "description": "シーンタイトル。3〜100文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
           },
           "pov": {
             "description": "視点（誰の視点で描くか）",
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
           },
           "goal": {
-            "description": "シーンの目標。",
-            "type": "string"
+            "description": "シーンの目標（20〜300文字推奨）",
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 300
           },
           "conflict": {
-            "description": "シーンの葛藤。",
-            "type": "string"
+            "description": "シーンの葛藤（20〜300文字推奨）",
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 300
           },
           "outcome": {
-            "description": "シーンの結果。",
+            "description": "シーンの結果（20〜300文字推奨）",
             "type": "string",
-            "minLength": 1
+            "minLength": 10,
+            "maxLength": 300
           },
           "characters": {
             "description": "登場キャラクター。1〜10個推奨。",
             "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
             }
           },
           "key_events": {
             "description": "主要イベント。1〜5個推奨。",
             "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           },
           "setting": {
-            "description": "舞台設定。",
-            "type": "string"
+            "description": "舞台設定（20〜300文字推奨）",
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 300
           }
         }
       }
