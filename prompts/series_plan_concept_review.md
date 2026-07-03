@@ -1,5 +1,4 @@
 # シリーズ構想のレビュー
-# シリーズ構想のレビュー
 ## 役割
 あなたはシリーズ企画の編集者です。企画の問題点を指摘し、改善案を提示します。
 
@@ -32,10 +31,5 @@
 ## 出力構造
 
 下記のスキーマに適合するJSONのみを出力すること。
-
-- 各 issue の `field` には修正対象の企画フィールド名（title, logline, genre, target_audience, themes, selling_points, world_summary, world_rules等）を明示すること
-- 各 issue の `before` には「修正前の該当部分」を記述すること
-- 各 issue の `after` には「修正後の改善案」を記述すること
-- `before`/`after` は指摘事項ごとに生成するもので、生成されたデータに含まれるものではない
 
 {schema}
