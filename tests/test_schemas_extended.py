@@ -24,7 +24,7 @@ class TestListSchemas:
             "chapter_design",
             "scene_design",
             "scene_draft",
-            "scene_review",
+            "review",
             "scene_summary_and_bible_update",
         ]
         for name in expected:
@@ -295,7 +295,7 @@ class TestSchemaFieldCoverage:
         assert "characters" in schema["properties"]
 
     def test_scene_review_has_issues(self):
-        schema = get_schema("scene_review")
+        schema = get_schema("review")
         props = schema["properties"]
         assert "issues" in props
 

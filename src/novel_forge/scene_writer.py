@@ -186,7 +186,7 @@ class SceneWriter:
                 "lang": ctx.lang,
             },
         )
-        schema = get_schema("scene_review")
+        schema = get_schema("review")
         self._log.info("  [REVIEW START]")
         for attempt in range(3):
             try:

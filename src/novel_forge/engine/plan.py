@@ -178,7 +178,7 @@ def _generate_plan_concept(engine: NovelEngineBase, keywords: str, system: str, 
             "series_plan_concept", system, p, get_schema("series_plan_concept"), seed_offset=s
         ),
         validate_fn=_validate_plan_concept,
-        review_fn=lambda r, sys: _review_plan_concept(engine, r, sys, get_schema("series_plan_concept_review")),
+        review_fn=lambda r, sys: _review_plan_concept(engine, r, sys, get_schema("review")),
         revise_fn=lambda r, rv, sys, so=0: _revise_plan_concept(engine, r, rv, sys, so, get_schema("series_plan_concept")),
         system=system,
         user_prompt=prompt,
@@ -263,7 +263,7 @@ def _review_plan_characters(engine: NovelEngineBase, characters: dict, concept: 
         "series_plan_characters_review",
         system,
         user,
-        get_schema("series_plan_characters_review"),
+        get_schema("review"),
     )
 
 
@@ -325,7 +325,7 @@ def _review_plan_volumes(
         "series_plan_volumes_review.md", {"volumes": text, "lang": engine._lang}
     )
     return engine._llm.complete_json(
-        "series_plan_volumes_review", system, user, get_schema("series_plan_volumes_review")
+        "series_plan_volumes_review", system, user, get_schema("review")
     )
 
 

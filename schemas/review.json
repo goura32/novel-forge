@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SceneDesignReview",
-  "description": "シーンデザインのレビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
+  "title": "Review",
+  "description": "レビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
   "type": "object",
   "required": ["issues"],
   "properties": {
@@ -18,11 +18,11 @@
             "enum": ["致命的", "重大", "重要", "軽微"]
           },
           "field": {
-            "description": "修正対象のシーンデザインフィールド名（title, goal, outcome, conflict, pov, characters, key_events, setting等）",
+            "description": "修正対象のフィールド名（各フェーズ固有のフィールド名を指定）",
             "type": "string"
           },
           "category": {
-            "description": "指摘のカテゴリ（構成、目標、葛藤、視点、キャラクター、主要イベント、舞台設定、描写等）",
+            "description": "指摘のカテゴリ（各フェーズ固有のカテゴリを指定）",
             "type": "string"
           },
           "description": {

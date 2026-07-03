@@ -48,6 +48,9 @@ class PromptManager:
                         schema_name = schema_name[:-len(suffix)]
                         break
                 schema_dict = get_schema(schema_name)
+            # レビュープロンプトの場合は統一 review スキーマを使用
+            if not schema_dict and ("_review" in name or "_revision" in name):
+                schema_dict = get_schema("review")
             # schema構造そのものを返さないよう、descriptionを中心とした構造化テキストを生成
             if schema_dict:
                 schema_json = _build_simplified_schema(schema_dict)
@@ -75,6 +78,6 @@ def _build_simplified_schema(schema: dict) -> str:
                     entry["items_properties"] = extract_props(items, indent + 2)
             result[prop_name] = entry
         return result
-    
+
     simplified = extract_props(schema)
     return json.dumps(simplified, ensure_ascii=False, indent=2)

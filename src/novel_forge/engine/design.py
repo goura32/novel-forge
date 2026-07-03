@@ -253,7 +253,7 @@ def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> d
     user = engine._prompts.render("volume_design_review.md",
         {"design": text, "lang": engine._lang})
     return engine._llm.complete_json("volume_design_review", system, user,
-                                       get_schema("volume_design_review"))
+                                       get_schema("review"))
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
@@ -261,7 +261,7 @@ def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> 
     user = engine._prompts.render("chapter_design_review.md",
         {"design": text, "lang": engine._lang})
     return engine._llm.complete_json("chapter_design_review", system, user,
-                                       get_schema("chapter_design_review"))
+                                       get_schema("review"))
 
 
 def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
@@ -271,7 +271,7 @@ def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> di
     user = engine._prompts.render("scene_design_review.md",
         {"design": text, "lang": engine._lang})
     return engine._llm.complete_json("scene_design_review", system, user,
-                                       get_schema("scene_design_review"))
+                                       get_schema("review"))
 
 
 def _default_purpose(i: int, total: int) -> str:
