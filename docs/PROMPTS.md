@@ -21,20 +21,20 @@
 
 自己評価バイアスを防ぐため、生成・レビュー・改稿はそれぞれ別のプロンプトファイルを使用する。
 
-| 工程 | 生成 | レビュー | 改稿 |
-|---|---|---|---|
-| シリーズ企画 | `series_plan_core.md` + `characters.md` + `volumes.md` | `*_review.md` | `*_revision.md` |
-| 巻デザイン | `volume_design.md` + `chapter_design.md` + `scene_design.md` | `*_review.md` | `*_revision.md` |
-| シーン本文 | `scene_draft.md` | `scene_review.md` | `scene_revision.md` |
-| 設定資料集 | `scene_summary_and_bible_update.md` | 該当なし | 該当なし |
+|| 工程 | 生成 | レビュー | 改稿 ||
+||---|---|---|---|
+|| シリーズ企画 | `series_plan_concept.md` + `characters.md` + `volumes.md` | `*_review.md` | `*_revision.md` ||
+|| 巻デザイン | `volume_design.md` + `chapter_design.md` + `scene_design.md` | `*_review.md` | `*_revision.md` ||
+|| シーン本文 | `scene_draft.md` | `scene_review.md` | `scene_revision.md` ||
+|| 設定資料集 | `scene_summary_and_bible_update.md` | 該当なし | 該当なし ||
 
 ### 各工程の役割定義
 
 各プロンプトの先頭に `## 役割` セクションを記述し、LLMに期待する役割を明示する。
 
-| プロンプト | 役割 |
-|---|---|
-| `series_plan_core.md` | シリーズ全体を統括するプロデューサー |
+|| プロンプト | 役割 ||
+||---|---|
+|| `series_plan_concept.md` | シリーズ全体を統括するプロデューサー |
 | `series_plan_characters.md` | キャラクター設計の専門家 |
 | `series_plan_volumes.md` | 物語の架構を設計する構成家 |
 | `volume_design.md` | 巻の構造を設計する放送作家 |

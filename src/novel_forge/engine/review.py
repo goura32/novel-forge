@@ -60,7 +60,7 @@ def generate_and_review(
     max_generation = (
         generation_max_count
         if generation_max_count is not None
-        else quality.max_generation_count
+        else quality.generation_max_count
     )
     review_max = (
         review_max_count

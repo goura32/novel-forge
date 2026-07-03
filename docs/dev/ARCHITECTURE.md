@@ -26,7 +26,7 @@ src/novel_forge/
 │   ├── __init__.py         # NovelEngine クラス定義 (thin facade)
 │   ├── infra.py            # make_engine(), ロック, status/doctor
 │   ├── base.py             # NovelEngineBase — __init__, state, DI
-│   ├── plan.py             # plan() — 3フェーズ (core → characters → volumes)
+│   ├── plan.py             # plan() — 3フェーズ (concept → characters → volumes)
 │   ├── design.py           # design() — 3フェーズ (volume → chapter → scene)
 │   ├── write.py            # write() — シーン執筆ループ
 │   ├── export.py           # export(), resume(), status()
@@ -302,25 +302,25 @@ _raw_logs/plan/20260629_064606_series_plan_core/
 
 ## 9. プロンプトテンプレート一覧
 
-| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{core_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` |
-|---|---|---|---|---|---|---|---|---|
-| system.md | 全共通 | - | - | - | - | - | - | - |
-| series_plan_core.md | Plan (1) | ✓ | ✓ | - | - | - | - | ✓ |
-| series_plan_core_revision.md | Plan (1) 修正 | ✓ | - | ✓ | - | - | - | - |
-| series_plan_characters.md | Plan (2) | ✓ | - | ✓ | - | - | ✓ | - |
-| series_plan_characters_revision.md | Plan (2) 修正 | ✓ | - | ✓ | ✓ | - | - | - |
-| series_plan_volumes.md | Plan (3) | ✓ | - | ✓ | ✓ | - | - | - |
-| series_plan_volumes_revision.md | Plan (3) 修正 | ✓ | - | ✓ | ✓ | - | - | - |
-| volume_design.md | Design (1) | ✓ | - | - | - | ✓ | - | - |
-| volume_design_revision.md | Design (1) 修正 | ✓ | - | - | - | ✓ | - | - |
-| chapter_design.md | Design (2) | ✓ | - | - | ✓ | - | - | - |
-| chapter_design_revision.md | Design (2) 修正 | ✓ | - | - | ✓ | - | - | - |
-| scene_design.md | Design (3) | ✓ | - | - | - | - | - | - |
-| scene_design_revision.md | Design (3) 修正 | ✓ | - | - | - | - | - | - |
-| scene_draft.md | Write | ✓ | - | - | - | - | - | - |
-| scene_revision.md | Write 修正 | ✓ | - | - | ✓ | - | - | - |
-| scene_summary_and_bible_update.md | Write 後処理 | ✓ | - | - | - | - | - | - |
-| *_review (共通) | レビュー | ✓ | - | - | - | - | - | - |
+|| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{core_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` ||
+||---|---|---|---|---|---|---|---|---|
+|| system.md | 全共通 | - | - | - | - | - | - | - ||
+|| series_plan_concept.md | Plan (1) | ✓ | ✓ | - | - | - | - | ✓ ||
+|| series_plan_concept_revision.md | Plan (1) 修正 | ✓ | - | ✓ | - | - | - | - ||
+|| series_plan_characters.md | Plan (2) | ✓ | - | ✓ | - | - | ✓ | - ||
+|| series_plan_characters_revision.md | Plan (2) 修正 | ✓ | - | ✓ | ✓ | - | - | - ||
+|| series_plan_volumes.md | Plan (3) | ✓ | - | ✓ | ✓ | - | - | - ||
+|| series_plan_volumes_revision.md | Plan (3) 修正 | ✓ | - | ✓ | ✓ | - | - | - ||
+|| volume_design.md | Design (1) | ✓ | - | - | - | ✓ | - | - ||
+|| volume_design_revision.md | Design (1) 修正 | ✓ | - | - | - | ✓ | - | - ||
+|| chapter_design.md | Design (2) | ✓ | - | - | ✓ | - | - | - ||
+|| chapter_design_revision.md | Design (2) 修正 | ✓ | - | - | ✓ | - | - | - ||
+|| scene_design.md | Design (3) | ✓ | - | - | - | - | - | - ||
+|| scene_design_revision.md | Design (3) 修正 | ✓ | - | - | - | - | - | - ||
+|| scene_draft.md | Write | ✓ | - | - | - | - | - | - ||
+|| scene_revision.md | Write 修正 | ✓ | - | - | ✓ | - | - | - ||
+|| scene_summary_and_bible_update.md | Write 後処理 | ✓ | - | - | - | - | - | - ||
+|| *_review (共通) | レビュー | ✓ | - | - | - | - | - | - ||
 
 ---
 

@@ -182,7 +182,7 @@ class TestQualityGate:
 class TestSchemas:
     def test_list_schemas(self):
         schemas = list_schemas()
-        assert "series_plan_core" in schemas
+        assert "series_plan_concept" in schemas
         assert "volume_design" in schemas
         assert "chapter_design" in schemas
 
@@ -198,12 +198,12 @@ class TestSchemas:
             "world_summary": "Magic world",
             "world_rules": ["magic exists"],
         }
-        errors = validate("series_plan_core", data)
+        errors = validate("series_plan_concept", data)
         assert len(errors) == 0
 
     def test_validate_series_plan_invalid(self):
         data = {"title": "Test"}
-        errors = validate("series_plan_core", data)
+        errors = validate("series_plan_concept", data)
         assert len(errors) > 0
 
     def test_validate_or_raise(self):
@@ -218,7 +218,7 @@ class TestSchemas:
             "world_summary": "Magic world",
             "world_rules": ["magic exists"],
         }
-        validate_or_raise("series_plan_core", data)  # Should not raise
+        validate_or_raise("series_plan_concept", data)  # Should not raise
 
     def test_chapter_design_schema_has_new_fields(self):
         schema = get_schema("chapter_design")

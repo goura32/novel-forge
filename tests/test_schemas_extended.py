@@ -17,7 +17,7 @@ class TestListSchemas:
     def test_contains_core_schemas(self):
         schemas = list_schemas()
         expected = [
-            "series_plan_core",
+            "series_plan_concept",
             "series_plan_characters",
             "series_plan_volumes",
             "volume_design",
@@ -44,7 +44,7 @@ class TestListSchemas:
 
 class TestGetSchema:
     def test_returns_valid_schema(self):
-        schema = get_schema("series_plan_core")
+        schema = get_schema("series_plan_concept")
         assert "properties" in schema
         assert "title" in schema["properties"]
 
@@ -69,16 +69,16 @@ class TestValidate:
             "world_summary": "Magic world",
             "world_rules": ["magic exists"],
         }
-        errors = validate("series_plan_core", data)
+        errors = validate("series_plan_concept", data)
         assert len(errors) == 0
 
     def test_missing_required_field(self):
         data = {"title": "Test"}
-        errors = validate("series_plan_core", data)
+        errors = validate("series_plan_concept", data)
         assert len(errors) > 0
 
     def test_empty_data(self):
-        errors = validate("series_plan_core", {})
+        errors = validate("series_plan_concept", {})
         assert len(errors) > 0
 
     def test_extra_fields_allowed(self):
@@ -95,7 +95,7 @@ class TestValidate:
             "world_rules": [],
             "extra_field": "should be allowed",
         }
-        errors = validate("series_plan_core", data)
+        errors = validate("series_plan_concept", data)
         assert len(errors) == 0
 
     def test_wrong_type_string_for_array(self):
@@ -109,7 +109,7 @@ class TestValidate:
             "selling_points": ["Unique"],
             "world": {"summary": "World", "rules": []},
         }
-        errors = validate("series_plan_core", data)
+        errors = validate("series_plan_concept", data)
         assert len(errors) > 0
 
     def test_valid_scene_draft(self):
@@ -239,12 +239,12 @@ class TestValidateOrRaise:
             "world_rules": [],
         }
         # Should not raise
-        validate_or_raise("series_plan_core", data)
+        validate_or_raise("series_plan_concept", data)
 
     def test_invalid_data_raises(self):
         data = {"title": "Test"}
         with pytest.raises(Exception, match="Schema validation failed"):
-            validate_or_raise("series_plan_core", data)
+            validate_or_raise("series_plan_concept", data)
 
 
 # ── Schema field coverage ──────────────────────────────────────────────
@@ -253,17 +253,17 @@ class TestValidateOrRaise:
 class TestSchemaFieldCoverage:
     """Verify that all expected schemas have the right fields."""
 
-    def test_series_plan_core_has_world(self):
-        schema = get_schema("series_plan_core")
+    def test_series_plan_concept_has_world(self):
+        schema = get_schema("series_plan_concept")
         assert "world_summary" in schema["properties"]
         assert "world_rules" in schema["properties"]
 
-    def test_series_plan_core_has_slug(self):
-        schema = get_schema("series_plan_core")
+    def test_series_plan_concept_has_slug(self):
+        schema = get_schema("series_plan_concept")
         assert "slug" in schema["properties"]
 
-    def test_series_plan_core_has_title(self):
-        schema = get_schema("series_plan_core")
+    def test_series_plan_concept_has_title(self):
+        schema = get_schema("series_plan_concept")
         assert "title" in schema["properties"]
 
     def test_volume_design_has_chapters(self):

@@ -8,7 +8,7 @@
 
 | プロンプト | スキーマ | コード (validate_fn) | 出力先 |
 |---|---|---|---|
-| `series_plan_core.md` | `series_plan_core.json` | `_validate_plan_core` | `series_plan.json` |
+| `series_plan_concept.md` | `series_plan_concept.json` | `_validate_plan_concept` | `series_plan.json` |
 | `series_plan_characters.md` | `series_plan_characters.json` | `_validate_plan_characters` | `series_plan.json` |
 | `series_plan_volumes.md` | `series_plan_volumes.json` | `_validate_plan_volumes` | `series_plan.json` |
 
@@ -34,7 +34,7 @@
 
 | プロンプト | スキーマ | コード (review_fn) | 備考 |
 |---|---|---|---|
-| `series_plan_core_review.md` | `series_plan_core_review.json` | `_review_plan_core` | LLM が指摘事項を生成 |
+| `series_plan_concept_review.md` | `series_plan_concept_review.json` | `_review_plan_concept` | LLM が指摘事項を生成 |
 | `series_plan_characters_review.md` | `series_plan_characters_review.json` | `_review_plan_characters` | LLM が指摘事項を生成 |
 | `series_plan_volumes_review.md` | `series_plan_volumes_review.json` | `_review_plan_volumes` | LLM が指摘事項を生成 |
 
@@ -60,7 +60,7 @@
 
 | プロンプト | スキーマ | コード (revise_fn) | 備考 |
 |---|---|---|---|
-| `series_plan_core_revision.md` | `series_plan_core.json` | `complete_json` | 生成スキーマと同じ |
+| `series_plan_concept_revision.md` | `series_plan_concept.json` | `complete_json` | 生成スキーマと同じ |
 | `series_plan_characters_revision.md` | `series_plan_characters.json` | `complete_json` | 生成スキーマと同じ |
 | `series_plan_volumes_revision.md` | `series_plan_volumes.json` | `complete_json` | 生成スキーマと同じ |
 
@@ -95,7 +95,7 @@
 
 | スキーマ | 必須フィールド | コード |
 |---|---|---|
-| `series_plan_core.json` | title, slug, logline, genre, target_audience, themes, selling_points, world | `_validate_plan_core` |
+| `series_plan_concept.json` | title, slug, logline, genre, target_audience, themes, selling_points, world | `_validate_plan_concept` |
 | `series_plan_characters.json` | main_characters (各キャラ: name, role) | `_validate_plan_characters` |
 | `series_plan_volumes.json` | planned_volumes (各巻: title) | `_validate_plan_volumes` |
 | `volume_design.json` | chapters | `_validate_volume_design` |
@@ -107,7 +107,7 @@
 
 | スキーマ | category 一覧 |
 |---|---|
-| `series_plan_core_review.json` | あらすじ, ジャンル, 世界観, ターゲット, 言語 |
+| `series_plan_concept_review.json` | あらすじ, ジャンル, 世界観, ターゲット, 言語 |
 | `series_plan_characters_review.json` | 一貫性, 差別化, 成長弧, 世界観適合 |
 | `series_plan_volumes_review.json` | 独自性, 流れ, フック, テーマ |
 | `volume_design_review.json` | 構成, 一貫性, ペース |
@@ -148,9 +148,9 @@ def render(self, name: str, variables: dict[str, str]) -> str:
 ```
 prompts/
 ├── system.md                         # システムプロンプト
-├── series_plan_core.md               # 生成: シリーズ企画（核）
-├── series_plan_core_review.md        # レビュー: シリーズ企画（核）
-├── series_plan_core_revision.md      # 修正: シリーズ企画（核）
+├── series_plan_concept.md               # 生成: シリーズ構想
+├── series_plan_concept_review.md        # レビュー: シリーズ構想
+├── series_plan_concept_revision.md      # 修正: シリーズ構想
 ├── series_plan_characters.md         # 生成: キャラクター設計
 ├── series_plan_characters_review.md  # レビュー: キャラクター設計
 ├── series_plan_characters_revision.md # 修正: キャラクター設計
@@ -173,8 +173,8 @@ prompts/
 └── cover_prompt.md                   # カバー生成（未使用）
 
 schemas/
-├── series_plan_core.json             # シリーズ企画（核）スキーマ
-├── series_plan_core_review.json      # シリーズ企画（核）レビュースキーマ
+├── series_plan_concept.json             # シリーズ構想スキーマ
+├── series_plan_concept_review.json      # シリーズ構想レビュースキーマ
 ├── series_plan_characters.json       # キャラクター設計スキーマ
 ├── series_plan_characters_review.json # キャラクター設計レビュースキーマ
 ├── series_plan_volumes.json          # 各巻設計スキーマ

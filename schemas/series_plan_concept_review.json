@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Review",
+  "title": "SeriesPlanConceptReview",
   "description": "レビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
   "type": "object",
   "required": ["issues"],

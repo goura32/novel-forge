@@ -308,7 +308,7 @@ Checked all 25 prompt templates in `/mnt/hdd/projects/novel-forge/prompts/` agai
 
 ---
 
-### 15. `series_plan_core.md`
+### 15. `series_plan_concept.md`
 **Placeholders in template:** `{keywords}`, `{existing_slugs}`, `{schema}`
 
 **Implementation:** `plan.py:177-179`
@@ -324,7 +324,7 @@ Checked all 25 prompt templates in `/mnt/hdd/projects/novel-forge/prompts/` agai
 
 ---
 
-### 16. `series_plan_core_revision.md`
+### 16. `series_plan_concept_revision.md`
 **Placeholders in template:** `{current_plan}`, `{review}`, `{schema}`
 
 **Implementation:** `plan.py:215-217`
@@ -340,7 +340,7 @@ Checked all 25 prompt templates in `/mnt/hdd/projects/novel-forge/prompts/` agai
 
 ---
 
-### 17. `series_plan_core_review.md`
+### 17. `series_plan_concept_review.md`
 **Placeholders in template:** `{plan_text}`, `{schema}`
 
 **Implementation:** `plan.py:205-206`
@@ -521,9 +521,9 @@ Checked all 25 prompt templates in `/mnt/hdd/projects/novel-forge/prompts/` agai
 | `scene_revision.md` | 3 | 2 | 1 | ⚠️ |
 | `scene_review.md` | 6 | 5 | 1 | ⚠️ (key mismatch) |
 | `scene_summary_and_bible_update.md` | 3 | 2 | 1 | ⚠️ |
-| `series_plan_core.md` | 3 | 2 | 1 | ⚠️ |
-| `series_plan_core_revision.md` | 3 | 2 | 1 | ⚠️ |
-| `series_plan_core_review.md` | 2 | 1 | 1 | ⚠️ |
+| `series_plan_concept.md` | 3 | 2 | 1 | ⚠️ |
+| `series_plan_concept_revision.md` | 3 | 2 | 1 | ⚠️ |
+| `series_plan_concept_review.md` | 2 | 1 | 1 | ⚠️ |
 | `series_plan_characters.md` | 4 | 3 | 1 | ⚠️ |
 | `series_plan_characters_revision.md` | 3 | 2 | 1 | ⚠️ |
 | `series_plan_characters_review.md` | 2 | 1 | 1 | ⚠️ |

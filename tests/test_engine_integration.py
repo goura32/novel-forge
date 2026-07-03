@@ -37,11 +37,11 @@ class MockLLMClient:
 
     Usage:
         mock = MockLLMClient()
-        mock.add_batch(
-            ("series_plan_core", core_data),
-            ("series_plan_core_review", review_data),
-        )
-        result = mock.complete_json("series_plan_core", "system", "user", schema)
+        mock_llm.add_batch(
+                    ("series_plan_concept", core_data),
+                    ("series_plan_concept_review", review_data),
+                )
+        result = mock.complete_json("series_plan_concept", "system", "user", schema)
     """
 
     def __init__(self, responses: dict[str, Any] | None = None):
@@ -213,8 +213,8 @@ def planned_engine(tmp_workdir, mock_llm):
     Uses real plan() with MockLLMClient. The MockLLMClient's default
     responses ensure plan() completes successfully.
     """
-    mock_llm.add_sequence("series_plan_core", _make_plan_response())
-    mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+    mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+    mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
     mock_llm.add_sequence("series_plan_characters", _make_chars_response())
     mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
     mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -269,8 +269,8 @@ class TestPlan:
 
     def test_plan_creates_series_plan(self, engine, mock_llm, tmp_workdir):
         """plan() should create series_plan.json with valid data."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -285,21 +285,21 @@ class TestPlan:
 
     def test_plan_saves_review(self, engine, mock_llm, tmp_workdir):
         """plan() should save the review result."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
         mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         engine.plan("テスト")
-        review_path = engine._series_dir / "series_core_review.json"
+        review_path = engine._series_dir / "series_concept_review.json"
         assert review_path.exists()
 
     def test_plan_calls_llm_for_generation_and_review(self, engine, mock_llm):
         """plan() should call LLM at least twice (generate + review)."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -307,13 +307,13 @@ class TestPlan:
 
         engine.plan("テスト")
         kinds = [k for k, _ in mock_llm._call_log]
-        assert "series_plan_core" in kinds
-        assert "series_plan_core_review" in kinds
+        assert "series_plan_concept" in kinds
+        assert "series_plan_concept_review" in kinds
 
     def test_plan_volume_numbers_assigned(self, engine, mock_llm):
         """Engine should auto-assign volume numbers."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -326,9 +326,9 @@ class TestPlan:
     def test_plan_slug_truncated(self, engine, mock_llm):
         """Slug longer than 32 chars should be truncated."""
         long_slug = "a" * 300
-        mock_llm.add_sequence("series_plan_core", _make_plan_response(slug=long_slug))
-        mock_llm.add_sequence("series_plan_core", _make_plan_response(slug="a" * 32))
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response(slug=long_slug))
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response(slug="a" * 32))
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -355,11 +355,11 @@ class TestPlanReviewLoop:
             "suggestions": [],
         }
         # Add enough entries for 3 revision attempts
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
         for _ in range(3):
-            mock_llm.add_sequence("series_plan_core_review", review_fail)
-            mock_llm.add_sequence("series_plan_core", _make_plan_response())
-            mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+            mock_llm.add_sequence("series_plan_concept_review", review_fail)
+            mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+            mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -379,14 +379,14 @@ class TestPlanReviewLoop:
         # Plan should complete (not raise) regardless of review failures
         assert result["title"] == "テストシリーズ"
         kinds = [k for k, _ in mock_llm._call_log]
-        revision_count = kinds.count("series_plan_core") - 1  # subtract initial call
+        revision_count = kinds.count("series_plan_concept") - 1  # subtract initial call
         # With max_retries=3, at most 3 revisions should happen
         assert revision_count <= 3
 
     def test_plan_no_revision_when_passing(self, engine, mock_llm):
         """Plan should not be revised when no critical issues."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -404,8 +404,8 @@ class TestPlanReviewLoop:
         engine.plan("テスト")
 
         kinds = [k for k, _ in mock_llm._call_log]
-        # No separate revision kind — revision reuses series_plan_core
-        assert kinds.count("series_plan_core") == 1  # only initial, no revision
+        # No separate revision kind — revision reuses series_plan_concept
+        assert kinds.count("series_plan_concept") == 1  # only initial, no revision
 
 
 # ── Outline tests ──────────────────────────────────────────────────────
@@ -768,8 +768,8 @@ class TestConfigGeneration:
 
     def test_plan_works_without_config(self, tmp_workdir, mock_llm):
         """plan() should work without config.yaml."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -799,15 +799,15 @@ class TestFileNamingConvention:
 
     def test_plan_review_first_entry_is_version_0(self, engine, mock_llm):
         """First review entry should be version 0."""
-        mock_llm.add_sequence("series_plan_core", _make_plan_response())
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
         mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         engine.plan("テスト")
-        review_path = engine._series_dir / "series_core_review.json"
+        review_path = engine._series_dir / "series_concept_review.json"
         data = json.loads(review_path.read_text(encoding="utf-8"))
         if data.get("reviews"):
             assert data["reviews"][0]["version"] == 0
@@ -842,12 +842,12 @@ class TestPromptInputCompleteness:
     def test_series_plan_review_receives_world_rules(self, engine, mock_llm, tmp_workdir):
         """Series plan review should receive world rules in the plan text."""
         mock_llm.add_sequence(
-            "series_plan_core",
+            "series_plan_concept",
             _make_plan_response(
                 world={"summary": "魔法世界", "rules": ["魔法が存在する", "魔力には限りがある"]}
             ),
         )
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -864,7 +864,7 @@ class TestPromptInputCompleteness:
 
         engine.plan("テスト")
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_core_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_concept_review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
         assert "魔法が存在する" in review_prompt
@@ -872,12 +872,12 @@ class TestPromptInputCompleteness:
     def test_series_plan_review_receives_character_arc(self, engine, mock_llm, tmp_workdir):
         """Series plan core review should receive series plan context."""
         mock_llm.add_sequence(
-            "series_plan_core",
+            "series_plan_concept",
             _make_plan_response(
                 main_characters=[{"name": "主人公", "role": "主人公", "arc": "成長から覚醒へ"}]
             ),
         )
-        mock_llm.add_sequence("series_plan_core_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
@@ -894,7 +894,7 @@ class TestPromptInputCompleteness:
 
         engine.plan("テスト")
 
-        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_core_review"]
+        review_calls = [(k, p) for k, p in mock_llm._call_log if k == "series_plan_concept_review"]
         assert len(review_calls) > 0
         review_prompt = review_calls[0][1]
         assert "テストシリーズ" in review_prompt

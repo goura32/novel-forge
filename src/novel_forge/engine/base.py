@@ -178,8 +178,8 @@ class NovelEngineBase:
         review_retries = cfg.get("quality", {}).get("max_review_count", quality_retries)
         self._quality = QualityGate(
             max_retries=quality_retries,
-            generation_max_retries=generation_retries,
-            review_max_retries=review_retries,
+            generation_count=generation_retries,
+            review_count=review_retries,
         )
         self._state = self._storage.load()
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SeriesPlanCoreRevision",
-  "description": "シリーズ企画の核の改訂用スキーマ",
+  "title": "SeriesPlanConcept",
+  "description": "シリーズ構想。タイトル、あらすじ、ジャンル、ターゲット、テーマ、売りポイント、世界観。",
   "type": "object",
   "properties": {
     "title": {

@@ -13,7 +13,7 @@ quality:
   max_generation_count: 3
 
   # レビュー（レビュー→修正サイクル）の最大回数
-  max_review_count: 3
+  max_review_count: 8
 
 llm:
   # モデル名

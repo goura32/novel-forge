@@ -122,10 +122,10 @@ engine/
 
 3フェーズでシリーズ企画を生成。各フェーズが `generate_and_review()` で生成→レビュー→改稿ループ。
 
-### Phase 1: Core
+### Phase 1: Concept
 - **入力**: キーワード
 - **出力**: タイトル、あらすじ、ジャンル、テーマ、世界観、キャラクター一覧
-- **スキーマ**: `series_plan_core.json`
+- **スキーマ**: `series_plan_concept.json`
 - **バリデーション**: `title`, `slug`, `logline`, `genre`, `themes`, `selling_points`, `world`, `target_audience`, `main_characters` 必須
 - **slug 重複チェック**: 既存シリーズの slug 一覧をプロンプトに渡す
 - **キャラクター名重複バリデーション**: 名前レジストリで重複排除
@@ -331,15 +331,15 @@ SceneWriter._draft_scene() で以下の情報を基に初稿生成:
 
 ```
 [2026-06-26 10:30:00] [PID 45567] [INFO] ▶ Plan: keywords='...'
-[2026-06-26 10:30:00] [PID 45567] [INFO]   ▶ core — [1/3]
-[2026-06-26 10:35:19] [PID 45567] [INFO]   ✓ core — title='...' slug='...'
+[2026-06-26 10:30:00] [PID 45567] [INFO]   ▶ concept — [1/3]
+[2026-06-26 10:35:19] [PID 45567] [INFO]   ✓ concept — title='...' slug='...'
 ```
 
 ### 8.3 LLM進捗ログ
 
 ```
 [2026-06-26 10:30:00] [PID 45567] [INFO]  [LLM PROGRESS] chunks=2500 bytes=394641 elapsed=110.0s series=X vol=Y
-[2026-06-26 10:40:00] [PID 45567] [DEBUG]  [LLM DONE] kind=series_plan_core chunks=5081 bytes=795439 elapsed=124.4s done=
+[2026-06-26 10:40:00] [PID 45567] [DEBUG]  [LLM DONE] kind=series_plan_concept chunks=5081 bytes=795439 elapsed=124.4s done=
 ```
 
 ---
@@ -349,7 +349,7 @@ SceneWriter._draft_scene() で以下の情報を基に初稿生成:
 LLM呼び出しの生データを `_raw_logs/{phase}/{timestamp}_{kind}/` に保存。
 
 ```
-_raw_logs/plan/20260629_064606_series_plan_core/
+_raw_logs/plan/20260629_064606_series_plan_concept/
 ├── raw_summary.md              # 人が読める形式（追記）
 └── details/                    # 元データ（gzip）
     ├── request_0_0.json.gz
@@ -432,7 +432,7 @@ Scene status:
 <series_dir>/
 ├── state.json
 ├── series_plan.json
-├── _raw_logs/plan/20260629_064606_series_plan_core/
+├── _raw_logs/plan/20260629_064606_series_plan_concept/
 │   ├── raw_summary.md
 │   └── details/
 ├── _raw_logs/design/20260629_094252_volume_design/

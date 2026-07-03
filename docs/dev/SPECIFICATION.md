@@ -15,9 +15,9 @@ novel-forge/
 │   └── GLOSSARY.md
 ├── prompts/                      # プロンプトテンプレート
 │   ├── system.md                 # 共通システムプロンプト
-│   ├── series_plan_core.md       # シリーズ企画（核）
-│   ├── series_plan_core_review.md
-│   ├── series_plan_core_revision.md
+│   ├── series_plan_concept.md    # シリーズ企画（構想）
+│   ├── series_plan_concept_review.md
+│   ├── series_plan_concept_revision.md
 │   ├── series_plan_characters.md # シリーズ企画（キャラクター）
 │   ├── series_plan_characters_review.md
 │   ├── series_plan_characters_revision.md
@@ -40,8 +40,8 @@ novel-forge/
 │   ├── kdp_metadata.md
 │   └── cover_prompt.md
 ├── schemas/                      # JSON Schema 定義
-│   ├── series_plan_core.json
-│   ├── series_plan_core_review.json
+│   ├── series_plan_concept.json
+│   ├── series_plan_concept_review.json
 │   ├── series_plan_characters.json
 │   ├── series_plan_characters_review.json
 │   ├── series_plan_volumes.json
