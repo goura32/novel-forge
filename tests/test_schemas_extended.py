@@ -143,6 +143,7 @@ class TestValidate:
             "issues": [
                 {
                     "severity": "重要",
+                    "field": "content",
                     "category": "POV一貫性",
                     "description": "視点が揺れている",
                     "suggestion": "視点を統一する",
@@ -150,8 +151,6 @@ class TestValidate:
                     "after": "統一する",
                 }
             ],
-            "revision_needed": True,
-            "ready_for_publication": False,
         }
         errors = validate("scene_review", data)
         assert len(errors) == 0
@@ -200,6 +199,15 @@ class TestValidate:
             "purpose": "導入",
             "theme": "信頼",
             "emotional_arc": "不安→希望",
+            "outcome": "主人公が旅立つ決意を固める",
+            "scenes": [
+                {
+                    "title": "出発の朝",
+                    "goal": "決意を示す",
+                    "outcome": "荷物をまとめる",
+                    "pov": "主人公",
+                }
+            ],
         }
         errors = validate("chapter_design", data)
         assert len(errors) == 0

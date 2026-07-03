@@ -1,56 +1,44 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Review",
-  "description": "レビュー結果",
+  "title": "SceneDesignReview",
+  "description": "シーンデザインのレビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
   "type": "object",
-  "required": [
-    "issues"
-  ],
+  "required": ["issues"],
   "properties": {
     "issues": {
-      "description": "指摘事項のリスト",
+      "description": "指摘事項のリスト。各要素は修正対象のフィールドを特定し、具体的な差分を示す。",
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "category",
-          "description",
-          "suggestion",
-          "before",
-          "after"
-        ],
+        "required": ["field", "category", "description", "suggestion", "before", "after"],
         "properties": {
           "severity": {
             "description": "修正の緊急性。致命的=必須修正、重大=必須修正、重要=強推奨、軽微=任意。",
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "致命的",
-              "重大",
-              "重要",
-              "軽微"
-            ]
+            "type": ["string", "null"],
+            "enum": ["致命的", "重大", "重要", "軽微"]
+          },
+          "field": {
+            "description": "修正対象のシーンデザインフィールド名（title, goal, outcome, conflict, pov, characters, key_events, setting等）",
+            "type": "string"
           },
           "category": {
-            "description": "指摘のカテゴリ。",
+            "description": "指摘のカテゴリ（構成、目標、葛藤、視点、キャラクター、主要イベント、舞台設定、描写等）",
             "type": "string"
           },
           "description": {
-            "description": "問題の説明",
+            "description": "問題の説明。何がどう問題かを具体的に記述。",
             "type": "string"
           },
           "suggestion": {
-            "description": "修正の提案",
+            "description": "修正の提案。どう改善すべきかの方向性を示す。",
             "type": "string"
           },
           "before": {
-            "description": "修正前のテキスト（該当箇所を引用）",
+            "description": "修正前のテキスト（当該フィールド内の該当箇所を引用）。配列フィールドの場合は該当要素のみ。",
             "type": "string"
           },
           "after": {
-            "description": "修正後のテキスト",
+            "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。",
             "type": "string"
           }
         }
