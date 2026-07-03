@@ -222,16 +222,12 @@ def _revise_plan_concept(
 
 
 def _generate_plan_characters(engine: NovelEngineBase, concept: dict, system: str, used_names: set[str]) -> tuple[dict, dict]:
+    import json
+    series_plan_json = json.dumps(concept, ensure_ascii=False, indent=2)
     prompt = engine._prompts.render(
         "series_plan_characters.md",
         {
-            "title": concept.get("title", ""),
-            "logline": concept.get("logline", ""),
-            "genre": ", ".join(concept.get("genre", [])),
-            "target_audience": concept.get("target_audience", ""),
-            "themes": ", ".join(concept.get("themes", [])),
-            "world_summary": concept.get("world_summary", ""),
-            "world_rules": "; ".join(concept.get("world_rules", [])),
+            "series_plan_json": series_plan_json,
             "lang": engine._lang,
             "used_names": ", ".join(sorted(used_names)) if used_names else "（なし）",
         },

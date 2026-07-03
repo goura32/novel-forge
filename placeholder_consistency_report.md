@@ -409,7 +409,7 @@ Checked all 25 prompt templates in `/mnt/hdd/projects/novel-forge/prompts/` agai
 ---
 
 ### 21. `series_plan_volumes.md`
-**Placeholders in template:** `{core_text}`, `{characters_text}`, `{schema}`
+**Placeholders in template:** `{concept_text}`, `{characters_text}`, `{schema}`
 
 **Implementation:** `plan.py:288-294`
 ```python
@@ -422,7 +422,7 @@ Checked all 25 prompt templates in `/mnt/hdd/projects/novel-forge/prompts/` agai
 
 | Placeholder | Status |
 |---|---|
-| `{core_text}` | ✅ Passed |
+| `{concept_text}` | ✅ Passed |
 | `{characters_text}` | ✅ Passed |
 | `{schema}` | ❌ MISSING |
 

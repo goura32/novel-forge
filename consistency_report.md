@@ -28,7 +28,7 @@
 - **ForeshadowingItem モデル**: `description`, `resolved` - 一致
 - **BibleUpdate スキーマの foreshadowing**: `id`, `description`, `type` (enum: 設置/回収), `resolved`, `scene_number` - モデルよりフィールド多い
 
-### 問題6: `series_plan_core.json` スキーマと `SeriesPlan` モデル - 不一致
+### 問題6: `series_plan_concept.json` スキーマと `SeriesPlan` モデル - 不一致
 - **スキーマの required**: `title`, `slug`, `logline`, `genre`, `target_audience`, `themes`, `selling_points`, `world` (8個)
 - **モデルのフィールド**: `title`, `logline`, `genre`, `target_audience`, `themes`, `selling_points`, `world`, `main_characters`, `planned_volumes`, `keywords`, `catchphrase`, `differentiation` (12個) - `slug` がモデルにない！
 - **影響**: slug は `plan()` 関数で機械生成されるが、SeriesPlan モデルに保存されない
@@ -89,7 +89,7 @@
 
 ### 問題19: `volume_design_revision.md` - `{series_plan}`, `{previous_design}` 含め正しく渡されている ✓
 
-### 問題20: `series_plan_core_revision.md` / `series_plan_characters_revision.md` / `series_plan_volumes_revision.md` - 正しく渡されている ✓
+### 問題20: `series_plan_concept_revision.md` / `series_plan_characters_revision.md` / `series_plan_volumes_revision.md` - 正しく渡されている ✓
 
 ---
 

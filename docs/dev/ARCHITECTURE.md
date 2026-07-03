@@ -250,7 +250,7 @@ Scene:  計画中 → 初稿済 → 修正済 / 強制出力済
 ### RAWデータ構造
 
 ```
-_raw_logs/plan/20260629_064606_series_plan_core/
+_raw_logs/plan/20260629_064606_series_plan_concept/
 ├── raw_summary.md              # 人が読める形式（追記）
 │                               # - request: messagesのcontentを出力
 │                               # - response: contentを出力（thinking除外）
@@ -302,7 +302,7 @@ _raw_logs/plan/20260629_064606_series_plan_core/
 
 ## 9. プロンプトテンプレート一覧
 
-|| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{core_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` ||
+|| テンプレート | フェーズ | `{schema}` | `{keywords}` | `{concept_text}` | `{characters_text}` | `{series_plan}` | `{used_names}` | `{existing_slugs}` ||
 ||---|---|---|---|---|---|---|---|---|
 || system.md | 全共通 | - | - | - | - | - | - | - ||
 || series_plan_concept.md | Plan (1) | ✓ | ✓ | - | - | - | - | ✓ ||
