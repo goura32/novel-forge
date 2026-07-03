@@ -163,7 +163,6 @@ if schema is not None:
         "properties": {
           "severity": { "type": "string", "enum": ["致命的", "重要", "軽微"] },
           "field": { "type": "string" },
-          "category": { "type": "string" },
           "description": { "type": "string" },
           "suggestion": { "type": "string" },
           "before": { "type": "string" },
@@ -173,8 +172,8 @@ if schema is not None:
     }
   }
 }
-```
-機械的修正には `field` + `before` + `after` のみで十分。`category` は人間の確認用（表示のみ）。
+
+機械的修正には `field` + `before` + `after` のみで十分。
 
 ### generate_and_review パターン
 
