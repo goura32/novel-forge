@@ -32,12 +32,4 @@
 
 下記のスキーマに適合するJSONのみを出力すること。
 
-- title: シリーズタイトル（文字列）
-- slug: URLスラッグ（英数字とハイフンのみ、50字以内）
-- logline: あらすじ（100〜300字）
-- genre: ジャンルの配列
-- target_audience: ターゲット読者
-- themes: テーマの配列
-- selling_points: 売りポイントの配列（最大5つ）
-- world_summary: 世界観の要約（200〜400字）
-- world_rules: 世界観のルールの配列（最大5つ）
+{schema}
