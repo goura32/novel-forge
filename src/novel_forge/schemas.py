@@ -54,19 +54,43 @@ def _validate_with_schema(schema: dict[str, Any], data: dict[str, Any]) -> list[
     return errors
 
 
+def coerce_array_fields(data: dict, schema: dict) -> dict:
+    """Pre-validation coercion: convert expected array fields that are objects to [].
+    
+    This fixes common LLM quirks where it returns {} or {"a": "b"} instead of []
+    for array-typed fields (e.g., issues as object instead of list).
+    """
+    if not schema or not isinstance(data, dict):
+        return data
+    
+    properties = schema.get("properties", {})
+    for key, prop_schema in properties.items():
+        if key in data and isinstance(data[key], dict) and prop_schema.get("type") == "array":
+            # If an array field is actually returned as object from LLM, replace with []
+            _log.debug(
+                "Coerced expected array '%s' (got object: %r) to []",
+                key, type(data[key])
+            )
+            data[key] = []
+    
+    return data
+
+
 def validate(name: str, data: dict[str, Any]) -> list[str]:
     """スキーマ検証。エラーリストを返す。"""
     try:
         schema = _load_schema(name)
     except FileNotFoundError:
         return []
+    # Apply pre-validation coercion for common LLM output quirks
+    coerce_array_fields(data, schema)
     return _validate_with_schema(schema, data)
 
 
 def validate_or_raise(name: str, data: dict[str, Any]) -> None:
     errors = validate(name, data)
     if errors:
-        raise ValidationError(f"Schema validation failed for '{name}':\n" + "\n".join(errors))
+        raise ValidationError(f"Schema validation failed for '{name}:\n" + "\n".join(errors))
 
 
 def get_schema(name: str) -> dict[str, Any]:

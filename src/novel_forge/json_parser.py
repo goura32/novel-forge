@@ -104,6 +104,11 @@ def coerce_types(data: dict, schema: dict) -> dict:
         value = data[key]
         expected_type = prop_schema.get("type")
 
+        # Handle enum fields: use first enum value as default when empty string
+        if isinstance(value, str) and not value.strip() and "enum" in prop_schema:
+            data[key] = prop_schema["enum"][0]
+            continue
+        
         if expected_type == "integer" and isinstance(value, float):
             data[key] = int(value)
         elif expected_type == "number" and isinstance(value, int):
