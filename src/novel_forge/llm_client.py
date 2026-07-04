@@ -195,7 +195,7 @@ class LLMClient:
             "options": {
                 "num_ctx": self.num_ctx,
                 "num_predict": self.num_predict,
-                "seed": 42,
+                "seed": int(time.time_ns() & 0xffffffff),
                 **api_options,
             },
             "think": think_value,
@@ -221,14 +221,15 @@ class LLMClient:
 
         for attempt in range(max(self.max_retries, 1)):
             payload["messages"][1]["content"] = current_prompt
-            payload["options"]["seed"] = 42 + attempt + seed_offset
+            base_seed = payload["options"]["seed"]
+            payload["options"]["seed"] = base_seed + attempt + seed_offset
             self._write_raw_log(f"request_{attempt}_{seed_offset}", json.dumps(payload, ensure_ascii=False))
             self._append_raw_summary(f"request_{attempt}_{seed_offset}", json.dumps(payload, ensure_ascii=False))
 
             meta = self._build_meta()
             self._log.debug(
                 "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
-                kind, attempt + 1, self.max_retries, self.model, 42 + attempt + seed_offset, meta,
+                kind, attempt + 1, self.max_retries, self.model, base_seed + attempt + seed_offset, meta,
             )
 
             raw_text = ""

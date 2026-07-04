@@ -151,7 +151,7 @@ def generate_and_review(
         if not revision_needed:
             return result, review
 
-        if review_cycles >= review_max:  # Use review_cycles instead of generation_cycles
+        if review_cycles >= review_max:
             msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
 
@@ -197,6 +197,10 @@ def generate_and_review(
 
         if len(blocker) == 0 and len(major) == 0:
             return result, review
+
+        # Only revise again if we haven't hit review_max yet
+        if review_cycles >= review_max:
+            raise RuntimeError(f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})")
 
         result = revise_fn(result, review, system, generation_cycles)
         generation_cycles += 1

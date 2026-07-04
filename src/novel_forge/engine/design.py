@@ -95,8 +95,9 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         review_fn=lambda r, sys: _review_volume_design(engine, r, sys),
         revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
             "volume_design", sys, engine._prompts.render("volume_design_revision.md",
-                {"current_volume": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv),
-                 "previous_design": prev_design}),
+                {"concept_text": series_plan, "current_volume": json.dumps(r, ensure_ascii=False), 
+                 "review": format_review_text(rv), "previous_design": prev_design,
+                 "series_plan": series_plan}),
             get_schema("volume_design"), seed_offset=so),
         system=system,
         user_prompt=engine._prompts.render("volume_design.md",

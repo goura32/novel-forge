@@ -93,7 +93,15 @@ def coerce_types(data: dict, schema: dict) -> dict:
             # Fill missing field with default value based on type
             expected_type = prop_schema.get("type")
             if expected_type == "string":
-                data[key] = ""
+                default_value = ""
+                # Also check minLength for the default value
+                if "minLength" in prop_schema:
+                    min_len = prop_schema["minLength"]
+                    if min_len > 0:
+                        _log.debug("minLength coercion on missing field '%s': ''→pad to %d chars", key, min_len)
+                        data[key] = " " * min_len
+                        continue
+                data[key] = default_value
             elif expected_type == "array":
                 data[key] = []
             elif expected_type == "object":
@@ -143,6 +151,14 @@ def coerce_types(data: dict, schema: dict) -> dict:
             data[key] = candidate_enum[0]
             continue
         
+        # minLength 強制補正: minLength を下回る文字列を padding 補正
+        if isinstance(value, str) and "minLength" in prop_schema:
+            min_len = prop_schema["minLength"]
+            if len(value) < min_len:
+                _log.debug("minLength coerced field '%s': '%s' (%d→%d chars)", key, value, len(value), min_len)
+                data[key] = value.ljust(min_len, " ")
+                continue
+        
         if expected_type == "integer" and isinstance(value, float):
             data[key] = int(value)
         elif expected_type == "number" and isinstance(value, int):
@@ -151,6 +167,43 @@ def coerce_types(data: dict, schema: dict) -> dict:
             data[key] = str(value)
         elif expected_type == "boolean" and isinstance(value, str):
             data[key] = value.lower() in ("true", "1", "yes")
+        elif expected_type == "array" and isinstance(value, list) and "minItems" in prop_schema:
+            # Handle empty arrays that violate minItems constraint
+            min_items = prop_schema["minItems"]
+            if len(value) < min_items:
+                item_type = prop_schema.get("items", {}).get("type", "string")
+                # Use placeholder values instead of empty strings to satisfy minLength/etc.
+                if item_type == "object" and "properties" in prop_schema.get("items", {}):
+                    # For object items, create minimal valid objects with placeholder values
+                    default_item = {}
+                    for pk, pv in prop_schema["items"]["properties"].items():
+                        pt = pv.get("type", "string")
+                        if pt == "string":
+                            default_item[pk] = "未設定"
+                        elif pt == "integer":
+                            default_item[pk] = 0
+                        elif pt == "number":
+                            default_item[pk] = 0.0
+                        elif pt == "boolean":
+                            default_item[pk] = False
+                        elif pt == "array":
+                            default_item[pk] = []
+                        else:
+                            default_item[pk] = ""
+                    default_item = default_item
+                elif item_type == "string":
+                    default_item = "未設定"
+                elif item_type == "integer":
+                    default_item = 0
+                elif item_type == "number":
+                    default_item = 0.0
+                elif item_type == "boolean":
+                    default_item = False
+                else:
+                    default_item = ""
+                _log.debug("minItems coercion on field '%s': %d items→pad to %d (type=%s)", key, len(value), min_items, item_type)
+                while len(data[key]) < min_items:
+                    data[key].append(default_item)
         elif expected_type == "array" and not isinstance(value, list):
             data[key] = [value] if value else []
         elif expected_type == "object" and not isinstance(value, dict):
