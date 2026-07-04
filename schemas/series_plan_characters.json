@@ -7,65 +7,55 @@
     "main_characters": {
       "description": "メインキャラクター。3〜5個推奨。最低3人。",
       "type": "array",
-      "minItems": 3,
-      "maxItems": 5,
       "items": {
         "type": "object",
-        "required": ["name", "role", "personality", "motivation", "flaw", "arc", "occupation", "appearance", "background"],
+        "required": [
+          "name",
+          "role",
+          "personality",
+          "motivation",
+          "flaw",
+          "arc",
+          "occupation",
+          "appearance",
+          "background"
+        ],
         "properties": {
           "name": {
-            "description": "キャラクター名。2〜64文字。",
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 100
+            "description": "キャラクター名",
+            "type": "string"
           },
           "role": {
-            "description": "役割。具体的に記述。10〜128文字。",
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 200
+            "description": "役割（主人公の恩師、ライバル、相棒など具体的に）",
+            "type": "string"
           },
           "personality": {
-            "description": "性格・特徴。50〜300文字推奨。",
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 300
+            "description": "性格・気質",
+            "type": "string"
           },
           "motivation": {
-            "description": "動機・目標。50〜300文字推奨。",
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 300
+            "description": "動機・目的",
+            "type": "string"
           },
           "flaw": {
-            "description": "欠点・弱み。30〜200文字推奨。",
-            "type": "string",
-            "minLength": 10,
-            "maxLength": 200
+            "description": "欠点・弱点",
+            "type": "string"
           },
           "arc": {
-            "description": "シリーズを通じた成長・変化。100〜500文字推奨。",
-            "type": "string",
-            "minLength": 30,
-            "maxLength": 500
+            "description": "成長の方向性・軌跡",
+            "type": "string"
           },
           "occupation": {
-            "description": "職業・立場。5〜128文字推奨。",
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 200
+            "description": "職業・立場",
+            "type": "string"
           },
           "appearance": {
-            "description": "外見的特徴。20〜200文字推奨。",
-            "type": "string",
-            "minLength": 10,
-            "maxLength": 200
+            "description": "外見的特徴",
+            "type": "string"
           },
           "background": {
-            "description": "過去・経歴。50〜500文字推奨。",
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 500
+            "description": "背景・来歴",
+            "type": "string"
           }
         }
       }

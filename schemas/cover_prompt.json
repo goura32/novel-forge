@@ -126,12 +126,6 @@
       "properties": {
         "series_name": {
           "type": "string"
-        },
-        "volume_number": {
-          "type": "integer"
-        },
-        "target_audience": {
-          "type": "string"
         }
       }
     }

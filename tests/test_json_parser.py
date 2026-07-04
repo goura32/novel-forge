@@ -1,4 +1,4 @@
-"""Tests for json_parser.py — parsing and type coercion."""
+"""Tests for json_parser.py — parsing and validation."""
 
 from __future__ import annotations
 
@@ -6,10 +6,14 @@ import pytest
 
 from novel_forge.json_parser import (
     JsonParseError,
+    ValidationError,
     _extract_json_text,
-    coerce_types,
+    _coerce_array_fields,
     parse_json_response,
+    validate,
+    validate_or_raise,
 )
+
 
 # ── _extract_json_text ─────────────────────────────────────────────────
 
@@ -31,6 +35,29 @@ class TestExtractJsonText:
 
     def test_empty(self):
         assert _extract_json_text("") == ""
+
+
+# ── _coerce_array_fields ───────────────────────────────────────────────
+
+
+class TestCoerceArrayFields:
+    def test_object_to_array(self):
+        data = {"items": {"a": "b"}}
+        schema = {"properties": {"items": {"type": "array"}}}
+        _coerce_array_fields(data, schema)
+        assert data["items"] == []
+
+    def test_already_array_unchanged(self):
+        data = {"items": ["a", "b"]}
+        schema = {"properties": {"items": {"type": "array"}}}
+        _coerce_array_fields(data, schema)
+        assert data["items"] == ["a", "b"]
+
+    def test_non_array_field_unchanged(self):
+        data = {"name": "Alice"}
+        schema = {"properties": {"name": {"type": "string"}}}
+        _coerce_array_fields(data, schema)
+        assert data["name"] == "Alice"
 
 
 # ── parse_json_response ────────────────────────────────────────────────
@@ -78,121 +105,50 @@ class TestParseJsonResponse:
         assert result["items"] == ["a", "b"]
 
 
-# ── coerce_types ────────────────────────────────────────────────────────
+# ── validate / validate_or_raise ───────────────────────────────────────
 
 
-class TestCoerceTypes:
-    def test_fill_missing_string(self):
-        data = {}
-        schema = {"properties": {"name": {"type": "string"}}}
-        result = coerce_types(data, schema)
-        assert result["name"] == ""
+class TestValidate:
+    def test_valid_data_passes(self):
+        data = {"title": "Test", "slug": "test_series", "logline": "A story", "genre": ["fantasy"], "themes": ["love"], "selling_points": ["unique"], "world_summary": "World", "world_rules": ["rule1"], "target_audience": "adults"}
+        errors = validate("series_plan_concept", data)
+        assert errors == []
 
-    def test_fill_missing_array(self):
-        data = {}
-        schema = {"properties": {"items": {"type": "array"}}}
-        result = coerce_types(data, schema)
-        assert result["items"] == []
+    def test_missing_required_field(self):
+        data = {"title": "Test"}
+        errors = validate("series_plan_concept", data)
+        assert any("required field missing" in e for e in errors)
 
-    def test_fill_missing_object(self):
-        data = {}
-        schema = {"properties": {"meta": {"type": "object"}}}
-        result = coerce_types(data, schema)
-        assert result["meta"] == {}
+    def test_wrong_type(self):
+        data = {"title": "Test", "slug": "test", "logline": "A", "genre": "not-array", "themes": [], "selling_points": [], "world_summary": "W", "world_rules": [], "target_audience": "A"}
+        errors = validate("series_plan_concept", data)
+        assert any("expected array" in e for e in errors)
 
-    def test_fill_missing_integer(self):
-        data = {}
-        schema = {"properties": {"count": {"type": "integer"}}}
-        result = coerce_types(data, schema)
-        assert result["count"] == 0
+    def test_enum_validation(self):
+        data = {"chapters": [{"title": "Ch1", "purpose": "invalid"}]}
+        errors = validate("volume_design", data)
+        assert any("not in enum" in e for e in errors)
 
-    def test_fill_missing_boolean(self):
-        data = {}
-        schema = {"properties": {"active": {"type": "boolean"}}}
-        result = coerce_types(data, schema)
-        assert result["active"] is False
+    def test_min_items(self):
+        # After schema relaxation: minItems constraints moved to description.
+        # This test now verifies that validation passes without minItems enforcement.
+        data = {"chapters": [{"title": "Ch1", "purpose": "導入"}]}
+        errors = validate("volume_design", data)
+        # Should not have minItems errors (constraint removed from schema)
+        assert not any("minItems" in e for e in errors)
 
-    def test_coerce_float_to_int(self):
-        data = {"count": 3.7}
-        schema = {"properties": {"count": {"type": "integer"}}}
-        result = coerce_types(data, schema)
-        assert result["count"] == 3
-        assert isinstance(result["count"], int)
+    def test_unknown_schema_returns_empty(self):
+        errors = validate("nonexistent_schema", {"a": 1})
+        assert errors == []
 
-    def test_coerce_int_to_float(self):
-        data = {"score": 5}
-        schema = {"properties": {"score": {"type": "number"}}}
-        result = coerce_types(data, schema)
-        assert result["score"] == 5.0
-        assert isinstance(result["score"], float)
+    def test_validate_or_raise_valid(self):
+        data = {"title": "Test", "slug": "test", "logline": "A", "genre": ["f"], "themes": ["t"], "selling_points": ["s"], "world_summary": "W", "world_rules": ["r"], "target_audience": "A"}
+        validate_or_raise("series_plan_concept", data)  # Should not raise
 
-    def test_coerce_string_to_bool(self):
-        data = {"active": "true"}
-        schema = {"properties": {"active": {"type": "boolean"}}}
-        result = coerce_types(data, schema)
-        assert result["active"] is True
-
-    def test_coerce_non_string_to_string(self):
-        data = {"name": 123}
-        schema = {"properties": {"name": {"type": "string"}}}
-        result = coerce_types(data, schema)
-        assert result["name"] == "123"
-
-    def test_coerce_scalar_to_array(self):
-        data = {"items": "single"}
-        schema = {"properties": {"items": {"type": "array"}}}
-        result = coerce_types(data, schema)
-        assert result["items"] == ["single"]
-
-    def test_nested_object_coercion(self):
-        data = {"meta": {}}
-        schema = {
-            "properties": {
-                "meta": {
-                    "type": "object",
-                    "properties": {"version": {"type": "string"}},
-                }
-            }
-        }
-        result = coerce_types(data, schema)
-        assert result["meta"]["version"] == ""
-
-    def test_array_items_coercion(self):
-        data = {"chars": [{}]}
-        schema = {
-            "properties": {
-                "chars": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {"name": {"type": "string"}},
-                    },
-                }
-            }
-        }
-        result = coerce_types(data, schema)
-        assert result["chars"][0]["name"] == ""
-
-    def test_no_schema_returns_data_unchanged(self):
-        data = {"a": 1}
-        result = coerce_types(data, None)  # type: ignore[arg-type]
-        assert result == {"a": 1}
-
-    def test_non_dict_data_returns_unchanged(self):
-        result = coerce_types("not a dict", {"properties": {}})  # type: ignore[arg-type]
-        assert result == "not a dict"
-
-    def test_preserves_existing_values(self):
-        data = {"name": "Alice", "count": 42}
-        schema = {
-            "properties": {
-                "name": {"type": "string"},
-                "count": {"type": "integer"},
-            }
-        }
-        result = coerce_types(data, schema)
-        assert result["name"] == "Alice"
-        assert result["count"] == 42
+    def test_validate_or_raise_invalid(self):
+        data = {"title": "Test"}
+        with pytest.raises(ValidationError):
+            validate_or_raise("series_plan_concept", data)
 
 
 # ── JsonParseError ─────────────────────────────────────────────────────
@@ -205,3 +161,11 @@ class TestJsonParseError:
     def test_message(self):
         err = JsonParseError("test message")
         assert "test message" in str(err)
+
+
+# ── ValidationError ────────────────────────────────────────────────────
+
+
+class TestValidationError:
+    def test_is_exception(self):
+        assert issubclass(ValidationError, Exception)

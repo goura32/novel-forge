@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from typing import Any
 
 from novel_forge.logging_config import get_logger
 
 _log = get_logger("novel_forge.json_parser")
+
+
+class JsonParseError(Exception):
+    """Raised when JSON parsing fails."""
 
 
 def _extract_json_text(text: str) -> str:
@@ -74,155 +77,135 @@ def parse_json_response(text: str) -> Any:
     raise JsonParseError(f"Failed to parse JSON from response: {text[:200]}...")
 
 
-def coerce_types(data: dict, schema: dict) -> dict:
-    """Coerce types in parsed JSON to match schema expectations.
+def _coerce_array_fields(data: dict, schema: dict) -> None:
+    """Coerce fields that should be arrays but LLM returned objects.
 
-    Also fills missing fields with default values based on their type:
-    - string -> ""
-    - array -> []
-    - object -> {}
-    - integer/number -> 0
-    - boolean -> false
+    Modifies data in-place.
     """
-    if not schema or not isinstance(data, dict):
-        return data
+    if not isinstance(data, dict) or not schema:
+        return
 
     properties = schema.get("properties", {})
     for key, prop_schema in properties.items():
         if key not in data:
-            # Fill missing field with default value based on type
-            expected_type = prop_schema.get("type")
-            if expected_type == "string":
-                default_value = ""
-                # Also check minLength for the default value
-                if "minLength" in prop_schema:
-                    min_len = prop_schema["minLength"]
-                    if min_len > 0:
-                        _log.debug("minLength coercion on missing field '%s': ''→pad to %d chars", key, min_len)
-                        data[key] = " " * min_len
-                        continue
-                data[key] = default_value
-            elif expected_type == "array":
-                data[key] = []
-            elif expected_type == "object":
-                data[key] = {}
-                # Recursively fill nested object defaults
-                if "properties" in prop_schema:
-                    coerce_types(data[key], prop_schema)
-            elif expected_type in ("integer", "number"):
-                data[key] = 0
-            elif expected_type == "boolean":
-                data[key] = False
             continue
-
-        value = data[key]
         expected_type = prop_schema.get("type")
-
-        # Handle enum fields: use first enum value as default when empty string
-        if isinstance(value, str) and not value.strip() and "enum" in prop_schema:
-            data[key] = prop_schema["enum"][0]
-            continue
-        
-        # ENUM强制补正：ENUM值にない文字列の場合は最も近い値を検索補正（日本語 keyword マッチ）
-        if isinstance(value, str) and "enum" in prop_schema and value not in prop_schema["enum"]:
-            candidate_enum = prop_schema["enum"]
-            # Strategy 1: exact substring match (e.g., '主人公の導入' -> '導入')
-            matched = None
-            for e in candidate_enum:
-                if len(e) >= 2 and (e in value or value[:min(5,len(value))] == e):
-                    matched = e
-                    break
-            # Strategy 2: prefix match first char
-            if not matched:
-                for e in candidate_enum:
-                    if value.strip().startswith(e[0]):
-                        matched = e
-                        break
-            if matched:
-                _log.debug("ENUM coerced '%s' -> '%s' (no match in %s)", value, matched, candidate_enum)
-                data[key] = matched
-                continue
-            
-            # Strategy 3: fallback to first enum value
-            _log.warning(
-                "ENUM coercion failed for '%s': no match in %s — defaulting to '%s'",
-                value, candidate_enum, candidate_enum[0]
+        if expected_type == "array" and isinstance(data[key], dict):
+            _log.debug(
+                "Coerced expected array '%s' (got object: %r) to []",
+                key, type(data[key])
             )
-            data[key] = candidate_enum[0]
-            continue
-        
-        # minLength 強制補正: minLength を下回る文字列を padding 補正
-        if isinstance(value, str) and "minLength" in prop_schema:
-            min_len = prop_schema["minLength"]
-            if len(value) < min_len:
-                _log.debug("minLength coerced field '%s': '%s' (%d→%d chars)", key, value, len(value), min_len)
-                data[key] = value.ljust(min_len, " ")
-                continue
-        
-        if expected_type == "integer" and isinstance(value, float):
-            data[key] = int(value)
-        elif expected_type == "number" and isinstance(value, int):
-            data[key] = float(value)
-        elif expected_type == "string" and not isinstance(value, str):
-            data[key] = str(value)
-        elif expected_type == "boolean" and isinstance(value, str):
-            data[key] = value.lower() in ("true", "1", "yes")
-        elif expected_type == "array" and isinstance(value, list) and "minItems" in prop_schema:
-            # Handle empty arrays that violate minItems constraint
-            min_items = prop_schema["minItems"]
-            if len(value) < min_items:
-                item_type = prop_schema.get("items", {}).get("type", "string")
-                # Use placeholder values instead of empty strings to satisfy minLength/etc.
-                if item_type == "object" and "properties" in prop_schema.get("items", {}):
-                    # For object items, create minimal valid objects with placeholder values
-                    default_item = {}
-                    for pk, pv in prop_schema["items"]["properties"].items():
-                        pt = pv.get("type", "string")
-                        if pt == "string":
-                            default_item[pk] = "未設定"
-                        elif pt == "integer":
-                            default_item[pk] = 0
-                        elif pt == "number":
-                            default_item[pk] = 0.0
-                        elif pt == "boolean":
-                            default_item[pk] = False
-                        elif pt == "array":
-                            default_item[pk] = []
-                        else:
-                            default_item[pk] = ""
-                    default_item = default_item
-                elif item_type == "string":
-                    default_item = "未設定"
-                elif item_type == "integer":
-                    default_item = 0
-                elif item_type == "number":
-                    default_item = 0.0
-                elif item_type == "boolean":
-                    default_item = False
-                else:
-                    default_item = ""
-                _log.debug("minItems coercion on field '%s': %d items→pad to %d (type=%s)", key, len(value), min_items, item_type)
-                while len(data[key]) < min_items:
-                    data[key].append(default_item)
-        elif expected_type == "array" and not isinstance(value, list):
-            data[key] = [value] if value else []
-        elif expected_type == "object" and not isinstance(value, dict):
-            pass  # skip — cannot coerce non-dict to dict without data loss
-        elif expected_type == "object" and isinstance(value, dict) and "properties" in prop_schema:
-            # Recursively coerce nested objects
-            coerce_types(value, prop_schema)
-
-    # Also handle array items (e.g. main_characters[], planned_volumes[])
-    for key, prop_schema in properties.items():
-        if key in data and isinstance(data[key], list) and prop_schema.get("type") == "array":
-            items_schema = prop_schema.get("items", {})
-            if items_schema.get("type") == "object" and "properties" in items_schema:
-                for item in data[key]:
-                    if isinstance(item, dict):
-                        coerce_types(item, items_schema)
-
-    return data
+            data[key] = []
 
 
-class JsonParseError(Exception):
+def _validate_with_schema(schema: dict, data: Any, path: str = "") -> list[str]:
+    """Recursively validate data against JSON schema. Returns list of errors."""
+    errors = []
+
+    if "type" in schema:
+        expected_type = schema["type"]
+        type_errors = _check_type(data, expected_type, path)
+        errors.extend(type_errors)
+
+    if "properties" in schema and isinstance(data, dict):
+        required_fields = schema.get("required", [])
+        for prop_name, prop_schema in schema["properties"].items():
+            prop_path = f"{path}.{prop_name}" if path else prop_name
+            if prop_name in data:
+                errors.extend(_validate_with_schema(prop_schema, data[prop_name], prop_path))
+            elif prop_name in required_fields:
+                errors.append(f"{prop_path}: required field missing")
+
+    if "items" in schema and isinstance(data, list):
+        items_schema = schema["items"]
+        for i, item in enumerate(data):
+            errors.extend(_validate_with_schema(items_schema, item, f"{path}[{i}]"))
+
+    if "enum" in schema and data not in schema["enum"]:
+        errors.append(f"{path}: value '{data}' not in enum {schema['enum']}")
+
+    if "minLength" in schema and isinstance(data, str):
+        if len(data) < schema["minLength"]:
+            errors.append(f"{path}: string length {len(data)} < minLength {schema['minLength']}")
+
+    if "maxLength" in schema and isinstance(data, str):
+        if len(data) > schema["maxLength"]:
+            errors.append(f"{path}: string length {len(data)} > maxLength {schema['maxLength']}")
+
+    if "minItems" in schema and isinstance(data, list):
+        if len(data) < schema["minItems"]:
+            errors.append(f"{path}: array length {len(data)} < minItems {schema['minItems']}")
+
+    if "maxItems" in schema and isinstance(data, list):
+        if len(data) > schema["maxItems"]:
+            errors.append(f"{path}: array length {len(data)} > maxItems {schema['maxItems']}")
+
+    if "pattern" in schema and isinstance(data, str):
+        if not re.match(schema["pattern"], data):
+            errors.append(f"{path}: value '{data}' does not match pattern {schema['pattern']}")
+
+    return errors
+
+
+def _check_type(data: Any, expected_type: str, path: str) -> list[str]:
+    """Check if data matches expected JSON schema type."""
+    errors = []
+
+    if expected_type == "string" and not isinstance(data, str):
+        errors.append(f"{path}: expected string, got {type(data).__name__}")
+    elif expected_type == "integer" and not isinstance(data, int):
+        errors.append(f"{path}: expected integer, got {type(data).__name__}")
+    elif expected_type == "number" and not isinstance(data, (int, float)):
+        errors.append(f"{path}: expected number, got {type(data).__name__}")
+    elif expected_type == "boolean" and not isinstance(data, bool):
+        errors.append(f"{path}: expected boolean, got {type(data).__name__}")
+    elif expected_type == "array" and not isinstance(data, list):
+        errors.append(f"{path}: expected array, got {type(data).__name__}")
+    elif expected_type == "object" and not isinstance(data, dict):
+        errors.append(f"{path}: expected object, got {type(data).__name__}")
+
+    return errors
+
+
+_SCHEMA_DIR = __import__("pathlib").Path(__file__).parent.parent.parent / "schemas"
+
+
+def _load_schema(name: str) -> dict:
+    path = _SCHEMA_DIR / f"{name}.json"
+    if not path.exists():
+        raise FileNotFoundError(f"Schema not found: {path}")
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def validate(name: str, data: dict[str, Any]) -> list[str]:
+    """Schema validation. Returns list of errors."""
+    try:
+        schema = _load_schema(name)
+    except FileNotFoundError:
+        return []
+    # Apply pre-validation coercion for common LLM output quirks
+    _coerce_array_fields(data, schema)
+    return _validate_with_schema(schema, data)
+
+
+def validate_or_raise(name: str, data: dict[str, Any]) -> None:
+    errors = validate(name, data)
+    if errors:
+        raise ValidationError(f"Schema validation failed for '{name}:\n" + "\n".join(errors))
+
+
+def get_schema(name: str) -> dict[str, Any]:
+    try:
+        return _load_schema(name)
+    except FileNotFoundError:
+        return {}
+
+
+def list_schemas() -> list[str]:
+    return [p.stem for p in _SCHEMA_DIR.glob("*.json")]
+
+
+class ValidationError(Exception):
+    """Raised when schema validation fails."""
     pass

@@ -16,8 +16,7 @@
       "description": "登場キャラクター",
       "type": "array",
       "items": {
-        "type": "string",
-        "description": "charactersの配列"
+        "type": "string"
       }
     },
     "facts": {
@@ -43,16 +42,14 @@
             "description": "目的語",
             "type": "string"
           }
-        },
-        "description": "factsの配列"
+        }
       }
     },
     "continuity_notes": {
       "description": "連続性メモ",
       "type": "array",
       "items": {
-        "type": "string",
-        "description": "連続性メモ"
+        "type": "string"
       }
     }
   }

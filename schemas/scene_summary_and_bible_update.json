@@ -27,16 +27,14 @@
           "object": {
             "type": "string"
           }
-        },
-        "description": "新しく抽出した事実"
+        }
       }
     },
     "continuity_notes": {
       "description": "連続性メモ",
       "type": "array",
       "items": {
-        "type": "string",
-        "description": "連続性メモ"
+        "type": "string"
       }
     },
     "characters": {
@@ -69,8 +67,7 @@
           "is_new": {
             "type": "boolean"
           }
-        },
-        "description": "更新されたキャラクター"
+        }
       }
     },
     "foreshadowing": {
@@ -89,8 +86,7 @@
               "回収"
             ]
           }
-        },
-        "description": "更新された伏線"
+        }
       }
     },
     "relationships": {
@@ -120,8 +116,7 @@
           "trigger_event": {
             "type": "string"
           }
-        },
-        "description": "更新された関係"
+        }
       }
     },
     "subplots": {
@@ -148,8 +143,7 @@
           "progress_note": {
             "type": "string"
           }
-        },
-        "description": "更新されたサブプロット"
+        }
       }
     },
     "glossary": {
@@ -164,8 +158,7 @@
           "definition": {
             "type": "string"
           }
-        },
-        "description": "更新された用語"
+        }
       }
     },
     "world_rules": {
@@ -184,8 +177,7 @@
           {
             "type": "string"
           }
-        ],
-        "description": "更新された世界観ルール"
+        ]
       }
     }
   },

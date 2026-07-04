@@ -34,8 +34,7 @@
           "confidence": {
             "type": "number"
           }
-        },
-        "description": "事実記録"
+        }
       }
     },
     "scene_summaries": {
@@ -49,8 +48,7 @@
       "description": "連続性メモ",
       "type": "array",
       "items": {
-        "type": "string",
-        "description": "連続性メモ"
+        "type": "string"
       }
     }
   }

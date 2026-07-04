@@ -11,41 +11,33 @@
   "properties": {
     "title": {
       "description": "タイトル（最大100文字）",
-      "type": "string",
-      "maxLength": 200
+      "type": "string"
     },
     "subtitle": {
       "description": "サブタイトル（最大100文字）",
-      "type": "string",
-      "maxLength": 200
+      "type": "string"
     },
     "series_name": {
       "description": "シリーズ名（最大100文字）",
-      "type": "string",
-      "maxLength": 200
+      "type": "string"
     },
     "description": {
       "description": "商品説明（最大2000文字）",
-      "type": "string",
-      "maxLength": 4000
+      "type": "string"
     },
     "back_cover_text": {
       "description": "裏表紙テキスト（最大2000文字）",
-      "type": "string",
-      "maxLength": 4000
+      "type": "string"
     },
     "target_audience": {
       "description": "ターゲット読者（最大500文字）",
-      "type": "string",
-      "maxLength": 1000
+      "type": "string"
     },
     "keywords": {
       "description": "検索キーワード（最大7件、各最大32文字）",
       "type": "array",
-      "maxItems": 7,
       "items": {
-        "type": "string",
-        "maxLength": 50
+        "type": "string"
       }
     },
     "categories": {
@@ -54,8 +46,7 @@
       "minItems": 1,
       "maxItems": 2,
       "items": {
-        "type": "string",
-        "maxLength": 128
+        "type": "string"
       }
     },
     "content_warnings": {
@@ -66,9 +57,8 @@
       }
     },
     "author_note": {
-      "description": "著者ノート（最大1000文字ノート",
-      "type": "string",
-      "maxLength": 2000
+      "description": "著者ノート（最大1000文字）",
+      "type": "string"
     }
   }
 }

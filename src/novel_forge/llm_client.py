@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from novel_forge.json_parser import JsonParseError, coerce_types, parse_json_response
+from novel_forge.json_parser import JsonParseError, parse_json_response
 from novel_forge.logging_config import Console, get_logger
 
 console = Console()
@@ -260,7 +260,6 @@ class LLMClient:
                     continue
 
                 if schema:
-                    parsed = coerce_types(parsed, schema)
                     # Normalize slug before validation (LLM may output hyphens which
                     # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
                     if isinstance(parsed, dict) and "slug" in parsed:

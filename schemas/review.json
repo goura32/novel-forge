@@ -3,19 +3,32 @@
   "title": "Review",
   "description": "レビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
   "type": "object",
-  "required": ["issues"],
+  "required": [
+    "issues"
+  ],
   "properties": {
     "issues": {
       "description": "指摘事項のリスト。各要素は修正対象のフィールドを特定し、具体的な差分を示す。",
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["field", "severity", "description", "suggestion", "before", "after"],
+        "required": [
+          "field",
+          "severity",
+          "description",
+          "suggestion",
+          "before",
+          "after"
+        ],
         "properties": {
           "severity": {
             "description": "修正の緊急性。致命的=必須修正、重要=強推奨、軽微=任意。",
             "type": "string",
-            "enum": ["致命的", "重要", "軽微"]
+            "enum": [
+              "致命的",
+              "重要",
+              "軽微"
+            ]
           },
           "field": {
             "description": "修正対象のフィールド名（各フェーズ固有のフィールド名を指定）",
