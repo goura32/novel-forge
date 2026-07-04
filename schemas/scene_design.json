@@ -15,50 +15,41 @@
   "properties": {
     "title": {
       "description": "シーンタイトル。3〜100文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "goal": {
       "description": "シーン開始時の状況と主人公の行動。20〜300文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "outcome": {
       "description": "シーン終了時の実際の結果。20〜300文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "conflict": {
       "description": "シーン内の障害・対立。20〜300文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "pov": {
       "description": "視点人物",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "characters": {
       "description": "登場人物。1〜10個推奨。",
       "type": "array",
       "items": {
-        "type": "string",
-        "minLength": 1
+        "type": "string"
       }
     },
     "key_events": {
       "description": "主要イベント。1〜5個推奨。",
       "type": "array",
-      "minItems": 1,
       "items": {
-        "type": "string",
-        "minLength": 1
+        "type": "string"
       }
     },
     "setting": {
       "description": "舞台設定。20〜300文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     }
   },
   "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"

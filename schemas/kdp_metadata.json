@@ -10,55 +10,26 @@
   ],
   "properties": {
     "title": {
-      "description": "タイトル（最大100文字）",
-      "type": "string"
-    },
-    "subtitle": {
-      "description": "サブタイトル（最大100文字）",
-      "type": "string"
-    },
-    "series_name": {
-      "description": "シリーズ名（最大100文字）",
+      "description": "書籍タイトル。30〜200文字推奨。",
       "type": "string"
     },
     "description": {
-      "description": "商品説明（最大2000文字）",
-      "type": "string"
-    },
-    "back_cover_text": {
-      "description": "裏表紙テキスト（最大2000文字）",
-      "type": "string"
-    },
-    "target_audience": {
-      "description": "ターゲット読者（最大500文字）",
+      "description": "書籍説明文。200〜4000文字推奨。",
       "type": "string"
     },
     "keywords": {
-      "description": "検索キーワード（最大7件、各最大32文字）",
+      "description": "キーワード。3〜7個推奨、各最大50文字。",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "categories": {
-      "description": "KDPカテゴリ（1-2件、各最大64文字）",
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 2,
-      "items": {
-        "type": "string"
-      }
-    },
-    "content_warnings": {
-      "description": "コンテンツ警告（暴力、性的描写等）",
+      "description": "カテゴリ。2〜3個推奨、各最大100文字。",
       "type": "array",
       "items": {
         "type": "string"
       }
-    },
-    "author_note": {
-      "description": "著者ノート（最大1000文字）",
-      "type": "string"
     }
   }
 }
