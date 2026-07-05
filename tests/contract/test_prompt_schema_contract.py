@@ -118,12 +118,58 @@ def test_quality_schema_fields_exist_for_generation_pipeline() -> None:
     assert {"chapter_turning_point", "chapter_hook", "foreshadowing_notes", "subplot_notes"} <= set(chapter["properties"])
 
 
+def _object_paths_missing_additional_properties_false(
+    node: object,
+    path: tuple[str, ...] = (),
+) -> list[str]:
+    issues: list[str] = []
+    if isinstance(node, dict):
+        if (node.get("type") == "object" or "properties" in node) and node.get(
+            "additionalProperties"
+        ) is not False:
+            issues.append(".".join(path) or "$")
+
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            for key, value in properties.items():
+                issues.extend(
+                    _object_paths_missing_additional_properties_false(value, (*path, key))
+                )
+        items = node.get("items")
+        if items is not None:
+            issues.extend(
+                _object_paths_missing_additional_properties_false(items, (*path, "[]"))
+            )
+        for keyword in ("oneOf", "anyOf", "allOf"):
+            subschemas = node.get(keyword)
+            if isinstance(subschemas, list):
+                for index, subschema in enumerate(subschemas):
+                    issues.extend(
+                        _object_paths_missing_additional_properties_false(
+                            subschema, (*path, f"{keyword}[{index}]")
+                        )
+                    )
+    return issues
+
+
 def test_all_schema_fields_have_actionable_descriptions() -> None:
     """Descriptions are prompt guidance for local LLMs, not optional comments."""
     issues: dict[str, list[str]] = {}
     for schema_path in sorted(SCHEMAS_DIR.glob("*.json")):
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         schema_issues = _schema_description_issues(schema)
+        if schema_issues:
+            issues[schema_path.name] = schema_issues
+
+    assert issues == {}
+
+
+def test_all_object_schemas_reject_unknown_fields() -> None:
+    """Unknown LLM fields should fail validation instead of leaking downstream."""
+    issues: dict[str, list[str]] = {}
+    for schema_path in sorted(SCHEMAS_DIR.glob("*.json")):
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema_issues = _object_paths_missing_additional_properties_false(schema)
         if schema_issues:
             issues[schema_path.name] = schema_issues
 

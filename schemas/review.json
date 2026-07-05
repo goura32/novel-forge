@@ -58,7 +58,8 @@
             "type": "boolean"
           }
         },
-        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "ready_for_publication": {
@@ -77,5 +78,6 @@
         "description": "長所。長所の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

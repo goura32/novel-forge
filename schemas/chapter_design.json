@@ -119,7 +119,8 @@
             "type": "string"
           }
         },
-        "description": "シーンを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "シーンを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "chapter_turning_point": {
@@ -154,5 +155,6 @@
         "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

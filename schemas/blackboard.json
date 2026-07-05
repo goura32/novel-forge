@@ -36,15 +36,14 @@
             "description": "確信度を数値で表す。事実記録内で参照しやすい一貫した値にする。"
           }
         },
-        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "scene_summaries": {
       "description": "シーン要約の辞書。キーはシーン番号（文字列）、値は要約",
       "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
+      "additionalProperties": false
     },
     "continuity_notes": {
       "description": "連続性メモの一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
@@ -54,5 +53,6 @@
         "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

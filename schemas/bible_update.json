@@ -34,7 +34,8 @@
             "description": "シーン番号を数値で表す。伏線内で参照しやすい一貫した値にする。"
           }
         },
-        "description": "伏線を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "伏線を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "characters": {
@@ -76,7 +77,8 @@
             "description": "新規追加フラグを真偽値で表す。判断根拠が必要な場合は関連説明フィールドにも反映する。"
           }
         },
-        "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "relationships": {
@@ -112,7 +114,8 @@
             "description": "変化の原因イベント。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           }
         },
-        "description": "人物関係を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "人物関係を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "subplots": {
@@ -143,7 +146,8 @@
             "description": "progress note。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
           }
         },
-        "description": "サブプロットを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "サブプロットを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "glossary": {
@@ -165,7 +169,8 @@
             "description": "新規追加フラグを真偽値で表す。判断根拠が必要な場合は関連説明フィールドにも反映する。"
           }
         },
-        "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "world_rules": {
@@ -183,7 +188,8 @@
             "description": "新規追加フラグを真偽値で表す。判断根拠が必要な場合は関連説明フィールドにも反映する。"
           }
         },
-        "description": "世界観ルールを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "世界観ルールを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "facts": {
@@ -205,7 +211,8 @@
             "description": "目的語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           }
         },
-        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "continuity_notes": {
@@ -216,5 +223,6 @@
         "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

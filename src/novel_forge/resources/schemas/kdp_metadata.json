@@ -33,5 +33,6 @@
         "description": "カテゴリ。カテゴリの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

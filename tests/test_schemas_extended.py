@@ -76,11 +76,11 @@ class TestValidate:
         errors = validate("nonexistent_schema", {})
         assert errors == ["Schema not found: nonexistent_schema"]
 
-    def test_extra_fields_allowed(self):
-        """JSON Schema should not forbid additional properties by default."""
-        data = series_plan_concept_data(extra_field="should be allowed")
+    def test_extra_fields_rejected(self):
+        """Strict schemas should reject unknown LLM fields."""
+        data = series_plan_concept_data(extra_field="should be rejected")
         errors = validate("series_plan_concept", data)
-        assert len(errors) == 0
+        assert any("Additional properties are not allowed" in error for error in errors)
 
     def test_wrong_type_string_for_array(self):
         data = {
@@ -119,7 +119,6 @@ class TestValidate:
             "overall_assessment": "出版を妨げる問題はありません。",
             "strengths": ["冒頭の状況提示が明確"],
             "issues": [],
-            "revision_needed": False,
         }
         errors = validate("review", data)
         assert len(errors) == 0

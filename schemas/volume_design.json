@@ -43,8 +43,10 @@
             ]
           }
         },
-        "description": "章を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "章を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

@@ -44,7 +44,8 @@
             "type": "string"
           }
         },
-        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "continuity_notes": {
@@ -55,5 +56,6 @@
         "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

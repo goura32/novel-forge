@@ -31,7 +31,8 @@
             "description": "目的語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           }
         },
-        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "continuity_notes": {
@@ -81,7 +82,8 @@
             "description": "新規追加フラグを真偽値で表す。判断根拠が必要な場合は関連説明フィールドにも反映する。"
           }
         },
-        "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "foreshadowing": {
@@ -103,7 +105,8 @@
             "description": "種類。物語上の機能や状態が分かる具体的な日本語で書く。"
           }
         },
-        "description": "伏線を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "伏線を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "relationships": {
@@ -139,7 +142,8 @@
             "description": "変化の原因イベント。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           }
         },
-        "description": "人物関係を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "人物関係を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "subplots": {
@@ -170,7 +174,8 @@
             "description": "progress note。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
           }
         },
-        "description": "サブプロットを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "サブプロットを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "glossary": {
@@ -188,7 +193,8 @@
             "description": "定義。用語集の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           }
         },
-        "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "world_rules": {
@@ -202,7 +208,8 @@
               "rule": {
                 "type": "string"
               }
-            }
+            },
+            "additionalProperties": false
           },
           {
             "type": "string"
@@ -220,5 +227,6 @@
     "subplots",
     "world_rules",
     "continuity_notes"
-  ]
+  ],
+  "additionalProperties": false
 }

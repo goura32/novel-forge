@@ -15,5 +15,6 @@
       "description": "シーン本文。500〜5000文字推奨。",
       "type": "string"
     }
-  }
+  },
+  "additionalProperties": false
 }

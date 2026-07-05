@@ -58,11 +58,13 @@
             "type": "string"
           }
         },
-        "description": "主要登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "主要登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     }
   },
   "required": [
     "main_characters"
-  ]
+  ],
+  "additionalProperties": false
 }

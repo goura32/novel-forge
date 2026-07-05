@@ -48,11 +48,13 @@
                     "description": "外見。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
                   }
                 },
-                "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+                "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+                "additionalProperties": false
               },
               "description": "登場人物の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。"
             }
-          }
+          },
+          "additionalProperties": false
         },
         "background": {
           "type": "object",
@@ -66,7 +68,8 @@
               "type": "string"
             }
           },
-          "description": "背景を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+          "description": "背景を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+          "additionalProperties": false
         },
         "items": {
           "description": "物語を象徴するアイテム・モチーフ",
@@ -87,10 +90,12 @@
                 "description": "significance。象徴アイテムの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
               }
             },
-            "description": "象徴アイテムを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+            "description": "象徴アイテムを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+            "additionalProperties": false
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "style": {
       "description": "スタイル（例: 暗めのファンタジー、ポップな現代など）",
@@ -123,7 +128,8 @@
             "雰囲気的"
           ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "negative_prompt": {
       "description": "画像生成時に除外したい要素",
@@ -137,7 +143,9 @@
           "type": "string",
           "description": "シリーズ名。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
         }
-      }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "additionalProperties": false
 }

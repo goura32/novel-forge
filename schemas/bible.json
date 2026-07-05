@@ -49,7 +49,8 @@
             "type": "string"
           }
         },
-        "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "glossary": {
@@ -71,7 +72,8 @@
             "type": "string"
           }
         },
-        "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "foreshadowing": {
@@ -92,7 +94,8 @@
             "description": "解決状態を真偽値で表す。判断根拠が必要な場合は関連説明フィールドにも反映する。"
           }
         },
-        "description": "伏線を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "伏線を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "world_rules": {
@@ -144,7 +147,8 @@
             "description": "シーン番号を数値で表す。人物関係内で参照しやすい一貫した値にする。"
           }
         },
-        "description": "人物関係を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "人物関係を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     },
     "subplots": {
@@ -191,8 +195,10 @@
             "description": "関連伏線IDの一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。"
           }
         },
-        "description": "サブプロットを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "サブプロットを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

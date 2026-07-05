@@ -68,5 +68,6 @@
     "world_summary",
     "world_rules",
     "target_audience"
-  ]
+  ],
+  "additionalProperties": false
 }
