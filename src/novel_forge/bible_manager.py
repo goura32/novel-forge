@@ -47,7 +47,7 @@ class BibleManager:
         return [fh for fh in self.bible.foreshadowing if not fh.resolved]
 
     def get_incomplete_subplots(self) -> list[SubplotItem]:
-        return [sp for sp in self.bible.subplots if sp.status != "completed"]
+        return [sp for sp in self.bible.subplots if sp.status not in {"完了", "completed"}]
 
     # ── text serialization for prompts ──────────────────────────────
 
@@ -152,8 +152,8 @@ class BibleManager:
         for fh_data in result.get("foreshadowing", []):
             if not isinstance(fh_data, dict):
                 continue
-            fh_type = fh_data.get("type", "setup")
-            if fh_type == "resolution":
+            fh_type = fh_data.get("type", "設置")
+            if fh_type in {"回収", "resolution"}:
                 for fh in bible.foreshadowing:
                     if not fh.resolved and fh.description == fh_data.get("description", ""):
                         fh.resolved = True
@@ -184,9 +184,10 @@ class BibleManager:
                 ),
                 None,
             )
+            relationship_type = rel_data.get("relationship_type") or rel_data.get("type", "")
             if existing:
-                if rel_data.get("relationship_type"):
-                    existing.relationship_type = rel_data["relationship_type"]
+                if relationship_type:
+                    existing.relationship_type = relationship_type
                 if rel_data.get("change_direction"):
                     existing.change_direction = rel_data["change_direction"]
                 if rel_data.get("trigger_event"):
@@ -197,7 +198,7 @@ class BibleManager:
                     RelationshipItem(
                         character_a=rel_data.get("character_a", ""),
                         character_b=rel_data.get("character_b", ""),
-                        relationship_type=rel_data.get("relationship_type", ""),
+                        relationship_type=relationship_type,
                         change_direction=rel_data.get("change_direction", ""),
                         trigger_event=rel_data.get("trigger_event", ""),
                         scene_number=scene_number,

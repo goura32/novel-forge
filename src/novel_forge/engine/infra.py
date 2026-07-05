@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import signal
 import sys
 import time
@@ -101,7 +102,12 @@ def _series_lock(series_dir: Path) -> Generator[None]:
 def _find_existing_series(workdir: Path, slug: str | None = None) -> Path:
     """Find existing series directory."""
     if slug:
-        series_dir = workdir / slug
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", slug):
+            raise ValueError(f"Unsafe series slug: {slug}")
+        root = workdir.resolve()
+        series_dir = (workdir / slug).resolve()
+        if series_dir != root and root not in series_dir.parents:
+            raise ValueError(f"Unsafe series slug: {slug}")
         if not series_dir.exists():
             raise FileNotFoundError(f"Series '{slug}' not found in {workdir}")
         return series_dir

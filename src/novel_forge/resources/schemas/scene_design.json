@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDesign",
+  "type": "object",
+  "required": [
+    "title",
+    "goal",
+    "outcome",
+    "conflict",
+    "pov",
+    "characters",
+    "key_events",
+    "setting",
+    "hook",
+    "turning_point",
+    "emotional_arc",
+    "ending_hook"
+  ],
+  "properties": {
+    "title": {
+      "description": "シーンタイトル。3〜100文字推奨。",
+      "type": "string"
+    },
+    "goal": {
+      "description": "シーン開始時の状況と主人公の行動。20〜300文字推奨。",
+      "type": "string"
+    },
+    "outcome": {
+      "description": "シーン終了時の実際の結果。20〜300文字推奨。",
+      "type": "string"
+    },
+    "conflict": {
+      "description": "シーン内の障害・対立。20〜300文字推奨。",
+      "type": "string"
+    },
+    "pov": {
+      "description": "視点人物。出力の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+      "type": "string"
+    },
+    "characters": {
+      "description": "登場人物。1〜10個推奨。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    },
+    "key_events": {
+      "description": "主要イベント。1〜5個推奨。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    },
+    "setting": {
+      "description": "舞台設定。20〜300文字推奨。",
+      "type": "string"
+    },
+    "hook": {
+      "description": "冒頭1-2文で提示すべき具体的な異変・行動・対立。",
+      "type": "string"
+    },
+    "turning_point": {
+      "description": "シーン中盤から終盤で不可逆に変わる事実・関係・決意。",
+      "type": "string"
+    },
+    "emotional_arc": {
+      "description": "シーン開始時から終了時までの感情変化。",
+      "type": "string"
+    },
+    "ending_hook": {
+      "description": "次シーンへ読者を進ませる疑問・緊張・余韻。",
+      "type": "string"
+    },
+    "sensory_focus": {
+      "description": "このシーンで重点的に使う感覚。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "sensory focus。sensory focusの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    },
+    "subtext": {
+      "description": "台詞や行動の裏にある本音・隠し事・対立。",
+      "type": "string"
+    },
+    "foreshadowing": {
+      "description": "設置または回収する伏線。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "伏線。伏線の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    }
+  },
+  "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"
+}

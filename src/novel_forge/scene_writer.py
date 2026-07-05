@@ -67,7 +67,7 @@ class SceneWriter:
             return "（なし）"
         lines = []
         for sp in bible.subplots:
-            if sp.status != "completed":
+            if sp.status not in {"完了", "completed"}:
                 lines.append(f"- {sp.name}: {sp.progress_note or '進捗なし'}")
         return "\n".join(lines) if lines else "（進行中のサブプロットなし）"
 
@@ -192,7 +192,7 @@ class SceneWriter:
         for attempt in range(3):
             try:
                 result = self._llm.complete_json(
-                    "scene_review", system, user, schema, seed_offset=0
+                    "review", system, user, schema, seed_offset=0
                 )
                 self._log.info("  [REVIEW DONE] issues=%d", len(result.get("issues", [])))
                 return result

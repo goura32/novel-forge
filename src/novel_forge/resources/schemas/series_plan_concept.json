@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeriesPlanConcept",
+  "description": "シリーズ構想。タイトル、あらすじ、ジャンル、ターゲット、テーマ、売りポイント、世界観。",
+  "type": "object",
+  "properties": {
+    "title": {
+      "description": "シリーズのタイトル。30〜100文字推奨。",
+      "type": "string"
+    },
+    "slug": {
+      "description": "a-z0-9と_のみからなる128文字以内のスラッグ（アンダースコア区切り）。",
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "logline": {
+      "description": "シリーズのあらすじ。1-2文、200〜800文字推奨。",
+      "type": "string"
+    },
+    "genre": {
+      "description": "ジャンル。2〜5個推奨、各最大64文字。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "ジャンル。ジャンルの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    },
+    "target_audience": {
+      "description": "ターゲット読者。100〜500文字推奨。",
+      "type": "string"
+    },
+    "themes": {
+      "description": "テーマ。2〜5個推奨、各最大64文字。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "themes。themesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    },
+    "selling_points": {
+      "description": "売りポイント。2〜7個推奨、各最大128文字。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "selling points。selling pointsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    },
+    "world_summary": {
+      "description": "世界観の概要。200〜1000文字推奨。",
+      "type": "string"
+    },
+    "world_rules": {
+      "description": "世界観の独自ルール。1〜10個推奨、各最大200文字。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "世界観ルール。世界観ルールの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    }
+  },
+  "required": [
+    "title",
+    "slug",
+    "logline",
+    "genre",
+    "themes",
+    "selling_points",
+    "world_summary",
+    "world_rules",
+    "target_audience"
+  ]
+}

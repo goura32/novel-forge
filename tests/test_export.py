@@ -218,6 +218,11 @@ class TestResume:
         result = mock_engine.resume()
         assert result["action"] == "design"
 
+    def test_resume_when_planned(self, mock_engine):
+        mock_engine._state.status = "企画済"
+        result = mock_engine.resume()
+        assert result["action"] == "design"
+
     def test_resume_when_exported(self, mock_engine):
         mock_engine._state.status = "出力済"
         result = mock_engine.resume()

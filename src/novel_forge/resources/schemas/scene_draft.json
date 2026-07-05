@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneDraft",
+  "type": "object",
+  "required": [
+    "title",
+    "content"
+  ],
+  "properties": {
+    "title": {
+      "description": "シーンタイトル。3〜100文字推奨。",
+      "type": "string"
+    },
+    "content": {
+      "description": "シーン本文。500〜5000文字推奨。",
+      "type": "string"
+    }
+  }
+}

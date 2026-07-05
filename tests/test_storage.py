@@ -39,6 +39,15 @@ class TestStateStorageAtomicSave:
         loaded = storage.load()
         assert loaded.series_title == ""
 
+    def test_planned_status_roundtrips(self, tmp_path):
+        storage = StateStorage(tmp_path)
+        state = ProjectState(series_title="Test", workdir=str(tmp_path), status="企画済")
+        storage.save(state)
+
+        loaded = storage.load()
+
+        assert loaded.status == "企画済"
+
 
 class TestBlackboardStorage:
     def test_roundtrip(self, tmp_path):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -10,21 +11,29 @@ from novel_forge.logging_config import get_logger
 
 _log = get_logger("novel_forge.schemas")
 
-_SCHEMA_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
+_DEV_SCHEMA_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
+_PACKAGED_SCHEMA_DIR = resources.files("novel_forge") / "resources" / "schemas"
+_SCHEMA_DIR = _DEV_SCHEMA_DIR if _DEV_SCHEMA_DIR.exists() else _PACKAGED_SCHEMA_DIR
 
 _SCHEMA_BY_NAME: dict[str, dict[str, Any]] = {}
+
+
+def _schema_files():
+    return sorted(
+        (p for p in _SCHEMA_DIR.iterdir() if p.name.endswith(".json")),
+        key=lambda p: p.name,
+    )
 
 
 def validate_schemas() -> list[str]:
     """Validate all schema files. Returns list of error messages (empty = all OK)."""
     errors: list[str] = []
-    if not _SCHEMA_DIR.exists():
+    if not _SCHEMA_DIR.is_dir():
         return [f"Schema directory not found: {_SCHEMA_DIR}"]
 
-    for path in sorted(_SCHEMA_DIR.glob("*.json")):
+    for path in _schema_files():
         try:
-            with open(path, encoding="utf-8") as f:
-                json.load(f)
+            json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             errors.append(f"{path.name}: {e}")
 
@@ -34,14 +43,13 @@ def validate_schemas() -> list[str]:
 def _load_schema(name: str) -> dict[str, Any]:
     if name not in _SCHEMA_BY_NAME:
         path = _SCHEMA_DIR / f"{name}.json"
-        if not path.exists():
-            available = sorted(p.stem for p in _SCHEMA_DIR.glob("*.json"))
+        if not path.is_file():
+            available = sorted(p.name.removesuffix(".json") for p in _schema_files())
             _log.error(
                 "Schema not found: %s (requested: '%s', available: %s)", path, name, available
             )
             raise FileNotFoundError(f"Schema not found: {path}")
-        with open(path, encoding="utf-8") as f:
-            _SCHEMA_BY_NAME[name] = json.load(f)
+        _SCHEMA_BY_NAME[name] = json.loads(path.read_text(encoding="utf-8"))
     return _SCHEMA_BY_NAME[name]
 
 
@@ -117,4 +125,4 @@ def get_schema(name: str) -> dict[str, Any]:
 
 
 def list_schemas() -> list[str]:
-    return [p.stem for p in _SCHEMA_DIR.glob("*.json")]
+    return [p.name.removesuffix(".json") for p in _schema_files()]

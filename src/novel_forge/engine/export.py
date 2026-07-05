@@ -56,7 +56,7 @@ def resume(engine) -> dict[str, Any]:
         return {"action": "write", "status": vol.status}
     if engine._state.status == "計画中":
         return {"action": "plan", "status": engine._state.status}
-    if engine._state.status == "デザイン済":
+    if engine._state.status in ("企画済", "デザイン済"):
         return {"action": "design", "status": engine._state.status}
     if engine._state.status in ("出力済", "強制出力済"):
         return {"action": "export", "status": engine._state.status}

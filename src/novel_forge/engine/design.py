@@ -170,8 +170,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     scenes: list[dict] = []
     scene_counter = 0
     prev_outcome = ""
-    for ch in chapters:
-        ch_num = ch.get("number", 0)
+    for ch_index, ch in enumerate(chapters, 1):
+        ch_num = ch.get("number") or ch_index
         ch_scenes = ch.get("scenes", [])
         chapter_scene_count = len(ch_scenes)
         for chapter_scene_number, sc_data in enumerate(ch_scenes, 1):
@@ -211,7 +211,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                       )
             scene_obj = sc_result[0] if isinstance(sc_result, tuple) else sc_result
             if isinstance(scene_obj, dict):
-                scene_obj["chapter_number"] = scene_obj.get("chapter_number", ch_num)
+                if not scene_obj.get("chapter_number"):
+                    scene_obj["chapter_number"] = ch_num
                 scene_obj.setdefault("chapter_scene_number", chapter_scene_number)
                 scene_obj["number"] = scene_counter
                 scenes.append(scene_obj)
@@ -239,8 +240,6 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
     vol = engine._current_volume()
     vol.status = "デザイン済"
-    # Use volume title from volume_design if available
-    vol_title = engine._state.title if hasattr(engine._state, 'title') and engine._state.title else f"第{vol_num}巻"
     result = {
         "title": vol_title,
         "premise": vol_premise,

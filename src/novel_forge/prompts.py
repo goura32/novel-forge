@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from importlib import resources
 from pathlib import Path
 
-_PROMPT_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
+_DEV_PROMPT_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
+_PACKAGED_PROMPT_DIR = resources.files("novel_forge") / "resources" / "prompts"
+_PROMPT_DIR = _DEV_PROMPT_DIR if _DEV_PROMPT_DIR.exists() else _PACKAGED_PROMPT_DIR
 
 
 def render_prompt(template: str, variables: dict[str, str]) -> str:
@@ -28,7 +31,7 @@ class PromptManager:
     def render(self, name: str, variables: dict[str, str]) -> str:
         if name not in self._cache:
             path = self._dir / name
-            if not path.exists():
+            if not path.is_file():
                 raise FileNotFoundError(f"Prompt not found: {path}")
             self._cache[name] = path.read_text(encoding="utf-8")
         # {schema} が含まれている場合、スキーマを自動的に取得して置換
@@ -39,23 +42,31 @@ class PromptManager:
             schema_name = name
             if schema_name.endswith(".md"):
                 schema_name = schema_name[:-3]
-            # レビュープロンプトの場合は統一 review スキーマを使用（優先）
-            if "_review" in schema_name or "_revision" in schema_name:
-                schema_dict = get_schema("review")
-            else:
-                # まず元の名前で試す
-                schema_dict = get_schema(schema_name)
-                if not schema_dict:
-                    # _review, _revision を除去して再試行
-                    for suffix in ["_review", "_revision"]:
-                        if schema_name.endswith(suffix):
-                            schema_name = schema_name[:-len(suffix)]
-                            break
-                    schema_dict = get_schema(schema_name)
+            schema_dict = get_schema(_infer_schema_name(schema_name))
             # schema構造そのものを返さないよう、descriptionを中心とした構造化テキストを生成
             schema_json = _build_simplified_schema(schema_dict) if schema_dict else "{}"
             result = result.replace("{schema}", schema_json)
         return render_prompt(result, variables)
+
+
+def _infer_schema_name(prompt_stem: str) -> str:
+    """Infer output schema name from a prompt template stem."""
+    if prompt_stem.endswith("_review"):
+        return "review"
+    revision_map = {
+        "chapter_design_revision": "chapter_design",
+        "scene_design_revision": "scene_design",
+        "volume_design_revision": "volume_design",
+        "series_plan_concept_revision": "series_plan_concept",
+        "series_plan_characters_revision": "series_plan_characters",
+        "series_plan_volumes_revision": "series_plan_volumes",
+        "scene_revision": "scene_draft",
+    }
+    if prompt_stem in revision_map:
+        return revision_map[prompt_stem]
+    if prompt_stem.endswith("_revision"):
+        return prompt_stem[: -len("_revision")]
+    return prompt_stem
 
 
 def _build_simplified_schema(schema: dict) -> str:

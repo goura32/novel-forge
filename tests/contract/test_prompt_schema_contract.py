@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from novel_forge.prompts import PromptManager
+
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
 
@@ -69,6 +71,41 @@ def test_unified_review_schema_exists_without_specific_review_schemas() -> None:
     assert "review" in schema_names
     assert "scene_review" not in schema_names
     assert all(not name.endswith("_review") for name in schema_names)
+
+
+def test_revision_prompts_inject_target_schema_not_review_schema() -> None:
+    manager = PromptManager(PROMPTS_DIR)
+    variables = {
+        "current_chapter": "{}",
+        "current_scene": "{}",
+        "current_volume": "{}",
+        "current_plan": "{}",
+        "current_characters": "{}",
+        "current_volumes": "{}",
+        "review": "レビュー",
+        "series_plan": "{}",
+        "previous_design": "{}",
+        "scene": "本文",
+        "concept_text": "企画",
+        "keywords": "keyword",
+        "lang": "ja",
+    }
+    cases = {
+        "chapter_design_revision.md": ["title", "purpose", "theme"],
+        "scene_design_revision.md": ["title", "goal", "conflict", "outcome"],
+        "volume_design_revision.md": ["title", "premise", "chapters"],
+        "series_plan_concept_revision.md": ["title", "slug", "logline"],
+        "series_plan_characters_revision.md": ["main_characters"],
+        "series_plan_volumes_revision.md": ["planned_volumes"],
+        "scene_revision.md": ["title", "content"],
+    }
+
+    for prompt_name, expected_fields in cases.items():
+        rendered = manager.render(prompt_name, variables)
+        for field in expected_fields:
+            assert field in rendered, f"{prompt_name} should include target schema field {field}"
+        assert "ready_for_publication" not in rendered
+        assert "overall_assessment" not in rendered
 
 
 def test_quality_schema_fields_exist_for_generation_pipeline() -> None:

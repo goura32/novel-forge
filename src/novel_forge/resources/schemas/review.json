@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Review",
+  "description": "レビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
+  "type": "object",
+  "required": [
+    "ready_for_publication",
+    "overall_assessment",
+    "strengths",
+    "issues"
+  ],
+  "properties": {
+    "issues": {
+      "description": "指摘事項のリスト。各要素は修正対象のフィールドを特定し、具体的な差分を示す。",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field",
+          "severity",
+          "description",
+          "suggestion",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "severity": {
+            "description": "修正の緊急性。致命的=必須修正、重要=強推奨、軽微=任意。",
+            "type": "string",
+            "enum": [
+              "致命的",
+              "重要",
+              "軽微"
+            ]
+          },
+          "field": {
+            "description": "修正対象のフィールド名（各フェーズ固有のフィールド名を指定）",
+            "type": "string"
+          },
+          "description": {
+            "description": "問題の説明。何がどう問題かを具体的に記述。",
+            "type": "string"
+          },
+          "suggestion": {
+            "description": "修正の提案。どう改善すべきかの方向性を示す。",
+            "type": "string"
+          },
+          "before": {
+            "description": "修正前のテキスト（当該フィールド内の該当箇所を引用）。配列フィールドの場合は該当要素のみ。",
+            "type": "string"
+          },
+          "after": {
+            "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。",
+            "type": "string"
+          },
+          "publication_blocking": {
+            "description": "出版前に必ず解消すべき問題ならtrue。",
+            "type": "boolean"
+          }
+        },
+        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+      }
+    },
+    "ready_for_publication": {
+      "description": "出版可能状態。致命的/重要issueが残る場合はfalse。",
+      "type": "boolean"
+    },
+    "overall_assessment": {
+      "description": "レビュー全体の短い総評。",
+      "type": "string"
+    },
+    "strengths": {
+      "description": "改稿で維持すべき良い点。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "長所。長所の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+      }
+    }
+  }
+}

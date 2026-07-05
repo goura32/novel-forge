@@ -228,7 +228,7 @@ class ProjectState(BaseModel):
     volumes: list[VolumeProgress] = Field(default_factory=list)
     status: str = Field(
         default="計画中",
-        pattern="^(計画中|デザイン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
+        pattern="^(計画中|企画済|デザイン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )
 
 

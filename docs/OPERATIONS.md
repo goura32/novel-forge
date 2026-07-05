@@ -69,7 +69,7 @@ uv run novel-forge resume   -w <dir>  # next step to resume
 
 ```bash
 curl -s http://localhost:11434/api/tags > /dev/null && echo OK || echo FAIL
-uv run novel-forge doctor --workdir <dir>
+uv run novel-forge doctor
 ```
 
 ---

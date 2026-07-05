@@ -1,7 +1,0 @@
-[2026-07-04 00:24:28] [series_romance_fantasy] [PID 152255] [INFO] ▶ Design: slug='series_romance_fantasy' vol=1/0 PID=152255
-[2026-07-04 00:24:28] [series_romance_fantasy] [PID 152255] [INFO]   ▶ volume_design — vol=1/0
-[2026-07-04 00:24:28] [series_romance_fantasy] [PID 152255] [DEBUG] build_payload called: schema=dict, user_prompt_len=1412, has_schema=False
-[2026-07-04 00:24:28] [series_romance_fantasy] [PID 152255] [DEBUG] build_payload: payload user_prompt_len=1412, has_schema=False
-[2026-07-04 00:24:28] [series_romance_fantasy] [PID 152255] [DEBUG]   [LLM CALL] kind=volume_design attempt=1/2 model=qwen3.6:35b-a3b-mtp-q4_K_M seed=42 series=series_romance_fantasy
-[2026-07-04 00:24:31] [series_romance_fantasy] [PID 152255] [INFO]   [LLM PROGRESS] chunks=1 bytes=142 elapsed=3.0s series=series_romance_fantasy
-[2026-07-04 00:24:42] [series_romance_fantasy] [PID 152255] [DEBUG]   [LLM DONE] kind=volume_design chunks=425 bytes=60997 elapsed=14.1s series=series_romance_fantasy done=

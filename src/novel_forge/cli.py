@@ -196,19 +196,18 @@ def complete(
         ("Export", lambda: engine.export(volume)),
     ]
     result = None
-    try:
-        for i, (name, fn) in enumerate(steps, 1):
-            console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
-            try:
-                result = fn()
-            except Exception as e:
-                console.print(f"[red]✗ {name} failed: {e}[/red]")
-                raise SystemExit(1) from e
-    finally:
-        assert result is not None
-        console.print(
-            f"[green]✓[/green] Complete! Manuscript: {result.get('manuscript_path', result.get('manuscript', 'N/A'))}"
-        )
+    for i, (name, fn) in enumerate(steps, 1):
+        console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
+        try:
+            result = fn()
+        except Exception as e:
+            console.print(f"[red]✗ {name} failed: {e}[/red]")
+            raise SystemExit(1) from e
+    if result is None:
+        raise SystemExit(1)
+    console.print(
+        f"[green]✓[/green] Complete! Manuscript: {result.get('manuscript_path', result.get('manuscript', 'N/A'))}"
+    )
 
 
 @app.command()
