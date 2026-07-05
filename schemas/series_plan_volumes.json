@@ -38,14 +38,16 @@
             "description": "巻内の主要イベント。3〜10個推奨、各最大200文字。",
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
             }
           },
           "cliffhanger": {
             "description": "次巻へのフック（最終巻以外必須）。100〜1000文字推奨。",
             "type": "string"
           }
-        }
+        },
+        "description": "planned volumesを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       }
     }
   },

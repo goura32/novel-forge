@@ -34,21 +34,23 @@
       "type": "string"
     },
     "pov": {
-      "description": "視点人物",
+      "description": "視点人物。出力の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
       "type": "string"
     },
     "characters": {
       "description": "登場人物。1〜10個推奨。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "key_events": {
       "description": "主要イベント。1〜5個推奨。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "setting": {
@@ -75,7 +77,8 @@
       "description": "このシーンで重点的に使う感覚。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "sensory focus。sensory focusの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "subtext": {
@@ -86,7 +89,8 @@
       "description": "設置または回収する伏線。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "伏線。伏線の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
   },

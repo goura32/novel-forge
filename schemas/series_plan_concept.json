@@ -21,7 +21,8 @@
       "description": "ジャンル。2〜5個推奨、各最大64文字。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "ジャンル。ジャンルの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "target_audience": {
@@ -32,14 +33,16 @@
       "description": "テーマ。2〜5個推奨、各最大64文字。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "themes。themesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "selling_points": {
       "description": "売りポイント。2〜7個推奨、各最大128文字。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "selling points。selling pointsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "world_summary": {
@@ -50,7 +53,8 @@
       "description": "世界観の独自ルール。1〜10個推奨、各最大200文字。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "世界観ルール。世界観ルールの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
   },

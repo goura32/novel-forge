@@ -127,6 +127,8 @@ class LLMClient:
         self._log = get_logger("novel_forge.llm")
         self._last_progress_log: float = 0.0
         self._current_kind: str = ""
+        self._call_sequence: int = 0
+        self._active_call_dir: Path | None = None
         self._run_timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self._ollama_options.get("think", False):
             console.print(
@@ -218,6 +220,8 @@ class LLMClient:
         # payload["messages"][1]["content"] already has {schema} replaced by _build_payload
         current_prompt = payload["messages"][1]["content"]
         self._current_kind = kind
+        self._call_sequence += 1
+        self._active_call_dir = None
 
         for attempt in range(max(self.max_retries, 1)):
             payload["messages"][1]["content"] = current_prompt
@@ -392,19 +396,38 @@ class LLMClient:
     def _make_call_dir(self, kind: str) -> Path:
         """1回のLLM呼び出し用のディレクトリを作成して返す。
 
-        Format: {raw_log_dir}/{phase}/{timestamp}_{pid}_{kind}/
-        pidで実行単位を識別 → 中断再開でも同じPIDのログが纏まる
+        Format: {raw_log_dir}/{phase}/{timestamp}_{pid}_{sequence}_{kind}/
+        sequenceで同一kindの複数呼び出しを区別し、リトライや再実行でも上書きを防ぐ。
         """
         if not self.raw_log_dir:
             return Path("/dev/null")  # dummy
+        if self._active_call_dir is not None:
+            return self._active_call_dir
         phase = self.phase if self.phase else "unknown"
         import os as _os
         pid = _os.getpid()
-        run_dir = self.raw_log_dir / phase / f"{self._run_timestamp}_{pid}_{kind}"
+        run_dir = (
+            self.raw_log_dir
+            / phase
+            / f"{self._run_timestamp}_{pid}_{self._call_sequence:04d}_{kind}"
+        )
         run_dir.mkdir(parents=True, exist_ok=True)
-        # Create details/ subdirectory for JSON.gz files
         (run_dir / "details").mkdir(exist_ok=True)
+        self._active_call_dir = run_dir
         return run_dir
+
+    @staticmethod
+    def _non_overwriting_path(path: Path) -> Path:
+        """Return path or a suffixed sibling so existing raw logs are never overwritten."""
+        if not path.exists():
+            return path
+        suffixes = "".join(path.suffixes)
+        stem = path.name[: -len(suffixes)] if suffixes else path.name
+        for i in range(1, 10000):
+            candidate = path.with_name(f"{stem}_{i}{suffixes}")
+            if not candidate.exists():
+                return candidate
+        raise FileExistsError(f"Could not find free raw log path for {path}")
 
     def _write_raw_log(self, file_type: str, raw_text: str) -> None:
         """1回のLLM呼び出しで2ファイルを書き出す。
@@ -415,7 +438,7 @@ class LLMClient:
             return
         call_dir = self._make_call_dir(self._current_kind)
         try:
-            gz_path = call_dir / "details" / f"{file_type}.json.gz"
+            gz_path = self._non_overwriting_path(call_dir / "details" / f"{file_type}.json.gz")
             with gzip.open(gz_path, "wb") as f:
                 f.write(raw_text.encode("utf-8"))
         except Exception as e:

@@ -57,7 +57,8 @@
             "description": "出版前に必ず解消すべき問題ならtrue。",
             "type": "boolean"
           }
-        }
+        },
+        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       }
     },
     "ready_for_publication": {
@@ -72,7 +73,8 @@
       "description": "改稿で維持すべき良い点。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "長所。長所の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
   }

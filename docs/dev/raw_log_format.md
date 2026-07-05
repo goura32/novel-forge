@@ -2,96 +2,76 @@
 
 ## 概要
 
-`llm_client.py` の `_write_raw_log` は、Ollama APIとの通信内容を gzip 圧縮で保存する。
-`--raw-log` オプション時に有効化され、デフォルトでは無効。
+`llm_client.py` は `--raw-log` 有効時、Ollama API へ送った payload と、Ollama から受け取った生NDJSONを gzip 圧縮で保存する。
 
-## ファイル命名規則
+raw log は調査・再現性確保のための監査ログであり、通常は Git 管理外とする。
 
-```
-{timestamp}_pid{pid}_{kind}{suffix}.json.gz
+## 保存先
+
+```text
+{workdir}/_raw_logs/{phase}/{run_timestamp}_{pid}_{sequence}_{kind}/
+  raw_summary.md
+  details/
+    request_{attempt}_{seed_offset}.json.gz
+    response_{attempt}_{seed_offset}.json.gz
+    response.json.gz
+    _timeout.json.gz
+    _http_err.json.gz
+    _empty.json.gz
 ```
 
 | 要素 | 形式 | 説明 |
 |---|---|---|
-| timestamp | `YYYYMMDD_HHMMSS` | ログ作成時刻 |
-| pid | 数字 | プロセスID |
-| kind | 文字列 | ログの種類（後述） |
-| suffix | `_000`, `_001`, ... | 同一タイムスタンプの重複回避用（0の場合は省略） |
+| `phase` | `plan`, `design`, `write`, `export`, `resume`, `complete`, `unknown` | CLIフェーズ |
+| `run_timestamp` | `YYYYMMDD_HHMMSS` | `LLMClient` 生成時刻 |
+| `pid` | 数字 | 実行プロセスID |
+| `sequence` | `0001`, `0002`, ... | 同一プロセス内の LLM 呼び出し連番。同一 `kind` 複数回実行の上書きを防ぐ |
+| `kind` | 例: `scene_draft`, `review`, `volume_design` | 呼び出し元のタスク識別子 |
+| `attempt` | `0`, `1`, ... | リトライ試行番号 |
+| `seed_offset` | 数字 | 呼び出し側から渡された seed offset |
 
-### kind 一覧
+## 保存内容
 
-| kind | 意味 |
-|---|---|
-| `_resp` | 正常レスポンス（Ollama の生NDJSON） |
-| `_req` | リクエストペイロード |
-| `_json_err` | JSONパースエラー |
-| `_schema_err` | スキーマ検証エラー |
-| `_llm_err` | LLM API エラー（タイムアウト等） |
-| `_err` | 予期しないエラー（catch-all） |
-| `_failed` | 全リトライ失敗 |
-| `_timeout` | タイムアウト |
-| `_http_err` | HTTPステータスエラー |
-| `_empty` | 空レスポンス |
+### `details/request_{attempt}_{seed_offset}.json.gz`
 
-`kind` は `_call_api` の内部ログ（`_resp`, `_req`, `_timeout`, `_http_err`, `_empty`）と、`complete_json` のエラーパス（`_json_err`, `_schema_err`, `_llm_err`, `_err`, `_failed`）に分かれる。
+Ollama `/api/chat` へ送る payload を `json.dumps(..., ensure_ascii=False)` した文字列をそのまま保存する。
 
-`complete_json` のエラーパスでは、`kind` は呼び出し元の識別子にサフィックスを付加した形式になる。例：
-- `series_plan_characters_json_err` — キャラクター生成のJSONパースエラー
-- `plan_chars_err` — キャラクター生成の予期しないエラー
+含まれる主な内容:
 
-## ファイル構造（JSON）
+- `model`
+- `messages[0]` system prompt
+- `messages[1]` user prompt（schema展開後）
+- `format: "json"`
+- `options` (`num_ctx`, `num_predict`, `seed`, config由来の Ollama options)
+- `think`
 
-```json
-{
-  "kind": "plan_chars_err",
-  "timestamp": "20260622_084506",
-  "pid": 383609,
-  "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
-  "request": {
-    "system": "...(システムプロンプト)...",
-    "user": "...(ユーザープロンプト)...",
-    "options": { "num_ctx": 262144, "num_predict": -1, "seed": 42 },
-    "format": "json",
-    "think": false
-  },
-  "raw_response": "...(Ollamaの生NDJSON)...",
-  "thinking": "...(thinkingトークン、省略時は未設定)...",
-  "response": {
-    "error": "Illegal trailing comma...",
-    "error_type": "JsonParseError"
-  }
-}
-```
+### `details/response_{attempt}_{seed_offset}.json.gz`
 
-### フィールド
+Ollama から受け取った生NDJSONを、改行で結合した文字列のまま保存する。JSON parse / schema validation に失敗した場合も保存する。
 
-| フィールド | 型 | 説明 |
-|---|---|---|
-| kind | string | ログの種類 |
-| timestamp | string | 作成時刻 `YYYYMMDD_HHMMSS` |
-| pid | number | プロセスID |
-| model | string | モデル名 |
-| request | object \| 未設定 | リクエストペイロード（`_req` のみ） |
-| raw_response | string | Ollama の生NDJSONレスポンス |
-| thinking | string \| 未設定 | thinkingトークン（10MB超は切り捨て） |
-| response | object \| 未設定 | パース済みレスポンスまたはエラー情報 |
+### `details/response.json.gz`
 
-## 保存先
+`_call_api()` 内部が正常HTTPレスポンス受信時に保存する補助ログ。監査上の正は attempt 番号付きの `response_{attempt}_{seed_offset}.json.gz` とする。
 
-```
-{workdir}/_raw_logs/
-```
+### `details/_timeout.json.gz`, `_http_err.json.gz`, `_empty.json.gz`
 
-`plan` コマンド: `{workdir}/_raw_logs/`（workdir = `/mnt/hdd/novel/`）
-`complete` コマンド: `{series_dir}/_raw_logs/`（series_dir = `{workdir}/series_{hash}/`）
+API呼び出し中にタイムアウト、HTTPエラー、空レスポンスが発生した場合の補助ログ。可能な範囲で受信済みの生データまたはエラー文字列を保存する。
 
-## 圧縮
+## 上書き防止
 
-全ファイル gzip 圧縮（`.json.gz`）。
+- 1回の `complete_json()` 呼び出しごとに `sequence` 付きの専用ディレクトリを作る。
+- リトライごとに `request_{attempt}_{seed_offset}` / `response_{attempt}_{seed_offset}` を分ける。
+- 同名ファイルが既に存在する場合は `_1`, `_2`, ... の suffix を付けて保存し、既存ログを上書きしない。
+
+## 人間向け summary
+
+各呼び出しディレクトリの `raw_summary.md` に、リクエスト/レスポンスを読みやすい形式で追記する。
+
+`raw_summary.md` は可読性のために整形される。完全な監査対象は `details/*.json.gz` とする。
 
 ## 設計方針
 
-- リクエストとレスポンスの両方を保存し、再現性を確保
-- thinking トークンも保存し、モデルの推論過程を調査可能に
-- エラー時はエラーメッセージとエラータイプを `response` に記録
-- 10MB 超の thinking は先頭5MB に切り捨て（ディスク節約）
+- 送信 payload を欠落なく保存する。
+- 受信 raw NDJSON を欠落なく保存する。
+- JSON parse error / schema validation error / LLMError / unexpected error の発生時も、可能な限り request と response を保存する。
+- retry と同一 kind の複数呼び出しで、過去ログが消えないようにする。

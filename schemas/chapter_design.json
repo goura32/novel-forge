@@ -20,7 +20,7 @@
       "type": "string"
     },
     "purpose": {
-      "description": "章の役割。単語のみ",
+      "description": "目的。物語上の機能や状態が分かる具体的な日本語で書く。",
       "type": "string",
       "enum": [
         "導入",
@@ -82,14 +82,16 @@
             "description": "登場キャラクター。1〜10個推奨。",
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
             }
           },
           "key_events": {
             "description": "主要イベント。1〜5個推奨。",
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
             }
           },
           "setting": {
@@ -105,18 +107,19 @@
             "type": "string"
           },
           "hook": {
-            "description": "シーン冒頭のフック。",
+            "description": "hook。シーンの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "turning_point": {
-            "description": "シーン内の転換点。",
+            "description": "転換点。シーンの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "ending_hook": {
-            "description": "シーン末尾の引き。",
+            "description": "末尾フック。シーンの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           }
-        }
+        },
+        "description": "シーンを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       }
     },
     "chapter_turning_point": {
@@ -131,21 +134,24 @@
       "description": "章で設置・回収する伏線メモ。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "foreshadowing notes。foreshadowing notesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "subplot_notes": {
       "description": "章で進行するサブプロットメモ。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "subplot notes。subplot notesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "characters": {
-      "description": "章で重要な人物。",
+      "description": "登場人物の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
   }

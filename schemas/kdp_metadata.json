@@ -21,14 +21,16 @@
       "description": "キーワード。3〜7個推奨、各最大50文字。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "検索キーワード。検索キーワードの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "categories": {
       "description": "カテゴリ。2〜3個推奨、各最大100文字。",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "description": "カテゴリ。カテゴリの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
   }

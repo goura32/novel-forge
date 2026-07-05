@@ -22,7 +22,7 @@
         ],
         "properties": {
           "name": {
-            "description": "キャラクター名",
+            "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
             "type": "string"
           },
           "role": {
@@ -30,34 +30,35 @@
             "type": "string"
           },
           "personality": {
-            "description": "性格・気質",
+            "description": "性格。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "motivation": {
-            "description": "動機・目的",
+            "description": "動機。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "flaw": {
-            "description": "欠点・弱点",
+            "description": "flaw。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "arc": {
-            "description": "成長の方向性・軌跡",
+            "description": "変化の方向性。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "occupation": {
-            "description": "職業・立場",
+            "description": "occupation。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "appearance": {
-            "description": "外見的特徴",
+            "description": "外見。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           },
           "background": {
-            "description": "背景・来歴",
+            "description": "背景。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
             "type": "string"
           }
-        }
+        },
+        "description": "主要登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       }
     }
   },

@@ -9,7 +9,7 @@
   ],
   "properties": {
     "title": {
-      "description": "作品タイトル",
+      "description": "タイトル。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
       "type": "string"
     },
     "visual_elements": {
@@ -20,7 +20,7 @@
       ],
       "properties": {
         "subject": {
-          "description": "メインビジュアルの主体",
+          "description": "主語を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
           "type": "object",
           "required": [
             "description"
@@ -40,13 +40,17 @@
                 ],
                 "properties": {
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
                   },
                   "appearance": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "外見。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
                   }
-                }
-              }
+                },
+                "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+              },
+              "description": "登場人物の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。"
             }
           }
         },
@@ -54,14 +58,15 @@
           "type": "object",
           "properties": {
             "setting": {
-              "description": "背景の場面説明",
+              "description": "舞台設定。背景の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
               "type": "string"
             },
             "atmosphere": {
               "description": "雰囲気（暗い、明るい、幻想的等）",
               "type": "string"
             }
-          }
+          },
+          "description": "背景を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
         },
         "items": {
           "description": "物語を象徴するアイテム・モチーフ",
@@ -74,12 +79,15 @@
             ],
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
               },
               "significance": {
-                "type": "string"
+                "type": "string",
+                "description": "significance。象徴アイテムの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
               }
-            }
+            },
+            "description": "象徴アイテムを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
           }
         }
       }
@@ -89,7 +97,7 @@
       "type": "object",
       "properties": {
         "genre": {
-          "description": "ジャンル",
+          "description": "ジャンル。styleの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
           "type": "string"
         },
         "tone": {
@@ -100,11 +108,12 @@
           "description": "カラーパレット（3〜5色）",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "description": "配色。配色の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           }
         },
         "composition": {
-          "description": "構図タイプ",
+          "description": "構図。styleの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
           "type": "string",
           "enum": [
             "縦構図",
@@ -125,7 +134,8 @@
       "type": "object",
       "properties": {
         "series_name": {
-          "type": "string"
+          "type": "string",
+          "description": "シリーズ名。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
         }
       }
     }

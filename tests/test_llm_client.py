@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import json
 from unittest.mock import MagicMock, patch
 
@@ -272,8 +273,13 @@ class TestCompleteJsonPayload:
 
 
 class TestCompleteJsonRawLog:
-    def test_raw_log_saved_when_enabled(self, tmp_path):
-        """Raw log should be saved when raw_log_enabled=True."""
+    @staticmethod
+    def _read_gzip(path):
+        with gzip.open(path, "rb") as f:
+            return f.read().decode("utf-8")
+
+    def test_raw_log_preserves_exact_request_and_response_payload(self, tmp_path):
+        """Raw log should save exact outgoing payload and exact incoming NDJSON."""
         full_json = json.dumps({"test": "data"}, ensure_ascii=False)
         chunks = _ndjson_response(full_json)
         mock_resp = _make_streaming_response(chunks)
@@ -283,12 +289,95 @@ class TestCompleteJsonRawLog:
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
                 raw_log_enabled=True,
+                phase="write",
             )
             client.complete_json("test_kind", "sys prompt", "usr prompt")
 
-        # Check that raw log files were created
-        log_files = list(tmp_path.rglob("*.json.gz"))
-        assert len(log_files) > 0
+        request_files = list(tmp_path.rglob("details/request_0_0.json.gz"))
+        response_files = list(tmp_path.rglob("details/response_0_0.json.gz"))
+        assert len(request_files) == 1
+        assert len(response_files) == 1
+
+        payload = json.loads(self._read_gzip(request_files[0]))
+        assert payload["messages"] == [
+            {"role": "system", "content": "sys prompt"},
+            {"role": "user", "content": "usr prompt"},
+        ]
+        assert self._read_gzip(response_files[0]) == "\n".join(chunks)
+
+    def test_raw_log_preserves_failed_json_parse_response(self, tmp_path):
+        """Raw log should be written even when parsing fails."""
+        chunks = _ndjson_response("this is not json")
+        mock_resp = _make_streaming_response(chunks)
+
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                raw_log_dir=tmp_path,
+                raw_log_enabled=True,
+                max_retries=1,
+                phase="write",
+            )
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
+
+        request_files = list(tmp_path.rglob("details/request_0_0.json.gz"))
+        response_files = list(tmp_path.rglob("details/response_0_0.json.gz"))
+        assert len(request_files) == 1
+        assert len(response_files) == 1
+        assert self._read_gzip(response_files[0]) == "\n".join(chunks)
+
+    def test_raw_log_retries_use_distinct_attempt_files(self, tmp_path):
+        """Retries must keep every attempt's request and response without overwriting."""
+        bad_resp = _make_streaming_response(_ndjson_response("bad json"))
+        good_chunks = _ndjson_response(json.dumps({"ok": True}))
+        good_resp = _make_streaming_response(good_chunks)
+
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                raw_log_dir=tmp_path,
+                raw_log_enabled=True,
+                max_retries=2,
+                phase="write",
+            )
+            assert client.complete_json("test_kind", "sys", "usr") == {"ok": True}
+
+        for filename in [
+            "request_0_0.json.gz",
+            "response_0_0.json.gz",
+            "request_1_0.json.gz",
+            "response_1_0.json.gz",
+        ]:
+            assert len(list(tmp_path.rglob(f"details/{filename}"))) == 1
+
+    def test_raw_log_multiple_same_kind_calls_do_not_overwrite(self, tmp_path):
+        """Two calls with same kind must produce two independent raw-log call dirs."""
+        first_chunks = _ndjson_response(json.dumps({"n": 1}))
+        second_chunks = _ndjson_response(json.dumps({"n": 2}))
+
+        with patch(
+            "novel_forge.llm_client.httpx.stream",
+            side_effect=[
+                _make_streaming_response(first_chunks),
+                _make_streaming_response(second_chunks),
+            ],
+        ):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                raw_log_dir=tmp_path,
+                raw_log_enabled=True,
+                phase="write",
+            )
+            assert client.complete_json("test_kind", "sys1", "usr1") == {"n": 1}
+            assert client.complete_json("test_kind", "sys2", "usr2") == {"n": 2}
+
+        request_files = sorted(tmp_path.rglob("details/request_0_0.json.gz"))
+        response_files = sorted(tmp_path.rglob("details/response_0_0.json.gz"))
+        assert len(request_files) == 2
+        assert len(response_files) == 2
+        request_payloads = [json.loads(self._read_gzip(path)) for path in request_files]
+        assert [p["messages"][1]["content"] for p in request_payloads] == ["usr1", "usr2"]
 
     def test_no_raw_log_when_disabled(self, tmp_path):
         """No raw log files when raw_log_enabled=False."""
