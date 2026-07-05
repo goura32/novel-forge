@@ -237,3 +237,60 @@ class TestExportPreflight:
 
         with pytest.raises(ValueError, match="incomplete scenes: 1"):
             export_fn(engine, volume_number=1)
+
+    def test_export_rejects_semantically_invalid_volume_design(self, tmp_path):
+        """Export preflight should reject duplicate final design scene numbers."""
+        from novel_forge.engine.base import NovelEngineBase
+        from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
+        from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+
+        (tmp_path / "series_plan.json").write_text(
+            '{"title":"T","genre":["fantasy"]}', encoding="utf-8"
+        )
+        ch_dir = tmp_path / "vol01" / "vol01_ch01"
+        ch_dir.mkdir(parents=True)
+        (ch_dir / "vol01_ch01_sc01_v1.md").write_text("シーン1", encoding="utf-8")
+        (ch_dir / "vol01_ch01_sc02_v1.md").write_text("シーン2", encoding="utf-8")
+
+        engine = NovelEngineBase(
+            workdir=tmp_path,
+            phase="export",
+            storage=StateStorage(tmp_path),
+            bb_storage=BlackboardStorage(tmp_path),
+            bible_storage=BibleStorage(tmp_path),
+        )
+        engine._state = ProjectState(series_title="Test", status="初稿済", current_volume=1)
+        vol = VolumeProgress(volume_number=1, status="初稿済")
+        vol.scenes.extend(
+            [
+                SceneRecord(scene_number=1, status="修正済"),
+                SceneRecord(scene_number=2, status="修正済"),
+            ]
+        )
+        engine._state.volumes = [vol]
+        engine._save_path(
+            1,
+            "vol01.json",
+            {
+                "title": "Vol1",
+                "premise": "T",
+                "chapters": [
+                    {
+                        "number": 1,
+                        "scenes": [
+                            {"number": 1, "chapter_number": 1},
+                            {"number": 2, "chapter_number": 1},
+                        ],
+                    }
+                ],
+                "scenes": [
+                    {"number": 1, "chapter_number": 1, "title": "シーン1"},
+                    {"number": 1, "chapter_number": 1, "title": "シーン2"},
+                ],
+            },
+        )
+
+        from novel_forge.engine.export import export as export_fn
+
+        with pytest.raises(ValueError, match="duplicate scene number: 1"):
+            export_fn(engine, volume_number=1)

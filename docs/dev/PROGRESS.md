@@ -13,7 +13,7 @@
 
 | 項目 | 状態 |
 |---|---|
-| pytest | `uv run pytest tests -q` → 258 passed |
+| pytest | `uv run pytest tests -q` → 264 passed |
 | ruff | `uv run ruff check src/novel_forge tests scripts` → All checks passed |
 | prompt validator | `uv run python scripts/validate_prompts.py` → All placeholders consistent |
 | wheel resources | `uv build` wheel に prompts 25件 / schemas 15件を同梱 |
@@ -87,13 +87,13 @@
 | P10-03 | write resume / export preflight のテストを追加 | Done | `tests/test_write_resume_export_preflight.py` |
 | P10-04 | plan後のfinal series dir再バインド | Done | temp dirに書き続ける不整合を修正 |
 
-## 9. Phase 11 — schema strictness + semantic validators（予定）
+## 9. Phase 11 — schema strictness + semantic validators（完了）
 
 | ID | Task | Status | メモ |
 |---|---|---:|---|
 | P11-01 | 全 object に `additionalProperties: false` を追加 | Done | 15 schema / packaged resourcesを同期し、未知fieldを拒否するcontract testを追加 |
 | P11-02 | required fields に `minLength` / `minItems` を追加 | Done | 全stringの空文字を拒否し、重要arrayにminItemsを追加。空配列が意味を持つ更新系は例外化 |
-| P11-03 | duplicate chapter/scene number などの semantic validator を追加 | TBD | `tests/contract/test_semantic_validators.py` |
+| P11-03 | duplicate chapter/scene number などの semantic validator を追加 | Done | final volume design の重複番号・章/scene参照不整合を検出し、export preflightへ統合 |
 
 ## 10. Phase 12 — mypy burn-down（予定）
 

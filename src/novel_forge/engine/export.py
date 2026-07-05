@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from novel_forge.semantic_validators import validate_volume_design_semantics
+
 _SLUG_DEFAULT = "vol"
 
 
@@ -72,6 +74,7 @@ def _export_preflight(engine, vol_num: int) -> None:
         design_data = {}
 
     expected_scenes = _expected_scene_refs(design_data)
+    errors.extend(validate_volume_design_semantics(design_data))
     if not expected_scenes:
         errors.append("volume design has no scenes")
 
