@@ -26,7 +26,7 @@ uv run novel-forge complete -w <dir> "keyword1 keyword2"
 | `--max-generation-count`   | `config.yaml` → `3`              | 生成・バリデーションの最大試行数 |
 | `--max-review-count`       | `config.yaml` → `8`              | レビュー→修正サイクルの最大数 |
 | `--verbose, -v`            | `config.yaml` → `false`          | 詳細ログ出力                 |
-| `--raw-log`                | `config.yaml` → `false`          | raw log / human summary を保存 |
+
 
 省略時の優先順位は `CLI引数 > NOVEL_FORGE_CONFIG > --workdir/config.yaml > カレントディレクトリから親方向のconfig.yaml > built-in既定値` です。`config.yaml` が存在しなくても built-in 既定値で動作します。
 
@@ -36,7 +36,7 @@ uv run novel-forge complete -w <dir> "keyword1 keyword2"
 
 ```bash
 # LLM request/response の raw log と人間向けsummaryを書き出す
-uv run novel-forge write -w <dir> --raw-log
+uv run novel-forge write -w <dir>
 ```
 
 | path | 内容 |

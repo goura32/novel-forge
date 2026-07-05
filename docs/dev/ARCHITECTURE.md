@@ -298,7 +298,7 @@ _raw_logs/plan/20260629_064606_series_plan_concept/
 
 - ログ: `workdir/novel_forge.log`（追記モード、全シリーズ共通）
 - RAW: `_raw_logs/{phase}/{YYYYMMDD_HHMMSS}_{kind}/`
-  - `raw_summary.md`: 人が読める形式（追記、`--raw-log` 時のみ）
+  - `raw_summary.md`: 人が読める形式（追記、`verbose: true` 時のみ）
   - `details/`: gzip 元データ（リクエスト・レスポンス）
 
 ## 9. プロンプトテンプレート一覧

@@ -114,7 +114,7 @@
 
 | ID | Task | Status | メモ |
 |---|---|---:|---|
-| P14-01 | 実モデル `plan` smoke を実行 | Done | `uv run novel-forge plan -w smoke_workspace --raw-log --max-generation-count 2 --max-review-count 1 ...` |
+
 | P14-02 | `series_plan_volumes.cliffhanger` 空文字対策 | Done | 最終巻も余韻・未来へのフックとして非空出力を要求 |
 | P14-03 | `series_plan_characters_revision` の schema echo / 空配列対策 | Done | 既存人数維持、`main_characters` 配列、実データのみ出力、`arc`維持を明示 |
 | P14-04 | 契約テスト追加 | Done | prompt品質契約で上記退行を固定 |
@@ -128,14 +128,14 @@
 | P15-02 | summary構成を整理 | Done | `summary.md` を索引、`summary/request_*.md` / `summary/response_*.md` を詳細Markdown、`details/*.json.gz` を完全rawに分離 |
 | P15-03 | response summaryからthinking/transport metadataを除外 | Done | Ollama NDJSON は `message.content` のみ連結しJSON整形。thinkingはgzip rawのみ |
 | P15-04 | 重複rawを削除 | Done | 成功responseは `details/response_0_0.json.gz` に統一し、旧 `response.json.gz` を出さない |
-| P15-05 | 実CLI smoke確認 | Done | `--raw-log` plan成功。missingなし、`response.json.gz`なし、summary内thinkingなし |
+
 
 ## 14. Phase 16 — config.yaml 省略時の既定値精査（完了）
 
 | ID | Task | Status | メモ |
 |---|---|---:|---|
 | P16-01 | config探索順を明確化 | Done | `CLI > NOVEL_FORGE_CONFIG > --workdir/config.yaml > cwd親探索 > built-in` に統一 |
-| P16-02 | CLI省略時のconfig上書きバグ修正 | Done | `--model`, `--verbose`, `--raw-log`, retry countが未指定なら `None` としてengine側で解決 |
+
 | P16-03 | configなしbuilt-in既定値を精査 | Done | quality built-in を `max_generation_count=3`, `max_review_count=8` に調整 |
 | P16-04 | doctorのconfig対応 | Done | `doctor -w <dir>` で `<dir>/config.yaml` の model/ollama_host を使用 |
 | P16-05 | 契約テストとdocs同期 | Done | missing config / workdir config / CLI override / env precedence をテスト化 |

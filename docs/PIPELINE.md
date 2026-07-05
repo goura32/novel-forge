@@ -13,7 +13,6 @@
 | `--max-generation-count` | | `config.yaml` → `3` | 生成API（APIエラー＋バリデーション）の最大試行数 |
 | `--max-review-count` | | `config.yaml` → `8` | レビュー→修正サイクルの最大回数 |
 | `--verbose` | `-v` | `config.yaml` → `false` | 詳細出力 |
-| `--raw-log` | | `config.yaml` → `false` | LLM生データと人間向けsummaryを `_raw_logs/` に保存 |
 
 ### 1.2 排他制御
 
@@ -370,7 +369,7 @@ _raw_logs/plan/20260629_064606_12345_0001_series_plan_concept/
 - 人間向けsummaryには transport metadata や `message.thinking` を含めない。thinkingを含む完全な応答確認は `details/*.json.gz` を展開して行う
 - request summary は prompt確認に必要な `messages[].content` と主要API設定に絞る
 - response summary はschema検証やJSON内容確認向け。生NDJSONそのものは出さない
-- `raw_log: false` の場合は保存しない
+- `verbose: false` の場合はraw logは自動的に無効になります
 
 ---
 

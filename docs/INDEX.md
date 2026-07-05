@@ -47,7 +47,7 @@
 | # | ファイル |
 |---|---|
 1 | [OPERATIONS.md](./OPERATIONS.md) - runbook - Ollama・ロック・スキーマエラー対応
-2 | [raw_log_format.md](./dev/raw_log_format.md) - raw log ファイル形式仕様
+2 | [RAW_LOG_FORMAT.md](./dev/raw_log_format.md) - raw log ファイル形式仕様（verbose=true時のみ有効）
 3 | [OLLAMA_API.md](./dev/OLLAMA_API.md) - Ollama API ペイロード / response 形式
 4 | [schema_maintenance.md](./dev/schema_maintenance.md) - スキーマ修正チェックリスト
 

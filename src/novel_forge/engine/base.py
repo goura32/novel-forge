@@ -73,8 +73,8 @@ class NovelEngineBase:
     _DEFAULT_NUM_CTX = 262144
     _DEFAULT_TIMEOUT = 3600
     _DEFAULT_MAX_RETRIES = 2
-    _DEFAULT_MAX_GENERATION_COUNT = 3
-    _DEFAULT_MAX_REVIEW_COUNT = 8
+    _DEFAULT_MAX_GENERATION_COUNT = 4
+    _DEFAULT_MAX_REVIEW_COUNT = 7
 
     def __init__(
         self,
@@ -87,7 +87,6 @@ class NovelEngineBase:
         max_review_count: int | None = None,
         max_generation_count: int | None = None,
         verbose: bool | None = None,
-        raw_log_enabled: bool | None = None,
         phase: str = "",
         # -- Dependency injection for testing --
         storage: StateStorage | None = None,
@@ -104,9 +103,6 @@ class NovelEngineBase:
 
         log_cfg = cfg.get("logging", {})
         self._verbose = verbose if verbose is not None else log_cfg.get("verbose", False)
-        self._raw_log_enabled = (
-            raw_log_enabled if raw_log_enabled is not None else log_cfg.get("raw_log", False)
-        )
         self._log_level = log_cfg.get("log_level", "DEBUG")
         # If workdir is an existing series directory (contains series_plan.json),
         # use it directly as _series_dir and derive slug from it.
@@ -170,8 +166,7 @@ class NovelEngineBase:
             llm_client = LLMClient(
                 api_url=api_url,
                 model=model,
-                raw_log_dir=Path(workdir) / "_raw_logs",
-                raw_log_enabled=self._raw_log_enabled,
+                raw_log_dir=Path(workdir) / "_raw_logs" if self._verbose else None,
                 phase=phase,
                 timeout_seconds=timeout,
                 transport_retries=transport_retries,

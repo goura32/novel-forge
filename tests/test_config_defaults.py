@@ -14,7 +14,7 @@ def test_missing_config_uses_builtin_defaults(monkeypatch, tmp_path) -> None:
     workdir = tmp_path / "workspace"
     workdir.mkdir()
 
-    engine = NovelEngine(workdir=workdir, model=None, verbose=None, raw_log_enabled=None)
+    engine = NovelEngine(workdir=workdir, model=None, verbose=None)
 
     assert engine._llm.model == "qwen3.6:35b-a3b-mtp-q4_K_M"
     assert engine._llm.api_url == "http://ws1.local:11434/api/chat"
@@ -23,10 +23,9 @@ def test_missing_config_uses_builtin_defaults(monkeypatch, tmp_path) -> None:
     assert engine._llm.max_retries == 2
     assert engine._llm.num_ctx == 262144
     assert engine._llm.num_predict == -1
-    assert engine._quality.generation_max_count == 3
-    assert engine._quality.review_max_count == 8
+    assert engine._quality.generation_max_count == 4
+    assert engine._quality.review_max_count == 7
     assert engine._verbose is False
-    assert engine._raw_log_enabled is False
 
 
 def test_workdir_config_applies_when_cli_options_are_omitted(monkeypatch, tmp_path) -> None:
@@ -45,7 +44,6 @@ quality:
   max_review_count: 6
 logging:
   verbose: true
-  raw_log: true
 llm:
   model: config-model
   ollama_host: config-host:11434
@@ -60,7 +58,7 @@ llm:
         encoding="utf-8",
     )
 
-    engine = NovelEngine(workdir=workdir, model=None, verbose=None, raw_log_enabled=None)
+    engine = NovelEngine(workdir=workdir, model=None, verbose=None)
 
     assert engine._llm.model == "config-model"
     assert engine._llm.api_url == "http://config-host:11434/api/chat"
@@ -74,7 +72,6 @@ llm:
     assert engine._quality.generation_max_count == 5
     assert engine._quality.review_max_count == 6
     assert engine._verbose is True
-    assert engine._raw_log_enabled is True
 
 
 def test_legacy_llm_max_retries_config_is_backward_compatible(monkeypatch, tmp_path) -> None:
@@ -92,7 +89,7 @@ llm:
         encoding="utf-8",
     )
 
-    engine = NovelEngine(workdir=workdir, model=None, verbose=None, raw_log_enabled=None)
+    engine = NovelEngine(workdir=workdir, model=None, verbose=None)
 
     assert engine._llm.transport_retries == 5
     assert engine._llm.max_retries == 5
@@ -112,7 +109,6 @@ quality:
   max_review_count: 6
 logging:
   verbose: false
-  raw_log: false
 llm:
   model: config-model
 """.strip(),
@@ -125,11 +121,9 @@ llm:
         max_generation_count=7,
         max_review_count=8,
         verbose=True,
-        raw_log_enabled=True,
     )
 
     assert engine._llm.model == "cli-model"
     assert engine._quality.generation_max_count == 7
     assert engine._quality.review_max_count == 8
     assert engine._verbose is True
-    assert engine._raw_log_enabled is True

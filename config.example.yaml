@@ -6,10 +6,10 @@
 
 quality:
   # Maximum generation attempts per phase/scene, including API and schema validation failures.
-  max_generation_count: 3
+  max_generation_count: 4
 
   # Maximum review -> revision cycles.
-  max_review_count: 8
+  max_review_count: 7
 
 llm:
   # Ollama model name.
@@ -37,9 +37,5 @@ llm:
     temperature: 0.7
     top_p: 0.9
 
-logging:
-  # Print detailed logs to console.
-  verbose: false
-
-  # Save LLM raw data and human-readable summaries under _raw_logs/.
-  raw_log: false
+# Logging / output controls.
+## `verbose` also enables LLM raw logs (transport, JSON payload, parse traces).

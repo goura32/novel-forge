@@ -17,7 +17,6 @@
 | `--max-generation-count` | LLM API + validation の最大試行数 | `config.yaml` → `3` |
 | `--max-review-count` | レビュー→修正サイクルの最大回数 | `config.yaml` → `8` |
 | `-v, --verbose` | 詳細ログ出力 | `config.yaml` → `false` |
-| `--raw-log` | LLM raw data と human summary を `_raw_logs/` に保存する | `config.yaml` → `false` |
 
 ---
 

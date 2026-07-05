@@ -335,8 +335,8 @@ uv run python scripts/validate_prompts.py
 高コストなので各大フェーズの最後のみ実施。
 
 ```bash
-uv run novel-forge plan "短編 SF 図書館 AI" --workdir /mnt/hdd/projects/novel-forge-smoke --max-generation-count 1 --max-review-count 1 --raw-log
-uv run novel-forge design --workdir /mnt/hdd/projects/novel-forge-smoke --volume 1 --max-generation-count 1 --max-review-count 1 --raw-log
+uv run novel-forge plan "短編 SF 図書館 AI" --workdir /mnt/hdd/projects/novel-forge-smoke --max-generation-count 1 --max-review-count 1
+uv run novel-forge design --workdir /mnt/hdd/projects/novel-forge-smoke --volume 1 --max-generation-count 1 --max-review-count 1
 ```
 
 必要なら write は1シーンだけ実行できる smoke limiter を先に追加する。

@@ -163,7 +163,6 @@ def make_engine(
     max_generation_count: int | None = None,
     max_review_count: int | None = None,
     verbose: bool | None = None,
-    raw_log: bool | None = None,
     phase: str = "",
     series: str = "",
 ) -> NovelEngine:
@@ -177,7 +176,6 @@ def make_engine(
         max_review_count=max_review_count,
         max_generation_count=max_generation_count,
         verbose=verbose,
-        raw_log_enabled=raw_log,
         phase=phase,
     )
 

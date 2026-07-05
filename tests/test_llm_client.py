@@ -87,10 +87,8 @@ class TestLLMClientInit:
         client = LLMClient(
             api_url="http://localhost:11434/api/chat",
             raw_log_dir=tmp_path,
-            raw_log_enabled=True,
         )
         assert client.raw_log_dir == tmp_path
-        assert client.raw_log_enabled is True
 
 
 # ── complete_json — basic ──────────────────────────────────────────────
@@ -324,7 +322,6 @@ class TestCompleteJsonRawLog:
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
-                raw_log_enabled=True,
                 phase="write",
             )
             client.complete_json("test_kind", "sys prompt", "usr prompt")
@@ -350,7 +347,6 @@ class TestCompleteJsonRawLog:
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
-                raw_log_enabled=True,
                 max_retries=1,
                 phase="write",
             )
@@ -374,7 +370,6 @@ class TestCompleteJsonRawLog:
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
-                raw_log_enabled=True,
                 transport_retries=2,
                 phase="write",
             )
@@ -403,7 +398,6 @@ class TestCompleteJsonRawLog:
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
-                raw_log_enabled=True,
                 phase="write",
             )
             assert client.complete_json("test_kind", "sys1", "usr1") == {"n": 1}
@@ -428,7 +422,6 @@ class TestCompleteJsonRawLog:
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
-                raw_log_enabled=True,
                 phase="plan",
                 model="test-model",
                 ollama_options={"think": True, "temperature": 0.1},
@@ -458,22 +451,6 @@ class TestCompleteJsonRawLog:
         assert "temperature" in request_summary
         assert "usr prompt" in request_summary
         assert "response_0_0" in aggregate_summary
-
-    def test_no_raw_log_when_disabled(self, tmp_path):
-        """No raw log files when raw_log_enabled=False."""
-        chunks = _ndjson_response('{"ok": true}')
-        mock_resp = _make_streaming_response(chunks)
-
-        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                raw_log_dir=tmp_path,
-                raw_log_enabled=False,
-            )
-            client.complete_json("test_kind", "sys", "usr")
-
-        log_files = list(tmp_path.rglob("*.json.gz"))
-        assert len(log_files) == 0
 
 
 # ── SchemaValidationError ──────────────────────────────────────────────

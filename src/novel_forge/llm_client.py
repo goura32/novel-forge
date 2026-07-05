@@ -107,7 +107,6 @@ class LLMClient:
         max_retries: int | None = None,
         transport_retries: int | None = None,
         raw_log_dir: Path | None = None,
-        raw_log_enabled: bool = False,
         phase: str = "",
         num_ctx: int | None = None,
         num_predict: int = -1,
@@ -127,7 +126,6 @@ class LLMClient:
         self._series_slug = series_slug
         self._volume = volume
         self.raw_log_dir = raw_log_dir
-        self.raw_log_enabled = raw_log_enabled
         self.phase = phase
         self.num_ctx = num_ctx if num_ctx else 262144
         self.num_predict = num_predict
@@ -428,7 +426,7 @@ class LLMClient:
 
         file_type: "request" または "response"
         """
-        if not self.raw_log_dir or not self.raw_log_enabled:
+        if not self.raw_log_dir:
             return
         call_dir = self._make_call_dir(self._current_kind)
         try:
@@ -446,7 +444,7 @@ class LLMClient:
         - summary/<request_or_response>.md: split readable payloads
         - details/*.json.gz: exact raw payloads (written by _write_raw_log)
         """
-        if not self.raw_log_dir or not self.raw_log_enabled:
+        if not self.raw_log_dir:
             return
         call_dir = self._make_call_dir(self._current_kind)
         summary_dir = call_dir / "summary"

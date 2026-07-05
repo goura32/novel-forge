@@ -30,11 +30,10 @@ def plan(
     max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Generate a series plan from keywords."""
     engine = make_engine(
-        workdir, model, "ja", verbose=verbose, raw_log=raw_log, phase="plan",
+        workdir, model, "ja", verbose=verbose, phase="plan",
         max_generation_count=max_generation_count,
         max_review_count=max_review_count,
     )
@@ -52,13 +51,12 @@ def design(
     max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Generate a volume design (chapter/scene structure)."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(
-            series_dir, model, "ja", verbose=verbose, raw_log=raw_log, phase="design",
+            series_dir, model, "ja", verbose=verbose, phase="design",
             max_generation_count=max_generation_count,
             max_review_count=max_review_count,
         )
@@ -87,7 +85,6 @@ def write(
     max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Write scene drafts."""
     series_dir = _find_existing_series(workdir, series)
@@ -99,7 +96,6 @@ def write(
             max_generation_count=max_generation_count,
             max_review_count=max_review_count,
             verbose=verbose,
-            raw_log=raw_log,
             phase="write",
         )
         results = engine.write(volume)
@@ -113,13 +109,12 @@ def export(
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Export manuscript for KDP."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(
-            series_dir, model, "ja", verbose=verbose, raw_log=raw_log, phase="export"
+            series_dir, model, "ja", verbose=verbose, phase="export"
         )
         result = engine.export(volume)
         console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
@@ -145,13 +140,12 @@ def resume(
     max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Resume from the last interrupted phase."""
     series_dir = _find_existing_series(workdir, series)
     with _series_lock(series_dir):
         engine = make_engine(
-            series_dir, model, "ja", verbose=verbose, raw_log=raw_log, phase="resume",
+            series_dir, model, "ja", verbose=verbose, phase="resume",
             max_generation_count=max_generation_count,
             max_review_count=max_review_count,
         )
@@ -177,7 +171,6 @@ def complete(
     max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Run the full pipeline: plan → design → write → export."""
     engine = make_engine(
@@ -187,7 +180,6 @@ def complete(
         max_generation_count=max_generation_count,
         max_review_count=max_review_count,
         verbose=verbose,
-        raw_log=raw_log,
         phase="complete",
     )
     steps = [
