@@ -139,3 +139,12 @@
 | P16-03 | configなしbuilt-in既定値を精査 | Done | quality built-in を `max_generation_count=3`, `max_review_count=8` に調整 |
 | P16-04 | doctorのconfig対応 | Done | `doctor -w <dir>` で `<dir>/config.yaml` の model/ollama_host を使用 |
 | P16-05 | 契約テストとdocs同期 | Done | missing config / workdir config / CLI override / env precedence をテスト化 |
+
+## 15. Phase 17 — retry責務分離（完了）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P17-01 | LLM内retryをtransport限定化 | Done | `transport_retries` は timeout / HTTP error など一時的API失敗のみ再試行 |
+| P17-02 | JSON/schema出力不備を工程retryへ移管 | Done | parse / schema / schema echo は `LLMError` として上位へ返し、`max_generation_count` が制御 |
+| P17-03 | config互換性維持 | Done | `llm.transport_retries` を主名化。旧 `llm.max_retries` は alias として読める |
+| P17-04 | 契約テスト追加 | Done | generation counter retry、transport retry、旧alias互換をテスト化 |

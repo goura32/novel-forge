@@ -121,7 +121,7 @@ llm:
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 1          # LLM API 呼び出しエラー時のリトライ
+  transport_retries: 2    # 一時的な LLM API/通信エラー時のみ。旧 max_retries も互換aliasとして読める
   ollama_host: "ws1.local:11434"
   think: false
 

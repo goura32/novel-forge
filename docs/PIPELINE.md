@@ -147,8 +147,8 @@ engine/
 # generation_cycles: 生成API＋バリデーション（同一工程内）
 # review_cycles: レビュー→修正サイクル（複数工程にまたがる）
 
-max_generation = quality.generation_max_retries
-max_review = quality.review_max_retries
+max_generation = quality.generation_max_count
+max_review = quality.review_max_count
 generation_cycles = 0
 review_cycles = 0
 
@@ -390,7 +390,8 @@ llm:
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 2
+  # transient LLM API/transport errors only; old llm.max_retries is still accepted as an alias
+  transport_retries: 2
   ollama_host: "ws1.local:11434"
   ollama_options:
     think: false

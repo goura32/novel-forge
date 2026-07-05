@@ -19,6 +19,7 @@ def test_missing_config_uses_builtin_defaults(monkeypatch, tmp_path) -> None:
     assert engine._llm.model == "qwen3.6:35b-a3b-mtp-q4_K_M"
     assert engine._llm.api_url == "http://ws1.local:11434/api/chat"
     assert engine._llm.timeout_seconds == 3600
+    assert engine._llm.transport_retries == 2
     assert engine._llm.max_retries == 2
     assert engine._llm.num_ctx == 262144
     assert engine._llm.num_predict == -1
@@ -49,7 +50,7 @@ llm:
   model: config-model
   ollama_host: config-host:11434
   timeout_seconds: 123
-  max_retries: 4
+  transport_retries: 4
   num_ctx: 8192
   num_predict: 2048
   ollama_options:
@@ -64,6 +65,7 @@ llm:
     assert engine._llm.model == "config-model"
     assert engine._llm.api_url == "http://config-host:11434/api/chat"
     assert engine._llm.timeout_seconds == 123
+    assert engine._llm.transport_retries == 4
     assert engine._llm.max_retries == 4
     assert engine._llm.num_ctx == 8192
     assert engine._llm.num_predict == 2048
@@ -73,6 +75,27 @@ llm:
     assert engine._quality.review_max_count == 6
     assert engine._verbose is True
     assert engine._raw_log_enabled is True
+
+
+def test_legacy_llm_max_retries_config_is_backward_compatible(monkeypatch, tmp_path) -> None:
+    """llm.max_retries remains a backward-compatible alias for transport_retries."""
+    monkeypatch.delenv("NOVEL_FORGE_CONFIG", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    workdir = tmp_path / "workspace"
+    workdir.mkdir()
+    (workdir / "config.yaml").write_text(
+        """
+llm:
+  max_retries: 5
+""".strip(),
+        encoding="utf-8",
+    )
+
+    engine = NovelEngine(workdir=workdir, model=None, verbose=None, raw_log_enabled=None)
+
+    assert engine._llm.transport_retries == 5
+    assert engine._llm.max_retries == 5
 
 
 def test_cli_values_override_workdir_config(monkeypatch, tmp_path) -> None:

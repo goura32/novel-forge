@@ -28,8 +28,9 @@ llm:
   # API タイムアウト（秒）
   timeout_seconds: 3600
 
-  # リトライ回数（LLM API 呼び出しエラー時）
-  max_retries: 2
+  # 通信リトライ回数（一時的な LLM API エラーのみ）
+  # JSON/schema 出力不備の再生成は quality.max_generation_count で制御する
+  transport_retries: 2
 
   # Ollama ホスト（OLLAMA_HOST 環境変数より優先）
   ollama_host: "ws1.local:11434"

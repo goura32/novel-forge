@@ -188,4 +188,4 @@ src/novel_forge/engine/
 
 ---
 
-*Last updated: 2026-07-03* (review.json スキーマから category フィールドを削除しました（レビュー指摘では severity、field、description, suggestion, before, after のみを使用）。config.yaml の品質ゲート設定も併せて更新しています（max_generation_count: 4、max_review_count: 7、max_retries: 1）。
+*Last updated: 2026-07-03* (review.json スキーマから category フィールドを削除しました（レビュー指摘では severity、field、description, suggestion, before, after のみを使用）。config.yaml の品質ゲート設定も併せて更新しています（max_generation_count / max_review_count / transport_retries）。

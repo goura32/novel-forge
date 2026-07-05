@@ -55,6 +55,7 @@ class TestLLMClientInit:
         client = LLMClient(api_url="http://localhost:11434/api/chat")
         assert client.model == "qwen3.6:35b-a3b-mtp-q4_K_M"
         assert client.timeout_seconds == 3600
+        assert client.transport_retries == 2
         assert client.max_retries == 2
         assert client.num_ctx == 262144
         assert client.num_predict == -1
@@ -70,6 +71,7 @@ class TestLLMClientInit:
         )
         assert client.model == "custom-model"
         assert client.timeout_seconds == 120
+        assert client.transport_retries == 5
         assert client.max_retries == 5
         assert client.num_ctx == 131072
         assert client.num_predict == 2048
@@ -170,7 +172,7 @@ class TestCompleteJsonRetry:
         assert call_count == 2
 
     def test_retry_exhausted_raises(self):
-        """Should raise LLMError after all retries exhausted."""
+        """Should raise LLMError after all transport retries are exhausted."""
         import httpx
 
         with patch(
@@ -182,6 +184,37 @@ class TestCompleteJsonRetry:
             )
             with pytest.raises(LLMError):
                 client.complete_json("test_kind", "sys", "usr")
+
+    def test_does_not_retry_json_parse_failure(self):
+        """Malformed model output is a generation-level failure, not an LLM transport retry."""
+        bad_resp = _make_streaming_response(_ndjson_response("not json"))
+        good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
+
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=2,
+            )
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
+
+        assert mock_stream.call_count == 1
+
+    def test_does_not_retry_schema_echo_failure(self):
+        """Schema echo is handled by the generation loop, not by LLM transport retries."""
+        schema_echo = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+        bad_resp = _make_streaming_response(_ndjson_response(json.dumps(schema_echo)))
+        good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
+
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=2,
+            )
+            with pytest.raises(LLMError):
+                client.complete_json("test_kind", "sys", "usr")
+
+        assert mock_stream.call_count == 1
 
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""
@@ -330,18 +363,19 @@ class TestCompleteJsonRawLog:
         assert len(response_files) == 1
         assert self._read_gzip(response_files[0]) == "\n".join(chunks)
 
-    def test_raw_log_retries_use_distinct_attempt_files(self, tmp_path):
-        """Retries must keep every attempt's request and response without overwriting."""
-        bad_resp = _make_streaming_response(_ndjson_response("bad json"))
+    def test_raw_log_transport_retries_use_distinct_attempt_files(self, tmp_path):
+        """Transport retries must keep every attempt's request and response without overwriting."""
+        import httpx
+
         good_chunks = _ndjson_response(json.dumps({"ok": True}))
         good_resp = _make_streaming_response(good_chunks)
 
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]):
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=[httpx.TimeoutException("timeout"), good_resp]):
             client = LLMClient(
                 api_url="http://localhost:11434/api/chat",
                 raw_log_dir=tmp_path,
                 raw_log_enabled=True,
-                max_retries=2,
+                transport_retries=2,
                 phase="write",
             )
             assert client.complete_json("test_kind", "sys", "usr") == {"ok": True}

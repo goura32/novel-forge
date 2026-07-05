@@ -24,8 +24,9 @@ llm:
   # API timeout in seconds. Long-form generation can take a while on local models.
   timeout_seconds: 3600
 
-  # HTTP retry count for transient LLM API errors.
-  max_retries: 2
+  # Transport retry count for transient LLM API errors only.
+  # JSON/schema output failures are controlled by quality.max_generation_count.
+  transport_retries: 2
 
   # Ollama host. Can also be provided with OLLAMA_HOST when not set here.
   ollama_host: "localhost:11434"

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import httpx
+from jsonschema import ValidationError as JsonSchemaValidationError
 
 from novel_forge.json_parser import JsonParseError, parse_json_response
 from novel_forge.logging_config import Console, get_logger
@@ -37,6 +38,10 @@ def _build_ollama_options(llm_cfg: dict) -> dict:
 
 class LLMError(Exception):
     pass
+
+
+class LLMTransportError(LLMError):
+    """Transient LLM API/transport failure eligible for transport retries."""
 
 
 class SchemaValidationError(LLMError):
@@ -99,7 +104,8 @@ class LLMClient:
         api_url: str | None = None,
         model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
         timeout_seconds: int = 3600,
-        max_retries: int = 2,
+        max_retries: int | None = None,
+        transport_retries: int | None = None,
         raw_log_dir: Path | None = None,
         raw_log_enabled: bool = False,
         phase: str = "",
@@ -115,7 +121,9 @@ class LLMClient:
         self.api_url = api_url
         self.model = model
         self.timeout_seconds = timeout_seconds
-        self.max_retries = max_retries
+        resolved_transport_retries = transport_retries if transport_retries is not None else max_retries
+        self.transport_retries = 2 if resolved_transport_retries is None else resolved_transport_retries
+        self.max_retries = self.transport_retries  # Backward-compatible alias.
         self._series_slug = series_slug
         self._volume = volume
         self.raw_log_dir = raw_log_dir
@@ -223,7 +231,7 @@ class LLMClient:
         self._call_sequence += 1
         self._active_call_dir = None
 
-        for attempt in range(max(self.max_retries, 1)):
+        for attempt in range(max(self.transport_retries, 1)):
             payload["messages"][1]["content"] = current_prompt
             base_seed = payload["options"]["seed"]
             payload["options"]["seed"] = base_seed + attempt + seed_offset
@@ -233,7 +241,7 @@ class LLMClient:
             meta = self._build_meta()
             self._log.debug(
                 "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
-                kind, attempt + 1, self.max_retries, self.model, base_seed + attempt + seed_offset, meta,
+                kind, attempt + 1, self.transport_retries, self.model, base_seed + attempt + seed_offset, meta,
             )
 
             raw_text = ""
@@ -256,12 +264,7 @@ class LLMClient:
                         "  [SCHEMA ECHO] kind=%s retry=%d — LLM returned schema structure, retrying",
                         kind, seed_offset,
                     )
-                    current_prompt = (
-                        f"前回の出力はスキーマ構造そのものでした。データ値を返してください。\\n"
-                        f"必ずスキーマの properties に従って、実際のデータ値を埋めた JSON のみを出力してください。\\n\\n"
-                        f"元の指示:\n{user_prompt}"
-                    )
-                    continue
+                    raise LLMError("LLM returned schema structure instead of data")
 
                 if schema:
                     # Normalize slug before validation (LLM may output hyphens which
@@ -275,32 +278,24 @@ class LLMClient:
             except RuntimeError:
                 # --strict mode: propagate after saving raw log
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                continue
+                raise
             except JsonParseError as e:
-                current_prompt = self._handle_retry_error(e, user_prompt, "JSON parse error")
-                continue
-            except SchemaValidationError as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                current_prompt = self._handle_retry_error(e, user_prompt, "schema validation error")
+                raise LLMError(f"JSON parse error: {str(e)[:200]}") from e
+            except (SchemaValidationError, JsonSchemaValidationError) as e:
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
+                raise LLMError(f"schema validation error: {str(e)[:200]}") from e
+            except LLMTransportError:
+                self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 continue
             except LLMError:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                continue
+                raise
             except Exception:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 raise
 
         raise LLMError("LLM request failed") from None
-
-    def _handle_retry_error(self, e: Exception, user_prompt: str, error_type: str) -> str:
-        """リトライ時のエラーメッセージを生成する。"""
-        error_hint = str(e)[:200]
-        return (
-            f"前回の出力は{error_type}でした。\n"
-            f"エラー: {error_hint}\n"
-            f"修正し、必ず有効なJSONのみを出力してください。\n\n"
-            f"元の指示:\n{user_prompt}"
-        )
 
     def _build_meta(self) -> str:
         """ログ用のメタ文字列を構築する。"""
@@ -381,10 +376,10 @@ class LLMClient:
         except httpx.TimeoutException:
             text = "\n".join(lines)
             self._write_raw_log("_timeout", text)
-            raise LLMError("Ollama request timed out") from None
+            raise LLMTransportError("Ollama request timed out") from None
         except httpx.HTTPStatusError as e:
             self._write_raw_log("_http_err", str(e))
-            raise LLMError(f"Ollama HTTP error: {e}") from e
+            raise LLMTransportError(f"Ollama HTTP error: {e}") from e
         text = "\n".join(lines)
         result, thinking_combined = self._parse_ndjson(text)
         if not result or not result.strip():

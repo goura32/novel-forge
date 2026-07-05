@@ -161,7 +161,7 @@ class NovelEngineBase:
             llm_cfg = cfg.get("llm", {})
             model = model if model is not None else llm_cfg.get("model") or self._DEFAULT_MODEL
             timeout = llm_cfg.get("timeout_seconds", self._DEFAULT_TIMEOUT)
-            max_retries = llm_cfg.get("max_retries", self._DEFAULT_MAX_RETRIES)
+            transport_retries = llm_cfg.get("transport_retries", llm_cfg.get("max_retries", self._DEFAULT_MAX_RETRIES))
             num_predict = llm_cfg.get("num_predict", self._DEFAULT_NUM_PREDICT)
             num_ctx = llm_cfg.get("num_ctx", self._DEFAULT_NUM_CTX)
             host = llm_cfg.get("ollama_host", None)
@@ -174,7 +174,7 @@ class NovelEngineBase:
                 raw_log_enabled=self._raw_log_enabled,
                 phase=phase,
                 timeout_seconds=timeout,
-                max_retries=max_retries,
+                transport_retries=transport_retries,
                 num_predict=num_predict,
                 num_ctx=num_ctx,
                 ollama_options=_build_ollama_options(llm_cfg),

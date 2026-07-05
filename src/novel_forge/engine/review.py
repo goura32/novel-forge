@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from novel_forge.llm_client import SchemaValidationError
+from novel_forge.llm_client import LLMError, SchemaValidationError
 from novel_forge.logging_config import get_logger
 
 _log = get_logger("novel_forge.engine.review")
@@ -92,6 +92,20 @@ def generate_and_review(
             if generation_cycles >= max_generation - 1:
                 raise RuntimeError(
                     f"{kind}: generate validation failed after {max_generation} retries: path={path} msg={e.message}"
+                ) from e
+            generation_cycles += 1
+            continue
+        except LLMError as e:
+            _log.warning(
+                "  [GENERATE LLM ERROR] %s: msg=%s attempt=%d/%d",
+                kind,
+                str(e)[:200],
+                generation_cycles,
+                max_generation,
+            )
+            if generation_cycles >= max_generation - 1:
+                raise RuntimeError(
+                    f"{kind}: generate failed after {max_generation} retries: msg={str(e)[:200]}"
                 ) from e
             generation_cycles += 1
             continue
