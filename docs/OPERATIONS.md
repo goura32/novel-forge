@@ -33,15 +33,16 @@ uv run novel-forge complete -w <dir> "keyword1 keyword2"
 ## 2 raw log とデバッグ
 
 ```bash
-# シーンの raw log を /dir/raw_logs/ に書き出す
+# LLM request/response の raw log と人間向けsummaryを書き出す
 uv run novel-forge write -w <dir> --raw-log
 ```
 
-| file | 内容                                          |
-|------|---------------------------------------------|
-| `_raw_logs/design/vol01/<ts>_*.jsonl`    | デザイン phase raw                          |
-| `_raw_logs/text/<scene_id>/<ts>_*.jsonl` | scene write raw                             |
-| `_raw_logs/review/<scene_id>/<ts>_review.json`   | review / revise output (JSON)     |
+| path | 内容 |
+|------|------|
+| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary.md` | 人間向け索引。詳細Markdownとgzip rawへのリンク |
+| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/request_*.md` | API設定とprompt本文 |
+| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/response_*.md` | `message.content` のみをJSON整形。`thinking` は含めない |
+| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/details/*.json.gz` | 完全な生request/response。thinking確認が必要な場合はこちらを展開 |
 
 ---
 
@@ -77,10 +78,12 @@ uv run novel-forge doctor
 
 ## 5 スキーマ validation failure 時
 
-スキーマ違反で停止した場合 → raw log を見れば LLM が返した JSON データが残っています:
+スキーマ違反で停止した場合 → 人間向けsummaryで LLM が返したJSONを確認できます:
 
 ```bash
-cat _raw_logs/review/<scene_id>/<ts>_review.json
+less _raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/response_*.md
+# 完全な生NDJSONが必要な場合
+gzip -dc _raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/details/response_*.json.gz
 ```
 
 `issues[].before / issues[].after` の差分を元に手動で修正するか、設計情報に問題があれば

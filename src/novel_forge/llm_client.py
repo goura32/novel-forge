@@ -390,7 +390,6 @@ class LLMClient:
         if not result or not result.strip():
             self._write_raw_log("_empty", text)
             raise LLMError("Ollama returned empty response")
-        self._write_raw_log("response", text)
         return text, result, thinking_combined, "", chunk_count, total_bytes
 
     def _make_call_dir(self, kind: str) -> Path:
@@ -445,47 +444,106 @@ class LLMClient:
             self._log.debug("  [RAW LOG WRITE FAILED] %s", e)
 
     def _append_raw_summary(self, file_type: str, raw_text: str) -> None:
-        """raw_summary.md に人が読める形式で追記する。"""
+        """Write human-readable summaries next to exact raw gzip files.
+
+        Layout per LLM call:
+        - summary.md: compact chronological index for the call
+        - summary/<request_or_response>.md: split readable payloads
+        - details/*.json.gz: exact raw payloads (written by _write_raw_log)
+        """
         if not self.raw_log_dir or not self.raw_log_enabled:
             return
         call_dir = self._make_call_dir(self._current_kind)
-        summary_path = call_dir / "raw_summary.md"
-        from datetime import datetime
+        summary_dir = call_dir / "summary"
+        summary_path = call_dir / "summary.md"
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         content = self._format_for_summary(file_type, raw_text)
         try:
+            summary_dir.mkdir(exist_ok=True)
+            split_path = summary_dir / f"{file_type}.md"
+            split_path.write_text(
+                f"# {file_type}\n\n"
+                f"- generated_at: {ts}\n"
+                f"- kind: {self._current_kind}\n"
+                f"- phase: {self.phase or 'unknown'}\n\n"
+                f"{content}\n",
+                encoding="utf-8",
+            )
             with open(summary_path, "a", encoding="utf-8") as f:
-                f.write(f"\n## {ts} — {file_type}\n\n{content}\n")
+                f.write(
+                    f"\n## {ts} — {file_type}\n\n"
+                    f"- detail: `summary/{file_type}.md`\n"
+                    f"- raw: `details/{file_type}.json.gz`\n"
+                )
         except Exception as e:
-            self._log.debug("  [RAW SUMMARY WRITE FAILED] %s", e)
+            self._log.debug("  [SUMMARY WRITE FAILED] %s", e)
+
+    @staticmethod
+    def _content_from_ndjson(raw_text: str) -> str:
+        """Return only streamed message.content from Ollama NDJSON.
+
+        message.thinking and other transport metadata deliberately stay in
+        details/*.json.gz only. Human summaries should show the prompt-visible
+        answer, not private reasoning or stream wrappers.
+        """
+        parts: list[str] = []
+        saw_ndjson = False
+        for line in raw_text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(chunk, dict) or "message" not in chunk:
+                continue
+            saw_ndjson = True
+            message = chunk.get("message")
+            if isinstance(message, dict):
+                content = message.get("content", "")
+                if isinstance(content, str) and content:
+                    parts.append(content)
+        if saw_ndjson:
+            return "".join(parts)
+        return raw_text
+
+    def _format_request_for_summary(self, raw_text: str) -> str:
+        try:
+            payload = json.loads(raw_text)
+        except (json.JSONDecodeError, TypeError):
+            return raw_text.replace("\\n", "\n").replace('\\"', '"')
+
+        messages = payload.get("messages", []) if isinstance(payload, dict) else []
+        metadata = {
+            "model": payload.get("model"),
+            "format": payload.get("format"),
+            "think": payload.get("think"),
+            "options": payload.get("options", {}),
+        }
+        parts = ["## API settings", "", "```json", json.dumps(metadata, ensure_ascii=False, indent=2), "```", ""]
+        for i, msg in enumerate(messages):
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("role", "?")
+            content = str(msg.get("content", ""))
+            content = content.replace("\\n", "\n").replace('\\"', '"')
+            parts.append(f"## messages[{i}] ({role})\n\n{content}\n")
+        return "\n".join(parts)
+
+    def _format_response_for_summary(self, raw_text: str) -> str:
+        content_text = self._content_from_ndjson(raw_text)
+        try:
+            parsed = parse_json_response(content_text)
+            if isinstance(parsed, dict):
+                return "```json\n" + json.dumps(parsed, ensure_ascii=False, indent=2) + "\n```\n"
+            return "```\n" + str(parsed) + "\n```\n"
+        except Exception:
+            text = content_text.replace("\\n", "\n").replace('\\"', '"')
+            return "```\n" + text + "\n```\n"
 
     def _format_for_summary(self, file_type: str, raw_text: str) -> str:
-        """RAWテキストを人が読める形式に整形する。"""
+        """Format raw request/response into human-readable Markdown."""
         if file_type.startswith("request"):
-            try:
-                payload = json.loads(raw_text)
-                messages = payload.get("messages", [])
-                parts = []
-                for i, msg in enumerate(messages):
-                    role = msg.get("role", "?")
-                    content = msg.get("content", "")
-                    # Unescape
-                    content = content.replace("\\n", "\n").replace('\\"', '"')
-                    parts.append(f"### messages[{i}] ({role})\n\n{content}\n")
-                return "\n".join(parts)
-            except (json.JSONDecodeError, TypeError):
-                return raw_text.replace("\\n", "\n").replace('\\"', '"')
-        else:
-            # response
-            try:
-                parsed = parse_json_response(raw_text)
-                if isinstance(parsed, dict):
-                    # Remove thinking (too long for summary)
-                    parsed.pop("thinking", None)
-                    parsed.pop("thinking_combined", None)
-                    return "```json\n" + json.dumps(parsed, ensure_ascii=False, indent=2) + "\n```\n"
-                return "```\n" + str(parsed) + "\n```\n"
-            except Exception:
-                # Raw text fallback, unescape
-                text = raw_text.replace("\\n", "\n").replace('\\"', '"')
-                return text
+            return self._format_request_for_summary(raw_text)
+        return self._format_response_for_summary(raw_text)

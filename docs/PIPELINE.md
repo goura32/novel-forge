@@ -346,25 +346,30 @@ SceneWriter._draft_scene() で以下の情報を基に初稿生成:
 
 ## 9. RAWデータ保存
 
-LLM呼び出しの生データを `_raw_logs/{phase}/{timestamp}_{kind}/` に保存。
+`--raw-log` 有効時、LLM呼び出しごとに生データと人間向け要約を `_raw_logs/{phase}/{timestamp}_{pid}_{sequence}_{kind}/` に保存。
 
 ```
-_raw_logs/plan/20260629_064606_series_plan_concept/
-├── raw_summary.md              # 人が読める形式（追記）
-└── details/                    # 元データ（gzip）
+_raw_logs/plan/20260629_064606_12345_0001_series_plan_concept/
+├── summary.md                  # 人間向け索引（詳細ファイルへのリンク）
+├── summary/                    # 人間向け詳細（Markdown）
+│   ├── request_0_0.md
+│   └── response_0_0.md
+└── details/                    # 完全な生データ（gzip）
     ├── request_0_0.json.gz
     └── response_0_0.json.gz
 ```
 
 | ファイル | 内容 |
 |---|---|
-| `raw_summary.md` | request/response を人が読める形式で追記。`--raw-log` 時のみ保存 |
-| `details/*.json.gz` | 元のリクエストペイロード・レスポンス（gzip） |
+| `summary.md` | request/response の時系列索引。詳細Markdownとgzip rawへの相対パスを記録 |
+| `summary/request_*.md` | model / think / options と `messages[].content` を読みやすく展開 |
+| `summary/response_*.md` | Ollama NDJSON の `message.content` だけを連結し、JSON整形して表示 |
+| `details/*.json.gz` | 元のリクエストペイロード・レスポンスNDJSONを無加工で保存 |
 
-- ディレクトリ名: `{YYYYMMDD_HHMMSS}_{kind}`（実行単位の識別）
-- `raw_summary.md` は追記モード。新しいLLM呼び出しのたびに追記される
-- request: `messages` の `content` を出力。エスケープされた改行は復元
-- response: `content` を出力。`thinking` は長いため除外
+- ディレクトリ名: `{YYYYMMDD_HHMMSS_microsec}_{pid}_{sequence}_{kind}`。同一kindの再実行やretryでも上書きしない
+- 人間向けsummaryには transport metadata や `message.thinking` を含めない。thinkingを含む完全な応答確認は `details/*.json.gz` を展開して行う
+- request summary は prompt確認に必要な `messages[].content` と主要API設定に絞る
+- response summary はschema検証やJSON内容確認向け。生NDJSONそのものは出さない
 - `raw_log: false` の場合は保存しない
 
 ---

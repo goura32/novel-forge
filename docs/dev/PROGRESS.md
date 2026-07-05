@@ -119,3 +119,13 @@
 | P14-03 | `series_plan_characters_revision` の schema echo / 空配列対策 | Done | 既存人数維持、`main_characters` 配列、実データのみ出力、`arc`維持を明示 |
 | P14-04 | 契約テスト追加 | Done | prompt品質契約で上記退行を固定 |
 | P14-05 | smoke結果確認 | Done | `characters=3`, `volumes=4`, empty cliffhangersなし |
+
+## 13. Phase 15 — raw log human summary 見直し（完了）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P15-01 | 人間向けsummary仕様を点検 | Done | 旧 `raw_summary.md` は名称・重複・分割性が弱く、thinking除外も契約テストなし |
+| P15-02 | summary構成を整理 | Done | `summary.md` を索引、`summary/request_*.md` / `summary/response_*.md` を詳細Markdown、`details/*.json.gz` を完全rawに分離 |
+| P15-03 | response summaryからthinking/transport metadataを除外 | Done | Ollama NDJSON は `message.content` のみ連結しJSON整形。thinkingはgzip rawのみ |
+| P15-04 | 重複rawを削除 | Done | 成功responseは `details/response_0_0.json.gz` に統一し、旧 `response.json.gz` を出さない |
+| P15-05 | 実CLI smoke確認 | Done | `--raw-log` plan成功。missingなし、`response.json.gz`なし、summary内thinkingなし |

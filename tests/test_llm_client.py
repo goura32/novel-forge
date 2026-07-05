@@ -27,9 +27,12 @@ def _make_streaming_response(chunks: list[str], status_code: int = 200) -> Magic
     return mock_ctx
 
 
-def _ndjson_chunk(content: str, done: bool = False) -> str:
+def _ndjson_chunk(content: str, done: bool = False, thinking: str = "") -> str:
     """Create a single NDJSON chunk."""
-    data = {"message": {"content": content}, "done": done}
+    message = {"content": content}
+    if thinking:
+        message["thinking"] = thinking
+    data = {"message": message, "done": done}
     return json.dumps(data, ensure_ascii=False)
 
 
@@ -378,6 +381,49 @@ class TestCompleteJsonRawLog:
         assert len(response_files) == 2
         request_payloads = [json.loads(self._read_gzip(path)) for path in request_files]
         assert [p["messages"][1]["content"] for p in request_payloads] == ["usr1", "usr2"]
+
+    def test_human_summary_is_split_and_excludes_thinking(self, tmp_path):
+        """Human-readable summaries should be separate from raw gzip and omit thinking."""
+        chunks = [
+            _ndjson_chunk('{"ok": ', thinking="internal chain of thought"),
+            _ndjson_chunk('true}', done=True, thinking="more private reasoning"),
+        ]
+        mock_resp = _make_streaming_response(chunks)
+
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                raw_log_dir=tmp_path,
+                raw_log_enabled=True,
+                phase="plan",
+                model="test-model",
+                ollama_options={"think": True, "temperature": 0.1},
+            )
+            assert client.complete_json("test_kind", "sys prompt", "usr prompt") == {"ok": True}
+
+        call_dirs = [path for path in (tmp_path / "plan").iterdir() if path.is_dir()]
+        assert len(call_dirs) == 1
+        call_dir = call_dirs[0]
+
+        assert (call_dir / "details" / "request_0_0.json.gz").exists()
+        assert (call_dir / "details" / "response_0_0.json.gz").exists()
+        assert not (call_dir / "details" / "response.json.gz").exists()
+        assert (call_dir / "summary.md").exists()
+        assert (call_dir / "summary" / "request_0_0.md").exists()
+        assert (call_dir / "summary" / "response_0_0.md").exists()
+
+        response_summary = (call_dir / "summary" / "response_0_0.md").read_text(encoding="utf-8")
+        aggregate_summary = (call_dir / "summary.md").read_text(encoding="utf-8")
+        request_summary = (call_dir / "summary" / "request_0_0.md").read_text(encoding="utf-8")
+
+        assert "internal chain of thought" not in response_summary
+        assert "more private reasoning" not in response_summary
+        assert "thinking" not in response_summary
+        assert '"ok": true' in response_summary
+        assert "test-model" in request_summary
+        assert "temperature" in request_summary
+        assert "usr prompt" in request_summary
+        assert "response_0_0" in aggregate_summary
 
     def test_no_raw_log_when_disabled(self, tmp_path):
         """No raw log files when raw_log_enabled=False."""
