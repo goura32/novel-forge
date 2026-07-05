@@ -221,7 +221,7 @@ class NovelEngineBase:
     def _move_to_final_dir(self) -> None:
         """Move temp directory contents to final {slug}/ directory."""
         if hasattr(self, "_tmp_dir") and self._tmp_dir.exists():
-            final_dir = self._series_dir
+            final_dir = self._workdir / self._slug
             if not final_dir.exists():
                 shutil.move(str(self._tmp_dir), str(final_dir))
             else:
@@ -239,6 +239,26 @@ class NovelEngineBase:
             self._log.info(f"Moved to final dir: {final_dir}")
         if "_cached_series_dir" in self.__dict__:
             del self.__dict__["_cached_series_dir"]
+        self.__dict__["_cached_series_dir"] = self._workdir / self._slug
+        self._rebind_series_dir()
+
+    def _rebind_series_dir(self) -> None:
+        """Rebind path-dependent collaborators after the series slug is known."""
+        series_dir = self._series_dir
+        self._storage = StateStorage(series_dir)
+        self._bb_storage = BlackboardStorage(series_dir)
+        self._bible_storage = BibleStorage(series_dir)
+        self._ctx_builder = ContextBuilder(series_dir, self._bb_storage, self._bible_storage)
+        self._bible_mgr = BibleManager(self._bible_storage)
+        self._scene_writer = SceneWriter(
+            self._workdir,
+            self._llm,
+            self._prompts,
+            self._quality,
+            self._bb_storage,
+            self._bible_storage,
+            series_dir=series_dir,
+        )
 
     def _save(self) -> None:
         self._storage.save(self._state)

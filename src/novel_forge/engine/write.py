@@ -85,6 +85,10 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
                 ),
             )
             results.append(result)
+
+            # Per-scene checkpoint — crash recovery skips already completed scenes
+            engine._save()
+
             draft_text = engine._scene_writer.load_scene_draft(
                 vol_num, scene.number, chapter.number
             )

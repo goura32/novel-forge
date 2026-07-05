@@ -77,7 +77,15 @@ class TestExportMixin:
         # Chapter files
         ch_dir = engine._series_dir / "vol01" / "vol01_ch01"
         ch_dir.mkdir(parents=True, exist_ok=True)
-        (ch_dir / "vol01_ch01.md").write_text("# 第1章\n\n本文です。", encoding="utf-8")
+        (ch_dir / "vol01_ch01_sc01_v1.md").write_text("# 第1章\n\n本文です。", encoding="utf-8")
+        engine._load_path = MagicMock(
+            return_value={
+                "title": "第1巻",
+                "premise": "テスト",
+                "chapters": [{"number": 1, "scenes": [{"chapter_number": 1}]}],
+                "scenes": [{"number": 1, "chapter_number": 1, "title": "シーン1"}],
+            }
+        )
 
         # Bind real methods
         from novel_forge.engine.export import (

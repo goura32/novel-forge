@@ -13,7 +13,7 @@
 
 | 項目 | 状態 |
 |---|---|
-| pytest | `uv run pytest tests -q` → 252 passed |
+| pytest | `uv run pytest tests -q` → 256 passed |
 | ruff | `uv run ruff check src/novel_forge tests scripts` → All checks passed |
 | prompt validator | `uv run python scripts/validate_prompts.py` → All placeholders consistent |
 | wheel resources | `uv build` wheel に prompts 25件 / schemas 15件を同梱 |
@@ -77,3 +77,27 @@
 | P9-07 | Bible semantic alias を修正 | Done | subplot `完了`, foreshadowing `回収`, relationship `type` を正しく反映 |
 | P9-08 | design の章番号0化と巻タイトル上書きを修正 | Done | chapter index fallback と LLM生成 title を保持 |
 | P9-09 | CLI docs / operations docs の実CLI不整合を修正 | Done | `doctor --workdir` 削除、export出力名を実装に同期 |
+
+## 8. Phase 10 — write リカバリ + export preflight（完了）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P10-01 | write 中にシーン単位で `_save()` を呼ぶ | Done | crash recovery で未処理シーンから再開 |
+| P10-02 | export 前に scene draft 存在/空チェック | Done | design上の全scene artifactを検証し、不完全/空原稿のKDP出力を拒否 |
+| P10-03 | write resume / export preflight のテストを追加 | Done | `tests/test_write_resume_export_preflight.py` |
+| P10-04 | plan後のfinal series dir再バインド | Done | temp dirに書き続ける不整合を修正 |
+
+## 9. Phase 11 — schema strictness + semantic validators（予定）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P11-01 | 全 object に `additionalProperties: false` を追加 | TBD | LLM が schema と関係ない field を混ぜるのを防止 |
+| P11-02 | required fields に `minLength` / `minItems` を追加 | TBD | schema-valid but semantically-invalid を防ぐ |
+| P11-03 | duplicate chapter/scene number などの semantic validator を追加 | TBD | `tests/contract/test_semantic_validators.py` |
+
+## 10. Phase 12 — mypy burn-down（予定）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P12-01 | `generate_and_review()` 戻り値の型を固定 | TBD | `tuple[dict, dict]` に統一 |
+| P12-02 | mypy errors 49 → 0 を達成 | TBD | CI allow-fail → assert-fail へ昇格 |
