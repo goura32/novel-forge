@@ -22,31 +22,38 @@
         "properties": {
           "name": {
             "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "role": {
             "description": "役割。物語上の機能や状態が分かる具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "arc": {
             "description": "変化の方向性。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "appearance": {
             "description": "外見。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "personality": {
             "description": "性格。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "motivation": {
             "description": "動機。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "state": {
             "description": "現在状態。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
         },
         "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -65,11 +72,13 @@
         "properties": {
           "term": {
             "description": "用語。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "definition": {
             "description": "定義。用語集の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
         },
         "description": "用語集を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -87,7 +96,8 @@
         "properties": {
           "description": {
             "description": "説明。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "resolved": {
             "type": "boolean",
@@ -103,7 +113,8 @@
       "type": "array",
       "items": {
         "type": "string",
-        "description": "世界観ルール。世界観ルールの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+        "description": "世界観ルール。世界観ルールの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+        "minLength": 1
       }
     },
     "relationships": {
@@ -114,19 +125,23 @@
         "properties": {
           "character_a": {
             "type": "string",
-            "description": "関係の一方の人物名。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+            "description": "関係の一方の人物名。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+            "minLength": 1
           },
           "character_b": {
             "type": "string",
-            "description": "関係のもう一方の人物名。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+            "description": "関係のもう一方の人物名。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+            "minLength": 1
           },
           "relationship_type": {
             "type": "string",
-            "description": "関係種別。物語上の機能や状態が分かる具体的な日本語で書く。"
+            "description": "関係種別。物語上の機能や状態が分かる具体的な日本語で書く。",
+            "minLength": 1
           },
           "status": {
             "type": "string",
-            "description": "進行状態。物語上の機能や状態が分かる具体的な日本語で書く。"
+            "description": "進行状態。物語上の機能や状態が分かる具体的な日本語で書く。",
+            "minLength": 1
           },
           "change_direction": {
             "type": "string",
@@ -136,11 +151,13 @@
               "変化",
               "変化なし"
             ],
-            "description": "関係変化。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+            "description": "関係変化。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+            "minLength": 1
           },
           "trigger_event": {
             "type": "string",
-            "description": "変化の原因イベント。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+            "description": "変化の原因イベント。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+            "minLength": 1
           },
           "scene_number": {
             "type": "integer",
@@ -159,11 +176,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "一意識別子。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
+            "description": "一意識別子。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
+            "minLength": 1
           },
           "name": {
             "type": "string",
-            "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
+            "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
+            "minLength": 1
           },
           "status": {
             "type": "string",
@@ -172,17 +191,20 @@
               "進行中",
               "完了"
             ],
-            "description": "進行状態。物語上の機能や状態が分かる具体的な日本語で書く。"
+            "description": "進行状態。物語上の機能や状態が分かる具体的な日本語で書く。",
+            "minLength": 1
           },
           "progress_note": {
             "type": "string",
-            "description": "progress note。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
+            "description": "progress note。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。",
+            "minLength": 1
           },
           "related_characters": {
             "type": "array",
             "items": {
               "type": "string",
-              "description": "関連人物。関連人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+              "description": "関連人物。関連人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+              "minLength": 1
             },
             "description": "関連人物の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。"
           },
@@ -190,7 +212,8 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "関連伏線ID。関連伏線IDの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+              "description": "関連伏線ID。関連伏線IDの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+              "minLength": 1
             },
             "description": "関連伏線IDの一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。"
           }

@@ -31,27 +31,33 @@
               "致命的",
               "重要",
               "軽微"
-            ]
+            ],
+            "minLength": 1
           },
           "field": {
             "description": "修正対象のフィールド名（各フェーズ固有のフィールド名を指定）",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "description": {
             "description": "問題の説明。何がどう問題かを具体的に記述。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "suggestion": {
             "description": "修正の提案。どう改善すべきかの方向性を示す。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "before": {
             "description": "修正前のテキスト（当該フィールド内の該当箇所を引用）。配列フィールドの場合は該当要素のみ。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "after": {
             "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "publication_blocking": {
             "description": "出版前に必ず解消すべき問題ならtrue。",
@@ -68,15 +74,18 @@
     },
     "overall_assessment": {
       "description": "レビュー全体の短い総評。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "strengths": {
       "description": "改稿で維持すべき良い点。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "長所。長所の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      }
+        "description": "長所。長所の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+        "minLength": 1
+      },
+      "minItems": 1
     }
   },
   "additionalProperties": false

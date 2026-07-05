@@ -11,11 +11,13 @@
   "properties": {
     "title": {
       "description": "巻のタイトル。5〜64文字推奨。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "premise": {
       "description": "巻のあらすじ。300〜1000文字推奨。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "chapters": {
       "description": "章のリスト。2〜8個推奨。",
@@ -29,7 +31,8 @@
         "properties": {
           "title": {
             "description": "章タイトル。5〜100文字推奨。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "purpose": {
             "description": "目的。物語上の機能や状態が分かる具体的な日本語で書く。",
@@ -40,12 +43,14 @@
               "転換",
               "クライマックス",
               "収束"
-            ]
+            ],
+            "minLength": 1
           }
         },
         "description": "章を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
         "additionalProperties": false
-      }
+      },
+      "minItems": 1
     }
   },
   "additionalProperties": false

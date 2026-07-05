@@ -10,14 +10,16 @@
   "properties": {
     "summary": {
       "description": "要約。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "characters": {
       "description": "登場人物の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+        "minLength": 1
       }
     },
     "facts": {
@@ -33,15 +35,18 @@
         "properties": {
           "subject": {
             "description": "主語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "predicate": {
             "description": "述語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "object": {
             "description": "目的語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
         },
         "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -53,7 +58,8 @@
       "type": "array",
       "items": {
         "type": "string",
-        "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
+        "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。",
+        "minLength": 1
       }
     }
   },

@@ -10,7 +10,8 @@
   "properties": {
     "title": {
       "description": "タイトル。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "visual_elements": {
       "description": "ビジュアル要素（画像生成プロンプト用）",
@@ -28,7 +29,8 @@
           "properties": {
             "description": {
               "description": "ビジュアルの詳細説明（英語の画像生成プロンプト用）",
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             "characters": {
               "type": "array",
@@ -41,11 +43,13 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
+                    "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
+                    "minLength": 1
                   },
                   "appearance": {
                     "type": "string",
-                    "description": "外見。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+                    "description": "外見。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+                    "minLength": 1
                   }
                 },
                 "description": "登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -61,11 +65,13 @@
           "properties": {
             "setting": {
               "description": "舞台設定。背景の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             "atmosphere": {
               "description": "雰囲気（暗い、明るい、幻想的等）",
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             }
           },
           "description": "背景を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -83,11 +89,13 @@
             "properties": {
               "name": {
                 "type": "string",
-                "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
+                "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
+                "minLength": 1
               },
               "significance": {
                 "type": "string",
-                "description": "significance。象徴アイテムの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+                "description": "significance。象徴アイテムの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+                "minLength": 1
               }
             },
             "description": "象徴アイテムを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -103,18 +111,21 @@
       "properties": {
         "genre": {
           "description": "ジャンル。styleの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "tone": {
           "description": "トーン（ダーク、ライト、エピック等）",
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "color_palette": {
           "description": "カラーパレット（3〜5色）",
           "type": "array",
           "items": {
             "type": "string",
-            "description": "配色。配色の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
+            "description": "配色。配色の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+            "minLength": 1
           }
         },
         "composition": {
@@ -126,14 +137,16 @@
             "アクション",
             "象徴的",
             "雰囲気的"
-          ]
+          ],
+          "minLength": 1
         }
       },
       "additionalProperties": false
     },
     "negative_prompt": {
       "description": "画像生成時に除外したい要素",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "metadata": {
       "description": "KDP メタデータ（タイトル、著者、カテゴリ等）",
@@ -141,7 +154,8 @@
       "properties": {
         "series_name": {
           "type": "string",
-          "description": "シリーズ名。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。"
+          "description": "シリーズ名。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
+          "minLength": 1
         }
       },
       "additionalProperties": false

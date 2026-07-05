@@ -11,27 +11,33 @@
   "properties": {
     "title": {
       "description": "書籍タイトル。30〜200文字推奨。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "description": {
       "description": "書籍説明文。200〜4000文字推奨。",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "keywords": {
       "description": "キーワード。3〜7個推奨、各最大50文字。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "検索キーワード。検索キーワードの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      }
+        "description": "検索キーワード。検索キーワードの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+        "minLength": 1
+      },
+      "minItems": 1
     },
     "categories": {
       "description": "カテゴリ。2〜3個推奨、各最大100文字。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "カテゴリ。カテゴリの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      }
+        "description": "カテゴリ。カテゴリの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
+        "minLength": 1
+      },
+      "minItems": 1
     }
   },
   "additionalProperties": false

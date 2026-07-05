@@ -174,3 +174,91 @@ def test_all_object_schemas_reject_unknown_fields() -> None:
             issues[schema_path.name] = schema_issues
 
     assert issues == {}
+
+
+EMPTY_ARRAY_ALLOWED_PATHS = {
+    ("bible.json", "characters"),
+    ("bible.json", "glossary"),
+    ("bible.json", "foreshadowing"),
+    ("bible.json", "world_rules"),
+    ("bible.json", "relationships"),
+    ("bible.json", "subplots"),
+    ("blackboard.json", "facts"),
+    ("chapter_design.json", "foreshadowing_notes"),
+    ("chapter_design.json", "subplot_notes"),
+    ("review.json", "issues"),
+    ("scene_summary.json", "characters"),
+    ("scene_summary.json", "facts"),
+    ("scene_summary_and_bible_update.json", "facts"),
+    ("scene_summary_and_bible_update.json", "continuity_notes"),
+    ("scene_summary_and_bible_update.json", "characters"),
+    ("scene_summary_and_bible_update.json", "foreshadowing"),
+    ("scene_summary_and_bible_update.json", "relationships"),
+    ("scene_summary_and_bible_update.json", "subplots"),
+    ("scene_summary_and_bible_update.json", "world_rules"),
+}
+
+
+def _missing_minimum_content_constraints(
+    node: object,
+    schema_name: str,
+    path: tuple[str, ...] = (),
+    required: bool = False,
+) -> list[str]:
+    issues: list[str] = []
+    if isinstance(node, dict):
+        node_type = node.get("type")
+        path_text = ".".join(path) or "$"
+        if node_type == "string" and int(node.get("minLength", 0)) < 1:
+            issues.append(f"{path_text}: missing minLength>=1")
+        if (
+            required
+            and node_type == "array"
+            and (schema_name, path_text) not in EMPTY_ARRAY_ALLOWED_PATHS
+            and int(node.get("minItems", 0)) < 1
+        ):
+            issues.append(f"{path_text}: important array missing minItems>=1")
+
+        properties = node.get("properties")
+        required_keys = node.get("required")
+        if isinstance(properties, dict):
+            required_names = set(required_keys) if isinstance(required_keys, list) else set()
+            for key, value in properties.items():
+                issues.extend(
+                    _missing_minimum_content_constraints(
+                        value,
+                        schema_name,
+                        (*path, key),
+                        required=key in required_names,
+                    )
+                )
+        items = node.get("items")
+        if items is not None:
+            issues.extend(
+                _missing_minimum_content_constraints(items, schema_name, (*path, "[]"))
+            )
+        for keyword in ("oneOf", "anyOf", "allOf"):
+            subschemas = node.get(keyword)
+            if isinstance(subschemas, list):
+                for index, subschema in enumerate(subschemas):
+                    issues.extend(
+                        _missing_minimum_content_constraints(
+                            subschema,
+                            schema_name,
+                            (*path, f"{keyword}[{index}]"),
+                            required=required,
+                        )
+                    )
+    return issues
+
+
+def test_string_fields_and_required_arrays_have_minimum_content_constraints() -> None:
+    """Schema-valid LLM output should not pass with empty strings or required empty lists."""
+    issues: dict[str, list[str]] = {}
+    for schema_path in sorted(SCHEMAS_DIR.glob("*.json")):
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema_issues = _missing_minimum_content_constraints(schema, schema_path.name)
+        if schema_issues:
+            issues[schema_path.name] = schema_issues
+
+    assert issues == {}

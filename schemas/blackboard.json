@@ -21,15 +21,18 @@
         "properties": {
           "subject": {
             "description": "主語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "predicate": {
             "description": "述語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "object": {
             "description": "目的語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "confidence": {
             "type": "number",
@@ -50,7 +53,8 @@
       "type": "array",
       "items": {
         "type": "string",
-        "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
+        "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。",
+        "minLength": 1
       }
     }
   },
