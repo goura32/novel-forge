@@ -10,7 +10,7 @@
 
 ## シリーズ構想
 
-{volumes_json}
+{volumes}
 
 ## 各巻設計
 

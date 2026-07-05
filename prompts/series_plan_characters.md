@@ -10,7 +10,7 @@
 
 ## シリーズ企画
 
-{concept_json}
+{series_plan_json}
 
 ## 設計要件
 

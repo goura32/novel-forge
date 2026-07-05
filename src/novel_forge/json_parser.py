@@ -49,10 +49,7 @@ def parse_json_response(text: str) -> Any:
             continue
         try:
             obj = json.loads(line)
-            if isinstance(obj, dict):
-                chunk = obj.get("message", {}).get("content", "")
-            else:
-                chunk = ""
+            chunk = obj.get("message", {}).get("content", "") if isinstance(obj, dict) else ""
             if chunk:
                 content_parts.append(chunk)
         except json.JSONDecodeError:
@@ -124,25 +121,20 @@ def _validate_with_schema(schema: dict, data: Any, path: str = "") -> list[str]:
     if "enum" in schema and data not in schema["enum"]:
         errors.append(f"{path}: value '{data}' not in enum {schema['enum']}")
 
-    if "minLength" in schema and isinstance(data, str):
-        if len(data) < schema["minLength"]:
-            errors.append(f"{path}: string length {len(data)} < minLength {schema['minLength']}")
+    if "minLength" in schema and isinstance(data, str) and len(data) < schema["minLength"]:
+        errors.append(f"{path}: string length {len(data)} < minLength {schema['minLength']}")
 
-    if "maxLength" in schema and isinstance(data, str):
-        if len(data) > schema["maxLength"]:
-            errors.append(f"{path}: string length {len(data)} > maxLength {schema['maxLength']}")
+    if "maxLength" in schema and isinstance(data, str) and len(data) > schema["maxLength"]:
+        errors.append(f"{path}: string length {len(data)} > maxLength {schema['maxLength']}")
 
-    if "minItems" in schema and isinstance(data, list):
-        if len(data) < schema["minItems"]:
-            errors.append(f"{path}: array length {len(data)} < minItems {schema['minItems']}")
+    if "minItems" in schema and isinstance(data, list) and len(data) < schema["minItems"]:
+        errors.append(f"{path}: array length {len(data)} < minItems {schema['minItems']}")
 
-    if "maxItems" in schema and isinstance(data, list):
-        if len(data) > schema["maxItems"]:
-            errors.append(f"{path}: array length {len(data)} > maxItems {schema['maxItems']}")
+    if "maxItems" in schema and isinstance(data, list) and len(data) > schema["maxItems"]:
+        errors.append(f"{path}: array length {len(data)} > maxItems {schema['maxItems']}")
 
-    if "pattern" in schema and isinstance(data, str):
-        if not re.match(schema["pattern"], data):
-            errors.append(f"{path}: value '{data}' does not match pattern {schema['pattern']}")
+    if "pattern" in schema and isinstance(data, str) and not re.match(schema["pattern"], data):
+        errors.append(f"{path}: value '{data}' does not match pattern {schema['pattern']}")
 
     return errors
 

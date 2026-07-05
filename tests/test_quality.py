@@ -9,7 +9,7 @@ class TestQualityGate:
         result = qg.check_scene({"score": 80, "issues": []})
         assert result.passed is True
 
-    def test_fail_low_score(self):
+    def test_score_is_ignored_when_no_severity_issues(self):
         qg = QualityGate()
         result = qg.check_scene({"score": 50, "issues": []})
         assert result.passed is True  # No critical issues = pass

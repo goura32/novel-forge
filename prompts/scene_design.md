@@ -33,6 +33,12 @@
 - シーン番号: {scene_number}（全{scene_count}シーン中）
 - 章内位置: {chapter_scene_number}/{chapter_scene_count}
 
+## シーン種
+
+章設計で予定されたこのシーンの素材。`goal`, `conflict`, `outcome`, `characters`, `key_events`, `setting` と矛盾しないように詳細化すること。
+
+{scene_seed}
+
 ## 前シーンの結果
 
 {previous_outcome}

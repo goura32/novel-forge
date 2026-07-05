@@ -53,10 +53,7 @@ class PromptManager:
                             break
                     schema_dict = get_schema(schema_name)
             # schema構造そのものを返さないよう、descriptionを中心とした構造化テキストを生成
-            if schema_dict:
-                schema_json = _build_simplified_schema(schema_dict)
-            else:
-                schema_json = "{}"
+            schema_json = _build_simplified_schema(schema_dict) if schema_dict else "{}"
             result = result.replace("{schema}", schema_json)
         return render_prompt(result, variables)
 

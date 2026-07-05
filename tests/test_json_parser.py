@@ -7,13 +7,12 @@ import pytest
 from novel_forge.json_parser import (
     JsonParseError,
     ValidationError,
-    _extract_json_text,
     _coerce_array_fields,
+    _extract_json_text,
     parse_json_response,
     validate,
     validate_or_raise,
 )
-
 
 # ── _extract_json_text ─────────────────────────────────────────────────
 

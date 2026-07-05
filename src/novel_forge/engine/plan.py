@@ -205,7 +205,7 @@ def _review_plan_concept(engine: NovelEngineBase, concept: dict, system: str, sc
         f"世界観ルール: {'; '.join(concept.get('world_rules', []))}"
     )
     user = engine._prompts.render(
-        "series_plan_concept_review.md", {"plan_text": text, "lang": engine._lang}
+        "series_plan_concept_review.md", {"plan_text": text, "keywords": "", "lang": engine._lang}
     )
     return engine._llm.complete_json("review", system, user, schema)
 
@@ -224,7 +224,7 @@ def _revise_plan_concept(
     )
     prompt = engine._prompts.render(
         "series_plan_concept_revision.md",
-        {"current_plan": plan_text, "review": review_text},
+        {"current_plan": plan_text, "review": review_text, "keywords": ""},
     )
     return engine._llm.complete_json("series_plan_concept", system, prompt, schema)
 
@@ -265,7 +265,7 @@ def _review_plan_characters(engine: NovelEngineBase, characters: dict, concept: 
         lines.append(f"  - {c.get('name', '')}（{c.get('role', '')}）: {c.get('arc', '')}")
     text = "\n".join(lines)
     user = engine._prompts.render(
-        "series_plan_characters_review.md", {"characters": text, "lang": engine._lang}
+        "series_plan_characters_review.md", {"characters": text, "concept_json": json.dumps(concept, ensure_ascii=False), "lang": engine._lang}
     )
     return engine._llm.complete_json(
         "review", system, user, get_schema("review"),
@@ -280,6 +280,7 @@ def _revise_plan_characters(
         "series_plan_characters_revision.md",
         {
             "current_characters": json.dumps(characters, ensure_ascii=False),
+            "concept_text": "",
             "review": review_text,
         },
     )
@@ -327,7 +328,7 @@ def _review_plan_volumes(
         lines.append(f"  - {v.get('title', '')}: {v.get('premise', '')}")
     text = "\n".join(lines)
     user = engine._prompts.render(
-        "series_plan_volumes_review.md", {"volumes": text, "lang": engine._lang}
+        "series_plan_volumes_review.md", {"volumes": text, "volumes_json": json.dumps(volumes, ensure_ascii=False), "lang": engine._lang}
     )
     return engine._llm.complete_json(
         "review", system, user, get_schema("review")
@@ -340,7 +341,7 @@ def _revise_plan_volumes(
     review_text = format_review_text(review)
     prompt = engine._prompts.render(
         "series_plan_volumes_revision.md",
-        {"current_volumes": json.dumps(volumes, ensure_ascii=False), "review": review_text},
+        {"current_volumes": json.dumps(volumes, ensure_ascii=False), "concept_text": "", "review": review_text},
     )
     return engine._llm.complete_json(
         "series_plan_volumes", system, prompt, get_schema("series_plan_volumes")

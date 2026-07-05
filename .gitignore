@@ -5,6 +5,15 @@
 __pycache__/
 *.pyc
 .venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Runtime logs and generated series artifacts
+*.log
+series_*/
+*_raw_logs/
+_raw_logs/
 
 # IDE
 .idea/

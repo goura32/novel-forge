@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 import pytest
+from fakes import MockLLMClient
 
 from novel_forge.context_builder import ContextBuilder
 from novel_forge.engine import NovelEngine
@@ -24,94 +24,6 @@ from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
 from novel_forge.scene_writer import SceneWriter
 from novel_forge.storage import BibleStorage, BlackboardStorage
-
-# ── Mock LLM Client ─────────────────────────────────────────────────────
-
-
-class MockLLMClient:
-    """Mock LLM client for tests that need to control LLM responses.
-
-    Uses kind-matching: each request finds the next entry with matching kind,
-    regardless of position in the sequence. This makes tests resilient to
-    internal call order changes.
-
-    Usage:
-        mock = MockLLMClient()
-        mock_llm.add_batch(
-                    ("series_plan_concept", core_data),
-                    ("series_plan_concept_review", review_data),
-                )
-        result = mock.complete_json("series_plan_concept", "system", "user", schema)
-    """
-
-    def __init__(self, responses: dict[str, Any] | None = None):
-        self._responses = responses or {}
-        self._call_log: list[tuple[str, str]] = []
-        self._call_count = 0
-        self._sequence: list[tuple[str, Any]] = []
-        self._seq_idx = 0
-
-    def add_sequence(self, kind: str, response: Any) -> None:
-        """Add a response to the sequential response queue.
-
-        Responses are consumed in order (FIFO). Each response is returned
-        once for its matching kind, then the pointer advances.
-        """
-        self._sequence.append((kind, response))
-
-    def add_batch(self, *items: tuple[str, Any]) -> None:
-        """Add multiple (kind, response) pairs at once."""
-        for kind, response in items:
-            self._sequence.append((kind, response))
-
-    def add_repeated(self, kind: str, response: Any, count: int) -> None:
-        """Add a response that will be reused up to `count` times for the same kind.
-
-        Each call returns a fresh deep copy so modifications don't leak.
-        """
-        import copy
-        for _ in range(count):
-            self._sequence.append((kind, copy.deepcopy(response)))
-
-    def complete_json(
-        self,
-        kind: str,
-        system_prompt: str,
-        user_prompt: str,
-        schema: dict[str, Any] | None = None,
-        seed_offset: int = 0,
-    ) -> dict[str, Any]:
-        self._call_count += 1
-        self._call_log.append((kind, user_prompt))
-
-        # Map new unified "review" kind to old specific kinds for backward compatibility with tests.
-        # Tests register responses with old kind names (e.g., "series_plan_concept_review").
-        # Code now calls with "review" for all reviews.
-        lookup_kind = kind
-        if kind == "review":
-            # Find the next review-type entry in the sequence
-            for i in range(self._seq_idx, len(self._sequence)):
-                expected_kind, resp = self._sequence[i]
-                if expected_kind.endswith("_review") or expected_kind.endswith("_revision"):
-                    lookup_kind = expected_kind
-                    break
-
-        # Kind-matching: scan from current position for matching kind
-        for i in range(self._seq_idx, len(self._sequence)):
-            expected_kind, resp = self._sequence[i]
-            if expected_kind == lookup_kind:
-                self._seq_idx = i + 1
-                if isinstance(resp, dict):
-                    return resp
-                return resp
-
-        raise RuntimeError(f"No response for kind={kind} (looked up as {lookup_kind})")
-
-    @staticmethod
-    def _is_schema_echo(parsed: dict[str, Any]) -> bool:
-        """Check if parsed response is just the JSON schema echoed back."""
-        return False
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -1010,3 +922,17 @@ class TestPromptInputCompleteness:
         assert "テストシリーズ" in review_prompt
         assert "テストのあらすじ" in review_prompt
 
+
+
+class TestFakeLLMFullPipeline:
+    def test_fake_llm_pipeline_plan_design_write_export(self, planned_engine):
+        """A fake LLM can drive the public pipeline through export."""
+        design_result = planned_engine.design(1)
+        write_result = planned_engine.write(1)
+        export_result = planned_engine.export(1)
+
+        assert design_result["scenes"]
+        assert write_result
+        assert export_result["manuscript_path"].endswith(".md")
+        assert export_result["metadata_path"].endswith("_metadata.json")
+        assert export_result["report_path"].endswith("_kdp_readiness_report.md")

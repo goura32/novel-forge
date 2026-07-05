@@ -145,7 +145,6 @@ def generate_and_review(
 
         blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
         major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-        minor = [i for i in review.get("issues", []) if i.get("severity") == "軽微"]
         revision_needed = len(blocker) > 0 or len(major) >= 2
 
         if not revision_needed:

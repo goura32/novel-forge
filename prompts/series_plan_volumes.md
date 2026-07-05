@@ -10,7 +10,7 @@
 
 ## シリーズ構想
 
-{core_concept}
+{core_text}
 
 ## メインキャラクター
 

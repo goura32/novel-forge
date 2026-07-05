@@ -8,7 +8,11 @@
     "theme",
     "emotional_arc",
     "outcome",
-    "scenes"
+    "scenes",
+    "chapter_turning_point",
+    "chapter_hook",
+    "foreshadowing_notes",
+    "subplot_notes"
   ],
   "properties": {
     "title": {
@@ -91,8 +95,57 @@
           "setting": {
             "description": "舞台設定（20〜300文字推奨）",
             "type": "string"
+          },
+          "scene_function": {
+            "description": "setup/confrontation/reversal/payoff/aftermath/reveal等のシーン機能。",
+            "type": "string"
+          },
+          "emotional_shift": {
+            "description": "このシーンで変化する感情。",
+            "type": "string"
+          },
+          "hook": {
+            "description": "シーン冒頭のフック。",
+            "type": "string"
+          },
+          "turning_point": {
+            "description": "シーン内の転換点。",
+            "type": "string"
+          },
+          "ending_hook": {
+            "description": "シーン末尾の引き。",
+            "type": "string"
           }
         }
+      }
+    },
+    "chapter_turning_point": {
+      "description": "章内で不可逆に変わる出来事・関係・認識。",
+      "type": "string"
+    },
+    "chapter_hook": {
+      "description": "章末で次章へ読ませる引き・余韻。",
+      "type": "string"
+    },
+    "foreshadowing_notes": {
+      "description": "章で設置・回収する伏線メモ。",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "subplot_notes": {
+      "description": "章で進行するサブプロットメモ。",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "characters": {
+      "description": "章で重要な人物。",
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
   }

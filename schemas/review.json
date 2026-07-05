@@ -4,6 +4,9 @@
   "description": "レビュー結果。各 issue は対象フィールド(field)と修正前後(before/after)を明示し、LLMがJSON単体で修正可能にする。",
   "type": "object",
   "required": [
+    "ready_for_publication",
+    "overall_assessment",
+    "strengths",
     "issues"
   ],
   "properties": {
@@ -49,8 +52,27 @@
           "after": {
             "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。",
             "type": "string"
+          },
+          "publication_blocking": {
+            "description": "出版前に必ず解消すべき問題ならtrue。",
+            "type": "boolean"
           }
         }
+      }
+    },
+    "ready_for_publication": {
+      "description": "出版可能状態。致命的/重要issueが残る場合はfalse。",
+      "type": "boolean"
+    },
+    "overall_assessment": {
+      "description": "レビュー全体の短い総評。",
+      "type": "string"
+    },
+    "strengths": {
+      "description": "改稿で維持すべき良い点。",
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
   }

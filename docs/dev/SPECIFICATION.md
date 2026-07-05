@@ -41,22 +41,19 @@ novel-forge/
 │   └── cover_prompt.md
 ├── schemas/                      # JSON Schema 定義
 │   ├── series_plan_concept.json
-│   ├── series_plan_concept_review.json
 │   ├── series_plan_characters.json
-│   ├── series_plan_characters_review.json
 │   ├── series_plan_volumes.json
-│   ├── series_plan_volumes_review.json
 │   ├── volume_design.json
-│   ├── volume_design_review.json
 │   ├── chapter_design.json
-│   ├── chapter_design_review.json
 │   ├── scene_design.json
-│   ├── scene_design_review.json
 │   ├── scene_draft.json
-│   ├── scene_review.json
+│   ├── review.json
 │   ├── scene_summary_and_bible_update.json
+│   ├── scene_summary.json
 │   ├── blackboard.json
 │   ├── bible.json
+│   ├── bible_update.json
+│   ├── cover_prompt.json
 │   └── kdp_metadata.json
 ├── src/
 │   └── novel_forge/
@@ -188,21 +185,22 @@ engine = NovelEngine(
 )
 ```
 
-### 6. --strict モード
+### 6. 生成・レビュー回数の制御
 
-`plan` / `design` / `write` の各コマンドで `--strict` フラグを指定可能。
+`plan` / `design` / `write` / `resume` / `complete` は、生成・レビュー回数をCLIオプションで制御できる。
 
 ```bash
-novel-forge plan --workdir /mnt/hdd/novel --strict "キーワード"
-novel-forge design --workdir /mnt/hdd/novel --strict
-novel-forge write --workdir /mnt/hdd/novel --strict
+novel-forge plan --workdir /mnt/hdd/novel --max-generation-count 5 --max-review-count 5 "キーワード"
+novel-forge design --workdir /mnt/hdd/novel --max-generation-count 5 --max-review-count 5
+novel-forge write --workdir /mnt/hdd/novel --max-generation-count 5 --max-review-count 5
 ```
 
 動作:
-- **`strict=True`**: `generate_and_review()` で max_retries 到達時 → `RuntimeError` 発生 → パイプライン停止
-- **`strict=False` (default)**: max_retries 到達時 → 警告ログ + 結果を返して次フェーズに進む（best-effort）
+- **`--max-generation-count`**: LLM API呼び出しとスキーマ/semantic validationの最大リトライ回数。
+- **`--max-review-count`**: レビュー→修正サイクルの最大回数。
+- 最大回数到達後も重大なvalidation/review問題が残る場合、該当工程は例外で停止する。
 
-`--strict` はバリデーション失敗とレビューの最大回数の両方に適用される。
+現CLIには `--strict` フラグは存在しない。
 
 ### 7. 統一レビュースキーマ (review.json)
 

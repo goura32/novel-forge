@@ -179,6 +179,7 @@ class SceneWriter:
             "scene_review.md",
             {
                 "scene": draft_text,
+                "concept_json": ctx.get_series_plan_summary_fn(),
                 "outline": ctx.get_outline_summary_fn(design_obj),
                 "context": ctx.build_context_fn(),
                 "subplots": self._get_subplots_text(),
@@ -211,6 +212,7 @@ class SceneWriter:
             "scene_revision.md",
             {
                 "scene": draft_text,
+                "concept_json": "",
                 "review": review_text,
                 "lang": lang,
             },

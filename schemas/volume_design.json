@@ -4,9 +4,19 @@
   "type": "object",
   "description": "LLM は chapters ごとに title, purpose を生成する。number と chapter_number は engine で機械採番されるため含めない。",
   "required": [
+    "title",
+    "premise",
     "chapters"
   ],
   "properties": {
+    "title": {
+      "description": "巻のタイトル。5〜64文字推奨。",
+      "type": "string"
+    },
+    "premise": {
+      "description": "巻のあらすじ。300〜1000文字推奨。",
+      "type": "string"
+    },
     "chapters": {
       "description": "章のリスト。2〜8個推奨。",
       "type": "array",

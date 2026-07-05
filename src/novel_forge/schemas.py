@@ -54,6 +54,19 @@ def _validate_with_schema(schema: dict[str, Any], data: dict[str, Any]) -> list[
     return errors
 
 
+def _validate_review_readiness(data: dict[str, Any]) -> list[str]:
+    blocking_severities = {"致命的", "重要"}
+    has_blocking = any(
+        isinstance(issue, dict) and issue.get("severity") in blocking_severities
+        for issue in data.get("issues", [])
+    )
+    if data.get("ready_for_publication") is True and has_blocking:
+        return ["ready_for_publication=true cannot have 致命的/重要 issues"]
+    if data.get("ready_for_publication") is False and not has_blocking:
+        return ["ready_for_publication=false requires at least one 致命的/重要 issue"]
+    return []
+
+
 def coerce_array_fields(data: dict, schema: dict) -> dict:
     """Pre-validation coercion: convert expected array fields that are objects to [].
     
@@ -81,10 +94,13 @@ def validate(name: str, data: dict[str, Any]) -> list[str]:
     try:
         schema = _load_schema(name)
     except FileNotFoundError:
-        return []
+        return [f"Schema not found: {name}"]
     # Apply pre-validation coercion for common LLM output quirks
     coerce_array_fields(data, schema)
-    return _validate_with_schema(schema, data)
+    errors = _validate_with_schema(schema, data)
+    if name == "review" and not errors:
+        errors.extend(_validate_review_readiness(data))
+    return errors
 
 
 def validate_or_raise(name: str, data: dict[str, Any]) -> None:

@@ -10,7 +10,11 @@
     "pov",
     "characters",
     "key_events",
-    "setting"
+    "setting",
+    "hook",
+    "turning_point",
+    "emotional_arc",
+    "ending_hook"
   ],
   "properties": {
     "title": {
@@ -50,6 +54,40 @@
     "setting": {
       "description": "舞台設定。20〜300文字推奨。",
       "type": "string"
+    },
+    "hook": {
+      "description": "冒頭1-2文で提示すべき具体的な異変・行動・対立。",
+      "type": "string"
+    },
+    "turning_point": {
+      "description": "シーン中盤から終盤で不可逆に変わる事実・関係・決意。",
+      "type": "string"
+    },
+    "emotional_arc": {
+      "description": "シーン開始時から終了時までの感情変化。",
+      "type": "string"
+    },
+    "ending_hook": {
+      "description": "次シーンへ読者を進ませる疑問・緊張・余韻。",
+      "type": "string"
+    },
+    "sensory_focus": {
+      "description": "このシーンで重点的に使う感覚。",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "subtext": {
+      "description": "台詞や行動の裏にある本音・隠し事・対立。",
+      "type": "string"
+    },
+    "foreshadowing": {
+      "description": "設置または回収する伏線。",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"

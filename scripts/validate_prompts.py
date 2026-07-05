@@ -7,7 +7,10 @@
     python scripts/validate_prompts.py --prompts-dir /path/to/prompts --src-dir /path/to/src
 """
 
+from __future__ import annotations
+
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -15,7 +18,23 @@ from pathlib import Path
 
 def extract_placeholders(text: str) -> set[str]:
     """テキストから {placeholder} を抽出する。"""
-    return set(re.findall(r'\{([a-z_]+)\}', text))
+    return set(re.findall(r"\{([a-z_]+)\}", text))
+
+
+def _literal_prompt_name(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.endswith(".md"):
+        return node.value
+    return None
+
+
+def _literal_dict_keys(node: ast.AST) -> set[str]:
+    if not isinstance(node, ast.Dict):
+        return set()
+    keys: set[str] = set()
+    for key in node.keys:
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            keys.add(key.value)
+    return keys
 
 
 def load_rendering_calls(src_dir: Path) -> dict[str, set[str]]:
@@ -23,25 +42,21 @@ def load_rendering_calls(src_dir: Path) -> dict[str, set[str]]:
     rendering_map: dict[str, set[str]] = {}
 
     for py_file in src_dir.rglob("*.py"):
-        content = py_file.read_text(encoding="utf-8")
-
-        # Prompts.render("filename.md", {...}) のパターンを検索
-        pattern = r'render\(\s*["\']([^"\']+\.md)["\']\s*,\s*\{([^}]+)\}'
-        for match in re.finditer(pattern, content):
-            prompt_name = match.group(1)
-            keys_str = match.group(2)
-            # キーを抽出: "key": value の key 部分
-            keys = set(re.findall(r'"([a-z_]+)"\s*:', keys_str))
-            if prompt_name not in rendering_map:
-                rendering_map[prompt_name] = set()
-            rendering_map[prompt_name].update(keys)
-
-        # 単純な render("filename.md", {...}) のパターンも検索
-        pattern2 = r'render\(\s*["\']([^"\']+\.md)["\']\s*,\s*\{'
-        for match in re.finditer(pattern2, content):
-            prompt_name = match.group(1)
-            if prompt_name not in rendering_map:
-                rendering_map[prompt_name] = set()
+        try:
+            tree = ast.parse(py_file.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Attribute) or node.func.attr != "render":
+                continue
+            if len(node.args) < 2:
+                continue
+            prompt_name = _literal_prompt_name(node.args[0])
+            if prompt_name is None:
+                continue
+            rendering_map.setdefault(prompt_name, set()).update(_literal_dict_keys(node.args[1]))
 
     return rendering_map
 
@@ -58,10 +73,11 @@ def validate_prompts(prompts_dir: Path, src_dir: Path) -> list[dict]:
         # {schema} は自動置換されるので除外
         placeholders.discard("schema")
 
-        # 実装側で渡されているキーを取得
-        implemented_keys = rendering_map.get(md_file.name, set())
+        # 未使用テンプレートは将来用/手動用としてここでは警告対象にしない。
+        if md_file.name not in rendering_map:
+            continue
 
-        # 未置換プレースホルダを検出
+        implemented_keys = rendering_map[md_file.name]
         missing = placeholders - implemented_keys
         if missing:
             issues.append({
@@ -71,19 +87,12 @@ def validate_prompts(prompts_dir: Path, src_dir: Path) -> list[dict]:
                 "implemented_keys": sorted(implemented_keys),
             })
 
-        # 実装側で渡されていないキーを検出（プロンプトにないキー）
-        extra = implemented_keys - placeholders
-        if extra:
-            issues.append({
-                "file": md_file.name,
-                "type": "EXTRA_KEY",
-                "keys": sorted(extra),
-            })
+        # 実装側の余剰キーは互換性維持や共通context渡しで意図的に使うため許容する。
 
     return issues
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description="Validate prompt placeholders against implementation")
     parser.add_argument("--prompts-dir", type=Path, default=Path("prompts"))
     parser.add_argument("--src-dir", type=Path, default=Path("src"))
@@ -101,9 +110,6 @@ def main():
             print(f"  ⚠️  {issue['file']}:")
             print(f"      Missing placeholders: {', '.join(issue['placeholders'])}")
             print(f"      Implemented keys: {', '.join(issue['implemented_keys'])}")
-        elif issue["type"] == "EXTRA_KEY":
-            print(f"  ℹ️  {issue['file']}:")
-            print(f"      Extra keys in implementation: {', '.join(issue['keys'])}")
         print()
 
     return 1

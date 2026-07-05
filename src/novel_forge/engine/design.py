@@ -136,6 +136,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         ch_data = chapters[ch_idx - 1] if ch_idx <= len(chapters) else {}
         ch_prompt = engine._prompts.render("chapter_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num),
+             "volume_title": vol_title, "volume_premise": vol_premise,
              "chapter_number": str(ch_idx), "chapter_title": ch_data.get("title", ""),
              "chapter_purpose": ch_data.get("purpose", ""),
              "previous_chapter_outcome": prev_chapter_outcome,
@@ -148,7 +149,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                   review_fn=lambda r, sys: _review_chapter_design(engine, r, sys),
                   revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
                       "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
-                          {"current_chapter": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                          {"current_chapter": json.dumps(r, ensure_ascii=False), "series_plan": series_plan, "review": format_review_text(rv)}),
                       get_schema("chapter_design"), seed_offset=so),
                   system=system,
                   user_prompt=ch_prompt,
@@ -172,15 +173,25 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     for ch in chapters:
         ch_num = ch.get("number", 0)
         ch_scenes = ch.get("scenes", [])
-        for sc_data in ch_scenes:
+        chapter_scene_count = len(ch_scenes)
+        for chapter_scene_number, sc_data in enumerate(ch_scenes, 1):
             scene_counter += 1
             sc_prompt = engine._prompts.render("scene_design.md",
                 {"series_plan": series_plan, "volume_number": str(vol_num),
+                 "volume_title": vol_title, "volume_premise": vol_premise,
                  "chapter_number": str(ch_num), "scene_number": str(scene_counter),
-                 "scene_count": str(len(ch.get("scenes", []))),
-                 "chapter_scene_number": str(scene_counter),
-                 "chapter_scene_count": str(len(ch.get("scenes", []))),
+                 "scene_count": str(chapter_scene_count),
+                 "chapter_scene_number": str(chapter_scene_number),
+                 "chapter_scene_count": str(chapter_scene_count),
+                 "chapter_title": ch.get("title", ""),
+                 "chapter_purpose": ch.get("purpose", ""),
+                 "chapter_theme": ch.get("theme", ""),
+                 "chapter_emotional_arc": ch.get("emotional_arc", ""),
+                 "chapter_foreshadowing_notes": json.dumps(ch.get("foreshadowing_notes", []), ensure_ascii=False),
+                 "chapter_subplot_notes": json.dumps(ch.get("subplot_notes", []), ensure_ascii=False),
+                 "scene_seed": json.dumps(sc_data, ensure_ascii=False),
                  "previous_outcome": prev_outcome,
+                 "previous_volume_summary": prev_volume_summary,
                  "lang": engine._lang})
             sc_result = generate_and_review(
                           generate_fn=lambda p, s: engine._llm.complete_json(
@@ -190,7 +201,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                           review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
                           revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
                               "scene_design", sys, engine._prompts.render("scene_design_revision.md",
-                                  {"current_scene": json.dumps(r, ensure_ascii=False), "review": format_review_text(rv)}),
+                                  {"current_scene": json.dumps(r, ensure_ascii=False), "series_plan": series_plan, "review": format_review_text(rv)}),
                               get_schema("scene_design"), seed_offset=so),
                           system=system,
                           user_prompt=sc_prompt,
@@ -201,6 +212,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
             scene_obj = sc_result[0] if isinstance(sc_result, tuple) else sc_result
             if isinstance(scene_obj, dict):
                 scene_obj["chapter_number"] = scene_obj.get("chapter_number", ch_num)
+                scene_obj.setdefault("chapter_scene_number", chapter_scene_number)
                 scene_obj["number"] = scene_counter
                 scenes.append(scene_obj)
                 prev_outcome = scene_obj.get("outcome", "")
@@ -214,6 +226,14 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
             "number": i,
             "title": ch.get("title", ""),
             "purpose": ch.get("purpose", ""),
+            "theme": ch.get("theme", ""),
+            "emotional_arc": ch.get("emotional_arc", ""),
+            "outcome": ch.get("outcome", ""),
+            "chapter_turning_point": ch.get("chapter_turning_point", ""),
+            "chapter_hook": ch.get("chapter_hook", ""),
+            "foreshadowing_notes": ch.get("foreshadowing_notes", []),
+            "subplot_notes": ch.get("subplot_notes", []),
+            "characters": ch.get("characters", []),
             "scenes": ch_scenes,
         })
 
@@ -250,16 +270,19 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
 
 def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    text = f"巻設計:\\n  タイトル: {data.get('title', '')}\\n  章数: {len(data.get('chapters', []))}"
+    chapters_info = ""
+    for i, ch in enumerate(data.get("chapters", []), 1):
+        chapters_info += f"\n  第{i}章: {ch.get('title', '')} (役割: {ch.get('purpose', '')})"
+    text = f"巻設計:\n  タイトル: {data.get('title', '')}\n  章数: {len(data.get('chapters', []))}{chapters_info}"
     user = engine._prompts.render("volume_design_review.md",
-        {"design": text, "lang": engine._lang})
+        {"design": text, "concept_text": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = f"章設計:\\n  タイトル: {data.get('title', '')}\\n  目的: {data.get('purpose', '')}"
     user = engine._prompts.render("chapter_design_review.md",
-        {"design": text, "lang": engine._lang})
+        {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
@@ -268,7 +291,7 @@ def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> di
             f"  目標: {data.get('goal', '')}\\n  葛藤: {data.get('conflict', '')}\\n"
             f"  結果: {data.get('outcome', '')}")
     user = engine._prompts.render("scene_design_review.md",
-        {"design": text, "lang": engine._lang})
+        {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
