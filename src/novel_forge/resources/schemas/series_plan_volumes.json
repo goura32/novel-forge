@@ -49,7 +49,7 @@
             "minItems": 1
           },
           "cliffhanger": {
-            "description": "次巻へのフック（最終巻以外必須）。100〜1000文字推奨。",
+            "description": "次巻へのフック。全巻で非空。最終巻では続刊の未解決 cliffhanger ではなく、物語の余韻・未来へのフック・読後に残る問いを書く。100〜1000文字推奨。",
             "type": "string",
             "minLength": 1
           }

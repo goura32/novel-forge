@@ -109,3 +109,13 @@
 | P13-01 | 開発用ローカル品質ゲートを追加 | Done | `scripts/check_dev_quality.py` で pytest / ruff / mypy / prompt validator を一括実行、`--full` で `uv build` も実行 |
 | P13-02 | `config.example.yaml` を追加 | Done | ローカル設定例を追加し README / OPERATIONS から案内 |
 | P13-03 | pytest設定を明文化 | Done | `testpaths` と unit/integration/contract/real_model marker を `pyproject.toml` に追加 |
+
+## 12. Phase 14 — 実モデル plan smoke / prompt hardening（完了）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P14-01 | 実モデル `plan` smoke を実行 | Done | `uv run novel-forge plan -w smoke_workspace --raw-log --max-generation-count 2 --max-review-count 1 ...` |
+| P14-02 | `series_plan_volumes.cliffhanger` 空文字対策 | Done | 最終巻も余韻・未来へのフックとして非空出力を要求 |
+| P14-03 | `series_plan_characters_revision` の schema echo / 空配列対策 | Done | 既存人数維持、`main_characters` 配列、実データのみ出力、`arc`維持を明示 |
+| P14-04 | 契約テスト追加 | Done | prompt品質契約で上記退行を固定 |
+| P14-05 | smoke結果確認 | Done | `characters=3`, `volumes=4`, empty cliffhangersなし |
