@@ -95,9 +95,9 @@
 | P11-02 | required fields に `minLength` / `minItems` を追加 | Done | 全stringの空文字を拒否し、重要arrayにminItemsを追加。空配列が意味を持つ更新系は例外化 |
 | P11-03 | duplicate chapter/scene number などの semantic validator を追加 | Done | final volume design の重複番号・章/scene参照不整合を検出し、export preflightへ統合 |
 
-## 10. Phase 12 — mypy burn-down（予定）
+## 10. Phase 12 — mypy burn-down（完了）
 
 | ID | Task | Status | メモ |
 |---|---|---:|---|
-| P12-01 | `generate_and_review()` 戻り値の型を固定 | TBD | `tuple[dict, dict]` に統一 |
-| P12-02 | mypy errors 49 → 0 を達成 | TBD | CI allow-fail → assert-fail へ昇格 |
+| P12-01 | `generate_and_review()` 戻り値の型を固定 | Done | `tuple[dict, dict]` を明示 unpack し、design path の型誤推論を解消 |
+| P12-02 | mypy errors 49 → 0 を達成 | Done | `uv run mypy src/novel_forge tests --show-error-codes` → no issues |

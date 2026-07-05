@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from novel_forge.llm_task import LLMTaskRunner, TaskDefinition, TaskRegistry
@@ -9,7 +11,7 @@ from novel_forge.llm_task import LLMTaskRunner, TaskDefinition, TaskRegistry
 
 class SpyLLM:
     def __init__(self) -> None:
-        self.calls = []
+        self.calls: list[tuple[str, str, str, dict[str, Any], int]] = []
 
     def complete_json(self, kind, system_prompt, user_prompt, schema, seed_offset=0):
         self.calls.append((kind, system_prompt, user_prompt, schema, seed_offset))

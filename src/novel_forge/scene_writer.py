@@ -7,7 +7,7 @@ Also manages scene summarization and Bible updates after each scene.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.engine.review import format_review_text, generate_and_review
@@ -195,7 +195,7 @@ class SceneWriter:
                     "review", system, user, schema, seed_offset=0
                 )
                 self._log.info("  [REVIEW DONE] issues=%d", len(result.get("issues", [])))
-                return result
+                return cast(dict[str, Any], result)
             except Exception as e:
                 if attempt < 2:
                     self._log.warning("  [REVIEW RETRY] attempt %d/3: %s", attempt + 1, e)
@@ -221,7 +221,7 @@ class SceneWriter:
         result = self._llm.complete_json(
             "scene_draft", system, user, schema, seed_offset=seed_offset
         )
-        return result.get("content", draft_text)
+        return cast(str, result.get("content", draft_text))
 
     # -- summarize --
 

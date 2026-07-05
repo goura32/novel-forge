@@ -7,7 +7,7 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -270,7 +270,7 @@ class LLMClient:
                         parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
                     from novel_forge.schemas import validate_or_raise
                     validate_or_raise(kind, parsed)
-                return parsed
+                return cast(dict[str, Any], parsed)
 
             except RuntimeError:
                 # --strict mode: propagate after saving raw log

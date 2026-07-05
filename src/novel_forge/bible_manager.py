@@ -88,8 +88,8 @@ class BibleManager:
                 lines.append(f"  - {g.term}: {g.definition}")
         if bible.world_rules:
             lines.append("世界観ルール:")
-            for r in bible.world_rules:
-                lines.append(f"  - {r}")
+            for rule_text in bible.world_rules:
+                lines.append(f"  - {rule_text}")
         return "\n".join(lines) if lines else "（Bible は空です）"
 
     # ── apply update (from scene_summary_and_bible_update / bible_update) ──
@@ -172,7 +172,7 @@ class BibleManager:
         for rel_data in result.get("relationships", []):
             if not isinstance(rel_data, dict):
                 continue
-            existing = next(
+            existing_rel = next(
                 (
                     r
                     for r in bible.relationships
@@ -185,14 +185,14 @@ class BibleManager:
                 None,
             )
             relationship_type = rel_data.get("relationship_type") or rel_data.get("type", "")
-            if existing:
+            if existing_rel:
                 if relationship_type:
-                    existing.relationship_type = relationship_type
+                    existing_rel.relationship_type = relationship_type
                 if rel_data.get("change_direction"):
-                    existing.change_direction = rel_data["change_direction"]
+                    existing_rel.change_direction = rel_data["change_direction"]
                 if rel_data.get("trigger_event"):
-                    existing.trigger_event = rel_data["trigger_event"]
-                existing.scene_number = scene_number
+                    existing_rel.trigger_event = rel_data["trigger_event"]
+                existing_rel.scene_number = scene_number
             else:
                 bible.relationships.append(
                     RelationshipItem(
@@ -209,15 +209,15 @@ class BibleManager:
         for sp_data in result.get("subplots", []):
             if not isinstance(sp_data, dict):
                 continue
-            existing = next(
+            existing_subplot = next(
                 (s for s in bible.subplots if s.id == sp_data.get("id", "")),
                 None,
             )
-            if existing:
+            if existing_subplot:
                 if sp_data.get("status"):
-                    existing.status = sp_data["status"]
+                    existing_subplot.status = sp_data["status"]
                 if sp_data.get("progress_note"):
-                    existing.progress_note = sp_data["progress_note"]
+                    existing_subplot.progress_note = sp_data["progress_note"]
             else:
                 bible.subplots.append(
                     SubplotItem(
@@ -236,9 +236,9 @@ class BibleManager:
                 continue
             term = g_data.get("term", "")
             if term:
-                existing = next((g for g in bible.glossary if g.term == term), None)
-                if existing:
-                    existing.definition = g_data.get("definition", existing.definition)
+                existing_glossary = next((g for g in bible.glossary if g.term == term), None)
+                if existing_glossary:
+                    existing_glossary.definition = g_data.get("definition", existing_glossary.definition)
                 else:
                     bible.glossary.append(
                         GlossaryItem(

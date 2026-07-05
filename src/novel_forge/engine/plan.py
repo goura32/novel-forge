@@ -78,7 +78,7 @@ def _validate_plan_volumes(volumes: dict) -> list[str]:
 
 
 def _get_existing_slugs(engine: NovelEngineBase) -> set[str]:
-    existing = set()
+    existing: set[str] = set()
     workdir = engine.workdir
     if not workdir.exists():
         return existing

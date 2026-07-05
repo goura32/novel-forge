@@ -71,7 +71,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     if plan_path.exists():
         try:
             plan = json.loads(plan_path.read_text(encoding="utf-8"))
-            total_vol = len(plan.get("planned_volumes", []))
+            total_vol = str(len(plan.get("planned_volumes", [])))
         except Exception:
             pass
 
@@ -88,7 +88,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         if prev_vol_path.exists():
             with contextlib.suppress(Exception):
                 prev_design = prev_vol_path.read_text(encoding="utf-8")
-    vol_design_data = generate_and_review(
+    vol_design_data, _vol_review = generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "volume_design", system, p, get_schema("volume_design"), seed_offset=s),
         validate_fn=_validate_volume_design,
@@ -107,11 +107,13 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         llm=engine._llm,
         quality=engine._quality,
     )
-    vol_design_data = vol_design_data[0] if isinstance(vol_design_data, tuple) else vol_design_data
     if isinstance(vol_design_data, dict):
-        chapters = vol_design_data.get("chapters", [vol_design_data])
-        vol_title = vol_design_data.get("title", f"第{vol_num}巻")
-        vol_premise = vol_design_data.get("premise", "")
+        raw_chapters = vol_design_data.get("chapters", [vol_design_data])
+        chapters: list[dict[str, Any]] = [
+            chapter for chapter in raw_chapters if isinstance(chapter, dict)
+        ]
+        vol_title = str(vol_design_data.get("title", f"第{vol_num}巻"))
+        vol_premise = str(vol_design_data.get("premise", ""))
     else:
         chapters = []
         vol_title = f"第{vol_num}巻"
@@ -142,7 +144,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
              "previous_chapter_outcome": prev_chapter_outcome,
              "previous_volume_summary": prev_volume_summary,
              "lang": engine._lang})
-        ch_result = generate_and_review(
+        ch_result, _ch_review = generate_and_review(
                   generate_fn=lambda p, s: engine._llm.complete_json(
                       "chapter_design", system, p, get_schema("chapter_design"), seed_offset=s),
                   validate_fn=_validate_chapter_design,
@@ -157,8 +159,6 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                   llm=engine._llm,
                   quality=engine._quality,
               )
-        if isinstance(ch_result, tuple):
-            ch_result = ch_result[0]
         chapter_results.append(ch_result)
         if isinstance(ch_result, dict):
             prev_chapter_outcome = ch_result.get("outcome", "") or ch_result.get("emotional_arc", "")
@@ -193,7 +193,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "previous_outcome": prev_outcome,
                  "previous_volume_summary": prev_volume_summary,
                  "lang": engine._lang})
-            sc_result = generate_and_review(
+            scene_obj, _sc_review = generate_and_review(
                           generate_fn=lambda p, s: engine._llm.complete_json(
                               "scene_design", system, p, get_schema("scene_design"),
                               seed_offset=s),
@@ -209,7 +209,6 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                           llm=engine._llm,
                           quality=engine._quality,
                       )
-            scene_obj = sc_result[0] if isinstance(sc_result, tuple) else sc_result
             if isinstance(scene_obj, dict):
                 if not scene_obj.get("chapter_number"):
                     scene_obj["chapter_number"] = ch_num
@@ -240,7 +239,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
     vol = engine._current_volume()
     vol.status = "デザイン済"
-    result = {
+    result: dict[str, Any] = {
         "title": vol_title,
         "premise": vol_premise,
         "chapters": chapters_with_scenes,

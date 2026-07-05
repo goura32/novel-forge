@@ -7,7 +7,7 @@ No mixin classes.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 from novel_forge.semantic_validators import validate_volume_design_semantics
 
@@ -176,10 +176,10 @@ def _read_scene_draft(
         ch_dir.glob(f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v*.md")
     )
     if candidates:
-        return candidates[-1].read_text(encoding="utf-8")
+        return cast(str, candidates[-1].read_text(encoding="utf-8"))
     plain = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
     if plain.exists():
-        return plain.read_text(encoding="utf-8")
+        return cast(str, plain.read_text(encoding="utf-8"))
     return None
 
 

@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from novel_forge.workflows import DesignWorkflow, WriteWorkflow
 
 
+def _record_call(calls: list[tuple[Any, int | None]], engine: Any, volume: int | None, result: Any) -> Any:
+    calls.append((engine, volume))
+    return result
+
+
 def test_design_workflow_delegates_to_injected_runner() -> None:
-    calls = []
-    workflow = DesignWorkflow(lambda engine, volume: calls.append((engine, volume)) or {"ok": True})
+    calls: list[tuple[Any, int | None]] = []
+    workflow = DesignWorkflow(lambda engine, volume: _record_call(calls, engine, volume, {"ok": True}))
 
     result = workflow.run("engine", 2)
 
@@ -16,8 +23,8 @@ def test_design_workflow_delegates_to_injected_runner() -> None:
 
 
 def test_write_workflow_delegates_to_injected_runner() -> None:
-    calls = []
-    workflow = WriteWorkflow(lambda engine, volume: calls.append((engine, volume)) or [{"scene": 1}])
+    calls: list[tuple[Any, int | None]] = []
+    workflow = WriteWorkflow(lambda engine, volume: _record_call(calls, engine, volume, [{"scene": 1}]))
 
     result = workflow.run("engine", 1)
 

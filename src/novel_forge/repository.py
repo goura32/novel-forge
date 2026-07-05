@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def safe_join(root: Path, relative_path: str | Path) -> Path:
@@ -33,7 +33,8 @@ class ProjectRepository:
         return path
 
     def load_json(self, relative_path: str | Path) -> dict[str, Any]:
-        return json.loads(self._path(relative_path).read_text(encoding="utf-8"))
+        data = json.loads(self._path(relative_path).read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
 
     def write_text(self, relative_path: str | Path, content: str) -> Path:
         path = self._path(relative_path)

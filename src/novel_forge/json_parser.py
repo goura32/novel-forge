@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, cast
 
 from novel_forge.logging_config import get_logger
 
@@ -167,7 +167,7 @@ def _load_schema(name: str) -> dict:
     if not path.exists():
         raise FileNotFoundError(f"Schema not found: {path}")
     with path.open(encoding="utf-8") as f:
-        return json.load(f)
+        return cast(dict[str, Any], json.load(f))
 
 
 def validate(name: str, data: dict[str, Any]) -> list[str]:

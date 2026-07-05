@@ -30,13 +30,13 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
     for ch in chapters:
         ch_copy = {k: v for k, v in ch.items() if k != "scenes"}
         chapters_clean.append(ch_copy)
-    design_obj = VolumeOutline(
-        volume_number=vol_num,
-        title=design_data.get("title", ""),
-        premise=design_data.get("premise", ""),
-        chapters=chapters_clean,
-        scenes=scenes,
-    )
+    design_obj = VolumeOutline.model_validate({
+        "volume_number": vol_num,
+        "title": design_data.get("title", ""),
+        "premise": design_data.get("premise", ""),
+        "chapters": chapters_clean,
+        "scenes": scenes,
+    })
     engine._log.info(f"▶ Write: series='{slug}' vol={vol_num} title='{vol_title}'")
     engine._scene_writer._strict = getattr(engine, "_strict", False)
 

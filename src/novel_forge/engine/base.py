@@ -12,7 +12,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from novel_forge.bible_manager import BibleManager
 from novel_forge.context_builder import ContextBuilder
@@ -208,7 +208,7 @@ class NovelEngineBase:
         """Series output directory: {workdir}/{slug}/ (temp during plan)."""
         cached = self.__dict__.get("_cached_series_dir")
         if cached is not None:
-            return cached
+            return cast(Path, cached)
         if not self._slug:
             if not hasattr(self, "_tmp_dir"):
                 self._tmp_dir = Path(tempfile.mkdtemp(prefix="novel-forge-"))
@@ -300,7 +300,8 @@ class NovelEngineBase:
                         break
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
 
     def _get_or_create_scene_record(self, vol: VolumeProgress, scene_number: int) -> SceneRecord:
         for s in vol.scenes:

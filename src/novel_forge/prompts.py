@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 _DEV_PROMPT_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
 _PACKAGED_PROMPT_DIR = resources.files("novel_forge") / "resources" / "prompts"
@@ -69,10 +70,10 @@ def _infer_schema_name(prompt_stem: str) -> str:
     return prompt_stem
 
 
-def _build_simplified_schema(schema: dict) -> str:
+def _build_simplified_schema(schema: dict[str, Any]) -> str:
     """Build a simplified schema text focusing on descriptions for both top-level and nested properties."""
-    def extract_props(obj, indent=0) -> dict:
-        result = {}
+    def extract_props(obj: Any, indent: int = 0) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         if not isinstance(obj, dict):
             return result
         for prop_name, prop_def in obj.get("properties", {}).items():

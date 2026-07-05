@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import typer
 
@@ -195,11 +196,11 @@ def complete(
         ("Write", lambda: engine.write(volume)),
         ("Export", lambda: engine.export(volume)),
     ]
-    result = None
+    result: dict[str, Any] | None = None
     for i, (name, fn) in enumerate(steps, 1):
         console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
         try:
-            result = fn()
+            result = cast(dict[str, Any], fn())
         except Exception as e:
             console.print(f"[red]✗ {name} failed: {e}[/red]")
             raise SystemExit(1) from e

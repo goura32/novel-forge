@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(frozen=True)
@@ -43,4 +43,5 @@ class LLMTaskRunner:
     def run(self, task: TaskDefinition, variables: dict[str, str], seed_offset: int = 0) -> dict[str, Any]:
         user_prompt = self._prompt_renderer(task.prompt_name, variables)
         schema = self._schema_loader(task.schema_name)
-        return self._llm.complete_json(task.name, self._system_prompt, user_prompt, schema, seed_offset=seed_offset)
+        result = self._llm.complete_json(task.name, self._system_prompt, user_prompt, schema, seed_offset=seed_offset)
+        return cast(dict[str, Any], result)
