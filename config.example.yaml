@@ -35,3 +35,10 @@ llm:
     think: false
     temperature: 0.7
     top_p: 0.9
+
+logging:
+  # Print detailed logs to console.
+  verbose: false
+
+  # Save LLM raw data and human-readable summaries under _raw_logs/.
+  raw_log: false

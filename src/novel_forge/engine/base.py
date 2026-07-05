@@ -41,6 +41,25 @@ def _is_process_alive(pid: int) -> bool:
         return True
 
 
+def _load_config_for_workdir(workdir: Path) -> dict[str, Any]:
+    """Load config with runtime precedence: env path > workdir/parent config > cwd search."""
+    env_path = os.environ.get("NOVEL_FORGE_CONFIG")
+    if env_path:
+        return load_config(Path(env_path))
+
+    workdir_path = Path(workdir)
+    candidates = []
+    if (workdir_path / "series_plan.json").exists():
+        candidates.append(workdir_path.parent / "config.yaml")
+    candidates.append(workdir_path / "config.yaml")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return load_config(candidate)
+
+    return load_config()
+
+
 class NovelEngineBase:
     """Base class for NovelEngine — __init__, helpers, state management.
 
@@ -54,6 +73,8 @@ class NovelEngineBase:
     _DEFAULT_NUM_CTX = 262144
     _DEFAULT_TIMEOUT = 3600
     _DEFAULT_MAX_RETRIES = 2
+    _DEFAULT_MAX_GENERATION_COUNT = 3
+    _DEFAULT_MAX_REVIEW_COUNT = 8
 
     def __init__(
         self,
@@ -79,7 +100,7 @@ class NovelEngineBase:
         self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
 
-        cfg = config if config is not None else load_config()
+        cfg = config if config is not None else _load_config_for_workdir(self._workdir)
 
         log_cfg = cfg.get("logging", {})
         self._verbose = verbose if verbose is not None else log_cfg.get("verbose", False)
@@ -138,10 +159,7 @@ class NovelEngineBase:
 
         if llm_client is None:
             llm_cfg = cfg.get("llm", {})
-            model = model or self._DEFAULT_MODEL
-            model = llm_cfg.get("model", model)
-            if model is None:
-                model = self._DEFAULT_MODEL
+            model = model if model is not None else llm_cfg.get("model") or self._DEFAULT_MODEL
             timeout = llm_cfg.get("timeout_seconds", self._DEFAULT_TIMEOUT)
             max_retries = llm_cfg.get("max_retries", self._DEFAULT_MAX_RETRIES)
             num_predict = llm_cfg.get("num_predict", self._DEFAULT_NUM_PREDICT)
@@ -165,19 +183,19 @@ class NovelEngineBase:
             )
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
-        quality_retries = (
+        quality_cfg = cfg.get("quality", {})
+        review_retries = (
             max_review_count
             if max_review_count is not None
-            else cfg.get("quality", {}).get("max_review_count", QualityGate.DEFAULT_MAX_RETRIES)
+            else quality_cfg.get("max_review_count", self._DEFAULT_MAX_REVIEW_COUNT)
         )
         generation_retries = (
             max_generation_count
             if max_generation_count is not None
-            else cfg.get("quality", {}).get("max_generation_count", quality_retries)
+            else quality_cfg.get("max_generation_count", self._DEFAULT_MAX_GENERATION_COUNT)
         )
-        review_retries = cfg.get("quality", {}).get("max_review_count", quality_retries)
         self._quality = QualityGate(
-            max_retries=quality_retries,
+            max_retries=review_retries,
             generation_count=generation_retries,
             review_count=review_retries,
         )

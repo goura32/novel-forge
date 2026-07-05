@@ -129,3 +129,13 @@
 | P15-03 | response summaryからthinking/transport metadataを除外 | Done | Ollama NDJSON は `message.content` のみ連結しJSON整形。thinkingはgzip rawのみ |
 | P15-04 | 重複rawを削除 | Done | 成功responseは `details/response_0_0.json.gz` に統一し、旧 `response.json.gz` を出さない |
 | P15-05 | 実CLI smoke確認 | Done | `--raw-log` plan成功。missingなし、`response.json.gz`なし、summary内thinkingなし |
+
+## 14. Phase 16 — config.yaml 省略時の既定値精査（完了）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P16-01 | config探索順を明確化 | Done | `CLI > NOVEL_FORGE_CONFIG > --workdir/config.yaml > cwd親探索 > built-in` に統一 |
+| P16-02 | CLI省略時のconfig上書きバグ修正 | Done | `--model`, `--verbose`, `--raw-log`, retry countが未指定なら `None` としてengine側で解決 |
+| P16-03 | configなしbuilt-in既定値を精査 | Done | quality built-in を `max_generation_count=3`, `max_review_count=8` に調整 |
+| P16-04 | doctorのconfig対応 | Done | `doctor -w <dir>` で `<dir>/config.yaml` の model/ollama_host を使用 |
+| P16-05 | 契約テストとdocs同期 | Done | missing config / workdir config / CLI override / env precedence をテスト化 |

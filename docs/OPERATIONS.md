@@ -19,14 +19,16 @@ uv run novel-forge complete -w <dir> "keyword1 keyword2"
 
 ## 1 オプション共通
 
-| オプション                    | デフォルト                          | 役割                        |
+| オプション                    | 省略時の解決                         | 役割                        |
 |------------------------------|-----------------------------------|-----------------------------|
-| `--workdir, -w`            | `.`                              |系列の出力先               |
-| `--model, -m`              | `qwen3.6:35b-a3b-mtp-q4_K_M`   | Ollama モデル名          |
-| `--max-generation-count`   | 3                                 | 生成・バリデーションのリトライ最大数 |
-| `--max-review-count`       | 7                                 | レビュー→修正サイクルの最大数    |
-| `--verbose, -v`            |                                   | 詳細ログ出力                 |
+| `--workdir, -w`            | `.`                              | 系列の出力先 / `config.yaml` 探索起点 |
+| `--model, -m`              | `config.yaml` → `qwen3.6:35b-a3b-mtp-q4_K_M` | Ollama モデル名          |
+| `--max-generation-count`   | `config.yaml` → `3`              | 生成・バリデーションの最大試行数 |
+| `--max-review-count`       | `config.yaml` → `8`              | レビュー→修正サイクルの最大数 |
+| `--verbose, -v`            | `config.yaml` → `false`          | 詳細ログ出力                 |
+| `--raw-log`                | `config.yaml` → `false`          | raw log / human summary を保存 |
 
+省略時の優先順位は `CLI引数 > NOVEL_FORGE_CONFIG > --workdir/config.yaml > カレントディレクトリから親方向のconfig.yaml > built-in既定値` です。`config.yaml` が存在しなくても built-in 既定値で動作します。
 
 > **注意**: `--strict` フラグは廃止済み。スキーマ validation failure で即座に停止します。
 
@@ -138,6 +140,16 @@ cp config.example.yaml config.yaml
 ```
 
 `NOVEL_FORGE_CONFIG=/path/to/config.yaml` を指定すると任意の設定ファイルを読めます。
+
+設定探索順:
+
+1. CLI引数
+2. `NOVEL_FORGE_CONFIG`
+3. `--workdir/config.yaml`（series dir指定時は親も確認）
+4. カレントディレクトリから親方向の `config.yaml`
+5. built-in 既定値
+
+`config.yaml` が存在しない場合の主要built-in既定値は、`model=qwen3.6:35b-a3b-mtp-q4_K_M`, `ollama_host=ws1.local:11434`, `max_generation_count=3`, `max_review_count=8`, `raw_log=false` です。
 
 
 ## 9 lock エラー

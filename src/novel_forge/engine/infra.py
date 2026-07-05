@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.table import Table
 
 from novel_forge.engine import NovelEngine
+from novel_forge.llm_client import load_config
 
 console = Console()
 
@@ -24,6 +25,42 @@ DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
 _LOCK_FILE_NAME = ".lock"
 _STATE_FILE_NAME = ".novel_forge_state"
 _LOCK_TIMEOUT_SECONDS = 300
+
+
+def _load_config_for_workdir(workdir: Path) -> dict:
+    """Load config with runtime precedence: env path > workdir config > cwd search."""
+    env_path = os.environ.get("NOVEL_FORGE_CONFIG")
+    if env_path:
+        return load_config(Path(env_path))
+
+    workdir_path = Path(workdir)
+    candidates = []
+    if (workdir_path / "series_plan.json").exists():
+        candidates.append(workdir_path.parent / "config.yaml")
+    candidates.append(workdir_path / "config.yaml")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return load_config(candidate)
+
+    return load_config()
+
+
+def _resolve_doctor_defaults(
+    workdir: Path,
+    model: str | None,
+    ollama_host: str | None,
+) -> tuple[str, str]:
+    """Resolve doctor options with CLI > config > built-in/env precedence."""
+    cfg = _load_config_for_workdir(workdir)
+    llm_cfg = cfg.get("llm", {})
+    resolved_model = model if model is not None else llm_cfg.get("model") or DEFAULT_MODEL
+    resolved_host = (
+        ollama_host
+        if ollama_host is not None
+        else llm_cfg.get("ollama_host") or os.environ.get("OLLAMA_HOST", "ws1.local:11434")
+    )
+    return resolved_model, resolved_host
 
 
 def _is_process_alive(pid: int) -> bool:
@@ -121,12 +158,12 @@ def _find_existing_series(workdir: Path, slug: str | None = None) -> Path:
 
 def make_engine(
     workdir: Path = Path("."),
-    model: str = DEFAULT_MODEL,
+    model: str | None = None,
     lang: str = "ja",
     max_generation_count: int | None = None,
     max_review_count: int | None = None,
-    verbose: bool = False,
-    raw_log: bool = False,
+    verbose: bool | None = None,
+    raw_log: bool | None = None,
     phase: str = "",
     series: str = "",
 ) -> NovelEngine:

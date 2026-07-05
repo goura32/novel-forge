@@ -482,3 +482,15 @@ class TestLoadConfig:
 
         config = load_config(config_file)
         assert config == {}
+
+    def test_env_path_takes_precedence_over_cwd_config(self, monkeypatch, tmp_path):
+        cwd_config = tmp_path / "config.yaml"
+        cwd_config.write_text("llm:\n  model: cwd-model\n", encoding="utf-8")
+        env_config = tmp_path / "env-config.yaml"
+        env_config.write_text("llm:\n  model: env-model\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("NOVEL_FORGE_CONFIG", str(env_config))
+
+        config = load_config()
+
+        assert config["llm"]["model"] == "env-model"

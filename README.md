@@ -68,7 +68,7 @@ uv run python scripts/check_dev_quality.py
 uv run python scripts/check_dev_quality.py --full
 ```
 
-ローカル設定は `config.example.yaml` を `config.yaml` にコピーして調整できます。
+ローカル設定は任意です。`config.yaml` がなくても built-in 既定値で動作します。固定したい場合は `config.example.yaml` を `config.yaml` にコピーして調整できます。CLI省略時は `CLI引数 > NOVEL_FORGE_CONFIG > --workdir/config.yaml > カレントディレクトリから親方向のconfig.yaml > built-in既定値` の順に解決します。
 
 ## ライセンス
 

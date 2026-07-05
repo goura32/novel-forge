@@ -4,16 +4,16 @@
 
 ### 1.1 グローバルオプション
 
-| オプション | 短縮 | Default | 説明 |
+| オプション | 短縮 | 省略時の解決 | 説明 |
 |---|---|---|---|
-| `--workdir` | `-w` | `.` | 作業ディレクトリ（config.yaml のある場所） |
+| `--workdir` | `-w` | `.` | 作業ディレクトリ。`config.yaml` 探索起点 |
 | `--series` | `-s` | なし | 既存シリーズの slug |
 | `--volume` | `-V` | `1` | 処理対象の巻番号 |
-| `--model` | `-m` | 設定ファイル or デフォルト | LLM モデル名 |
-| `--max-generation-count` | | `3` | 生成API（APIエラー＋バリデーション）の最大リトライ回数（同一工程内） |
-| `--max-review-count` | | `3` | レビュー→修正サイクルの最大回数（複数工程にまたがる） |
-| `--verbose` | `-v` | `false` | 詳細出力 |
-| `--raw-log` | | `false` | LLM生データを `_raw_logs/` に gzip 保存 |
+| `--model` | `-m` | `config.yaml` → built-in | LLM モデル名 |
+| `--max-generation-count` | | `config.yaml` → `3` | 生成API（APIエラー＋バリデーション）の最大試行数 |
+| `--max-review-count` | | `config.yaml` → `8` | レビュー→修正サイクルの最大回数 |
+| `--verbose` | `-v` | `config.yaml` → `false` | 詳細出力 |
+| `--raw-log` | | `config.yaml` → `false` | LLM生データと人間向けsummaryを `_raw_logs/` に保存 |
 
 ### 1.2 排他制御
 
@@ -376,22 +376,35 @@ _raw_logs/plan/20260629_064606_12345_0001_series_plan_concept/
 
 ## 10. 設定ファイル (config.yaml)
 
+`config.yaml` は任意です。存在しない場合は built-in 既定値で動作します。探索順は以下です。
+
+1. CLI引数
+2. `NOVEL_FORGE_CONFIG`
+3. `--workdir/config.yaml`（series dir指定時は親の `config.yaml` も確認）
+4. カレントディレクトリから親方向の `config.yaml`
+5. built-in 既定値
+
 ```yaml
 llm:
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
   num_predict: -1
   num_ctx: 262144
   timeout_seconds: 3600
-  max_retries: 2          # LLM API 呼び出しエラー時のリトライ
-  ollama_host: "192.168.1.31:11434"
-  think: true
+  max_retries: 2
+  ollama_host: "ws1.local:11434"
+  ollama_options:
+    think: false
+    temperature: 0.7
+    top_p: 0.9
 
 quality:
-  max_generation_count: 3  # 生成API＋バリデーション最大リトライ（同一工程内）
-  max_review_count: 3      # レビュー→修正サイクル最大回数（複数工程にまたがる）
-```
+  max_generation_count: 3
+  max_review_count: 8
 
-優先順位: CLI引数 > config.yaml > デフォルト値
+logging:
+  verbose: false
+  raw_log: false
+```
 
 ---
 

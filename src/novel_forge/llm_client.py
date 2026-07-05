@@ -67,15 +67,15 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
     if config_path:
         paths_to_try.append(config_path)
     else:
+        env_path = os.environ.get("NOVEL_FORGE_CONFIG")
+        if env_path:
+            paths_to_try.append(Path(env_path))
         cwd = Path.cwd()
         for p in [cwd, *cwd.parents]:
             candidate = p / "config.yaml"
             if candidate.exists():
                 paths_to_try.append(candidate)
                 break
-        env_path = os.environ.get("NOVEL_FORGE_CONFIG")
-        if env_path:
-            paths_to_try.append(Path(env_path))
 
     for p in paths_to_try:
         try:

@@ -10,8 +10,8 @@ from typing import Any, cast
 import typer
 
 from novel_forge.engine.infra import (
-    DEFAULT_MODEL,
     _find_existing_series,
+    _resolve_doctor_defaults,
     _series_lock,
     cmd_doctor,
     cmd_status,
@@ -26,11 +26,11 @@ app = typer.Typer(help="NovelForge — Local-LLM novel production pipeline")
 def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    max_generation_count: int = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
-    max_review_count: int = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
+    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
+    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
+    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
+    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Generate a series plan from keywords."""
     engine = make_engine(
@@ -48,11 +48,11 @@ def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number (0=all)"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    max_generation_count: int = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
-    max_review_count: int = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
+    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
+    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
+    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
+    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Generate a volume design (chapter/scene structure)."""
     series_dir = _find_existing_series(workdir, series)
@@ -83,11 +83,11 @@ def write(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    max_generation_count: int = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
-    max_review_count: int = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
+    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
+    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
+    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
+    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Write scene drafts."""
     series_dir = _find_existing_series(workdir, series)
@@ -111,9 +111,9 @@ def export(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
+    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
+    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Export manuscript for KDP."""
     series_dir = _find_existing_series(workdir, series)
@@ -140,12 +140,12 @@ def status(
 def resume(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
+    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    max_generation_count: int = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
-    max_review_count: int = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
+    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
+    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
+    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Resume from the last interrupted phase."""
     series_dir = _find_existing_series(workdir, series)
@@ -172,12 +172,12 @@ def resume(
 def complete(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="LLM model"),
+    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    max_generation_count: int = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
-    max_review_count: int = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    raw_log: bool = typer.Option(False, "--raw-log", help="Save LLM raw data"),
+    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
+    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
+    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    raw_log: bool | None = typer.Option(None, "--raw-log", help="Save LLM raw data"),
 ):
     """Run the full pipeline: plan → design → write → export."""
     engine = make_engine(
@@ -213,11 +213,13 @@ def complete(
 
 @app.command()
 def doctor(
-    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m", help="Model to test"),
-    ollama_host: str = typer.Option("ws1.local:11434", "--ollama-host", help="Ollama host"),
+    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    model: str | None = typer.Option(None, "--model", "-m", help="Model override to test"),
+    ollama_host: str | None = typer.Option(None, "--ollama-host", help="Ollama host override"),
 ):
     """Diagnose Ollama connectivity and model readiness."""
-    cmd_doctor(model, ollama_host)
+    resolved_model, resolved_host = _resolve_doctor_defaults(workdir, model, ollama_host)
+    cmd_doctor(resolved_model, resolved_host)
 
 
 @app.command()
