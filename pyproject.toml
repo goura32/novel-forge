@@ -40,3 +40,12 @@ python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast unit tests",
+    "integration: integration tests using fake or local artifacts",
+    "contract: prompt/schema/API contract tests",
+    "real_model: tests that require a running real LLM model",
+]

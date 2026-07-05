@@ -59,10 +59,16 @@ uv run novel-forge complete --workdir <output_dir> "キーワード"
 開発中のコミット前チェック:
 
 ```bash
-uv run pytest tests -q
-uv run ruff check src/novel_forge tests scripts
-uv run python scripts/validate_prompts.py
+uv run python scripts/check_dev_quality.py
 ```
+
+配布物まで確認する場合:
+
+```bash
+uv run python scripts/check_dev_quality.py --full
+```
+
+ローカル設定は `config.example.yaml` を `config.yaml` にコピーして調整できます。
 
 ## ライセンス
 

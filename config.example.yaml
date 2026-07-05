@@ -1,0 +1,37 @@
+# NovelForge example configuration.
+#
+# Copy this file to config.yaml or point NOVEL_FORGE_CONFIG at another path.
+# Runtime precedence: CLI options > config.yaml > built-in defaults.
+# OLLAMA_OPTIONS can overlay llm.ollama_options.
+
+quality:
+  # Maximum generation attempts per phase/scene, including API and schema validation failures.
+  max_generation_count: 3
+
+  # Maximum review -> revision cycles.
+  max_review_count: 8
+
+llm:
+  # Ollama model name.
+  model: "qwen3.6:35b-a3b-mtp-q4_K_M"
+
+  # Maximum generated tokens. -1 means unlimited for Ollama models that support it.
+  num_predict: -1
+
+  # Context length. Adjust to the selected model and available VRAM/RAM.
+  num_ctx: 262144
+
+  # API timeout in seconds. Long-form generation can take a while on local models.
+  timeout_seconds: 3600
+
+  # HTTP retry count for transient LLM API errors.
+  max_retries: 2
+
+  # Ollama host. Can also be provided with OLLAMA_HOST when not set here.
+  ollama_host: "localhost:11434"
+
+  # Passed to Ollama's options payload, except `think` which is sent as top-level `think`.
+  ollama_options:
+    think: false
+    temperature: 0.7
+    top_p: 0.9

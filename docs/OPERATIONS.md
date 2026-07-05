@@ -102,7 +102,42 @@ uv run python scripts/validate_prompts.py
 → `src/novel_forge/engine/design.py` で prompt variables (`prompt_vars`) に該当する変数を追加するか、テンプレート側の placeholder を修正してください。
 
 
-## 7 lock エラー
+## 7 開発用ローカル品質ゲート
+
+CIは前提にせず、コミット前にローカルで同じゲートをまとめて実行します。
+
+```bash
+uv run python scripts/check_dev_quality.py
+```
+
+実行内容:
+
+- `uv run pytest tests -q`
+- `uv run ruff check src/novel_forge tests scripts`
+- `uv run mypy src/novel_forge tests --show-error-codes`
+- `uv run python scripts/validate_prompts.py`
+
+配布物まで確認する場合:
+
+```bash
+uv run python scripts/check_dev_quality.py --full
+```
+
+`--full` は上記に加えて `uv build` を実行します。
+
+
+## 8 設定ファイル
+
+`config.example.yaml` をコピーしてローカル環境用に調整します。
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+`NOVEL_FORGE_CONFIG=/path/to/config.yaml` を指定すると任意の設定ファイルを読めます。
+
+
+## 9 lock エラー
 
 
 

@@ -101,3 +101,11 @@
 |---|---|---:|---|
 | P12-01 | `generate_and_review()` 戻り値の型を固定 | Done | `tuple[dict, dict]` を明示 unpack し、design path の型誤推論を解消 |
 | P12-02 | mypy errors 49 → 0 を達成 | Done | `uv run mypy src/novel_forge tests --show-error-codes` → no issues |
+
+## 11. Phase 13 — ローカル品質ゲート + config example（完了）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P13-01 | 開発用ローカル品質ゲートを追加 | Done | `scripts/check_dev_quality.py` で pytest / ruff / mypy / prompt validator を一括実行、`--full` で `uv build` も実行 |
+| P13-02 | `config.example.yaml` を追加 | Done | ローカル設定例を追加し README / OPERATIONS から案内 |
+| P13-03 | pytest設定を明文化 | Done | `testpaths` と unit/integration/contract/real_model marker を `pyproject.toml` に追加 |
