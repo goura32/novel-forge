@@ -172,7 +172,7 @@
 | P18-17 | 実LLM smoke を再々々実行 | Blocked | `workspace/phase18_real_smoke_20260706_113505`: Plan完了、Design `volume_design` 完了、`chapter_design` review で `ready_for_publication=false` だが `publication_blocking=true` issueなしの schema validation error で停止 |
 | P18-18 | LLM client の invalid generation retry と schema validation を修正 | Done | JSON parse/schema echo/schema validation を generation retry 対象に変更。`complete_json(..., schema)` が渡された schema ではなく kind名schemaを読み直していた不整合も `validate_data_or_raise` 追加で修正。`uv run pytest` → 292 passed、ruff OK |
 | P18-19 | 実LLM smoke を5回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_114505`: Plan完了、invalid generation retry は実動確認済み。Design `volume_design` が6章→8章まで改訂後、2回目reviewで「10章程度へ拡張」が blocking となり `--max-review-count 2` 到達。クラッシュではなく通常品質ループ未収束 |
-| P18-20 | 実LLM smoke を max-review-count 4 で実行 | Todo | P18-19は2回では少なすぎたため、実運用寄りに `--max-generation-count 3 --max-review-count 4 --verbose` で再実行。Design通過とWrite到達を確認 |
+| P18-20 | 実LLM smoke を max-review-count 4 で実行 | In progress | `proc_6dd0435739e3` / `workspace/phase18_real_smoke_20260706_115144`。P18-19は2回では少なすぎたため、実運用寄りに同条件 + `--max-review-count 4` で再実行中。Design通過とWrite到達を確認 |
 | P18-21 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
@@ -183,6 +183,6 @@
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. P18-19結果を commit/push
-  2. P18-20として `--max-review-count 4` で実LLM smoke を再実行
+  1. `process(action="poll", session_id="proc_6dd0435739e3")` で smoke の終了を確認
+  2. `workspace/phase18_real_smoke_20260706_115144/novel_forge.log` と `_raw_logs` を読む
   3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類
