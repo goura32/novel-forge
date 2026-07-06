@@ -212,6 +212,8 @@
 | P18-57 | series_plan_volumes具体review差分の機械適用 | Done | `_revise_plan_volumes` 後にreview issueの `before`→`after` exact replacementをネストしたJSON文字列へ適用する安全弁を追加。LLM改訂が具体差分を反映し損ねても同じblocking reviewで非収束しにくくした。targeted: Plan/PlanReviewLoop/review loop 14 passed |
 | P18-58 | P20再々々smokeでPlan突破/Design JSON parse停止を確認 | Blocked | `workspace/phase18_real_smoke_20260707_004057`: Planは突破しDesign `chapter_design` に到達。最終停止は配列内sceneオブジェクト末尾の `}` 欠落でJSON parse error。Write未到達 |
 | P18-59 | JSON parser: 配列内オブジェクト閉じbrace欠落の限定修復 | Done | `_close_missing_object_before_array_end` を追加。`"field": "..."` の直後に `]` が来るLLM出力を、次行も `]` なら置換、そうでなければ挿入で修復。実raw `response_0_0.md` / `response_1_0.md` parse_ok。関連107 passed |
+| P18-60 | P20再々々々smokeでPlan突破/Design後半まで進行し、chapter_design review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_005951`; vol1 chapter_design後半で `[REVIEW] chapter_design: revision needed but max count reached (4/4)`。 |
+| P18-61 | chapter_design改訂にもreview before/after安全弁を追加 | Done | `src/novel_forge/engine/design.py`; 弱い改訂モデルが差分を残しても具体diffをJSON全体へ適用。回帰 `TestOutline::test_chapter_design_revision_applies_concrete_review_diff` 追加。 |
 
 ### Phase 18 復帰メモ
 

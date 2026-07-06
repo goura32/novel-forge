@@ -580,6 +580,90 @@ class TestOutline:
 
         assert result["chapters"][0]["purpose"] == "展開"
 
+    def test_chapter_design_revision_applies_concrete_review_diff(self, planned_engine, mock_llm):
+        """design() should preserve concrete review before/after diffs in chapter revisions."""
+        mock_llm._sequence = []
+        mock_llm._seq_idx = 0
+        stale_outcome = "蓮による解析で、鐘の祈りが神楽零を対象としていることが明確になる。零は即座に事件が自分への攻撃だと確信する。"
+        revised_outcome = "脱出後の緊張感が残る中、蓮は静かに画面のデータを零に示した。零は技術的な証拠ではなく、自分自身への殺意としての祈りを目の当たりにし、恐怖で背筋が凍りついた。"
+        chapter_response = {
+            "title": "疑念の章",
+            "purpose": "展開",
+            "theme": "自己否定と疑念",
+            "emotional_arc": "安堵から恐怖へ移る。",
+            "outcome": stale_outcome,
+            "scenes": [
+                {
+                    "title": "疑念の種",
+                    "pov": "神楽零",
+                    "goal": "解析結果を受け止める",
+                    "conflict": "動転した状態で事実を受け入れられない",
+                    "outcome": stale_outcome,
+                    "characters": ["神楽零", "九条蓮"],
+                    "key_events": ["解析結果の提示"],
+                    "setting": "蓮のアトリエ",
+                }
+            ],
+        }
+        mock_llm.add_sequence("volume_design", _make_design_response(
+            title="第1巻",
+            premise="記憶修復師が祈り機械の謎に近づく巻です。",
+            chapters=[
+                {
+                    "title": "疑念の章",
+                    "purpose": "展開",
+                    "theme": "自己否定と疑念",
+                    "emotional_arc": "安堵から恐怖へ移る。",
+                    "outcome": stale_outcome,
+                    "scenes": [
+                        {
+                            "title": "疑念の種",
+                            "pov": "神楽零",
+                            "goal": "解析結果を受け止める",
+                            "conflict": "動転した状態で事実を受け入れられない",
+                            "outcome": stale_outcome,
+                            "characters": ["神楽零", "九条蓮"],
+                            "key_events": ["解析結果の提示"],
+                            "setting": "蓮のアトリエ",
+                        }
+                    ],
+                }
+            ],
+        ))
+        mock_llm.add_sequence("volume_design_review", {"issues": []})
+        mock_llm.add_sequence("chapter_design", chapter_response)
+        mock_llm.add_sequence("chapter_design_review", {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "シーン構成.シーン1.outcome",
+                    "description": "脱出直後に即座に確信する描写が不自然。",
+                    "suggestion": "蓮の提示と零の心理反応へ置き換える。",
+                    "before": stale_outcome,
+                    "after": revised_outcome,
+                    "publication_blocking": True,
+                }
+            ],
+            "ready_for_publication": False,
+        })
+        # Simulate a weak revision model that leaves the stale wording unchanged.
+        mock_llm.add_sequence("chapter_design", chapter_response)
+        mock_llm.add_sequence("chapter_design_review", {"issues": [], "ready_for_publication": True})
+        mock_llm.add_sequence("scene_design", {
+            "number": 1,
+            "chapter_number": 1,
+            "title": "疑念の種",
+            "goal": "解析結果を受け止める",
+            "conflict": "恐怖で動けない",
+            "outcome": revised_outcome,
+        })
+        mock_llm.add_sequence("scene_design_review", {"issues": []})
+
+        result = planned_engine.design(volume_number=1)
+
+        assert result["chapters"][0]["outcome"] == revised_outcome
+        assert result["chapters"][0]["scenes"][0]["outcome"] == revised_outcome
+
     def test_chapter_design_repairs_invalid_purpose_from_volume_design(self, planned_engine, mock_llm):
         """design() should repair only invalid chapter purpose values from the source chapter."""
         mock_llm._sequence = []

@@ -51,6 +51,35 @@ def _validate_volume_design(data: dict) -> list[str]:
     return errors
 
 
+def _apply_review_text_replacements(data: Any, review: dict) -> Any:
+    """Apply exact review before/after text diffs inside nested JSON-like data."""
+    replacements: list[tuple[str, str]] = []
+    for issue in review.get("issues", []) or []:
+        if not isinstance(issue, dict):
+            continue
+        before = str(issue.get("before", "") or "")
+        after = str(issue.get("after", "") or "")
+        if before and after and before != after:
+            replacements.append((before, after))
+
+    if not replacements:
+        return data
+
+    def visit(value: Any) -> Any:
+        if isinstance(value, str):
+            text = value
+            for before, after in replacements:
+                text = text.replace(before, after)
+            return text
+        if isinstance(value, list):
+            return [visit(item) for item in value]
+        if isinstance(value, dict):
+            return {key: visit(item) for key, item in value.items()}
+        return value
+
+    return visit(data)
+
+
 def _has_vague_next_clue_placeholder(text: object) -> bool:
     value = str(text or "")
     return any(
@@ -244,6 +273,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                     {"current_chapter": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
                      "review": format_review_text(review)}),
                 chapter_generation_schema, seed_offset=seed_offset)
+            revised = _apply_review_text_replacements(revised, review)
             return _normalize_invalid_chapter_purpose(revised)
 
         ch_prompt = engine._prompts.render("chapter_design.md",
