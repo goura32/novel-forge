@@ -487,6 +487,59 @@ class TestOutline:
 
         assert result["chapters"][0]["purpose"] == "展開"
 
+    def test_chapter_design_repairs_invalid_purpose_from_volume_design(self, planned_engine, mock_llm):
+        """design() should repair only invalid chapter purpose values from the source chapter."""
+        mock_llm._sequence = []
+        mock_llm._seq_idx = 0
+        mock_llm.add_sequence("volume_design", _make_design_response(
+            title="第1巻",
+            premise="祈り機械との出会いを描く巻です。",
+            chapters=[
+                {
+                    "title": "共鳴する古物",
+                    "purpose": "導入",
+                    "theme": "記憶喪失と冒険への入口",
+                    "emotional_arc": "孤独から小さな好奇心へ",
+                    "outcome": "主人公が異常な祈り機械を受け取る",
+                    "scenes": [],
+                }
+            ],
+        ))
+        mock_llm.add_sequence("volume_design_review", {"issues": []})
+        mock_llm.add_sequence("chapter_design", {
+            "title": "共鳴する古物",
+            "purpose": "祈り機械が支配する京都の日常と、主人公が冒険へ踏み出す契機を描く。",
+            "theme": "記憶喪失と冒険への入口",
+            "emotional_arc": "孤独から小さな好奇心へ移る。",
+            "outcome": "主人公が異常な祈り機械を受け取り、次の調査へ向かう。",
+            "scenes": [
+                {
+                    "title": "古物店の共鳴",
+                    "pov": "主人公",
+                    "goal": "祈り機械を確認する",
+                    "conflict": "未知の共鳴が過去の記憶を揺さぶる",
+                    "outcome": "機械を引き取る決意をする",
+                    "characters": ["主人公"],
+                    "key_events": ["古物店で機械を受け取る", "異常な共鳴を感じる"],
+                    "setting": "近未来京都の古物店",
+                }
+            ],
+        })
+        mock_llm.add_sequence("chapter_design_review", {"issues": []})
+        mock_llm.add_sequence("scene_design", {
+            "number": 1,
+            "chapter_number": 1,
+            "title": "古物店の共鳴",
+            "goal": "祈り機械を確認する",
+            "conflict": "未知の共鳴が過去の記憶を揺さぶる",
+            "outcome": "機械を引き取る決意をする",
+        })
+        mock_llm.add_sequence("scene_design_review", {"issues": []})
+
+        result = planned_engine.design(volume_number=1)
+
+        assert result["chapters"][0]["purpose"] == "導入"
+
 
 # ── Outline review → revise loop ────────────────────────────────────────
 
