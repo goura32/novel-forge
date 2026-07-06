@@ -405,6 +405,46 @@ class TestPlanReviewLoop:
         # No separate revision kind — revision reuses series_plan_concept
         assert kinds.count("series_plan_concept") == 1  # only initial, no revision
 
+    def test_plan_volume_revision_applies_concrete_review_diff(self, engine, mock_llm):
+        """Concrete before/after review diffs should be applied even if the LLM revision misses them."""
+        review_fail = {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "各巻.第三巻.あらすじ",
+                    "description": "第三巻から第四巻への因果橋渡しが不足している。",
+                    "suggestion": "真実の内容と記憶を捧げる選択の関係を明示する。",
+                    "before": "真実の全貌へと近づいていく。",
+                    "after": "都市の歪みが過去の負の記憶を抹消しようとした過ちにあると知り、零は自分の記憶を都市の欠落した歯車として捧げる選択へ近づいていく。",
+                    "publication_blocking": True,
+                }
+            ],
+            "ready_for_publication": False,
+        }
+        initial = _make_volumes_response(
+            planned_volumes=[
+                {"title": "第一巻", "premise": "始まり。"},
+                {"title": "第二巻", "premise": "続き。"},
+                {"title": "第三巻", "premise": "零たちは時計塔へ向かい、真実の全貌へと近づいていく。"},
+                {"title": "第四巻", "premise": "零が自身の記憶を捧げた後、都市は新たな均衡へ向かう。"},
+            ]
+        )
+        missed_revision = _make_volumes_response(planned_volumes=initial["planned_volumes"])
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": []})
+        mock_llm.add_sequence("series_plan_characters", _make_chars_response())
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": []})
+        mock_llm.add_sequence("series_plan_volumes", initial)
+        mock_llm.add_sequence("series_plan_volumes_review", review_fail)
+        mock_llm.add_sequence("series_plan_volumes", missed_revision)
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "ready_for_publication": True})
+
+        result = engine.plan("テスト")
+
+        third = result["planned_volumes"][2]["premise"]
+        assert "過去の負の記憶を抹消しようとした過ち" in third
+        assert "真実の全貌へと近づいていく" not in third
+
 
 # ── Outline tests ──────────────────────────────────────────────────────
 
