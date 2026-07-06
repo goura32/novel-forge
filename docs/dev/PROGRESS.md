@@ -195,7 +195,7 @@
 | P18-40 | chapter_design reviewへ完全な章設計を渡す | Done | `_review_chapter_design` の整形を修正し、`theme/emotional_arc/outcome/chapter_turning_point/chapter_hook/foreshadowing/subplot/scenes` をreview promptへ含める。回帰テストでreview prompt内のテーマ・感情の弧・結果・シーン構成を検証。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
 | P18-41 | 実LLM smoke を15回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_154359`: P18-40後、Design以前のPlan `series_plan_concept` review非収束で停止。原因はconcept review/revisionに元キーワードが空文字で渡され、改訂時に入力核から逸れやすい実装不具合 |
 | P18-42 | concept review/revisionへ元キーワードを伝播 | Done | `_generate_plan_concept` から `_review_plan_concept` / `_revise_plan_concept` へ `keywords` を渡すよう修正。回帰テスト `test_series_plan_concept_review_and_revision_receive_keywords` 追加。検証: targeted 1 passed、integration 46 passed、full 302 passed、ruff passed |
-| P18-43 | 実LLM smoke を16回目実行 | Todo | P18-42 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-43 | 実LLM smoke を16回目実行 | In progress | `proc_20f518f39cef` / `workspace/phase18_real_smoke_20260706_155839`。P18-42後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 
 ### Phase 18 復帰メモ
 
