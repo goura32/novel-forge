@@ -191,7 +191,7 @@
 | P18-36 | volume_design title を上流planned volume titleへ固定 | Done | `series_plan.planned_volumes[vol-1].title` を source of truth とし、volume_design生成/改訂後に `title` を固定。reviewへ渡る前に正規化するためタイトル不一致ループを防止。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
 | P18-37 | 実LLM smoke を13回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_151641`: Plan完了→Design `chapter_design`。P18-36のvolume title不一致は突破。`chapter_design.purpose` 説明文化が再発したが、今回はengine補正前にLLM clientのschema validationで停止していた |
 | P18-38 | chapter_design生成schemaだけpurpose enumを緩和 | Done | 生成/改訂時に渡すschemaから `purpose.enum` だけ外し、engine側でinvalid purposeを入力章のvalid enumへ補正後、通常validate/reviewへ進める。最終schema自体は変更しない。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
-| P18-39 | 実LLM smoke を14回目実行 | Todo | P18-38 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-39 | 実LLM smoke を14回目実行 | In progress | `proc_5c69901007a0` / `workspace/phase18_real_smoke_20260706_152511`。P18-38後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 
 ### Phase 18 復帰メモ
 
