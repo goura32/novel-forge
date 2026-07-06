@@ -67,10 +67,16 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
     plan_path = engine._series_dir / "series_plan.json"
     total_vol = "?"
+    planned_volume_title = ""
     if plan_path.exists():
         try:
             plan = json.loads(plan_path.read_text(encoding="utf-8"))
-            total_vol = str(len(plan.get("planned_volumes", [])))
+            planned_volumes = plan.get("planned_volumes", [])
+            total_vol = str(len(planned_volumes))
+            if isinstance(planned_volumes, list) and 1 <= vol_num <= len(planned_volumes):
+                planned_volume = planned_volumes[vol_num - 1]
+                if isinstance(planned_volume, dict):
+                    planned_volume_title = str(planned_volume.get("title", "") or "")
         except Exception as exc:
             engine._log.warning("Failed to read series plan while preparing design: %s", plan_path, exc_info=exc)
 
@@ -89,17 +95,30 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 prev_design = prev_vol_path.read_text(encoding="utf-8")
             except Exception as exc:
                 engine._log.warning("Failed to read previous volume design: %s", prev_vol_path, exc_info=exc)
+    def _normalize_volume_design(data: dict) -> dict:
+        if planned_volume_title:
+            data["title"] = planned_volume_title
+        return data
+
+    def _generate_volume_design(prompt: str, seed_offset: int) -> dict:
+        data = engine._llm.complete_json(
+            "volume_design", system, prompt, get_schema("volume_design"), seed_offset=seed_offset)
+        return _normalize_volume_design(data)
+
+    def _revise_volume_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
+        revised = engine._llm.complete_json(
+            "volume_design", sys, engine._prompts.render("volume_design_revision.md",
+                {"concept_text": series_plan, "current_volume": json.dumps(data, ensure_ascii=False),
+                 "review": format_review_text(review), "previous_design": prev_design,
+                 "series_plan": series_plan}),
+            get_schema("volume_design"), seed_offset=seed_offset)
+        return _normalize_volume_design(revised)
+
     vol_design_data, _vol_review = generate_and_review(
-        generate_fn=lambda p, s: engine._llm.complete_json(
-            "volume_design", system, p, get_schema("volume_design"), seed_offset=s),
+        generate_fn=_generate_volume_design,
         validate_fn=_validate_volume_design,
         review_fn=lambda r, sys: _review_volume_design(engine, r, sys),
-        revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
-            "volume_design", sys, engine._prompts.render("volume_design_revision.md",
-                {"concept_text": series_plan, "current_volume": json.dumps(r, ensure_ascii=False), 
-                 "review": format_review_text(rv), "previous_design": prev_design,
-                 "series_plan": series_plan}),
-            get_schema("volume_design"), seed_offset=so),
+        revise_fn=_revise_volume_design,
         system=system,
         user_prompt=engine._prompts.render("volume_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num), "genre": genre,

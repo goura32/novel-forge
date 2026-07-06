@@ -187,19 +187,21 @@
 | P18-32 | review.before 空文字許可 | Done | review prompts は「欠落フィールドの `before` は空文字列」と指示していたが schema が `minLength=1` で拒否していた。`before` のみ空文字を許可し、`after` 非空は維持。`uv run pytest` → 299 passed、`git diff --check` OK、ruff OK |
 | P18-33 | 実LLM smoke を11回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_144911`: Plan完了→Design `chapter_design`。P18-31のreview.before schema issueは解消。別章で `purpose` が enum ではなく説明文になり、2回retry後も schema validation error で停止 |
 | P18-34 | invalid chapter purpose のみ入力章purposeへ補正 | Done | P18-27の常時上書きは再導入せず、`chapter_design.purpose` が schema enum 外のときだけ `volume_design.chapters[].purpose` のvalid enumで補正。valid enum改訂結果は保持。`uv run pytest` → 300 passed、`git diff --check` OK、ruff OK |
-| P18-35 | 実LLM smoke を12回目実行 | In progress | `proc_1e0596b198b3` / `workspace/phase18_real_smoke_20260706_150209`。P18-34後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
-| P18-36 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+| P18-35 | 実LLM smoke を12回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_150209`: P18-34のinvalid purpose修正後に再実行。Plan完了→Design `volume_design` で停止。`volume_design.title` が上流series_planの「無音の刻鐘と錆びた鍵」から「時計台の鍵と記憶の欠片」へ逸れ、reviewがタイトル不一致をblockingとして出し続けた |
+| P18-36 | volume_design title を上流planned volume titleへ固定 | Done | `series_plan.planned_volumes[vol-1].title` を source of truth とし、volume_design生成/改訂後に `title` を固定。reviewへ渡る前に正規化するためタイトル不一致ループを防止。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
+| P18-37 | 実LLM smoke を13回目実行 | Todo | P18-36 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-35 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-37 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest tests/test_engine_integration.py::TestOutline::test_chapter_design_keeps_revised_purpose tests/test_engine_integration.py::TestOutline::test_chapter_design_repairs_invalid_purpose_from_volume_design -q` → 2 passed
-  - `uv run pytest tests/test_engine_integration.py tests/test_schemas_extended.py -q` → 85 passed
-  - `uv run pytest` → 300 passed
+  - `uv run pytest tests/test_engine_integration.py::TestOutline::test_outline_creates_outline tests/test_engine_integration.py::TestOutline::test_volume_design_title_uses_series_plan_title tests/test_engine_integration.py::TestOutline::test_chapter_design_keeps_revised_purpose tests/test_engine_integration.py::TestOutline::test_chapter_design_repairs_invalid_purpose_from_volume_design -q` → 4 passed
+  - `uv run pytest tests/test_engine_integration.py -q` → 45 passed
+  - `uv run pytest` → 301 passed
   - `git diff --check` → OK
-  - `uv run ruff check src tests` → All checks passed
+  - `uv run ruff check src tests` → OK
+
 - 次に迷わず実行すること:
-  1. P18-34を commit/push
-  2. P18-35 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
+  1. P18-36を commit/push
+  2. P18-37 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
   3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

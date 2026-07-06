@@ -416,11 +416,53 @@ class TestOutline:
         """design() should create outline.json and set state."""
         result = planned_engine.design(volume_number=1)
 
-        assert result["title"] == "第1巻"
+        assert result["title"] == "第一巻 旅立ちの刻"
         assert planned_engine.state.status == "デザイン済"
 
         outline_path = planned_engine._series_dir / "vol01" / "vol01.json"
         assert outline_path.exists()
+
+    def test_volume_design_title_uses_series_plan_title(self, planned_engine, mock_llm):
+        """design() should keep the planned volume title as source of truth."""
+        mock_llm._sequence = []
+        mock_llm._seq_idx = 0
+        mock_llm.add_sequence("volume_design", _make_design_response(title="別タイトル"))
+        mock_llm.add_sequence("volume_design_review", {"issues": []})
+        for _ in range(4):
+            mock_llm.add_sequence("chapter_design", {
+                "title": "第1章",
+                "purpose": "導入",
+                "theme": "テーマ",
+                "emotional_arc": "感情",
+                "outcome": "結果",
+                "scenes": [
+                    {
+                        "title": "シーン",
+                        "pov": "主人公",
+                        "goal": "目標",
+                        "conflict": "葛藤",
+                        "outcome": "結果",
+                        "characters": ["主人公"],
+                        "key_events": ["出来事"],
+                        "setting": "場所",
+                    }
+                ],
+            })
+            mock_llm.add_sequence("chapter_design_review", {"issues": []})
+        for _ in range(4):
+            mock_llm.add_sequence("scene_design", {
+                "number": 1,
+                "chapter_number": 1,
+                "title": "シーン",
+                "goal": "目標",
+                "conflict": "葛藤",
+                "outcome": "結果",
+            })
+            mock_llm.add_sequence("scene_design_review", {"issues": []})
+
+        result = planned_engine.design(volume_number=1)
+
+        assert result["title"] == "第一巻 旅立ちの刻"
 
     def test_outline_flattens_scenes(self, planned_engine, mock_llm):
         """design() should flatten scenes from all chapters."""
@@ -448,7 +490,18 @@ class TestOutline:
                     "theme": "真実への接近",
                     "emotional_arc": "緊張から決意へ",
                     "outcome": "主人公が追跡を逃れる",
-                    "scenes": [],
+                    "scenes": [
+                    {
+                        "title": "シーン",
+                        "pov": "主人公",
+                        "goal": "目標",
+                        "conflict": "葛藤",
+                        "outcome": "結果",
+                        "characters": ["主人公"],
+                        "key_events": ["出来事"],
+                        "setting": "場所",
+                    }
+                ],
                 }
             ],
         ))
@@ -501,7 +554,18 @@ class TestOutline:
                     "theme": "記憶喪失と冒険への入口",
                     "emotional_arc": "孤独から小さな好奇心へ",
                     "outcome": "主人公が異常な祈り機械を受け取る",
-                    "scenes": [],
+                    "scenes": [
+                    {
+                        "title": "シーン",
+                        "pov": "主人公",
+                        "goal": "目標",
+                        "conflict": "葛藤",
+                        "outcome": "結果",
+                        "characters": ["主人公"],
+                        "key_events": ["出来事"],
+                        "setting": "場所",
+                    }
+                ],
                 }
             ],
         ))
