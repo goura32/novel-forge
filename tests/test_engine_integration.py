@@ -734,6 +734,24 @@ class TestOutline:
 
         assert result["chapters"][0]["title"] == "復元される真実と崩れる自我"
 
+    def test_review_replacement_maps_chapter_hook_alias(self):
+        """Safety net should map Japanese chapter-level fields to schema keys."""
+        data = {"chapter_hook": "祇園の古社には、朔夜の過去そのものを示す記憶の欠片が眠っている。"}
+        after = "祇園の古社地下にある封印された機械室には、朔夜の失われた記憶を解き放つ物理的な鍵が保管されている。"
+        review = {
+            "issues": [
+                {
+                    "field": "章のフック",
+                    "before": data["chapter_hook"] + "彼はその真実と向き合う準備ができているのか。",
+                    "after": after,
+                }
+            ]
+        }
+
+        result = _apply_review_text_replacements(data, review)
+
+        assert result["chapter_hook"] == after
+
     def test_chapter_design_repairs_invalid_purpose_from_volume_design(self, planned_engine, mock_llm):
         """design() should repair only invalid chapter purpose values from the source chapter."""
         mock_llm._sequence = []

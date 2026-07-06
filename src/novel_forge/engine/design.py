@@ -117,6 +117,10 @@ def _apply_review_text_replacements(data: Any, review: dict) -> Any:
         "outcome": ("outcome", "結果"),
         "pov": ("pov", "POV", "視点"),
         "setting": ("setting", "舞台"),
+        "chapter_hook": ("chapter_hook", "章のフック", "フック"),
+        "chapter_turning_point": ("chapter_turning_point", "章の転換点", "転換点"),
+        "emotional_arc": ("emotional_arc", "感情の弧"),
+        "theme": ("theme", "テーマ"),
     }
 
     def field_matches(key: str, field_text: str) -> bool:

@@ -220,6 +220,8 @@
 | P18-65 | scene_design revisionにもreview差分安全弁を適用し、field+fuzzy fallbackを追加 | Done | `scene_design_revision`戻り値へ`_apply_review_text_replacements`適用。review beforeが実フィールド値を包む場合は`field`と正規化包含で該当フィールドをafterへ置換。316 tests green。 |
 | P18-66 | P20再々々々々々々smokeでvolume_design review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_022657`; 第3/4章タイトルの具体差分がvolume revision後も残り停止。 |
 | P18-67 | volume_design revisionにもreview差分安全弁を適用し、短いタイトルfuzzyを追加 | Done | `_revise_volume_design`へ`_apply_review_text_replacements`適用。日本語引用符違いの短いtitle差分もfield+fuzzyで置換。実rawで第3/4章タイトル置換確認。317 tests green。 |
+| P18-68 | P20再々々々々々々々smokeでchapter_hook alias未対応を確認 | Blocked | `workspace/phase18_real_smoke_20260707_023621`; field=`章のフック`の差分が`chapter_hook`へ届かずchapter_design review非収束。 |
+| P18-69 | review差分安全弁に章レベルaliasを追加 | Done | `chapter_hook`/`chapter_turning_point`/`emotional_arc`/`theme`の日本語field aliasを追加。実rawで`章のフック`置換確認。318 tests green。 |
 
 ### Phase 18 復帰メモ
 
