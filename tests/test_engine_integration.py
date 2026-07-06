@@ -1085,6 +1085,40 @@ class TestPromptInputCompleteness:
         review_prompt = review_calls[0][1]
         assert "魔法が存在し" in review_prompt  # world_summary に含まれる (連用形)
 
+    def test_series_plan_concept_review_and_revision_receive_keywords(self, engine, mock_llm, tmp_workdir):
+        """Series concept review/revision should retain the original user keywords."""
+        keywords = "近未来の京都, 記憶を失った修復師, 祈りで動く機械, 静かな冒険"
+        review_fail = {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "世界観",
+                    "description": "入力キーワードとの結びつきが弱い。",
+                    "suggestion": "元キーワードの京都、記憶修復師、祈りで動く機械を明示する。",
+                    "before": "",
+                    "after": "近未来の京都で、記憶を失った修復師が祈りで動く機械を扱う。",
+                    "publication_blocking": True,
+                }
+            ],
+            "ready_for_publication": False,
+        }
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", review_fail)
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": []})
+        mock_llm.add_sequence("series_plan_characters", _make_chars_response())
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": []})
+        mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": []})
+
+        engine.plan(keywords)
+
+        review_prompts = [p for kind, p in mock_llm._call_log if kind == "review"]
+        concept_prompts = [p for kind, p in mock_llm._call_log if kind == "series_plan_concept"]
+        assert any(keywords in prompt for prompt in review_prompts)
+        assert len(concept_prompts) >= 2
+        assert keywords in concept_prompts[1]
+
     def test_series_plan_review_receives_character_arc(self, engine, mock_llm, tmp_workdir):
         """Series plan core review should receive series plan context."""
         mock_llm.add_sequence(

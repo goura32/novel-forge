@@ -186,8 +186,8 @@ def _generate_plan_concept(engine: NovelEngineBase, keywords: str, system: str, 
             "series_plan_concept", system, p, get_schema("series_plan_concept"), seed_offset=s
         ),
         validate_fn=_validate_plan_concept,
-        review_fn=lambda r, sys: _review_plan_concept(engine, r, sys, get_schema("review")),
-        revise_fn=lambda r, rv, sys, so=0: _revise_plan_concept(engine, r, rv, sys, so, get_schema("series_plan_concept")),
+        review_fn=lambda r, sys: _review_plan_concept(engine, r, sys, keywords, get_schema("review")),
+        revise_fn=lambda r, rv, sys, so=0: _revise_plan_concept(engine, r, rv, sys, keywords, so, get_schema("series_plan_concept")),
         system=system,
         user_prompt=prompt,
         kind="series_plan_concept",
@@ -196,7 +196,13 @@ def _generate_plan_concept(engine: NovelEngineBase, keywords: str, system: str, 
     )
 
 
-def _review_plan_concept(engine: NovelEngineBase, concept: dict, system: str, schema: dict | None = None) -> dict:
+def _review_plan_concept(
+    engine: NovelEngineBase,
+    concept: dict,
+    system: str,
+    keywords: str,
+    schema: dict | None = None,
+) -> dict:
     text = (
         f"タイトル: {concept.get('title', '')}\nあらすじ: {concept.get('logline', '')}\n"
         f"ジャンル: {', '.join(concept.get('genre', []))}\nターゲット読者: {concept.get('target_audience', '')}\n"
@@ -205,13 +211,19 @@ def _review_plan_concept(engine: NovelEngineBase, concept: dict, system: str, sc
         f"世界観ルール: {'; '.join(concept.get('world_rules', []))}"
     )
     user = engine._prompts.render(
-        "series_plan_concept_review.md", {"plan_text": text, "keywords": "", "lang": engine._lang}
+        "series_plan_concept_review.md", {"plan_text": text, "keywords": keywords, "lang": engine._lang}
     )
     return engine._llm.complete_json("review", system, user, schema)
 
 
 def _revise_plan_concept(
-    engine: NovelEngineBase, concept: dict, review: dict, system: str, seed_offset: int = 0, schema: dict | None = None
+    engine: NovelEngineBase,
+    concept: dict,
+    review: dict,
+    system: str,
+    keywords: str,
+    seed_offset: int = 0,
+    schema: dict | None = None,
 ) -> dict:
     review_text = format_review_text(review)
     # Format current_plan in human-readable field-by-field format for LLM clarity
@@ -224,7 +236,7 @@ def _revise_plan_concept(
     )
     prompt = engine._prompts.render(
         "series_plan_concept_revision.md",
-        {"current_plan": plan_text, "review": review_text, "keywords": ""},
+        {"current_plan": plan_text, "review": review_text, "keywords": keywords},
     )
     return engine._llm.complete_json("series_plan_concept", system, prompt, schema)
 
