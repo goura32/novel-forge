@@ -39,6 +39,8 @@ def test_review_prompts_define_publication_readiness_fields() -> None:
         "publication_blocking",
         "severity=重要",
         "publication_blocking=false",
+        "主観的な改善提案",
+        "必須フィールド欠落",
     ]
     issues = {
         prompt.name: [fragment for fragment in required_fragments if fragment not in prompt.read_text(encoding="utf-8")]

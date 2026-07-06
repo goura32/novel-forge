@@ -60,7 +60,7 @@
             "minLength": 1
           },
           "publication_blocking": {
-            "description": "出版前または次工程前に必ず解消すべき問題ならtrue。重要度とは独立して判定する。",
+            "description": "出版前または次工程前に必ず解消すべき問題ならtrue。重要度とは独立して判定する。主観的な改善提案だけならfalse。",
             "type": "boolean"
           }
         },
