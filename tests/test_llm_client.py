@@ -235,6 +235,50 @@ class TestCompleteJsonRetry:
         assert result == {"ok": True}
         assert mock_stream.call_count == 2
 
+    def test_normalizes_review_readiness_from_blocking_flags(self):
+        """Review readiness should be derived from publication_blocking flags."""
+        review = {
+            "ready_for_publication": True,
+            "issues": [
+                {"severity": "重要", "field": "x", "description": "x", "suggestion": "x", "before": "x", "after": "x"},
+                {
+                    "severity": "重要",
+                    "field": "y",
+                    "description": "y",
+                    "suggestion": "y",
+                    "before": "y",
+                    "after": "y",
+                    "publication_blocking": True,
+                },
+            ],
+        }
+
+        LLMClient._normalize_review_output(review)
+
+        assert review["ready_for_publication"] is False
+        assert review["issues"][0]["publication_blocking"] is False
+
+    def test_normalizes_review_ready_true_when_no_blocking_flags(self):
+        """A ready=false review with no blocking issues should become ready=true."""
+        review = {
+            "ready_for_publication": False,
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "x",
+                    "description": "x",
+                    "suggestion": "x",
+                    "before": "x",
+                    "after": "x",
+                    "publication_blocking": False,
+                }
+            ],
+        }
+
+        LLMClient._normalize_review_output(review)
+
+        assert review["ready_for_publication"] is True
+
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""
         import httpx

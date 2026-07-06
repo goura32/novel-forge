@@ -265,6 +265,8 @@ class LLMClient:
                     raise LLMError("LLM returned schema structure instead of data")
 
                 if schema:
+                    if kind == "review" and isinstance(parsed, dict):
+                        self._normalize_review_output(parsed)
                     # Normalize slug before validation (LLM may output hyphens which
                     # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
                     if isinstance(parsed, dict) and "slug" in parsed:
@@ -319,11 +321,25 @@ class LLMClient:
         schema_keys = {"$schema", "title", "type", "properties", "required", "description"}
         if not isinstance(parsed, dict):
             return False
-        # トップレベルのキーの大部分がスキーマのメタキーなら「スキーマ返り」と判定
         keys = set(parsed.keys())
         schema_key_count = len(keys & schema_keys)
-        # $schema + type + properties があればスキーマ構造
         return schema_key_count >= 2 and "properties" in keys
+
+    @staticmethod
+    def _normalize_review_output(parsed: dict[str, Any]) -> None:
+        """Make review readiness internally consistent before validation."""
+        issues = parsed.get("issues")
+        if not isinstance(issues, list):
+            return
+        has_blocking = False
+        for issue in issues:
+            if not isinstance(issue, dict):
+                continue
+            issue.setdefault("publication_blocking", False)
+            if issue.get("publication_blocking") is True:
+                has_blocking = True
+        parsed["ready_for_publication"] = not has_blocking
+
 
     @staticmethod
     def _parse_ndjson(text: str) -> tuple[str, str]:
