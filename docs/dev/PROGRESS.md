@@ -210,14 +210,16 @@
 | P18-55 | no-op review issue除外 | Done | `_drop_resolved_issues` で `before == after` のactionableでないissueを除外し、`ready_for_publication` を再計算。targeted: review loop no-op/stale resolved 2 passed |
 | P18-56 | P20再々smokeでPlan review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_002540`: `series_plan_volumes` review/revisionが4/4で停止。最終reviewは第三巻の「真実の全貌」から第四巻の「零が記憶を捧げる」への因果橋渡し不足を具体差分付きで指摘。Design以前の新規ブロッカー |
 | P18-57 | series_plan_volumes具体review差分の機械適用 | Done | `_revise_plan_volumes` 後にreview issueの `before`→`after` exact replacementをネストしたJSON文字列へ適用する安全弁を追加。LLM改訂が具体差分を反映し損ねても同じblocking reviewで非収束しにくくした。targeted: Plan/PlanReviewLoop/review loop 14 passed |
+| P18-58 | P20再々々smokeでPlan突破/Design JSON parse停止を確認 | Blocked | `workspace/phase18_real_smoke_20260707_004057`: Planは突破しDesign `chapter_design` に到達。最終停止は配列内sceneオブジェクト末尾の `}` 欠落でJSON parse error。Write未到達 |
+| P18-59 | JSON parser: 配列内オブジェクト閉じbrace欠落の限定修復 | Done | `_close_missing_object_before_array_end` を追加。`"field": "..."` の直後に `]` が来るLLM出力を、次行も `]` なら置換、そうでなければ挿入で修復。実raw `response_0_0.md` / `response_1_0.md` parse_ok。関連107 passed |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-58（P20再々々smoke）から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-60（P20再々々々smoke）から再開する。
 - 直近検証済みコマンド:
   - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_literal_newline_inside_quoted_string -q` → RED確認（JsonParseError）
   - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_literal_newline_inside_quoted_string tests/test_json_parser.py::TestParseJsonResponse::test_repairs_unquoted_japanese_string_after_colon tests/test_scene_design_validation.py -q` → 4 passed
-  - full pytest / `git diff --check` / ruff はP18-57後に実行すること
+  - full pytest / `git diff --check` / ruff はP18-59後に実行すること
 
 - 次に迷わず実行すること:
   1. `uv run pytest tests/test_json_parser.py tests/test_scene_design_validation.py tests/test_engine_design_validation.py tests/test_engine_integration.py -q`

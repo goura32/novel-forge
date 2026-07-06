@@ -86,12 +86,46 @@ def _escape_literal_newlines_in_strings(text: str) -> str:
     return "".join(repaired) if changed else text
 
 
+def _close_missing_object_before_array_end(text: str) -> str:
+    """Repair a missing `}` before `]` for an object inside an array.
+
+    Some LLM outputs close an array immediately after the last field of its final
+    object, e.g. `"ending_hook": "..."\n    ]`.  This repair is intentionally
+    line-oriented and only fires when the previous non-empty line is a string
+    property, avoiding changes to arrays of primitive values.
+    """
+
+    lines = text.splitlines()
+    repaired: list[str] = []
+    changed = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == "]" and repaired:
+            previous = repaired[-1].strip()
+            if re.match(r'"[^"\\]+"\s*:\s*"(?:[^"\\]|\\.)*"\s*,?$', previous):
+                indent = line[: len(line) - len(line.lstrip())]
+                next_stripped = ""
+                for next_line in lines[index + 1 :]:
+                    next_stripped = next_line.strip()
+                    if next_stripped:
+                        break
+                repaired.append(f"{indent}}}")
+                changed = True
+                if next_stripped.startswith("]"):
+                    continue
+        repaired.append(line)
+    if not changed:
+        return text
+    return "\n".join(repaired)
+
+
 def _loads_with_repairs(text: str) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         repaired = _escape_literal_newlines_in_strings(text)
         repaired = _quote_unquoted_japanese_string_values(repaired)
+        repaired = _close_missing_object_before_array_end(repaired)
         if repaired != text:
             return json.loads(repaired)
         raise

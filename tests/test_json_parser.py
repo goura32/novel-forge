@@ -112,6 +112,25 @@ class TestParseJsonResponse:
         assert result["emotional_arc"] == "\n孤独から不安へ移り、\n祈り機械への信頼が芽生える。"
         assert result["purpose"] == "展開"
 
+    def test_repairs_missing_object_close_before_array_end(self):
+        text = """
+        {
+          "scenes": [
+            {
+              "title": "地下への扉",
+              "ending_hook": "石段を降りた先には静寂が広がっていた。"
+            ]
+          ],
+          "chapter_hook": "次章への問い"
+        }
+        """
+
+        result = parse_json_response(text)
+
+        assert result["scenes"][0]["title"] == "地下への扉"
+        assert result["scenes"][0]["ending_hook"] == "石段を降りた先には静寂が広がっていた。"
+        assert result["chapter_hook"] == "次章への問い"
+
     def test_complex_llm_output(self):
         """Simulates a typical LLM response with explanation + JSON."""
         text = (
