@@ -165,7 +165,7 @@
 | P18-10 | 実LLM smoke を1シリーズで実行 | Blocked | 1回目 `workspace/phase18_real_smoke_20260706_110407`: JSON parse retry 後、review要修正で `max-review-count=1` 到達。2回目 `workspace/phase18_real_smoke_20260706_110924`: revision後も `publication_blocking=false` の重要issueだけで `ready_for_publication=false` になり停止。原因は review readiness が severity と blocking を混同していたこと |
 | P18-11 | smoke結果から schema簡素化/ prompt微修正の要否を判断 | Done | 実LLMログから、schema複雑度ではなく review readiness 判定の設計不整合と判断。P18-12で修正 |
 | P18-12 | review readiness を publication_blocking ベースへ修正 | Done | `ready_for_publication=false` は `publication_blocking=true` issue がある場合のみ。`severity=重要` でも非ブロッキングなら ready=true を許可。prompt/schema/validator/tests/docs/resources を同期済み。`uv run pytest` → 289 passed、resource sync OK、ruff OK |
-| P18-13 | 実LLM smoke を再実行 | Todo | P18-12修正後に `--max-generation-count 3 --max-review-count 2 --verbose` で再実行し、Plan先へ進むか確認 |
+| P18-13 | 実LLM smoke を再実行 | In progress | `proc_f4dea13bb8d2` / `workspace/phase18_real_smoke_20260706_112546` で `--max-generation-count 3 --max-review-count 2 --verbose` 実行中。Plan先へ進むか確認 |
 | P18-14 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
@@ -176,6 +176,6 @@
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. P18-12を commit/push
-  2. P18-13として実LLM smoke を再実行し、raw/verbose log を分類
+  1. `process(action="poll", session_id="proc_f4dea13bb8d2")` で smoke の終了を確認
+  2. `workspace/phase18_real_smoke_20260706_112546/novel_forge.log` と `_raw_logs` を読む
   3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正のどれかに分類
