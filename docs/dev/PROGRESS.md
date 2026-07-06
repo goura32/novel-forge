@@ -183,7 +183,7 @@
 | P18-28 | 実LLM smoke を9回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_124753`: Design `chapter_design` reviewで4回改訂後も停止。最終raw outputは `purpose=展開` だったが、review requestには `purpose=クライマックス` と渡っていた |
 | P18-29 | chapter_design final raw/review確認 | Done | `_raw_logs/.../0028_chapter_design/summary/response_0_2.md` と `0029_review` を確認。schema違反でもenum prefix問題でもなく、engine-side purpose上書きによる判定ループと確定 |
 | P18-30 | P18-27の不適切修正を復帰 | Done | `src/novel_forge/engine/design.py` から chapter purpose 強制上書きを削除。LLM/改訂結果の valid enum を保持する回帰テスト `test_chapter_design_keeps_revised_purpose` を追加。`uv run pytest` → 297 passed、`git diff --check` OK、ruff OK |
-| P18-31 | 実LLM smoke を10回目実行 | Todo | P18-30 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-31 | 実LLM smoke を10回目実行 | In progress | `proc_3ec9c2865f89` / `workspace/phase18_real_smoke_20260706_143122`。P18-30復帰後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 | P18-32 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
