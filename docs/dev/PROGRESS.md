@@ -180,7 +180,7 @@
 | P18-25 | stale resolved review issue 除外 | Done | `before` が現在JSONになく `after` が現在JSONにある issue は解決済みとして除外し、残issueから readiness を再計算。`uv run pytest` → 296 passed、ruff OK |
 | P18-26 | 実LLM smoke を8回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_122949`: Plan突破、Design `chapter_design` まで到達。`purpose` が enum ではなく詳細文のみになり schema validation error。enum prefixでは回復不能 |
 | P18-27 | chapter_design purpose を入力章のpurposeで上書き | Done | `volume_design.chapters[].purpose` は既に enum なので、chapter_design生成/改訂後に engine 側で入力章のpurposeを強制反映。`uv run pytest` → 296 passed、ruff OK |
-| P18-28 | 実LLM smoke を9回目実行 | Todo | P18-27修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行。Design通過とWrite到達を確認 |
+| P18-28 | 実LLM smoke を9回目実行 | In progress | `proc_bdf6d6f87f38` / `workspace/phase18_real_smoke_20260706_124753`。P18-27修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 | P18-29 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
@@ -191,6 +191,6 @@
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. P18-27を commit/push
-  2. P18-28として `--max-review-count 4` で実LLM smoke を再実行
+  1. `process(action="poll", session_id="proc_bdf6d6f87f38")` で smoke の終了を確認
+  2. `workspace/phase18_real_smoke_20260706_124753/novel_forge.log` と `_raw_logs` を読む
   3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類
