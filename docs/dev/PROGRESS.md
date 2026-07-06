@@ -187,7 +187,7 @@
 | P18-32 | review.before 空文字許可 | Done | review prompts は「欠落フィールドの `before` は空文字列」と指示していたが schema が `minLength=1` で拒否していた。`before` のみ空文字を許可し、`after` 非空は維持。`uv run pytest` → 299 passed、`git diff --check` OK、ruff OK |
 | P18-33 | 実LLM smoke を11回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_144911`: Plan完了→Design `chapter_design`。P18-31のreview.before schema issueは解消。別章で `purpose` が enum ではなく説明文になり、2回retry後も schema validation error で停止 |
 | P18-34 | invalid chapter purpose のみ入力章purposeへ補正 | Done | P18-27の常時上書きは再導入せず、`chapter_design.purpose` が schema enum 外のときだけ `volume_design.chapters[].purpose` のvalid enumで補正。valid enum改訂結果は保持。`uv run pytest` → 300 passed、`git diff --check` OK、ruff OK |
-| P18-35 | 実LLM smoke を12回目実行 | Todo | P18-34 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-35 | 実LLM smoke を12回目実行 | In progress | `proc_1e0596b198b3` / `workspace/phase18_real_smoke_20260706_150209`。P18-34後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 | P18-36 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
