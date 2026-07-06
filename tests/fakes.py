@@ -57,13 +57,6 @@ class MockLLMClient:
             expected_kind, resp = self._sequence[i]
             if expected_kind == lookup_kind:
                 self._seq_idx = i + 1
-                if isinstance(resp, dict) and (kind == "review" or lookup_kind.endswith("_review")):
-                    resp = {
-                        "ready_for_publication": len(resp.get("issues", [])) == 0,
-                        "overall_assessment": "テスト用レビュー結果です。",
-                        "strengths": [],
-                        **resp,
-                    }
                 return cast(dict[str, Any], resp)
 
         raise RuntimeError(f"No response for kind={kind} (looked up as {lookup_kind})")

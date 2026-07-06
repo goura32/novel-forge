@@ -26,27 +26,32 @@ def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
     assert missing == []
 
 
-def test_review_prompts_define_publication_readiness_fields() -> None:
+def test_review_prompts_emit_only_actionable_issues() -> None:
     review_prompts = sorted(PROMPTS_DIR.glob("*_review.md"))
 
     assert review_prompts, "expected review prompts"
     required_fragments = [
+        "### 指摘対象",
+        "改訂工程がそのまま使える指摘事項だけ",
+        "出版可否、総評、長所、スコア",
+        "`issues` が空配列なら改訂不要、1件以上なら改訂を継続",
+        "問題がない場合は、無理に指摘を作らず `issues` を空配列にする。",
+    ]
+    forbidden_fragments = [
         "### 出版可否",
-        "ready_for_publication=true",
-        "ready_for_publication=false",
+        "ready_for_publication",
         "overall_assessment",
         "strengths",
         "publication_blocking",
-        "severity=重要",
         "publication_blocking=false",
-        "主観的な改善提案",
-        "必須フィールド欠落",
     ]
-    issues = {
-        prompt.name: [fragment for fragment in required_fragments if fragment not in prompt.read_text(encoding="utf-8")]
-        for prompt in review_prompts
-    }
-    issues = {name: missing for name, missing in issues.items() if missing}
+    issues = {}
+    for prompt in review_prompts:
+        text = prompt.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        forbidden = [fragment for fragment in forbidden_fragments if fragment in text]
+        if missing or forbidden:
+            issues[prompt.name] = {"missing": missing, "forbidden": forbidden}
 
     assert issues == {}
 

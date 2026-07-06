@@ -235,10 +235,12 @@ class TestCompleteJsonRetry:
         assert result == {"ok": True}
         assert mock_stream.call_count == 2
 
-    def test_normalizes_review_readiness_from_blocking_flags(self):
-        """Review readiness should be derived from publication_blocking flags."""
+    def test_normalizes_review_output_drops_legacy_bookkeeping_fields(self):
+        """Review normalization should keep only actionable issue data."""
         review = {
             "ready_for_publication": True,
+            "overall_assessment": "総評",
+            "strengths": ["長所"],
             "issues": [
                 {"severity": "重要", "field": "x", "description": "x", "suggestion": "x", "before": "x", "after": "x"},
                 {
@@ -255,13 +257,18 @@ class TestCompleteJsonRetry:
 
         LLMClient._normalize_review_output(review)
 
-        assert review["ready_for_publication"] is False
-        assert review["issues"][0]["publication_blocking"] is False
+        assert "ready_for_publication" not in review
+        assert "overall_assessment" not in review
+        assert "strengths" not in review
+        assert "publication_blocking" not in review["issues"][1]
 
-    def test_normalizes_review_ready_true_when_no_blocking_flags(self):
-        """A ready=false review with no blocking issues should become ready=true."""
+    def test_normalizes_review_output_removes_non_schema_summary_fields(self):
+        """A review with summary fields should be reduced to the review schema."""
         review = {
             "ready_for_publication": False,
+            "recommendations": ["任意提案"],
+            "score": 90,
+            "revision_needed": False,
             "issues": [
                 {
                     "severity": "重要",
@@ -277,7 +284,8 @@ class TestCompleteJsonRetry:
 
         LLMClient._normalize_review_output(review)
 
-        assert review["ready_for_publication"] is True
+        assert set(review) == {"issues"}
+        assert "publication_blocking" not in review["issues"][0]
 
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""

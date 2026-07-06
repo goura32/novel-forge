@@ -23,15 +23,11 @@
 
 ## 入力情報
 
-### キーワード
-
-{keywords}
-
-### 既存シリーズ一覧
-
-{existing_slugs}
+- キーワード: {keywords}
+- 既存シリーズ一覧: {existing_slugs}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

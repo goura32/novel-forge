@@ -25,44 +25,19 @@
 
 ## 入力情報
 
-### シリーズ情報
-
-{series_plan}
-
-### デザイン
-
-{outline}
-
-### 章情報
-
+- シリーズ情報: {series_plan}
+- デザイン: {outline}
 - 章タイトル: {chapter_title}
 - 章の役割: {chapter_purpose}
-
-### このシーンの設計
-
-{scene}
-
-### 文脈情報
-
-{context}
-
-### 連続性情報
-
-{continuity}
-
-### 進行中のサブプロット
-
-{subplots}
-
-### キャラクター関係性
-
-{relationships}
-
-### このシーンで回収すべき伏線
-
-{foreshadowing_to_resolve}
+- このシーンの設計: {scene}
+- 文脈情報: {context}
+- 連続性情報: {continuity}
+- 進行中のサブプロット: {subplots}
+- キャラクター関係性: {relationships}
+- このシーンで回収すべき伏線: {foreshadowing_to_resolve}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

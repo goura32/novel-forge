@@ -23,31 +23,18 @@
 
 ## 入力情報
 
-### シリーズ企画
-
-{series_plan}
-
-### 巻情報
-
+- シリーズ企画: {series_plan}
 - 巻番号: {volume_number}
 - 巻タイトル: {volume_title}
 - 巻の前提: {volume_premise}
-
-### 章情報
-
 - 章番号: {chapter_number}
 - 章タイトル: {chapter_title}
 - 章の役割: {chapter_purpose}
-
-### 前章の結果
-
-{previous_chapter_outcome}
-
-### 前巻の主要な結果
-
-{previous_volume_summary}
+- 前章の結果: {previous_chapter_outcome}
+- 前巻の主要な結果: {previous_volume_summary}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

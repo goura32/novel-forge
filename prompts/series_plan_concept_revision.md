@@ -24,19 +24,12 @@
 
 ## 入力情報
 
-### キーワード
-
-{keywords}
-
-### 現在の企画
-
-{current_plan}
-
-### レビュー結果
-
-{review}
+- キーワード: {keywords}
+- 現在の企画: {current_plan}
+- レビュー結果: {review}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

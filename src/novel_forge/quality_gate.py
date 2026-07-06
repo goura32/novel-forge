@@ -1,6 +1,6 @@
 """品質ゲート: レビュー結果に基づき工程の合否を判定する。
 
-スコア採点は廃止し、指摘事項の深刻度（severity）のみで判定する。
+スコア採点とLLMによる出版可否判定は廃止し、指摘事項の件数のみで判定する。
 """
 
 from __future__ import annotations
@@ -34,8 +34,8 @@ class QualityGateResult:
 
     @property
     def revision_needed(self) -> bool:
-        """改稿が必要か。致命的 issue、または重要 issue が2つ以上で true。"""
-        return self.blocker_count > 0 or self.major_count >= 2
+        """改稿が必要か。指摘事項が1件以上あれば true。"""
+        return len(self.issues) > 0
 
 
 class QualityGate:
@@ -52,16 +52,12 @@ class QualityGate:
         """レビュー結果に基づき品質を判定する。
 
         判定ルール:
-        - 致命的 issue が1つでもある → 不合格
-        - 重要 issue が2つ以上ある → 不合格
-        - 軽微 issue のみ、または issue なし → 合格
+        - issue が1件以上ある → 不合格
+        - issue なし → 合格
         """
         issues = review_result.get("issues", [])
 
-        blocker_count = sum(1 for i in issues if i.get("severity") == "致命的")
-        major_count = sum(1 for i in issues if i.get("severity") == "重要")
-
-        passed = blocker_count == 0 and major_count < 2
+        passed = len(issues) == 0
 
         return QualityGateResult(
             passed=passed,

@@ -125,20 +125,12 @@ class TestValidate:
         assert len(errors) == 0
 
     def test_valid_review(self):
-        data = {
-            "ready_for_publication": True,
-            "overall_assessment": "出版を妨げる問題はありません。",
-            "strengths": ["冒頭の状況提示が明確"],
-            "issues": [],
-        }
+        data = {"issues": []}
         errors = validate("review", data)
         assert len(errors) == 0
 
     def test_scene_review_with_issues(self):
         data = {
-            "ready_for_publication": False,
-            "overall_assessment": "POVの揺れがあり、出版前に修正が必要です。",
-            "strengths": ["葛藤の方向性は明確"],
             "issues": [
                 {
                     "severity": "重要",
@@ -147,7 +139,6 @@ class TestValidate:
                     "suggestion": "視点を統一する",
                     "before": "揺れている",
                     "after": "統一する",
-                    "publication_blocking": True,
                 }
             ],
         }
@@ -156,9 +147,6 @@ class TestValidate:
 
     def test_review_allows_empty_before_for_missing_field_issue(self):
         data = {
-            "ready_for_publication": False,
-            "overall_assessment": "結果フィールドが欠落しており、次工程前に補う必要があります。",
-            "strengths": ["章の方向性は明確"],
             "issues": [
                 {
                     "severity": "重要",
@@ -167,7 +155,6 @@ class TestValidate:
                     "suggestion": "次章へつながる結果を追加する",
                     "before": "",
                     "after": "主人公が依頼を受け入れ、次章の調査へ向かう動機を得る。",
-                    "publication_blocking": True,
                 }
             ],
         }
@@ -176,9 +163,6 @@ class TestValidate:
 
     def test_review_rejects_empty_after_for_missing_field_issue(self):
         data = {
-            "ready_for_publication": False,
-            "overall_assessment": "結果フィールドが欠落しています。",
-            "strengths": ["章の方向性は明確"],
             "issues": [
                 {
                     "severity": "重要",
@@ -187,18 +171,24 @@ class TestValidate:
                     "suggestion": "次章へつながる結果を追加する",
                     "before": "",
                     "after": "",
-                    "publication_blocking": True,
                 }
             ],
         }
         errors = validate("review", data)
         assert any("[issues/0/after] '' should be non-empty" in error for error in errors)
 
-    def test_review_readiness_rejects_blocking_issue_when_ready(self):
+    def test_review_rejects_legacy_readiness_fields(self):
         data = {
             "ready_for_publication": True,
             "overall_assessment": "問題ありません。",
             "strengths": ["葛藤は明確"],
+            "issues": [],
+        }
+        errors = validate("review", data)
+        assert any("Additional properties are not allowed" in error for error in errors)
+
+    def test_review_rejects_legacy_publication_blocking_issue_field(self):
+        data = {
             "issues": [
                 {
                     "severity": "重要",
@@ -212,13 +202,10 @@ class TestValidate:
             ],
         }
         errors = validate("review", data)
-        assert "ready_for_publication=true cannot have publication_blocking=true issues" in errors
+        assert any("[issues/0] Additional properties are not allowed" in error for error in errors)
 
-    def test_review_readiness_requires_blocking_issue_when_not_ready(self):
+    def test_review_allows_single_actionable_minor_issue(self):
         data = {
-            "ready_for_publication": False,
-            "overall_assessment": "軽微な問題だけがあります。",
-            "strengths": ["葛藤は明確"],
             "issues": [
                 {
                     "severity": "軽微",
@@ -227,27 +214,6 @@ class TestValidate:
                     "suggestion": "描写を増やす",
                     "before": "歩いた",
                     "after": "砂利を踏みしめて歩いた",
-                    "publication_blocking": False,
-                }
-            ],
-        }
-        errors = validate("review", data)
-        assert "ready_for_publication=false requires at least one publication_blocking=true issue" in errors
-
-    def test_review_readiness_allows_nonblocking_important_issue_when_ready(self):
-        data = {
-            "ready_for_publication": True,
-            "overall_assessment": "次工程を止める問題はありません。",
-            "strengths": ["世界観の軸は明確"],
-            "issues": [
-                {
-                    "severity": "重要",
-                    "field": "ジャンル",
-                    "description": "ジャンル名はやや整理できる",
-                    "suggestion": "主要ジャンルへ集約する",
-                    "before": "SFミステリー, 近未来ノベル, 歴史スリラー",
-                    "after": "SFミステリー, 近未来サスペンス",
-                    "publication_blocking": False,
                 }
             ],
         }

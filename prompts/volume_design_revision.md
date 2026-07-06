@@ -26,23 +26,13 @@
 
 ## 入力情報
 
-### シリーズ構想
-
-{concept_text}
-
-### 現在の巻設計
-
-{current_volume}
-
-### レビュー結果
-
-{review}
-
-### 前巻デザイン
-
-{previous_design}
+- シリーズ構想: {concept_text}
+- 現在の巻設計: {current_volume}
+- レビュー結果: {review}
+- 前巻デザイン: {previous_design}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

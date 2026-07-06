@@ -37,19 +37,15 @@ def format_review_text(review: dict) -> str:
     return "\n".join(lines)
 
 
-def _blocking_issues(review: dict) -> list[dict]:
-    """Return issues that must block the next generation phase.
+def _revision_issues(review: dict) -> list[dict]:
+    """Return review issues that require another revision pass.
 
-    Severity is only priority information. The explicit `publication_blocking`
-    flag is the review contract that controls whether the current artifact must
-    be revised before the pipeline can continue.
+    Review prompts are instructed to emit only actionable issues.  The loop can
+    therefore decide mechanically: zero issues means pass, one or more issues
+    means revise.
     """
 
-    return [
-        issue
-        for issue in review.get("issues", [])
-        if isinstance(issue, dict) and issue.get("publication_blocking") is True
-    ]
+    return [issue for issue in review.get("issues", []) if isinstance(issue, dict)]
 
 
 def _drop_resolved_issues(review: dict, result: dict) -> dict:
@@ -75,10 +71,6 @@ def _drop_resolved_issues(review: dict, result: dict) -> dict:
         kept.append(issue)
     if dropped:
         review = {**review, "issues": kept}
-        review["ready_for_publication"] = not any(
-            isinstance(issue, dict) and issue.get("publication_blocking") is True
-            for issue in kept
-        )
     return review
 
 
@@ -197,7 +189,6 @@ def generate_and_review(
                         "suggestion": "スキーマに従ってレビューを再生成してください",
                         "before": "",
                         "after": "",
-                        "publication_blocking": True,
                     }
                 ]
             }
@@ -205,8 +196,7 @@ def generate_and_review(
                 raise RuntimeError(f"{kind}: review validation failed after {review_max} retries") from e
             continue
 
-        blocker = _blocking_issues(review)
-        revision_needed = len(blocker) > 0
+        revision_needed = len(_revision_issues(review)) > 0
 
         if not revision_needed:
             return result, review
@@ -243,8 +233,7 @@ def generate_and_review(
                 raise RuntimeError(f"{kind}: post-revision review validation failed after {review_max} retries") from e
             continue
 
-        blocker = _blocking_issues(review)
-        blocking_count = len(blocker)
+        blocking_count = len(_revision_issues(review))
 
         # Check review max separately for post-revision review
         if blocking_count > 0 and review_cycles >= review_max:

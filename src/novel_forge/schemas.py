@@ -62,18 +62,6 @@ def _validate_with_schema(schema: dict[str, Any], data: dict[str, Any]) -> list[
     return errors
 
 
-def _validate_review_readiness(data: dict[str, Any]) -> list[str]:
-    has_blocking = any(
-        isinstance(issue, dict) and issue.get("publication_blocking") is True
-        for issue in data.get("issues", [])
-    )
-    if data.get("ready_for_publication") is True and has_blocking:
-        return ["ready_for_publication=true cannot have publication_blocking=true issues"]
-    if data.get("ready_for_publication") is False and not has_blocking:
-        return ["ready_for_publication=false requires at least one publication_blocking=true issue"]
-    return []
-
-
 def coerce_array_fields(data: dict, schema: dict) -> dict:
     """Pre-validation coercion: convert expected array fields that are objects to [].
     
@@ -132,8 +120,6 @@ def validate_data(name: str, schema: dict[str, Any], data: dict[str, Any]) -> li
     coerce_array_fields(data, schema)
     _coerce_enum_prefixes_in_container(data, schema)
     errors = _validate_with_schema(schema, data)
-    if name == "review" and not errors:
-        errors.extend(_validate_review_readiness(data))
     return errors
 
 

@@ -18,15 +18,10 @@
 ### レビュー観点
 - 冒頭フック、キャラ立ち、感覚描写、感情描写、シーン末尾、台詞自然さ、文体統一、シーン完結、シーン文字数、言語純度、POV一貫性、論理一貫性、その他。
 
-### 出版可否
-- `ready_for_publication=true` は、出版前に必ず解消すべき `publication_blocking=true` の issue が0件であることを示す。
-- `ready_for_publication=false` の場合、`publication_blocking=true` の issue を最低1件含める。
-- `severity=重要` でも、出版を止める必要がない改善提案なら `publication_blocking=false` とし、`ready_for_publication=true` を許可する。
-- `overall_assessment` には出版可否の理由を1〜2文で具体的に書く。
-- `strengths` には改稿で消してはいけない良い点を1件以上書く。
-- 各 issue の `publication_blocking` は、出版前に必ず直す必要がある場合だけ true にする。
-- `publication_blocking=true` は、必須フィールド欠落、完成本文として成立しない欠落、POV/時系列の破綻、不自然な言語混入、長さ不足、メタ説明混入など、放置すると出版品質を壊す問題に限定する。
-- 表現の磨き込み、比喩の好み、描写量の微調整などの主観的な改善提案は、原則 `publication_blocking=false` にする。
+### 指摘対象
+- レビュー結果は、改訂工程がそのまま使える指摘事項だけに限定する。
+- 出版可否、総評、長所、スコア、任意の好みは出力しない。
+- `issues` が空配列なら改訂不要、1件以上なら改訂を継続する。
 
 ### 指摘の書き方
 - 問題がない場合は、無理に指摘を作らず `issues` を空配列にする。
@@ -37,31 +32,15 @@
 
 ## 入力情報
 
-### コンセプトJSON
-
-{concept_json}
-
-### シーン本文
-
-{scene}
-
-### 巻デザイン
-
-{outline}
-
-### コンテキスト
-
-{context}
-
-### 進行中のサブプロット
-
-{subplots}
-
-### キャラクター関係性
-
-{relationships}
+- コンセプトJSON: {concept_json}
+- シーン本文: {scene}
+- 巻デザイン: {outline}
+- コンテキスト: {context}
+- 進行中のサブプロット: {subplots}
+- キャラクター関係性: {relationships}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

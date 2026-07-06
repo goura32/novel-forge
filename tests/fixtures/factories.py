@@ -43,11 +43,6 @@ def volume_design_data(**overrides: Any) -> dict[str, Any]:
 
 
 def review_data(**overrides: Any) -> dict[str, Any]:
-    data: dict[str, Any] = {
-        "ready_for_publication": True,
-        "overall_assessment": "出版を妨げる問題はありません。",
-        "strengths": ["冒頭の状況提示が明確"],
-        "issues": [],
-    }
+    data: dict[str, Any] = {"issues": []}
     data.update(overrides)
     return data

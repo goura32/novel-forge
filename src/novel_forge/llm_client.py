@@ -327,18 +327,28 @@ class LLMClient:
 
     @staticmethod
     def _normalize_review_output(parsed: dict[str, Any]) -> None:
-        """Make review readiness internally consistent before validation."""
+        """Drop legacy review bookkeeping fields before schema validation.
+
+        The review schema intentionally contains only actionable issues.  Older
+        prompts/models may still emit summary or publication-readiness fields;
+        remove them so the pipeline contract stays issue-count based.
+        """
         issues = parsed.get("issues")
+        for key in (
+            "ready_for_publication",
+            "overall_assessment",
+            "strengths",
+            "recommendations",
+            "score",
+            "revision_needed",
+        ):
+            parsed.pop(key, None)
         if not isinstance(issues, list):
             return
-        has_blocking = False
         for issue in issues:
             if not isinstance(issue, dict):
                 continue
-            issue.setdefault("publication_blocking", False)
-            if issue.get("publication_blocking") is True:
-                has_blocking = True
-        parsed["ready_for_publication"] = not has_blocking
+            issue.pop("publication_blocking", None)
 
 
     @staticmethod

@@ -1064,13 +1064,12 @@ class TestQualityGate:
         result = gate.check_scene(review)
         assert result.revision_needed is True
 
-    def test_check_fails_with_major_issues(self):
-        """check() should fail when 2+ major issues exist."""
+    def test_check_fails_with_any_actionable_issue(self):
+        """check() should fail when any actionable issue exists."""
         gate = QualityGate()
         review = {
             "issues": [
-                {"severity": "重要", "field": "test", "description": "問題1", "suggestion": "", "before": "", "after": ""},
-                {"severity": "重要", "field": "test", "description": "問題2", "suggestion": "", "before": "", "after": ""},
+                {"severity": "軽微", "field": "test", "description": "問題1", "suggestion": "", "before": "", "after": ""},
             ],
             "revision_needed": True,
             "ready_for_publication": False,
@@ -1085,8 +1084,8 @@ class TestQualityGate:
 class TestQualityGateBoundary:
     """Test quality gate boundary conditions."""
 
-    def test_single_minor_issue_passes(self):
-        """Single minor issue should pass."""
+    def test_single_minor_issue_fails(self):
+        """Single minor issue should fail because issue count controls revision."""
         gate = QualityGate()
         review = {
             "issues": [{"severity": "軽微", "field": "test", "description": "軽微", "suggestion": "", "before": "", "after": ""}],
@@ -1094,10 +1093,10 @@ class TestQualityGateBoundary:
             "ready_for_publication": True,
         }
         result = gate.check_scene(review)
-        assert result.revision_needed is False
+        assert result.revision_needed is True
 
-    def test_single_major_issue_passes(self):
-        """Single major issue should pass (threshold is 2)."""
+    def test_single_major_issue_fails(self):
+        """Single major issue should fail because issue count controls revision."""
         gate = QualityGate()
         review = {
             "issues": [{"severity": "重要", "field": "test", "description": "重要", "suggestion": "", "before": "", "after": ""}],
@@ -1105,7 +1104,7 @@ class TestQualityGateBoundary:
             "ready_for_publication": True,
         }
         result = gate.check_scene(review)
-        assert result.revision_needed is False
+        assert result.revision_needed is True
 
     def test_critical_issue_fails(self):
         """Critical issue should always fail."""

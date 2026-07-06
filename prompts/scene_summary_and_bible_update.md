@@ -23,15 +23,11 @@
 
 ## 入力情報
 
-### シーン本文
-
-{scene}
-
-### 現在の Bible
-
-{current_bible}
+- シーン本文: {scene}
+- 現在の Bible: {current_bible}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

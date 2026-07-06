@@ -27,19 +27,12 @@
 
 ## 入力情報
 
-### シリーズ構想
-
-{concept_text}
-
-### 現在のキャラクター設計
-
-{current_characters}
-
-### レビュー結果
-
-{review}
+- シリーズ構想: {concept_text}
+- 現在のキャラクター設計: {current_characters}
+- レビュー結果: {review}
 
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

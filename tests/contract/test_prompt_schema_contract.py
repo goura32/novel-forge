@@ -58,7 +58,7 @@ def test_all_prompt_templates_have_consistent_basic_structure() -> None:
                 prompt_issues.append("contains legacy role section")
             if "## 出力構造" in text:
                 prompt_issues.append("contains legacy output schema section")
-            expected_output_spec = "下記のスキーマに適合する JSON のみ出力すること。\n{schema}"
+            expected_output_spec = "下記のスキーマに適合する JSON のみ出力すること。\n\n{schema}"
             if expected_output_spec not in text:
                 prompt_issues.append("missing unified output spec")
         if prompt_issues:
@@ -74,6 +74,28 @@ def test_all_task_prompts_have_schema_placeholder() -> None:
     missing = [p.name for p in prompt_paths if "{schema}" not in p.read_text(encoding="utf-8")]
 
     assert missing == []
+
+
+def test_input_info_sections_are_flat_placeholder_lists() -> None:
+    issues: dict[str, list[str]] = {}
+    for prompt_path in sorted(p for p in PROMPTS_DIR.glob("*.md") if p.name != "system.md"):
+        lines = prompt_path.read_text(encoding="utf-8").splitlines()
+        start = lines.index("## 入力情報") + 1
+        end = lines.index("## 出力仕様")
+        bad_lines: list[str] = []
+        for line in lines[start:end]:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("###"):
+                bad_lines.append(stripped)
+                continue
+            if not (stripped.startswith("- ") and "{" in stripped and "}" in stripped):
+                bad_lines.append(stripped)
+        if bad_lines:
+            issues[prompt_path.name] = bad_lines
+
+    assert issues == {}
 
 
 def test_unified_review_schema_exists_without_specific_review_schemas() -> None:
@@ -124,7 +146,9 @@ def test_quality_schema_fields_exist_for_generation_pipeline() -> None:
     scene = json.loads((SCHEMAS_DIR / "scene_design.json").read_text(encoding="utf-8"))
     chapter = json.loads((SCHEMAS_DIR / "chapter_design.json").read_text(encoding="utf-8"))
 
-    assert {"ready_for_publication", "overall_assessment", "strengths"} <= set(review["properties"])
+    assert set(review["properties"]) == {"issues"}
+    issue_properties = review["properties"]["issues"]["items"]["properties"]
+    assert "publication_blocking" not in issue_properties
     assert {"hook", "turning_point", "emotional_arc", "ending_hook"} <= set(scene["properties"])
     assert {"chapter_turning_point", "chapter_hook", "foreshadowing_notes", "subplot_notes"} <= set(chapter["properties"])
 
