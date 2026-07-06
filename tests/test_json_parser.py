@@ -96,6 +96,14 @@ class TestParseJsonResponse:
         result = parse_json_response(text)
         assert result == {"key": "value"}
 
+    def test_repairs_unquoted_japanese_string_after_colon(self):
+        text = '{"issues": [{"suggestion":「警察を去った理由」を一言添える, "publication_blocking": false}]}'
+
+        result = parse_json_response(text)
+
+        assert result["issues"][0]["suggestion"] == "「警察を去った理由」を一言添える"
+        assert result["issues"][0]["publication_blocking"] is False
+
     def test_complex_llm_output(self):
         """Simulates a typical LLM response with explanation + JSON."""
         text = (

@@ -25,6 +25,38 @@ def _extract_json_text(text: str) -> str:
     return text
 
 
+def _quote_unquoted_japanese_string_values(text: str) -> str:
+    """Repair a common LLM JSON slip: `"key":日本語文,` without quotes.
+
+    Limit the repair to values beginning with Japanese punctuation/scripts so we do
+    not accidentally rewrite valid JSON literals such as true, false, null, or
+    numbers.
+    """
+
+    def repl(match: re.Match[str]) -> str:
+        prefix = match.group("prefix")
+        value = match.group("value").strip()
+        suffix = match.group("suffix")
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'{prefix}"{escaped}"{suffix}'
+
+    return re.sub(
+        r'(?P<prefix>:\s*)(?P<value>[「『（\u3040-\u30ff\u3400-\u9fff][^,}\]\n]*?)(?P<suffix>\s*(?:,\s*"|[}\]]))',
+        repl,
+        text,
+    )
+
+
+def _loads_with_repairs(text: str) -> Any:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        repaired = _quote_unquoted_japanese_string_values(text)
+        if repaired != text:
+            return json.loads(repaired)
+        raise
+
+
 def parse_json_response(text: str) -> Any:
     """Parse JSON from LLM response.
 
@@ -36,7 +68,7 @@ def parse_json_response(text: str) -> Any:
 
     # Try direct parse first (single JSON object)
     try:
-        return json.loads(text)
+        return _loads_with_repairs(text)
     except json.JSONDecodeError:
         pass
 
@@ -58,7 +90,7 @@ def parse_json_response(text: str) -> Any:
     if content_parts:
         full_content = "".join(content_parts)
         try:
-            return json.loads(full_content)
+            return _loads_with_repairs(full_content)
         except json.JSONDecodeError:
             pass
 
@@ -67,7 +99,7 @@ def parse_json_response(text: str) -> Any:
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(text[start : end + 1])
+            return _loads_with_repairs(text[start : end + 1])
         except json.JSONDecodeError:
             pass
 

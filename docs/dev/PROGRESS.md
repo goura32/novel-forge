@@ -197,20 +197,21 @@
 | P18-42 | concept review/revisionへ元キーワードを伝播 | Done | `_generate_plan_concept` から `_review_plan_concept` / `_revise_plan_concept` へ `keywords` を渡すよう修正。回帰テスト `test_series_plan_concept_review_and_revision_receive_keywords` 追加。検証: targeted 1 passed、integration 46 passed、full 302 passed、ruff passed |
 | P18-43 | 実LLM smoke を16回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_155839`: P18-42後、Plan完了→Design `volume_design` 通過→`chapter_design` review非収束で停止。停止原因は `chapter_hook` と scene outcome に「次章へ繋がる重要手掛かり」「何か（次への手がかり）」の曖昧プレースホルダーが残った実品質問題。P18-40のreview入力欠落ではない |
 | P18-44 | chapter_design の曖昧な次章手掛かりをvalidationで拒否 | Done | `_validate_chapter_design` に `chapter_hook` / `scenes[].outcome` の曖昧プレースホルダー検出を追加。`tests/test_engine_design_validation.py` を追加し、RED→GREEN確認。検証: design validation 2 passed、targeted integration 1 passed、integration 46 passed、full 304 passed、`git diff --check` OK、ruff OK |
-| P18-45 | 実LLM smoke を17回目実行 | In progress | `proc_9ee7bcbde351` / `workspace/phase18_real_smoke_20260706_162351`。P18-44後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認する |
+| P18-45 | 実LLM smoke を17回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_162351`: P18-44後、Design以前のPlan `series_plan_characters` reviewでJSON parse error。rawでは `"suggestion":「警察を去った理由」...` のように日本語文字列値の開始引用符が欠落していた |
+| P18-46 | 日本語文字列値の軽微JSON崩れをparserで補修 | Done | `parse_json_response` に `"key":日本語文,` / `"key":「...」,` のような未引用日本語文字列値だけを安全にquoteする補修を追加。回帰テスト `test_repairs_unquoted_japanese_string_after_colon` 追加。検証: json parser 27 passed、full 305 passed、`git diff --check` OK、ruff OK |
+| P18-47 | 実LLM smoke を18回目実行 | Todo | P18-46 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-45 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-47 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest tests/test_engine_design_validation.py -q` → 2 passed
-  - `uv run pytest tests/test_engine_integration.py::TestOutline::test_chapter_design_repairs_invalid_purpose_from_volume_design -q` → 1 passed
-  - `uv run pytest tests/test_engine_integration.py -q` → 46 passed
-  - `uv run pytest` → 304 passed
+  - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_unquoted_japanese_string_after_colon -q` → 1 passed
+  - `uv run pytest tests/test_json_parser.py -q` → 27 passed
+  - `uv run pytest` → 305 passed
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 
 - 次に迷わず実行すること:
-  1. P18-44を commit/push
-  2. P18-45 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
-  3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類
+  1. P18-46を commit/push
+  2. P18-47 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
+  3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正/parser補修のどれかに分類
