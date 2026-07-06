@@ -185,7 +185,7 @@
 | P18-30 | P18-27の不適切修正を復帰 | Done | `src/novel_forge/engine/design.py` から chapter purpose 強制上書きを削除。LLM/改訂結果の valid enum を保持する回帰テスト `test_chapter_design_keeps_revised_purpose` を追加。`uv run pytest` → 297 passed、`git diff --check` OK、ruff OK |
 | P18-31 | 実LLM smoke を10回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_143122`: P18-30復帰後、Plan完了→Design `chapter_design` まで進行。P18-28のpurpose上書きループは解消したが、review issue の欠落差分で `before=""` が出て schema validation error で停止 |
 | P18-32 | review.before 空文字許可 | Done | review prompts は「欠落フィールドの `before` は空文字列」と指示していたが schema が `minLength=1` で拒否していた。`before` のみ空文字を許可し、`after` 非空は維持。`uv run pytest` → 299 passed、`git diff --check` OK、ruff OK |
-| P18-33 | 実LLM smoke を11回目実行 | Todo | P18-32 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-33 | 実LLM smoke を11回目実行 | In progress | `proc_dbb6dc98be6f` / `workspace/phase18_real_smoke_20260706_144911`。P18-32後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 | P18-34 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
