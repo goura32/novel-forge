@@ -60,7 +60,7 @@
             "minLength": 1
           },
           "publication_blocking": {
-            "description": "出版前に必ず解消すべき問題ならtrue。",
+            "description": "出版前または次工程前に必ず解消すべき問題ならtrue。重要度とは独立して判定する。",
             "type": "boolean"
           }
         },
@@ -69,7 +69,7 @@
       }
     },
     "ready_for_publication": {
-      "description": "出版可能状態。致命的/重要issueが残る場合はfalse。",
+      "description": "次工程または出版へ進める状態。publication_blocking=trueのissueが残る場合はfalse。",
       "type": "boolean"
     },
     "overall_assessment": {

@@ -414,8 +414,9 @@
 
 ### readinessルール
 
-- `ready_for_publication=true` の場合、`致命的` / `重要` issue は0件。
-- `ready_for_publication=false` の場合、少なくとも1件の `致命的` または `重要` issue が必要。
+- `ready_for_publication=true` の場合、`publication_blocking=true` issue は0件。
+- `ready_for_publication=false` の場合、少なくとも1件の `publication_blocking=true` issue が必要。
+- `severity=重要` でも、次工程や出版を止める必要がない改善提案なら `publication_blocking=false` とし、`ready_for_publication=true` を許可する。
 - これをschemaだけでなく保存前正規化でも保証する。
 
 ---

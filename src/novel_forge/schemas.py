@@ -63,15 +63,14 @@ def _validate_with_schema(schema: dict[str, Any], data: dict[str, Any]) -> list[
 
 
 def _validate_review_readiness(data: dict[str, Any]) -> list[str]:
-    blocking_severities = {"致命的", "重要"}
     has_blocking = any(
-        isinstance(issue, dict) and issue.get("severity") in blocking_severities
+        isinstance(issue, dict) and issue.get("publication_blocking") is True
         for issue in data.get("issues", [])
     )
     if data.get("ready_for_publication") is True and has_blocking:
-        return ["ready_for_publication=true cannot have 致命的/重要 issues"]
+        return ["ready_for_publication=true cannot have publication_blocking=true issues"]
     if data.get("ready_for_publication") is False and not has_blocking:
-        return ["ready_for_publication=false requires at least one 致命的/重要 issue"]
+        return ["ready_for_publication=false requires at least one publication_blocking=true issue"]
     return []
 
 

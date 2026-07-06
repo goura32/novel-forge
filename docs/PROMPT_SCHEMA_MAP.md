@@ -112,7 +112,7 @@
 
 | フィールド | 必須 | 説明 |
 |---|---|---|
-| `ready_for_publication` | ✓ | 出版可能状態。致命的/重要 issue が残る場合は `false`。 |
+| `ready_for_publication` | ✓ | 次工程または出版へ進める状態。`publication_blocking=true` の issue が残る場合は `false`。 |
 | `overall_assessment` | ✓ | レビュー全体の短い総評。 |
 | `strengths` | ✓ | 改稿で維持すべき良い点の一覧。 |
 | `issues` | ✓ | 指摘事項の一覧。問題がなければ空配列。 |
@@ -127,7 +127,7 @@
 | `suggestion` | ✓ | 修正の提案。どう改善すべきかの方向性を示す。 |
 | `before` | ✓ | 修正前のテキスト（当該フィールド内の該当箇所を引用） |
 | `after` | ✓ | 修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。 |
-| `publication_blocking` |  | 出版前に必ず解消すべき問題なら `true`。 |
+| `publication_blocking` |  | 出版前または次工程前に必ず解消すべき問題なら `true`。severity とは独立して判定する。 |
 
 ## 6. プレースホルダ自動置換
 

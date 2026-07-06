@@ -172,7 +172,7 @@ class TestValidate:
             ],
         }
         errors = validate("review", data)
-        assert "ready_for_publication=true cannot have 致命的/重要 issues" in errors
+        assert "ready_for_publication=true cannot have publication_blocking=true issues" in errors
 
     def test_review_readiness_requires_blocking_issue_when_not_ready(self):
         data = {
@@ -192,7 +192,27 @@ class TestValidate:
             ],
         }
         errors = validate("review", data)
-        assert "ready_for_publication=false requires at least one 致命的/重要 issue" in errors
+        assert "ready_for_publication=false requires at least one publication_blocking=true issue" in errors
+
+    def test_review_readiness_allows_nonblocking_important_issue_when_ready(self):
+        data = {
+            "ready_for_publication": True,
+            "overall_assessment": "次工程を止める問題はありません。",
+            "strengths": ["世界観の軸は明確"],
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "ジャンル",
+                    "description": "ジャンル名はやや整理できる",
+                    "suggestion": "主要ジャンルへ集約する",
+                    "before": "SFミステリー, 近未来ノベル, 歴史スリラー",
+                    "after": "SFミステリー, 近未来サスペンス",
+                    "publication_blocking": False,
+                }
+            ],
+        }
+        errors = validate("review", data)
+        assert errors == []
 
     def test_valid_bible_update(self):
         data = {

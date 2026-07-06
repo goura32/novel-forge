@@ -21,8 +21,9 @@
 - 言語純度: 不自然な英語・簡体字・ハングル等が混在していないか。
 
 ### 出版可否
-- `ready_for_publication=true` の場合、致命的または重要の issue は0件にする。
-- `ready_for_publication=false` の場合、致命的または重要の issue を最低1件含める。
+- `ready_for_publication=true` は、次工程または出版前に必ず解消すべき `publication_blocking=true` の issue が0件であることを示す。
+- `ready_for_publication=false` の場合、`publication_blocking=true` の issue を最低1件含める。
+- `severity=重要` でも、次工程を止める必要がない改善提案なら `publication_blocking=false` とし、`ready_for_publication=true` を許可する。
 - `overall_assessment` には、合格/要修正の理由を1〜2文で具体的に書く。
 - `strengths` には、改訂工程で消してはいけない良い点を1件以上書く。
 - 各 issue の `publication_blocking` は、出版前または次工程前に必ず直す必要がある場合だけ true にする。

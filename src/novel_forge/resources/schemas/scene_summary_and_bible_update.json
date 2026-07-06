@@ -15,8 +15,7 @@
         "type": "object",
         "required": [
           "subject",
-          "predicate",
-          "object"
+          "predicate"
         ],
         "properties": {
           "subject": {
@@ -31,8 +30,7 @@
           },
           "object": {
             "type": "string",
-            "description": "目的語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "minLength": 1
+            "description": "目的語。不要な事実では空文字でもよい。"
           }
         },
         "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
@@ -223,25 +221,12 @@
       }
     },
     "world_rules": {
-      "description": "世界観ルールの一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
+      "description": "世界観ルールの一覧。後続工程で矛盾確認や生成に使える具体的なルール文を要素として入れる。",
       "type": "array",
       "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "rule": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "string",
-            "minLength": 1
-          }
-        ]
+        "type": "string",
+        "description": "世界観ルール。本文や後続設計で守るべき具体的なルール文。",
+        "minLength": 1
       }
     }
   },

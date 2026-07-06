@@ -19,8 +19,9 @@
 - 冒頭フック、キャラ立ち、感覚描写、感情描写、シーン末尾、台詞自然さ、文体統一、シーン完結、シーン文字数、言語純度、POV一貫性、論理一貫性、その他。
 
 ### 出版可否
-- `ready_for_publication=true` の場合、致命的または重要の issue は0件にする。
-- `ready_for_publication=false` の場合、致命的または重要の issue を最低1件含める。
+- `ready_for_publication=true` は、出版前に必ず解消すべき `publication_blocking=true` の issue が0件であることを示す。
+- `ready_for_publication=false` の場合、`publication_blocking=true` の issue を最低1件含める。
+- `severity=重要` でも、出版を止める必要がない改善提案なら `publication_blocking=false` とし、`ready_for_publication=true` を許可する。
 - `overall_assessment` には出版可否の理由を1〜2文で具体的に書く。
 - `strengths` には改稿で消してはいけない良い点を1件以上書く。
 - 各 issue の `publication_blocking` は、出版前に必ず直す必要がある場合だけ true にする。

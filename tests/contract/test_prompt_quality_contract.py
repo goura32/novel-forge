@@ -37,6 +37,8 @@ def test_review_prompts_define_publication_readiness_fields() -> None:
         "overall_assessment",
         "strengths",
         "publication_blocking",
+        "severity=重要",
+        "publication_blocking=false",
     ]
     issues = {
         prompt.name: [fragment for fragment in required_fragments if fragment not in prompt.read_text(encoding="utf-8")]
