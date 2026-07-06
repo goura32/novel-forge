@@ -173,3 +173,39 @@ def test_review_loop_ignores_stale_resolved_issue() -> None:
     assert result == {"title": "雨音と錆びた歯車の序曲"}
     assert review == {"issues": [], "ready_for_publication": True}
     assert revise_calls == []
+
+
+def test_review_loop_ignores_noop_before_after_issue() -> None:
+    """A blocking issue with identical before/after is not an actionable revision."""
+    revise_calls: list[dict] = []
+
+    result, review = generate_and_review(
+        generate_fn=lambda _prompt, _seed_offset: {
+            "goal": "連日続く梅雨を避け、神楽坂蓮は茶屋で静寂を取り戻す。"
+        },
+        validate_fn=lambda _result: [],
+        review_fn=lambda _result, _system: {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "目標",
+                    "description": "主人公名が誤っているという誤検知",
+                    "suggestion": "キャラクター名を正しく修正する。",
+                    "before": "神楽坂蓮は茶屋で静寂を取り戻す。",
+                    "after": "神楽坂蓮は茶屋で静寂を取り戻す。",
+                    "publication_blocking": True,
+                }
+            ],
+            "ready_for_publication": False,
+        },
+        revise_fn=lambda result, review, _system, _seed_offset: revise_calls.append(review) or result,
+        system="sys",
+        user_prompt="usr",
+        kind="scene_design",
+        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+        quality=Quality(),
+    )
+
+    assert result["goal"].startswith("連日続く梅雨")
+    assert review == {"issues": [], "ready_for_publication": True}
+    assert revise_calls == []

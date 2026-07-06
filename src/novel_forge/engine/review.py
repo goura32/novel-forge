@@ -66,6 +66,9 @@ def _drop_resolved_issues(review: dict, result: dict) -> dict:
             continue
         before = str(issue.get("before", "") or "")
         after = str(issue.get("after", "") or "")
+        if before and after and before == after:
+            dropped += 1
+            continue
         if before and after and before not in result_text and after in result_text:
             dropped += 1
             continue
