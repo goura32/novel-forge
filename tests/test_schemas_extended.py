@@ -154,6 +154,46 @@ class TestValidate:
         errors = validate("review", data)
         assert len(errors) == 0
 
+    def test_review_allows_empty_before_for_missing_field_issue(self):
+        data = {
+            "ready_for_publication": False,
+            "overall_assessment": "結果フィールドが欠落しており、次工程前に補う必要があります。",
+            "strengths": ["章の方向性は明確"],
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "章設計.結果",
+                    "description": "章の結果が記述されていません。",
+                    "suggestion": "次章へつながる結果を追加する",
+                    "before": "",
+                    "after": "主人公が依頼を受け入れ、次章の調査へ向かう動機を得る。",
+                    "publication_blocking": True,
+                }
+            ],
+        }
+        errors = validate("review", data)
+        assert errors == []
+
+    def test_review_rejects_empty_after_for_missing_field_issue(self):
+        data = {
+            "ready_for_publication": False,
+            "overall_assessment": "結果フィールドが欠落しています。",
+            "strengths": ["章の方向性は明確"],
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "章設計.結果",
+                    "description": "章の結果が記述されていません。",
+                    "suggestion": "次章へつながる結果を追加する",
+                    "before": "",
+                    "after": "",
+                    "publication_blocking": True,
+                }
+            ],
+        }
+        errors = validate("review", data)
+        assert any("[issues/0/after] '' should be non-empty" in error for error in errors)
+
     def test_review_readiness_rejects_blocking_issue_when_ready(self):
         data = {
             "ready_for_publication": True,

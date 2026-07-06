@@ -183,19 +183,20 @@
 | P18-28 | 実LLM smoke を9回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_124753`: Design `chapter_design` reviewで4回改訂後も停止。最終raw outputは `purpose=展開` だったが、review requestには `purpose=クライマックス` と渡っていた |
 | P18-29 | chapter_design final raw/review確認 | Done | `_raw_logs/.../0028_chapter_design/summary/response_0_2.md` と `0029_review` を確認。schema違反でもenum prefix問題でもなく、engine-side purpose上書きによる判定ループと確定 |
 | P18-30 | P18-27の不適切修正を復帰 | Done | `src/novel_forge/engine/design.py` から chapter purpose 強制上書きを削除。LLM/改訂結果の valid enum を保持する回帰テスト `test_chapter_design_keeps_revised_purpose` を追加。`uv run pytest` → 297 passed、`git diff --check` OK、ruff OK |
-| P18-31 | 実LLM smoke を10回目実行 | In progress | `proc_3ec9c2865f89` / `workspace/phase18_real_smoke_20260706_143122`。P18-30復帰後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
-| P18-32 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+| P18-31 | 実LLM smoke を10回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_143122`: P18-30復帰後、Plan完了→Design `chapter_design` まで進行。P18-28のpurpose上書きループは解消したが、review issue の欠落差分で `before=""` が出て schema validation error で停止 |
+| P18-32 | review.before 空文字許可 | Done | review prompts は「欠落フィールドの `before` は空文字列」と指示していたが schema が `minLength=1` で拒否していた。`before` のみ空文字を許可し、`after` 非空は維持。`uv run pytest` → 299 passed、`git diff --check` OK、ruff OK |
+| P18-33 | 実LLM smoke を11回目実行 | Todo | P18-32 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-34 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-31 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-33 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest tests/test_engine_integration.py::TestOutline::test_chapter_design_keeps_revised_purpose -q` → 1 passed
-  - `uv run pytest tests/test_engine_integration.py tests/test_engine_review_loop.py tests/test_schemas_extended.py -q` → 87 passed
-  - `uv run pytest` → 297 passed
+  - `uv run pytest tests/test_schemas_extended.py::TestValidate::test_review_allows_empty_before_for_missing_field_issue tests/test_schemas_extended.py::TestValidate::test_review_rejects_empty_after_for_missing_field_issue tests/contract/test_prompt_schema_contract.py::test_string_fields_and_required_arrays_have_minimum_content_constraints -q` → 3 passed
+  - `uv run pytest` → 299 passed
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. P18-30を commit/push
-  2. P18-31 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
+  1. P18-32を commit/push
+  2. P18-33 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
   3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

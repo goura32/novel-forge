@@ -187,6 +187,11 @@ def test_all_object_schemas_reject_unknown_fields() -> None:
     assert issues == {}
 
 
+EMPTY_STRING_ALLOWED_PATHS = {
+    ("review.json", "issues.[].before"),
+}
+
+
 EMPTY_ARRAY_ALLOWED_PATHS = {
     ("bible.json", "characters"),
     ("bible.json", "glossary"),
@@ -220,7 +225,12 @@ def _missing_minimum_content_constraints(
     if isinstance(node, dict):
         node_type = node.get("type")
         path_text = ".".join(path) or "$"
-        if required and node_type == "string" and int(node.get("minLength", 0)) < 1:
+        if (
+            required
+            and node_type == "string"
+            and (schema_name, path_text) not in EMPTY_STRING_ALLOWED_PATHS
+            and int(node.get("minLength", 0)) < 1
+        ):
             issues.append(f"{path_text}: required string missing minLength>=1")
         if (
             required
