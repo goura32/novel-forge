@@ -189,7 +189,7 @@
 | P18-34 | invalid chapter purpose のみ入力章purposeへ補正 | Done | P18-27の常時上書きは再導入せず、`chapter_design.purpose` が schema enum 外のときだけ `volume_design.chapters[].purpose` のvalid enumで補正。valid enum改訂結果は保持。`uv run pytest` → 300 passed、`git diff --check` OK、ruff OK |
 | P18-35 | 実LLM smoke を12回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_150209`: P18-34のinvalid purpose修正後に再実行。Plan完了→Design `volume_design` で停止。`volume_design.title` が上流series_planの「無音の刻鐘と錆びた鍵」から「時計台の鍵と記憶の欠片」へ逸れ、reviewがタイトル不一致をblockingとして出し続けた |
 | P18-36 | volume_design title を上流planned volume titleへ固定 | Done | `series_plan.planned_volumes[vol-1].title` を source of truth とし、volume_design生成/改訂後に `title` を固定。reviewへ渡る前に正規化するためタイトル不一致ループを防止。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
-| P18-37 | 実LLM smoke を13回目実行 | Todo | P18-36 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-37 | 実LLM smoke を13回目実行 | In progress | `proc_b61f05c20937` / `workspace/phase18_real_smoke_20260706_151641`。P18-36後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
 
 ### Phase 18 復帰メモ
 
