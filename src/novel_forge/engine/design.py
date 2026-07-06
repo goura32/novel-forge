@@ -52,15 +52,47 @@ def _validate_volume_design(data: dict) -> list[str]:
 
 
 def _apply_review_text_replacements(data: Any, review: dict) -> Any:
-    """Apply exact review before/after text diffs inside nested JSON-like data."""
+    """Apply review before/after text diffs inside nested JSON-like data.
+
+    Reviews sometimes quote a whole scene as labeled lines (for example
+    `POV: ...`, `目標: ...`, `葛藤: ...`) instead of quoting one JSON field.
+    Split those labeled blocks into individual value replacements too.
+    """
     replacements: list[tuple[str, str]] = []
+
+    def add_replacement(before_text: str, after_text: str) -> None:
+        before_text = before_text.strip()
+        after_text = after_text.strip()
+        if before_text and after_text and before_text != after_text:
+            replacements.append((before_text, after_text))
+
+    def labeled_parts(text: str) -> dict[str, str]:
+        parts: dict[str, str] = {}
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            separator = ":" if ":" in line else "：" if "：" in line else ""
+            if not separator:
+                continue
+            label, value = line.split(separator, 1)
+            label = label.strip()
+            value = value.strip()
+            if label and value:
+                parts[label] = value
+        return parts
+
     for issue in review.get("issues", []) or []:
         if not isinstance(issue, dict):
             continue
         before = str(issue.get("before", "") or "")
         after = str(issue.get("after", "") or "")
-        if before and after and before != after:
-            replacements.append((before, after))
+        add_replacement(before, after)
+        before_parts = labeled_parts(before)
+        after_parts = labeled_parts(after)
+        for label, before_value in before_parts.items():
+            after_value = after_parts.get(label, "")
+            add_replacement(before_value, after_value)
 
     if not replacements:
         return data

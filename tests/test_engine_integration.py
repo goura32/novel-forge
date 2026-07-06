@@ -16,6 +16,7 @@ from fakes import MockLLMClient
 
 from novel_forge.context_builder import ContextBuilder
 from novel_forge.engine import NovelEngine
+from novel_forge.engine.design import _apply_review_text_replacements
 from novel_forge.models import (
     Bible,
     CharacterProfile,
@@ -663,6 +664,37 @@ class TestOutline:
 
         assert result["chapters"][0]["outcome"] == revised_outcome
         assert result["chapters"][0]["scenes"][0]["outcome"] == revised_outcome
+
+    def test_chapter_design_revision_applies_labeled_review_diff_parts(self):
+        """Review replacement safety net should split grouped 'POV: ...' diffs."""
+        stale_pov = "神無（または凛の視点混在）"
+        revised_pov = "神無"
+        stale_goal = "凛を説得し、神楽連合からの逃避および小太郎の手がかり追跡への参加を求める。"
+        stale_conflict = "凛は職務規範と神無に対する懸念の間で揺れる。また、神無は凛を危険な目に合わせたくないという思いと、彼なしでは動けないという現実の板挟みになる。"
+        revised_conflict = "神無は過去のトラウマから凛を遠ざけようとするが、凛の鋭い視線によりその意図を見透かされる。凛は職務規範と神無への信頼の間で揺れる中、神無が自らの欠落した記憶への恐怖を露わにした瞬間、友人としての判断を下す。"
+        data = {
+            "scenes": [
+                {
+                    "title": "元警察官との対峙と共闘",
+                    "pov": stale_pov,
+                    "goal": stale_goal,
+                    "conflict": stale_conflict,
+                }
+            ]
+        }
+        review = {
+            "issues": [
+                {
+                    "before": f"POV: {stale_pov}\n目標: {stale_goal}\n葛藤: {stale_conflict}",
+                    "after": f"POV: {revised_pov}\n目標: {stale_goal}\n葛藤: {revised_conflict}",
+                }
+            ]
+        }
+
+        result = _apply_review_text_replacements(data, review)
+
+        assert result["scenes"][0]["pov"] == revised_pov
+        assert result["scenes"][0]["conflict"] == revised_conflict
 
     def test_chapter_design_repairs_invalid_purpose_from_volume_design(self, planned_engine, mock_llm):
         """design() should repair only invalid chapter purpose values from the source chapter."""

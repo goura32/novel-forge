@@ -214,6 +214,8 @@
 | P18-59 | JSON parser: 配列内オブジェクト閉じbrace欠落の限定修復 | Done | `_close_missing_object_before_array_end` を追加。`"field": "..."` の直後に `]` が来るLLM出力を、次行も `]` なら置換、そうでなければ挿入で修復。実raw `response_0_0.md` / `response_1_0.md` parse_ok。関連107 passed |
 | P18-60 | P20再々々々smokeでPlan突破/Design後半まで進行し、chapter_design review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_005951`; vol1 chapter_design後半で `[REVIEW] chapter_design: revision needed but max count reached (4/4)`。 |
 | P18-61 | chapter_design改訂にもreview before/after安全弁を追加 | Done | `src/novel_forge/engine/design.py`; 弱い改訂モデルが差分を残しても具体diffをJSON全体へ適用。回帰 `TestOutline::test_chapter_design_revision_applies_concrete_review_diff` 追加。 |
+| P18-62 | P20再々々々々smokeでchapter_design review複合before/after未適用を確認 | Blocked | `workspace/phase18_real_smoke_20260707_012349`; reviewが`POV/目標/葛藤`を1文字列にまとめ、単一フィールド完全一致安全弁で拾えず。 |
+| P18-63 | chapter_design review安全弁をラベル付き複合diffへ対応 | Done | `_apply_review_text_replacements` が `POV: ...`/`目標: ...`/`葛藤: ...` 形式を分解し個別文字列へ適用。実rawで `pov=神無`、葛藤/伏線差分適用を確認。 |
 
 ### Phase 18 復帰メモ
 
