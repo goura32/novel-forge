@@ -179,18 +179,23 @@
 | P18-24 | 実LLM smoke を7回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_121701`: Plan完了、Design `volume_design` で4回改訂後、最終reviewが既に修正済みの `齿轮`→`歯車` を stale blocking issue として返し停止 |
 | P18-25 | stale resolved review issue 除外 | Done | `before` が現在JSONになく `after` が現在JSONにある issue は解決済みとして除外し、残issueから readiness を再計算。`uv run pytest` → 296 passed、ruff OK |
 | P18-26 | 実LLM smoke を8回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_122949`: Plan突破、Design `chapter_design` まで到達。`purpose` が enum ではなく詳細文のみになり schema validation error。enum prefixでは回復不能 |
-| P18-27 | chapter_design purpose を入力章のpurposeで上書き | Done | `volume_design.chapters[].purpose` は既に enum なので、chapter_design生成/改訂後に engine 側で入力章のpurposeを強制反映。`uv run pytest` → 296 passed、ruff OK |
-| P18-28 | 実LLM smoke を9回目実行 | In progress | `proc_bdf6d6f87f38` / `workspace/phase18_real_smoke_20260706_124753`。P18-27修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
-| P18-29 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+| P18-27 | chapter_design purpose を入力章のpurposeで上書き | Reverted | 不適切修正と判定。P18-28で、LLM改訂が `purpose=展開` に直した後、engineが `volume_design.chapters[].purpose=クライマックス` へ戻し、reviewが同じblocking issueを出し続けた |
+| P18-28 | 実LLM smoke を9回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_124753`: Design `chapter_design` reviewで4回改訂後も停止。最終raw outputは `purpose=展開` だったが、review requestには `purpose=クライマックス` と渡っていた |
+| P18-29 | chapter_design final raw/review確認 | Done | `_raw_logs/.../0028_chapter_design/summary/response_0_2.md` と `0029_review` を確認。schema違反でもenum prefix問題でもなく、engine-side purpose上書きによる判定ループと確定 |
+| P18-30 | P18-27の不適切修正を復帰 | Done | `src/novel_forge/engine/design.py` から chapter purpose 強制上書きを削除。LLM/改訂結果の valid enum を保持する回帰テスト `test_chapter_design_keeps_revised_purpose` を追加。`uv run pytest` → 297 passed、`git diff --check` OK、ruff OK |
+| P18-31 | 実LLM smoke を10回目実行 | Todo | P18-30 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-32 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-28 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-31 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest` → 296 passed
+  - `uv run pytest tests/test_engine_integration.py::TestOutline::test_chapter_design_keeps_revised_purpose -q` → 1 passed
+  - `uv run pytest tests/test_engine_integration.py tests/test_engine_review_loop.py tests/test_schemas_extended.py -q` → 87 passed
+  - `uv run pytest` → 297 passed
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. `process(action="poll", session_id="proc_bdf6d6f87f38")` で smoke の終了を確認
-  2. `workspace/phase18_real_smoke_20260706_124753/novel_forge.log` と `_raw_logs` を読む
-  3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類
+  1. P18-30を commit/push
+  2. P18-31 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
+  3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

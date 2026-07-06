@@ -137,25 +137,6 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 engine._log.warning("Failed to read previous volume summary: %s", prev_vol_path, exc_info=exc)
     for ch_idx in range(1, chapters_count + 1):
         ch_data = chapters[ch_idx - 1] if ch_idx <= len(chapters) else {}
-        expected_chapter_purpose = str(ch_data.get("purpose", "") or "")
-
-        def _normalize_chapter_design(data: dict, purpose: str = expected_chapter_purpose) -> dict:
-            if purpose:
-                data["purpose"] = purpose
-            return data
-
-        def _generate_chapter_design(prompt: str, seed_offset: int) -> dict:
-            data = engine._llm.complete_json(
-                "chapter_design", system, prompt, get_schema("chapter_design"), seed_offset=seed_offset)
-            return _normalize_chapter_design(data)
-
-        def _revise_chapter_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
-            revised = engine._llm.complete_json(
-                "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
-                    {"current_chapter": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
-                     "review": format_review_text(review)}),
-                get_schema("chapter_design"), seed_offset=seed_offset)
-            return _normalize_chapter_design(revised)
 
         ch_prompt = engine._prompts.render("chapter_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num),
@@ -166,10 +147,15 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
              "previous_volume_summary": prev_volume_summary,
              "lang": engine._lang})
         ch_result, _ch_review = generate_and_review(
-                  generate_fn=_generate_chapter_design,
+                  generate_fn=lambda p, s: engine._llm.complete_json(
+                      "chapter_design", system, p, get_schema("chapter_design"), seed_offset=s),
                   validate_fn=_validate_chapter_design,
                   review_fn=lambda r, sys: _review_chapter_design(engine, r, sys),
-                  revise_fn=_revise_chapter_design,
+                  revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
+                      "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
+                          {"current_chapter": json.dumps(r, ensure_ascii=False), "series_plan": series_plan,
+                           "review": format_review_text(rv)}),
+                      get_schema("chapter_design"), seed_offset=so),
                   system=system,
                   user_prompt=ch_prompt,
                   kind="chapter_design",

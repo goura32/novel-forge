@@ -434,6 +434,59 @@ class TestOutline:
         for i, ch in enumerate(result.get("chapters", []), 1):
             assert ch["number"] == i
 
+    def test_chapter_design_keeps_revised_purpose(self, planned_engine, mock_llm):
+        """design() must not overwrite a valid chapter purpose returned by revision."""
+        mock_llm._sequence = []
+        mock_llm._seq_idx = 0
+        mock_llm.add_sequence("volume_design", _make_design_response(
+            title="第1巻",
+            premise="序盤から追跡へ進む巻です。",
+            chapters=[
+                {
+                    "title": "追跡の始まり",
+                    "purpose": "クライマックス",
+                    "theme": "真実への接近",
+                    "emotional_arc": "緊張から決意へ",
+                    "outcome": "主人公が追跡を逃れる",
+                    "scenes": [],
+                }
+            ],
+        ))
+        mock_llm.add_sequence("volume_design_review", {"issues": []})
+        mock_llm.add_sequence("chapter_design", {
+            "title": "追跡の始まり",
+            "purpose": "展開",
+            "theme": "真実への接近と最初の危機を通じた関係変化",
+            "emotional_arc": "不安から緊張、そして共同戦線への小さな決意へ移る。",
+            "outcome": "主人公は追跡を逃れ、次の謎へ向かう必要を理解する。",
+            "scenes": [
+                {
+                    "title": "路地裏の逃走",
+                    "pov": "主人公",
+                    "goal": "追手から逃れる",
+                    "conflict": "過去への不信と目前の危機が重なる",
+                    "outcome": "一時的に追手を振り切る",
+                    "characters": ["主人公"],
+                    "key_events": ["追手の接近", "路地裏への逃走"],
+                    "setting": "夜の路地裏",
+                }
+            ],
+        })
+        mock_llm.add_sequence("chapter_design_review", {"issues": []})
+        mock_llm.add_sequence("scene_design", {
+            "number": 1,
+            "chapter_number": 1,
+            "title": "路地裏の逃走",
+            "goal": "追手から逃れる",
+            "conflict": "不信と危機が重なる",
+            "outcome": "一時的に追手を振り切る",
+        })
+        mock_llm.add_sequence("scene_design_review", {"issues": []})
+
+        result = planned_engine.design(volume_number=1)
+
+        assert result["chapters"][0]["purpose"] == "展開"
+
 
 # ── Outline review → revise loop ────────────────────────────────────────
 
