@@ -717,6 +717,23 @@ class TestOutline:
         assert result["goal"] == review["issues"][0]["after"]
         assert result["outcome"] == data["outcome"]
 
+    def test_review_replacement_fuzzy_matches_short_titles(self):
+        """Safety net should handle short title diffs with different Japanese quotes."""
+        data = {"chapters": [{"title": "消された「罪」の残響"}]}
+        review = {
+            "issues": [
+                {
+                    "field": "第4章のタイトル",
+                    "before": "消された『罪』の残響",
+                    "after": "復元される真実と崩れる自我",
+                }
+            ]
+        }
+
+        result = _apply_review_text_replacements(data, review)
+
+        assert result["chapters"][0]["title"] == "復元される真実と崩れる自我"
+
     def test_chapter_design_repairs_invalid_purpose_from_volume_design(self, planned_engine, mock_llm):
         """design() should repair only invalid chapter purpose values from the source chapter."""
         mock_llm._sequence = []

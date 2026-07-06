@@ -126,7 +126,7 @@ def _apply_review_text_replacements(data: Any, review: dict) -> Any:
     def fuzzy_matches(value: str, before: str) -> bool:
         norm_value = normalize_text(value)
         norm_before = normalize_text(before)
-        if len(norm_value) < 20 or len(norm_before) < 20:
+        if len(norm_value) < 4 or len(norm_before) < 4:
             return False
         return norm_value in norm_before or norm_before in norm_value
 
@@ -274,6 +274,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "review": format_review_text(review), "previous_design": prev_design,
                  "series_plan": series_plan}),
             volume_generation_schema, seed_offset=seed_offset)
+        revised = _apply_review_text_replacements(revised, review)
         return _normalize_volume_design(revised)
 
     vol_design_data, _vol_review = generate_and_review(

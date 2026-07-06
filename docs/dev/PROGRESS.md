@@ -218,6 +218,8 @@
 | P18-63 | chapter_design review安全弁をラベル付き複合diffへ対応 | Done | `_apply_review_text_replacements` が `POV: ...`/`目標: ...`/`葛藤: ...` 形式を分解し個別文字列へ適用。実rawで `pov=神無`、葛藤/伏線差分適用を確認。 |
 | P18-64 | P20再々々々々々smokeでscene_design review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_014817`; Design章設計/scene_design多数は突破、Write直前で未定義キャラ`小夜`がscene目標に残り停止。 |
 | P18-65 | scene_design revisionにもreview差分安全弁を適用し、field+fuzzy fallbackを追加 | Done | `scene_design_revision`戻り値へ`_apply_review_text_replacements`適用。review beforeが実フィールド値を包む場合は`field`と正規化包含で該当フィールドをafterへ置換。316 tests green。 |
+| P18-66 | P20再々々々々々々smokeでvolume_design review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_022657`; 第3/4章タイトルの具体差分がvolume revision後も残り停止。 |
+| P18-67 | volume_design revisionにもreview差分安全弁を適用し、短いタイトルfuzzyを追加 | Done | `_revise_volume_design`へ`_apply_review_text_replacements`適用。日本語引用符違いの短いtitle差分もfield+fuzzyで置換。実rawで第3/4章タイトル置換確認。317 tests green。 |
 
 ### Phase 18 復帰メモ
 
