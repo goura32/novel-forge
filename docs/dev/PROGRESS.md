@@ -174,17 +174,19 @@
 | P18-19 | 実LLM smoke を5回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_114505`: Plan完了、invalid generation retry は実動確認済み。Design `volume_design` が6章→8章まで改訂後、2回目reviewで「10章程度へ拡張」が blocking となり `--max-review-count 2` 到達。クラッシュではなく通常品質ループ未収束 |
 | P18-20 | 実LLM smoke を max-review-count 4 で実行 | Blocked | `workspace/phase18_real_smoke_20260706_115144`: Plan完了、Design `chapter_design` まで到達。review retryは効いたが、2回目reviewが `ready_for_publication=true` + `publication_blocking=true` issue で schema contradiction となり停止 |
 | P18-21 | review 出力の readiness 正規化 | Done | LLM review出力で各issueの `publication_blocking` 欠落をfalse補完し、`ready_for_publication = not any(publication_blocking)` に再計算。contradictionだけで落ちず、実際のblocking issueは改訂ループへ流す。`uv run pytest` → 294 passed、ruff OK |
-| P18-22 | 実LLM smoke を6回目実行 | In progress | `proc_7edd1a291328` / `workspace/phase18_real_smoke_20260706_120430`。P18-21修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
-| P18-23 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+| P18-22 | 実LLM smoke を6回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_120430`: Design `chapter_design` で `purpose` enum に `導入：...` のような説明文が付いて schema validation error。retry後も同種で停止 |
+| P18-23 | enum prefix 正規化を追加 | Done | `purpose` 等の enum 値が `導入：説明` のように許容enum+区切り文字で始まる場合、先頭enumへ丸める。`uv run pytest` → 295 passed、ruff OK |
+| P18-24 | 実LLM smoke を7回目実行 | Todo | P18-23修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行。Design通過とWrite到達を確認 |
+| P18-25 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-22 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-24 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest` → 294 passed
+  - `uv run pytest` → 295 passed
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. `process(action="poll", session_id="proc_7edd1a291328")` で smoke の終了を確認
-  2. `workspace/phase18_real_smoke_20260706_120430/novel_forge.log` と `_raw_logs` を読む
+  1. P18-23を commit/push
+  2. P18-24として `--max-review-count 4` で実LLM smoke を再実行
   3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

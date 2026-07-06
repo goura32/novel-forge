@@ -311,6 +311,36 @@ class TestValidate:
         errors = validate("chapter_design", data)
         assert len(errors) == 0
 
+    def test_chapter_design_coerces_enum_prefix_purpose(self):
+        data = {
+            "title": "プロローグ 旅立ちの朝 その始まり",
+            "purpose": "導入：主人公の日常と世界観を提示する",
+            "theme": "未知への挑戦と不安の克服、新たな世界への期待と恐れ",
+            "emotional_arc": "不安から希望へ、小さな一歩を踏み出す勇気を得て前進する心情の変化",
+            "outcome": "主人公が旅立つ決意を固め、最初の一歩を踏み出し新たな道へ進む",
+            "chapter_turning_point": "主人公が戻れない一歩を踏み出す。",
+            "chapter_hook": "門の外で未知の印が光る。",
+            "foreshadowing_notes": ["古い地図の印"],
+            "subplot_notes": ["家族との和解"],
+            "scenes": [
+                {
+                    "title": "出発の朝",
+                    "pov": "主人公",
+                    "goal": "旅立ちの準備を整える",
+                    "conflict": "不安と期待が入り混じる",
+                    "outcome": "旅立つ決意を新たにする",
+                    "characters": ["主人公"],
+                    "key_events": ["荷物の最終確認"],
+                    "setting": "主人公の実家、早朝の台所",
+                }
+            ],
+        }
+
+        errors = validate("chapter_design", data)
+
+        assert len(errors) == 0
+        assert data["purpose"] == "導入"
+
     def test_valid_scene_design(self):
         data = {
             "title": "出会いの朝",

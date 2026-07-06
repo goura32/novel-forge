@@ -96,6 +96,26 @@ def coerce_array_fields(data: dict, schema: dict) -> dict:
     return data
 
 
+def _coerce_enum_prefixes_in_container(data: Any, schema: dict[str, Any]) -> None:
+    """Coerce enum strings like ``導入：説明`` to ``導入`` when safe."""
+    if isinstance(data, dict):
+        for key, prop_schema in schema.get("properties", {}).items():
+            if key not in data:
+                continue
+            value = data[key]
+            enum_values = prop_schema.get("enum") if isinstance(prop_schema, dict) else None
+            if isinstance(value, str) and isinstance(enum_values, list):
+                separators = ("：", ":", "、", "，", " ", "　", "-", "—", "─", "(", "（")
+                for enum_value in sorted((str(v) for v in enum_values), key=len, reverse=True):
+                    if value.startswith(tuple(enum_value + sep for sep in separators)):
+                        _log.warning("Coerced enum field '%s' from %r to %r", key, value, enum_value)
+                        data[key] = enum_value
+                        break
+            _coerce_enum_prefixes_in_container(data[key], prop_schema)
+    elif isinstance(data, list):
+        item_schema = schema.get("items", {})
+        for item in data:
+            _coerce_enum_prefixes_in_container(item, item_schema)
 def validate(name: str, data: dict[str, Any]) -> list[str]:
     """スキーマ検証。エラーリストを返す。"""
     try:
@@ -110,6 +130,7 @@ def validate_data(name: str, schema: dict[str, Any], data: dict[str, Any]) -> li
     # Apply pre-validation coercion for common LLM output quirks.
     # This mutates data intentionally, matching validate(name, data) behavior.
     coerce_array_fields(data, schema)
+    _coerce_enum_prefixes_in_container(data, schema)
     errors = _validate_with_schema(schema, data)
     if name == "review" and not errors:
         errors.extend(_validate_review_readiness(data))
