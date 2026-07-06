@@ -200,7 +200,7 @@
 | P18-45 | 実LLM smoke を17回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_162351`: P18-44後、Design以前のPlan `series_plan_characters` reviewでJSON parse error。rawでは `"suggestion":「警察を去った理由」...` のように日本語文字列値の開始引用符が欠落していた |
 | P18-46 | 日本語文字列値の軽微JSON崩れをparserで補修 | Done | `parse_json_response` に `"key":日本語文,` / `"key":「...」,` のような未引用日本語文字列値だけを安全にquoteする補修を追加。回帰テスト `test_repairs_unquoted_japanese_string_after_colon` 追加。検証: json parser 27 passed、full 305 passed、`git diff --check` OK、ruff OK |
 | P18-47 | 実LLM smoke を18回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_163252`: Plan完了→Design通過。Plan `series_plan_volumes` 最終chunkでreview非収束（`"suggestion"` が未引用日本語）。これはP18-46のJSON補修が想定外パスのため、P18-48で再検証 |
-| P18-48 | scene_design outcome のthief-style phrasing validation を実装 | Done | `_validate_scene_design` に `outcome` 内の「奪われた/回収した/盗まれた」検出を追加。回帰テスト `tests/test_scene_design_validation.py` 追加。検証: targeted 1 passed、integration 46 passed、full 306 passed、ruff OK |
+|| P18-48 | 実LLM smoke を19回目実行 | Todo | 全修正後(`chapter_design` vague placeholder拒否 + `scene_design` thief-phrasing + JSON parse補修)。commit/push後にP18-48として追加する |
 
 ### Phase 18 復帰メモ
 
