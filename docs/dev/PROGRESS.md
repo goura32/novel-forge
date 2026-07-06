@@ -199,7 +199,7 @@
 | P18-44 | chapter_design の曖昧な次章手掛かりをvalidationで拒否 | Done | `_validate_chapter_design` に `chapter_hook` / `scenes[].outcome` の曖昧プレースホルダー検出を追加。`tests/test_engine_design_validation.py` を追加し、RED→GREEN確認。検証: design validation 2 passed、targeted integration 1 passed、integration 46 passed、full 304 passed、`git diff --check` OK、ruff OK |
 | P18-45 | 実LLM smoke を17回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_162351`: P18-44後、Design以前のPlan `series_plan_characters` reviewでJSON parse error。rawでは `"suggestion":「警察を去った理由」...` のように日本語文字列値の開始引用符が欠落していた |
 | P18-46 | 日本語文字列値の軽微JSON崩れをparserで補修 | Done | `parse_json_response` に `"key":日本語文,` / `"key":「...」,` のような未引用日本語文字列値だけを安全にquoteする補修を追加。回帰テスト `test_repairs_unquoted_japanese_string_after_colon` 追加。検証: json parser 27 passed、full 305 passed、`git diff --check` OK、ruff OK |
-| P18-47 | 実LLM smoke を18回目実行 | Todo | P18-46 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-47 | 実LLM smoke を18回目実行 | In progress | `proc_847e64039a72` / `workspace/phase18_real_smoke_20260706_163252`。P18-46後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認する |
 
 ### Phase 18 復帰メモ
 
