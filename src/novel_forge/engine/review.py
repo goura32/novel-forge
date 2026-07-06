@@ -36,6 +36,21 @@ def format_review_text(review: dict) -> str:
     return "\n".join(lines)
 
 
+def _blocking_issues(review: dict) -> list[dict]:
+    """Return issues that must block the next generation phase.
+
+    Severity is only priority information. The explicit `publication_blocking`
+    flag is the review contract that controls whether the current artifact must
+    be revised before the pipeline can continue.
+    """
+
+    return [
+        issue
+        for issue in review.get("issues", [])
+        if isinstance(issue, dict) and issue.get("publication_blocking") is True
+    ]
+
+
 def generate_and_review(
     generate_fn,
     validate_fn,
@@ -150,6 +165,7 @@ def generate_and_review(
                         "suggestion": "スキーマに従ってレビューを再生成してください",
                         "before": "",
                         "after": "",
+                        "publication_blocking": True,
                     }
                 ]
             }
@@ -157,9 +173,8 @@ def generate_and_review(
                 raise RuntimeError(f"{kind}: review validation failed after {review_max} retries") from e
             continue
 
-        blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-        major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-        revision_needed = len(blocker) > 0 or len(major) >= 2
+        blocker = _blocking_issues(review)
+        revision_needed = len(blocker) > 0
 
         if not revision_needed:
             return result, review
@@ -195,20 +210,15 @@ def generate_and_review(
                 raise RuntimeError(f"{kind}: post-revision review validation failed after {review_max} retries") from e
             continue
 
-        blocker = [i for i in review.get("issues", []) if i.get("severity") == "致命的"]
-        major = [i for i in review.get("issues", []) if i.get("severity") == "重要"]
-        fatal_count = len(blocker) + len(major)  # Include major in fatal count for strict mode check
+        blocker = _blocking_issues(review)
+        blocking_count = len(blocker)
 
         # Check review max separately for post-revision review
-        if fatal_count > 0 and review_cycles >= review_max:
+        if blocking_count > 0 and review_cycles >= review_max:
             msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
 
-        if len(major) > 0 and review_cycles >= review_max:
-            # Strict mode: stop if still has issues after review_max_count review cycles
-            raise RuntimeError(f"  [REVIEW] {kind}: issues remain after {review_cycles} review cycles ({fatal_count} issues)")
-
-        if len(blocker) == 0 and len(major) == 0:
+        if blocking_count == 0:
             return result, review
 
         # Only revise again if we haven't hit review_max yet

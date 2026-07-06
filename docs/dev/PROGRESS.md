@@ -167,17 +167,19 @@
 | P18-12 | review readiness を publication_blocking ベースへ修正 | Done | `ready_for_publication=false` は `publication_blocking=true` issue がある場合のみ。`severity=重要` でも非ブロッキングなら ready=true を許可。prompt/schema/validator/tests/docs/resources を同期済み。`uv run pytest` → 289 passed、resource sync OK、ruff OK |
 | P18-13 | 実LLM smoke を再実行 | Blocked | `workspace/phase18_real_smoke_20260706_112546`: 1回目 review の `intent` 英語混入 blocking は妥当。revision後、2回目 review が「サイバーパンク読者と静謐トーンのミスマッチ」という主観的ターゲット指摘を `publication_blocking=true` にして停止 |
 | P18-14 | review blocking 基準を狭める | Done | blocking は必須フィールド欠落、後続工程が使えない矛盾、不自然な言語混入、明確な設定破綻などに限定。ジャンル整理/ターゲット精度/比較作品の好み/売り文句の磨き込みは原則 non-blocking。`uv run pytest` → 289 passed、resource sync OK、ruff OK |
-| P18-15 | 実LLM smoke を再々実行 | In progress | `proc_a313b7f84a8a` / `workspace/phase18_real_smoke_20260706_112948` で同条件実行中。Planを抜けるか確認 |
-| P18-16 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+| P18-15 | 実LLM smoke を再々実行 | Blocked | `workspace/phase18_real_smoke_20260706_112948`: review JSON は `ready_for_publication=true` + non-blocking issue の状態まで到達したが、engine review loop 本体がまだ severity ベースで `重要` issue を revision対象にして停止 |
+| P18-16 | engine review loop を `publication_blocking` ベースへ修正 | Done | `_blocking_issues()` を追加し、初回/post-revision review とも `publication_blocking=true` のみ revision対象に変更。review validation error 注入issueにも `publication_blocking=true` を付与。回帰テスト追加。`uv run pytest` → 291 passed、ruff OK |
+| P18-17 | 実LLM smoke を再々々実行 | Todo | P18-16修正後に同じ条件で再実行。Planを抜けて Design/Write へ進むか確認 |
+| P18-18 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-15 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-17 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest` → 289 passed
+  - `uv run pytest` → 291 passed
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. `process(action="poll", session_id="proc_a313b7f84a8a")` で smoke の終了を確認
-  2. `workspace/phase18_real_smoke_20260706_112948/novel_forge.log` と `_raw_logs` を読む
-  3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正のどれかに分類
+  1. P18-16を commit/push
+  2. P18-17として実LLM smoke を再々々実行
+  3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

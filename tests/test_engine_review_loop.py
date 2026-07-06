@@ -62,3 +62,80 @@ def test_generation_loop_raises_after_generation_count_llm_output_failures() -> 
         )
 
     assert calls == [0, 1, 2]
+
+
+def test_review_loop_uses_publication_blocking_not_severity_for_revision() -> None:
+    """Important non-blocking feedback should not consume a revision cycle."""
+    revise_calls: list[dict] = []
+
+    result, review = generate_and_review(
+        generate_fn=lambda _prompt, _seed_offset: {"ok": True},
+        validate_fn=lambda _result: [],
+        review_fn=lambda _result, _system: {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "ターゲット読者",
+                    "description": "主観的な磨き込み",
+                    "suggestion": "より具体化する",
+                    "before": "",
+                    "after": "",
+                    "publication_blocking": False,
+                }
+            ],
+            "ready_for_publication": True,
+        },
+        revise_fn=lambda result, review, _system, _seed_offset: revise_calls.append(review) or result,
+        system="sys",
+        user_prompt="usr",
+        kind="test_kind",
+        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+        quality=Quality(),
+    )
+
+    assert result == {"ok": True}
+    assert review["issues"][0]["severity"] == "重要"
+    assert revise_calls == []
+
+
+def test_review_loop_revises_publication_blocking_issues() -> None:
+    """Only publication_blocking=true feedback should force revision."""
+    generated = [{"version": 1}, {"version": 2}]
+    reviews = [
+        {
+            "issues": [
+                {
+                    "severity": "軽微",
+                    "field": "logline",
+                    "description": "後続工程で使えない矛盾",
+                    "suggestion": "直す",
+                    "before": "",
+                    "after": "",
+                    "publication_blocking": True,
+                }
+            ],
+            "ready_for_publication": False,
+        },
+        {"issues": [], "ready_for_publication": True},
+    ]
+
+    def generate_fn(_prompt: str, seed_offset: int) -> dict:
+        return generated[seed_offset]
+
+    def review_fn(_result: dict, _system: str) -> dict:
+        return reviews.pop(0)
+
+    result, review = generate_and_review(
+        generate_fn=generate_fn,
+        validate_fn=lambda _result: [],
+        review_fn=review_fn,
+        revise_fn=lambda _result, _review, _system, _seed_offset: generated[1],
+        system="sys",
+        user_prompt="usr",
+        kind="test_kind",
+        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+        quality=Quality(),
+    )
+
+    assert result == {"version": 2}
+    assert review == {"issues": [], "ready_for_publication": True}
