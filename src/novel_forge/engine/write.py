@@ -19,6 +19,18 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
     slug = getattr(engine, "_slug", "?")
     design_data = engine._load_path(vol_num, f"vol{vol_num:02d}.json")
     vol_title = design_data.get("title", f"第{vol_num}巻")
+
+    # Truncate long fields to satisfy VolumeOutline Pydantic constraints
+    def _trim(value: Any, limit: int) -> str:
+        t = str(value or "")[:limit]
+        return t if len(t) <= limit else t[:limit]
+
+    title = _trim(design_data.get("title", ""), 128)
+    premise = _trim(design_data.get("premise", ""), 200)
+    scenes = design_data.get("scenes", [])
+    for scene in scenes:
+        scene["outcome"] = _trim(scene.get("outcome", ""), 200)
+
     # Ensure purpose is set (fallback for legacy designs without purpose)
     chapters = design_data.get("chapters", [])
     for i, ch in enumerate(chapters, 1):
@@ -32,8 +44,8 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
         chapters_clean.append(ch_copy)
     design_obj = VolumeOutline.model_validate({
         "volume_number": vol_num,
-        "title": design_data.get("title", ""),
-        "premise": design_data.get("premise", ""),
+        "title": title,
+        "premise": premise,
         "chapters": chapters_clean,
         "scenes": scenes,
     })
