@@ -104,6 +104,14 @@ class TestParseJsonResponse:
         assert result["issues"][0]["suggestion"] == "「警察を去った理由」を一言添える"
         assert result["issues"][0]["publication_blocking"] is False
 
+    def test_repairs_literal_newline_inside_quoted_string(self):
+        text = '{"emotional_arc": "\n孤独から不安へ移り、\n祈り機械への信頼が芽生える。", "purpose": "展開"}'
+
+        result = parse_json_response(text)
+
+        assert result["emotional_arc"] == "\n孤独から不安へ移り、\n祈り機械への信頼が芽生える。"
+        assert result["purpose"] == "展開"
+
     def test_complex_llm_output(self):
         """Simulates a typical LLM response with explanation + JSON."""
         text = (

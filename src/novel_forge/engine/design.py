@@ -74,18 +74,13 @@ def _validate_scene_design(data: dict) -> list[str]:
     if not data.get("outcome"):
         errors.append("outcome")
 
-    # P18-47 root cause: scene_design outcome used passive/thief phrasing
-    # ("奪われた古鏡") that review caught but revision could't fix deterministically.
-    # Block protagonist-thief-style actions in outcome to force active, precise phrasing.
-    # Affects: any scene where outputter == protagonist (most scenes).
+    # P18-47 root cause: scene_design outcome used the specific incoherent
+    # phrase "警備員から奪われた古鏡...". Keep this guard narrow so valid
+    # story actions such as recovering an item are not rejected.
     if data.get("outcome"):
         outcome = str(data["outcome"])
-        for phrase in ("奪われた", "奪い取られた", "回収した", "盗まれた", "奪う"):
-            if phrase in outcome:
-                errors.append(
-                    f"outcome (thief-style phrasing '{phrase}' — protagonist doesn't steal, discover/trace)"
-                )
-                break
+        if "警備員から奪われた" in outcome:
+            errors.append("outcome (incoherent stolen-from-guard phrasing)")
 
     return errors
 

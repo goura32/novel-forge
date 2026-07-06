@@ -199,20 +199,21 @@
 | P18-44 | chapter_design の曖昧な次章手掛かりをvalidationで拒否 | Done | `_validate_chapter_design` に `chapter_hook` / `scenes[].outcome` の曖昧プレースホルダー検出を追加。`tests/test_engine_design_validation.py` を追加し、RED→GREEN確認。検証: design validation 2 passed、targeted integration 1 passed、integration 46 passed、full 304 passed、`git diff --check` OK、ruff OK |
 | P18-45 | 実LLM smoke を17回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_162351`: P18-44後、Design以前のPlan `series_plan_characters` reviewでJSON parse error。rawでは `"suggestion":「警察を去った理由」...` のように日本語文字列値の開始引用符が欠落していた |
 | P18-46 | 日本語文字列値の軽微JSON崩れをparserで補修 | Done | `parse_json_response` に `"key":日本語文,` / `"key":「...」,` のような未引用日本語文字列値だけを安全にquoteする補修を追加。回帰テスト `test_repairs_unquoted_japanese_string_after_colon` 追加。検証: json parser 27 passed、full 305 passed、`git diff --check` OK、ruff OK |
-| P18-47 | 実LLM smoke を18回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_163252`: Plan完了→Design通過。Plan `series_plan_volumes` 最終chunkでreview非収束（`"suggestion"` が未引用日本語）。これはP18-46のJSON補修が想定外パスのため、P18-48で再検証 |
-|| P18-48 | 実LLM smoke を19回目実行 | Todo | 全修正後(`chapter_design` vague placeholder拒否 + `scene_design` thief-phrasing + JSON parse補修)。commit/push後にP18-48として追加する |
+| P18-47 | 実LLM smoke を18回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_163252`: Plan完了→Design通過、`chapter_design` 全5章通過。Write前の `scene_design` で「警備員から奪われた古鏡型の記録媒体」という不自然なoutcomeがreviewでblockingされ、改訂しても残り4回上限で停止 |
+| P18-48 | 実LLM smoke を19回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_171418`: Plan完了→Design `chapter_design` まで進行。scene_design guard追加後の再検証だったが、chapter purpose/章目的の非収束で停止。後続P18-49で別prompt混入があり、正式再検証が必要 |
+| P18-49 | 実LLM smoke を20回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_182311`: Plan完了→`volume_design` 通過→`chapter_design` 2章で JSON parse error。rawで `"emotional_arc": "` 直後にliteral newlineが入り、JSON文字列内改行として不正 |
+| P18-50 | 14時以降コミット/ログ/LLM入出力監査 | Done | `git log --since='2026-07-06 14:00'` と各smoke `_raw_logs` サマリーを確認。不適切差分として、未コミットtest typo（`奪まれた`）と過剰な `scene_design` thief-style検出（`回収した` まで拒否）を確認し、狭い実ログ由来パターンへ追加修正 |
+| P18-51 | JSON文字列内literal newline補修 | Done | `parse_json_response` でJSON文字列内のraw LF/CRだけを `\n` / `\r` にescapeする補修を追加。未引用日本語値補修との組み合わせを維持。targeted: literal newline + unquoted Japanese + scene validation 4 passed |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-47 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-52（正式P20 smoke）から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_unquoted_japanese_string_after_colon -q` → 1 passed
-  - `uv run pytest tests/test_json_parser.py -q` → 27 passed
-  - `uv run pytest` → 305 passed
-  - `git diff --check` → OK
-  - `uv run ruff check src tests` → All checks passed
+  - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_literal_newline_inside_quoted_string -q` → RED確認（JsonParseError）
+  - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_literal_newline_inside_quoted_string tests/test_json_parser.py::TestParseJsonResponse::test_repairs_unquoted_japanese_string_after_colon tests/test_scene_design_validation.py -q` → 4 passed
+  - full pytest / `git diff --check` / ruff はP18-51後に実行すること
 
 - 次に迷わず実行すること:
-  1. P18-46を commit/push
-  2. P18-47 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
-  3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正/parser補修のどれかに分類
+  1. `uv run pytest tests/test_json_parser.py tests/test_scene_design_validation.py tests/test_engine_design_validation.py tests/test_engine_integration.py -q`
+  2. `uv run pytest && git diff --check && uv run ruff check src tests`
+  3. commit/push後、正式prompt `近未来の京都, 記憶を失った修復師, 祈りで動く機械, 静かな冒険` でP20 smokeを実行し、Write到達を確認

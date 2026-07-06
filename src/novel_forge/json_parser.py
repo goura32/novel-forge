@@ -47,11 +47,51 @@ def _quote_unquoted_japanese_string_values(text: str) -> str:
     )
 
 
+def _escape_literal_newlines_in_strings(text: str) -> str:
+    """Escape raw newline characters that appear inside JSON strings.
+
+    Real LLM output sometimes returns `"field": "` followed by a literal line
+    break. JSON requires that newline to be encoded as `\\n`; whitespace outside
+    strings must remain untouched.
+    """
+
+    repaired: list[str] = []
+    in_string = False
+    escaped = False
+    changed = False
+
+    for char in text:
+        if escaped:
+            repaired.append(char)
+            escaped = False
+            continue
+        if char == "\\" and in_string:
+            repaired.append(char)
+            escaped = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            repaired.append(char)
+            continue
+        if in_string and char == "\n":
+            repaired.append("\\n")
+            changed = True
+            continue
+        if in_string and char == "\r":
+            repaired.append("\\r")
+            changed = True
+            continue
+        repaired.append(char)
+
+    return "".join(repaired) if changed else text
+
+
 def _loads_with_repairs(text: str) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        repaired = _quote_unquoted_japanese_string_values(text)
+        repaired = _escape_literal_newlines_in_strings(text)
+        repaired = _quote_unquoted_japanese_string_values(repaired)
         if repaired != text:
             return json.loads(repaired)
         raise
