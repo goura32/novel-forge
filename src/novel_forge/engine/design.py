@@ -323,7 +323,30 @@ def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> d
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    text = f"章設計:\\n  タイトル: {data.get('title', '')}\\n  目的: {data.get('purpose', '')}"
+    scene_lines = []
+    for i, scene in enumerate(data.get("scenes", []), 1):
+        scene_lines.extend([
+            f"  - シーン{i}: {scene.get('title', '')}",
+            f"    POV: {scene.get('pov', '')}",
+            f"    目標: {scene.get('goal', '')}",
+            f"    葛藤: {scene.get('conflict', '')}",
+            f"    結果: {scene.get('outcome', '')}",
+        ])
+    scenes_text = "\n".join(scene_lines) if scene_lines else "  - なし"
+    text = (
+        "章設計:\n"
+        f"  タイトル: {data.get('title', '')}\n"
+        f"  目的: {data.get('purpose', '')}\n"
+        f"  テーマ: {data.get('theme', '')}\n"
+        f"  感情の弧: {data.get('emotional_arc', '')}\n"
+        f"  結果: {data.get('outcome', '')}\n"
+        f"  章の転換点: {data.get('chapter_turning_point', '')}\n"
+        f"  章のフック: {data.get('chapter_hook', '')}\n"
+        f"  伏線: {', '.join(data.get('foreshadowing_notes', []))}\n"
+        f"  サブプロット: {', '.join(data.get('subplot_notes', []))}\n"
+        "  シーン構成:\n"
+        f"{scenes_text}"
+    )
     user = engine._prompts.render("chapter_design_review.md",
         {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))

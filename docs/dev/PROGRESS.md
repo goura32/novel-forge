@@ -191,11 +191,13 @@
 | P18-36 | volume_design title を上流planned volume titleへ固定 | Done | `series_plan.planned_volumes[vol-1].title` を source of truth とし、volume_design生成/改訂後に `title` を固定。reviewへ渡る前に正規化するためタイトル不一致ループを防止。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
 | P18-37 | 実LLM smoke を13回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_151641`: Plan完了→Design `chapter_design`。P18-36のvolume title不一致は突破。`chapter_design.purpose` 説明文化が再発したが、今回はengine補正前にLLM clientのschema validationで停止していた |
 | P18-38 | chapter_design生成schemaだけpurpose enumを緩和 | Done | 生成/改訂時に渡すschemaから `purpose.enum` だけ外し、engine側でinvalid purposeを入力章のvalid enumへ補正後、通常validate/reviewへ進める。最終schema自体は変更しない。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
-| P18-39 | 実LLM smoke を14回目実行 | In progress | `proc_5c69901007a0` / `workspace/phase18_real_smoke_20260706_152511`。P18-38後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
+| P18-39 | 実LLM smoke を14回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_152511`: P18-38後、Plan完了→Design `volume_design` 通過→`chapter_design` schema validationは通過。停止原因はchapter_design review非収束。実際のchapter_design JSONには `theme/emotional_arc/outcome/scenes` が存在したが、review promptへ渡す整形が `title/purpose` のみだったため、reviewが欠落と誤判定 |
+| P18-40 | chapter_design reviewへ完全な章設計を渡す | Done | `_review_chapter_design` の整形を修正し、`theme/emotional_arc/outcome/chapter_turning_point/chapter_hook/foreshadowing/subplot/scenes` をreview promptへ含める。回帰テストでreview prompt内のテーマ・感情の弧・結果・シーン構成を検証。`uv run pytest` → 301 passed、`git diff --check` OK、ruff OK |
+| P18-41 | 実LLM smoke を15回目実行 | Todo | P18-40 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-39 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-41 以降から再開する。
 - 直近検証済みコマンド:
   - `uv run pytest tests/test_engine_integration.py::TestOutline::test_chapter_design_repairs_invalid_purpose_from_volume_design -q` → 1 passed
   - `uv run pytest tests/test_engine_integration.py -q` → 45 passed
@@ -204,6 +206,6 @@
   - `uv run ruff check src tests` → OK
 
 - 次に迷わず実行すること:
-  1. P18-38を commit/push
-  2. P18-39 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
+  1. P18-40を commit/push
+  2. P18-41 smokeを `--max-generation-count 3 --max-review-count 4 --verbose` で実行
   3. Design通過とWrite到達を確認。失敗時は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

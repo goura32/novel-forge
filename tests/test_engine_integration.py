@@ -546,10 +546,13 @@ class TestOutline:
         mock_llm._seq_idx = 0
         original_complete_json = mock_llm.complete_json
         chapter_schemas = []
+        chapter_review_prompts = []
 
         def capture_complete_json(kind, system_prompt, user_prompt, schema=None, seed_offset=0):
             if kind == "chapter_design":
                 chapter_schemas.append(schema)
+            if kind == "review" and "# 章設計のレビュー" in user_prompt:
+                chapter_review_prompts.append(user_prompt)
             return original_complete_json(kind, system_prompt, user_prompt, schema, seed_offset)
 
         mock_llm.complete_json = capture_complete_json
@@ -617,6 +620,13 @@ class TestOutline:
             "enum" not in (schema or {}).get("properties", {}).get("purpose", {})
             for schema in chapter_schemas
         )
+        assert chapter_review_prompts
+        final_review_prompt = chapter_review_prompts[-1]
+        assert "テーマ: 記憶喪失と冒険への入口" in final_review_prompt
+        assert "感情の弧: 孤独から小さな好奇心へ移る。" in final_review_prompt
+        assert "結果: 主人公が異常な祈り機械を受け取り、次の調査へ向かう。" in final_review_prompt
+        assert "シーン構成:" in final_review_prompt
+        assert "シーン1: 古物店の共鳴" in final_review_prompt
 
 
 # ── Outline review → revise loop ────────────────────────────────────────
