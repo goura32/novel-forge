@@ -162,7 +162,7 @@
 | P18-07 | 契約テスト・回帰テストを追加/更新 | Done | prompt品質契約、schema契約、bible manager、json parser、storage、name registry 等を更新 |
 | P18-08 | ローカル品質ゲートを通す | Done | `uv run pytest` → 288 passed。`git diff --check` OK。`uv run ruff check src tests` → All checks passed |
 | P18-09 | hardening 差分を commit/push | Done | commit `7867b9e` を `origin/main` へ push 済み。remote SHA `7867b9eb7174f2241393f7c5adf931506b2f2e66` |
-| P18-10 | 実LLM smoke を1シリーズで実行 | In progress | 次アクション: `plan-series` 相当→ `write-volume` 相当を最小構成で実行し、raw/verbose log と schema failure を分類 |
+| P18-10 | 実LLM smoke を1シリーズで実行 | In progress | `proc_51ba851e4693` で実行中。workdir は `workspace/phase18_real_smoke_YYYYMMDD_HHMMSS`。`complete` を `--max-generation-count 2 --max-review-count 1 --verbose` で実行 |
 | P18-11 | smoke結果から schema簡素化/ prompt微修正の要否を判断 | Todo | 失敗が継続する場合は prompt追記ではなく schema/注入schema表現の簡素化を優先 |
 | P18-12 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
@@ -174,7 +174,8 @@
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. 実LLM smoke のコマンド/設定を確認して最小実行
-  2. raw/verbose log と schema validation failure を分類
-  3. 必要なら prompt 微修正ではなく schema/注入schema表現の簡素化を優先して修正
-  4. 修正後は `uv run pytest` / `git diff --check` / `uv run ruff check src tests` を通す
+  1. `process(action="poll", session_id="proc_51ba851e4693")` で smoke の終了を確認
+  2. 終了後、`workspace/phase18_real_smoke_*` の最新ディレクトリを確認
+  3. raw/verbose log と schema validation failure を分類
+  4. 必要なら prompt 微修正ではなく schema/注入schema表現の簡素化を優先して修正
+  5. 修正後は `uv run pytest` / `git diff --check` / `uv run ruff check src tests` を通す
