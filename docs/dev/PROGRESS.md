@@ -204,16 +204,18 @@
 | P18-49 | 実LLM smoke を20回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_182311`: Plan完了→`volume_design` 通過→`chapter_design` 2章で JSON parse error。rawで `"emotional_arc": "` 直後にliteral newlineが入り、JSON文字列内改行として不正 |
 | P18-50 | 14時以降コミット/ログ/LLM入出力監査 | Done | `git log --since='2026-07-06 14:00'` と各smoke `_raw_logs` サマリーを確認。不適切差分として、未コミットtest typo（`奪まれた`）と過剰な `scene_design` thief-style検出（`回収した` まで拒否）を確認し、狭い実ログ由来パターンへ追加修正 |
 | P18-51 | JSON文字列内literal newline補修 | Done | `parse_json_response` でJSON文字列内のraw LF/CRだけを `\n` / `\r` にescapeする補修を追加。未引用日本語値補修との組み合わせを維持。targeted: literal newline + unquoted Japanese + scene validation 4 passed |
+| P18-52 | 正式P20 smoke を実行 | Blocked | `workspace/phase18_real_smoke_20260706_234912`: 正式promptで実行。Planは完了しDesign `volume_design` 到達。改訂後 `chapters[4].purpose` が `中盤の転換` となり、`volume_design` schema enum外で停止 |
+| P18-53 | volume_design chapter purpose表記ゆれを正規化 | Done | `volume_design` 生成/改訂schemaでは `chapters[].purpose.enum` だけ緩和し、戻り値で `中盤の転換` → `転換` のように埋め込みenumラベルを正規化。未知テキストは保持して後段検証に委ねる。関連検証: design validation + engine integration 50 passed |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-52（正式P20 smoke）から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-54（P20再実行）から再開する。
 - 直近検証済みコマンド:
   - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_literal_newline_inside_quoted_string -q` → RED確認（JsonParseError）
   - `uv run pytest tests/test_json_parser.py::TestParseJsonResponse::test_repairs_literal_newline_inside_quoted_string tests/test_json_parser.py::TestParseJsonResponse::test_repairs_unquoted_japanese_string_after_colon tests/test_scene_design_validation.py -q` → 4 passed
-  - full pytest / `git diff --check` / ruff はP18-51後に実行すること
+  - full pytest / `git diff --check` / ruff はP18-53後に実行すること
 
 - 次に迷わず実行すること:
   1. `uv run pytest tests/test_json_parser.py tests/test_scene_design_validation.py tests/test_engine_design_validation.py tests/test_engine_integration.py -q`
   2. `uv run pytest && git diff --check && uv run ruff check src tests`
-  3. commit/push後、正式prompt `近未来の京都, 記憶を失った修復師, 祈りで動く機械, 静かな冒険` でP20 smokeを実行し、Write到達を確認
+  3. commit/push後、正式prompt `近未来の京都, 記憶を失った修復師, 祈りで動く機械, 静かな冒険` でP20再smokeを実行し、Write到達を確認

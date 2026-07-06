@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from novel_forge.engine.design import _validate_chapter_design
+from novel_forge.engine.design import (
+    _normalize_design_purpose,
+    _validate_chapter_design,
+)
 
 
 def _valid_chapter_design(**overrides):
@@ -60,3 +63,11 @@ def test_chapter_design_accepts_specific_next_clue_details():
     errors = _validate_chapter_design(_valid_chapter_design())
 
     assert errors == []
+
+
+def test_normalize_design_purpose_accepts_embedded_enum_label():
+    assert _normalize_design_purpose("中盤の転換") == "転換"
+
+
+def test_normalize_design_purpose_leaves_unknown_text_unchanged():
+    assert _normalize_design_purpose("主人公が葛藤する") == "主人公が葛藤する"

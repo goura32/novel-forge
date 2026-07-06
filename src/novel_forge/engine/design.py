@@ -18,6 +18,32 @@ if TYPE_CHECKING:
     from novel_forge.engine.base import NovelEngineBase
 
 
+DESIGN_PURPOSE_ENUM = ("導入", "展開", "転換", "クライマックス", "収束")
+
+
+def _normalize_design_purpose(value: object) -> str:
+    purpose = str(value or "")
+    if purpose in DESIGN_PURPOSE_ENUM:
+        return purpose
+    for valid in DESIGN_PURPOSE_ENUM:
+        if valid in purpose:
+            return valid
+    return purpose
+
+
+def _relax_nested_chapter_purpose_enum(schema: dict) -> dict:
+    relaxed = copy.deepcopy(schema)
+    (
+        relaxed.get("properties", {})
+        .get("chapters", {})
+        .get("items", {})
+        .get("properties", {})
+        .get("purpose", {})
+        .pop("enum", None)
+    )
+    return relaxed
+
+
 def _validate_volume_design(data: dict) -> list[str]:
     errors = []
     if not data.get("chapters"):
@@ -125,14 +151,20 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 prev_design = prev_vol_path.read_text(encoding="utf-8")
             except Exception as exc:
                 engine._log.warning("Failed to read previous volume design: %s", prev_vol_path, exc_info=exc)
+    volume_schema = get_schema("volume_design")
+    volume_generation_schema = _relax_nested_chapter_purpose_enum(volume_schema)
+
     def _normalize_volume_design(data: dict) -> dict:
         if planned_volume_title:
             data["title"] = planned_volume_title
+        for chapter in data.get("chapters", []):
+            if isinstance(chapter, dict) and "purpose" in chapter:
+                chapter["purpose"] = _normalize_design_purpose(chapter.get("purpose"))
         return data
 
     def _generate_volume_design(prompt: str, seed_offset: int) -> dict:
         data = engine._llm.complete_json(
-            "volume_design", system, prompt, get_schema("volume_design"), seed_offset=seed_offset)
+            "volume_design", system, prompt, volume_generation_schema, seed_offset=seed_offset)
         return _normalize_volume_design(data)
 
     def _revise_volume_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
@@ -141,7 +173,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 {"concept_text": series_plan, "current_volume": json.dumps(data, ensure_ascii=False),
                  "review": format_review_text(review), "previous_design": prev_design,
                  "series_plan": series_plan}),
-            get_schema("volume_design"), seed_offset=seed_offset)
+            volume_generation_schema, seed_offset=seed_offset)
         return _normalize_volume_design(revised)
 
     vol_design_data, _vol_review = generate_and_review(
