@@ -25,6 +25,19 @@ def _validate_volume_design(data: dict) -> list[str]:
     return errors
 
 
+def _has_vague_next_clue_placeholder(text: object) -> bool:
+    value = str(text or "")
+    return any(
+        phrase in value
+        for phrase in (
+            "次章へ繋がる重要手掛かり",
+            "次章へつながる重要手掛かり",
+            "次への手がかり",
+            "何か（次への手がかり）",
+        )
+    )
+
+
 def _validate_chapter_design(data: dict) -> list[str]:
     errors = []
     if not data.get("title"):
@@ -38,8 +51,15 @@ def _validate_chapter_design(data: dict) -> list[str]:
     outcome = data.get("outcome")
     if not outcome or not str(outcome).strip() or str(outcome).strip().lower() == "none":
         errors.append("outcome (empty or None)")
-    if not data.get("scenes"):
+    if _has_vague_next_clue_placeholder(data.get("chapter_hook")):
+        errors.append("chapter_hook (vague placeholder)")
+    scenes = data.get("scenes")
+    if not scenes:
         errors.append("scenes (empty)")
+    else:
+        for idx, scene in enumerate(scenes):
+            if isinstance(scene, dict) and _has_vague_next_clue_placeholder(scene.get("outcome")):
+                errors.append(f"scenes[{idx}].outcome (vague placeholder)")
     return errors
 
 
