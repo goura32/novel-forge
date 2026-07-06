@@ -224,14 +224,16 @@ class LLMClient:
         schema: dict[str, Any] | None,
         seed_offset: int,
     ) -> dict[str, Any]:
-        """リトライ付きで API を呼び出す。"""
+        """Call the API with retries for transport and invalid model outputs."""
         # payload["messages"][1]["content"] already has {schema} replaced by _build_payload
         current_prompt = payload["messages"][1]["content"]
         self._current_kind = kind
         self._call_sequence += 1
         self._active_call_dir = None
+        attempt_limit = max(self.transport_retries, 1)
+        last_error: LLMError | None = None
 
-        for attempt in range(max(self.transport_retries, 1)):
+        for attempt in range(attempt_limit):
             payload["messages"][1]["content"] = current_prompt
             base_seed = payload["options"]["seed"]
             payload["options"]["seed"] = base_seed + attempt + seed_offset
@@ -241,18 +243,18 @@ class LLMClient:
             meta = self._build_meta()
             self._log.debug(
                 "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
-                kind, attempt + 1, self.transport_retries, self.model, base_seed + attempt + seed_offset, meta,
+                kind, attempt + 1, attempt_limit, self.model, base_seed + attempt + seed_offset, meta,
             )
 
             raw_text = ""
             try:
-                _call_start = time.time()
+                call_start = time.time()
                 raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
-                _call_elapsed = time.time() - _call_start
+                call_elapsed = time.time() - call_start
 
                 self._log.debug(
                     "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
-                    kind, chunk_count, total_bytes, _call_elapsed, meta, done_reason,
+                    kind, chunk_count, total_bytes, call_elapsed, meta, done_reason,
                 )
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 self._append_raw_summary(f"response_{attempt}_{seed_offset}", raw_text)
@@ -260,10 +262,6 @@ class LLMClient:
                 parsed = parse_json_response(raw)
 
                 if self._is_schema_echo(parsed):
-                    self._log.warning(
-                        "  [SCHEMA ECHO] kind=%s retry=%d — LLM returned schema structure, retrying",
-                        kind, seed_offset,
-                    )
                     raise LLMError("LLM returned schema structure instead of data")
 
                 if schema:
@@ -271,8 +269,8 @@ class LLMClient:
                     # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
                     if isinstance(parsed, dict) and "slug" in parsed:
                         parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
-                    from novel_forge.schemas import validate_or_raise
-                    validate_or_raise(kind, parsed)
+                    from novel_forge.schemas import validate_data_or_raise
+                    validate_data_or_raise(kind, schema, parsed)
                 return cast(dict[str, Any], parsed)
 
             except RuntimeError:
@@ -281,19 +279,28 @@ class LLMClient:
                 raise
             except JsonParseError as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                raise LLMError(f"JSON parse error: {str(e)[:200]}") from e
+                last_error = LLMError(f"JSON parse error: {str(e)[:200]}")
             except (SchemaValidationError, JsonSchemaValidationError) as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                raise LLMError(f"schema validation error: {str(e)[:200]}") from e
-            except LLMTransportError:
+                last_error = LLMError(f"schema validation error: {str(e)[:200]}")
+            except LLMTransportError as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                continue
-            except LLMError:
+                last_error = e
+            except LLMError as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                raise
+                last_error = e
             except Exception:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 raise
+
+            if attempt < attempt_limit - 1:
+                self._log.warning(
+                    "  [LLM RETRY] kind=%s attempt=%d/%d reason=%s%s",
+                    kind, attempt + 1, attempt_limit, last_error, meta,
+                )
+                continue
+            if last_error is not None:
+                raise last_error
 
         raise LLMError("LLM request failed") from None
 

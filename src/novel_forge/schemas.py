@@ -102,7 +102,13 @@ def validate(name: str, data: dict[str, Any]) -> list[str]:
         schema = _load_schema(name)
     except FileNotFoundError:
         return [f"Schema not found: {name}"]
-    # Apply pre-validation coercion for common LLM output quirks
+    return validate_data(name, schema, data)
+
+
+def validate_data(name: str, schema: dict[str, Any], data: dict[str, Any]) -> list[str]:
+    """Validate data against an already loaded schema."""
+    # Apply pre-validation coercion for common LLM output quirks.
+    # This mutates data intentionally, matching validate(name, data) behavior.
     coerce_array_fields(data, schema)
     errors = _validate_with_schema(schema, data)
     if name == "review" and not errors:
@@ -112,6 +118,12 @@ def validate(name: str, data: dict[str, Any]) -> list[str]:
 
 def validate_or_raise(name: str, data: dict[str, Any]) -> None:
     errors = validate(name, data)
+    if errors:
+        raise ValidationError(f"Schema validation failed for '{name}:\n" + "\n".join(errors))
+
+
+def validate_data_or_raise(name: str, schema: dict[str, Any], data: dict[str, Any]) -> None:
+    errors = validate_data(name, schema, data)
     if errors:
         raise ValidationError(f"Schema validation failed for '{name}:\n" + "\n".join(errors))
 

@@ -183,8 +183,8 @@ class TestCompleteJsonRetry:
             with pytest.raises(LLMError):
                 client.complete_json("test_kind", "sys", "usr")
 
-    def test_does_not_retry_json_parse_failure(self):
-        """Malformed model output is a generation-level failure, not an LLM transport retry."""
+    def test_retries_json_parse_failure(self):
+        """Malformed model output should retry as an invalid generation."""
         bad_resp = _make_streaming_response(_ndjson_response("not json"))
         good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
 
@@ -193,13 +193,13 @@ class TestCompleteJsonRetry:
                 api_url="http://localhost:11434/api/chat",
                 max_retries=2,
             )
-            with pytest.raises(LLMError):
-                client.complete_json("test_kind", "sys", "usr")
+            result = client.complete_json("test_kind", "sys", "usr")
 
-        assert mock_stream.call_count == 1
+        assert result == {"ok": True}
+        assert mock_stream.call_count == 2
 
-    def test_does_not_retry_schema_echo_failure(self):
-        """Schema echo is handled by the generation loop, not by LLM transport retries."""
+    def test_retries_schema_echo_failure(self):
+        """Schema echo should retry as an invalid generation."""
         schema_echo = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
         bad_resp = _make_streaming_response(_ndjson_response(json.dumps(schema_echo)))
         good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
@@ -209,10 +209,31 @@ class TestCompleteJsonRetry:
                 api_url="http://localhost:11434/api/chat",
                 max_retries=2,
             )
-            with pytest.raises(LLMError):
-                client.complete_json("test_kind", "sys", "usr")
+            result = client.complete_json("test_kind", "sys", "usr")
 
-        assert mock_stream.call_count == 1
+        assert result == {"ok": True}
+        assert mock_stream.call_count == 2
+
+    def test_retries_schema_validation_failure(self):
+        """Schema validation failures should retry before surfacing to callers."""
+        schema = {
+            "type": "object",
+            "properties": {"ok": {"type": "boolean"}},
+            "required": ["ok"],
+            "additionalProperties": False,
+        }
+        bad_resp = _make_streaming_response(_ndjson_response(json.dumps({"bad": True})))
+        good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
+
+        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=2,
+            )
+            result = client.complete_json("test_kind", "sys", "usr", schema)
+
+        assert result == {"ok": True}
+        assert mock_stream.call_count == 2
 
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""
