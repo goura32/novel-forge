@@ -197,7 +197,7 @@
 | P18-42 | concept review/revisionへ元キーワードを伝播 | Done | `_generate_plan_concept` から `_review_plan_concept` / `_revise_plan_concept` へ `keywords` を渡すよう修正。回帰テスト `test_series_plan_concept_review_and_revision_receive_keywords` 追加。検証: targeted 1 passed、integration 46 passed、full 302 passed、ruff passed |
 | P18-43 | 実LLM smoke を16回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_155839`: P18-42後、Plan完了→Design `volume_design` 通過→`chapter_design` review非収束で停止。停止原因は `chapter_hook` と scene outcome に「次章へ繋がる重要手掛かり」「何か（次への手がかり）」の曖昧プレースホルダーが残った実品質問題。P18-40のreview入力欠落ではない |
 | P18-44 | chapter_design の曖昧な次章手掛かりをvalidationで拒否 | Done | `_validate_chapter_design` に `chapter_hook` / `scenes[].outcome` の曖昧プレースホルダー検出を追加。`tests/test_engine_design_validation.py` を追加し、RED→GREEN確認。検証: design validation 2 passed、targeted integration 1 passed、integration 46 passed、full 304 passed、`git diff --check` OK、ruff OK |
-| P18-45 | 実LLM smoke を17回目実行 | Todo | P18-44 commit/push後、同条件で再実行してDesign通過/Write到達を確認する |
+| P18-45 | 実LLM smoke を17回目実行 | In progress | `proc_9ee7bcbde351` / `workspace/phase18_real_smoke_20260706_162351`。P18-44後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認する |
 
 ### Phase 18 復帰メモ
 
