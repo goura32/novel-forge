@@ -59,12 +59,23 @@ def _apply_review_text_replacements(data: Any, review: dict) -> Any:
     Split those labeled blocks into individual value replacements too.
     """
     replacements: list[tuple[str, str]] = []
+    field_replacements: list[tuple[str, str, str]] = []
+
+    def normalize_text(text: str) -> str:
+        return "".join(ch for ch in text if ch.isalnum())
 
     def add_replacement(before_text: str, after_text: str) -> None:
         before_text = before_text.strip()
         after_text = after_text.strip()
         if before_text and after_text and before_text != after_text:
             replacements.append((before_text, after_text))
+
+    def add_field_replacement(field_text: str, before_text: str, after_text: str) -> None:
+        field_text = field_text.strip()
+        before_text = before_text.strip()
+        after_text = after_text.strip()
+        if field_text and before_text and after_text and before_text != after_text:
+            field_replacements.append((field_text, before_text, after_text))
 
     def labeled_parts(text: str) -> dict[str, str]:
         parts: dict[str, str] = {}
@@ -87,26 +98,54 @@ def _apply_review_text_replacements(data: Any, review: dict) -> Any:
             continue
         before = str(issue.get("before", "") or "")
         after = str(issue.get("after", "") or "")
+        field = str(issue.get("field", "") or "")
         add_replacement(before, after)
+        add_field_replacement(field, before, after)
         before_parts = labeled_parts(before)
         after_parts = labeled_parts(after)
         for label, before_value in before_parts.items():
             after_value = after_parts.get(label, "")
             add_replacement(before_value, after_value)
 
-    if not replacements:
+    if not replacements and not field_replacements:
         return data
 
-    def visit(value: Any) -> Any:
+    field_aliases = {
+        "title": ("title", "タイトル"),
+        "goal": ("goal", "目標"),
+        "conflict": ("conflict", "葛藤"),
+        "outcome": ("outcome", "結果"),
+        "pov": ("pov", "POV", "視点"),
+        "setting": ("setting", "舞台"),
+    }
+
+    def field_matches(key: str, field_text: str) -> bool:
+        aliases = field_aliases.get(key, (key,))
+        return any(alias in field_text for alias in aliases)
+
+    def fuzzy_matches(value: str, before: str) -> bool:
+        norm_value = normalize_text(value)
+        norm_before = normalize_text(before)
+        if len(norm_value) < 20 or len(norm_before) < 20:
+            return False
+        return norm_value in norm_before or norm_before in norm_value
+
+    def visit(value: Any, key: str = "") -> Any:
         if isinstance(value, str):
             text = value
             for before, after in replacements:
                 text = text.replace(before, after)
+            if text != value:
+                return text
+            if key:
+                for field_text, before, after in field_replacements:
+                    if field_matches(key, field_text) and fuzzy_matches(value, before):
+                        return after
             return text
         if isinstance(value, list):
-            return [visit(item) for item in value]
+            return [visit(item, key) for item in value]
         if isinstance(value, dict):
-            return {key: visit(item) for key, item in value.items()}
+            return {item_key: visit(item, item_key) for item_key, item in value.items()}
         return value
 
     return visit(data)
@@ -361,16 +400,21 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "previous_outcome": prev_outcome,
                  "previous_volume_summary": prev_volume_summary,
                  "lang": engine._lang})
+            def _revise_scene_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
+                revised = engine._llm.complete_json(
+                    "scene_design", sys, engine._prompts.render("scene_design_revision.md",
+                        {"current_scene": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
+                         "review": format_review_text(review)}),
+                    get_schema("scene_design"), seed_offset=seed_offset)
+                return _apply_review_text_replacements(revised, review)
+
             scene_obj, _sc_review = generate_and_review(
                           generate_fn=lambda p, s: engine._llm.complete_json(
                               "scene_design", system, p, get_schema("scene_design"),
                               seed_offset=s),
                           validate_fn=_validate_scene_design,
                           review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
-                          revise_fn=lambda r, rv, sys, so=0: engine._llm.complete_json(
-                              "scene_design", sys, engine._prompts.render("scene_design_revision.md",
-                                  {"current_scene": json.dumps(r, ensure_ascii=False), "series_plan": series_plan, "review": format_review_text(rv)}),
-                              get_schema("scene_design"), seed_offset=so),
+                          revise_fn=_revise_scene_design,
                           system=system,
                           user_prompt=sc_prompt,
                           kind="scene_design",

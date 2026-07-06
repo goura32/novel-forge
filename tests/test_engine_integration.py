@@ -696,6 +696,27 @@ class TestOutline:
         assert result["scenes"][0]["pov"] == revised_pov
         assert result["scenes"][0]["conflict"] == revised_conflict
 
+    def test_review_replacement_falls_back_to_field_fuzzy_match(self):
+        """Safety net should handle review before text that wraps the actual field value."""
+        stale_goal = "零と小夜を内務省機動隊の包囲網から逃がす。響は牽制し、零に地下排水路への脱出経路を提供する。"
+        revised_goal = "零と響を内務省機動隊の包囲網から逃がす。響は牽制し、零に地下排水路への脱出経路を提供する。"
+        data = {"goal": stale_goal, "outcome": "小夜という未定義人物を含む結果。"}
+        review = {
+            "issues": [
+                {
+                    "field": "シーン設計.目標",
+                    "before": stale_goal + "零は泣き童を抱えて闇の中へ逃げ込む。",
+                    "after": revised_goal + "零は泣き童を抱えて闇の中へ逃げ込む。",
+                    "publication_blocking": True,
+                }
+            ]
+        }
+
+        result = _apply_review_text_replacements(data, review)
+
+        assert result["goal"] == review["issues"][0]["after"]
+        assert result["outcome"] == data["outcome"]
+
     def test_chapter_design_repairs_invalid_purpose_from_volume_design(self, planned_engine, mock_llm):
         """design() should repair only invalid chapter purpose values from the source chapter."""
         mock_llm._sequence = []

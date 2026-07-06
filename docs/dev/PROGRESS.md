@@ -216,6 +216,8 @@
 | P18-61 | chapter_design改訂にもreview before/after安全弁を追加 | Done | `src/novel_forge/engine/design.py`; 弱い改訂モデルが差分を残しても具体diffをJSON全体へ適用。回帰 `TestOutline::test_chapter_design_revision_applies_concrete_review_diff` 追加。 |
 | P18-62 | P20再々々々々smokeでchapter_design review複合before/after未適用を確認 | Blocked | `workspace/phase18_real_smoke_20260707_012349`; reviewが`POV/目標/葛藤`を1文字列にまとめ、単一フィールド完全一致安全弁で拾えず。 |
 | P18-63 | chapter_design review安全弁をラベル付き複合diffへ対応 | Done | `_apply_review_text_replacements` が `POV: ...`/`目標: ...`/`葛藤: ...` 形式を分解し個別文字列へ適用。実rawで `pov=神無`、葛藤/伏線差分適用を確認。 |
+| P18-64 | P20再々々々々々smokeでscene_design review非収束を確認 | Blocked | `workspace/phase18_real_smoke_20260707_014817`; Design章設計/scene_design多数は突破、Write直前で未定義キャラ`小夜`がscene目標に残り停止。 |
+| P18-65 | scene_design revisionにもreview差分安全弁を適用し、field+fuzzy fallbackを追加 | Done | `scene_design_revision`戻り値へ`_apply_review_text_replacements`適用。review beforeが実フィールド値を包む場合は`field`と正規化包含で該当フィールドをafterへ置換。316 tests green。 |
 
 ### Phase 18 復帰メモ
 
