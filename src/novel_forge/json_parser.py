@@ -88,10 +88,7 @@ def _coerce_array_fields(data: dict, schema: dict) -> None:
             continue
         expected_type = prop_schema.get("type")
         if expected_type == "array" and isinstance(data[key], dict):
-            _log.debug(
-                "Coerced expected array '%s' (got object: %r) to []",
-                key, type(data[key])
-            )
+            _log.warning("Coerced schema array field '%s' from object to []", key)
             data[key] = []
 
 
@@ -175,7 +172,8 @@ def validate(name: str, data: dict[str, Any]) -> list[str]:
     try:
         schema = _load_schema(name)
     except FileNotFoundError:
-        return []
+        _log.error("Schema not found: %s", name)
+        return [f"Schema not found: {name}"]
     # Apply pre-validation coercion for common LLM output quirks
     _coerce_array_fields(data, schema)
     return _validate_with_schema(schema, data)
@@ -188,10 +186,7 @@ def validate_or_raise(name: str, data: dict[str, Any]) -> None:
 
 
 def get_schema(name: str) -> dict[str, Any]:
-    try:
-        return _load_schema(name)
-    except FileNotFoundError:
-        return {}
+    return _load_schema(name)
 
 
 def list_schemas() -> list[str]:

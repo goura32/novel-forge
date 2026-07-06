@@ -87,7 +87,7 @@
 | `scene_summary_and_bible_update.md` | `scene_summary_and_bible_update.json` | シーン要約・更新 | レビューとは別 |
 | `kdp_metadata.md` | `kdp_metadata.json` | KDPメタデータ生成 | 単体実行 |
 | `system.md` | なし | システムプロンプト | 全フェーズで使用 |
-| `cover_prompt.md` | なし | 表紙生成プロンプト | 未使用 |
+| `cover_prompt.md` | `cover_prompt.json` | 表紙生成プロンプト | 未使用 |
 
 ---
 
@@ -108,7 +108,16 @@
 
 ### 5.2 統一レビュースキーマ（review.json）
 
-すべてのレビューで単一の `review.json` スキーマを使用。フィールドは以下のみ:
+すべてのレビューで単一の `review.json` スキーマを使用。トップレベルで出版可否・総評・長所・指摘一覧を返します。
+
+| フィールド | 必須 | 説明 |
+|---|---|---|
+| `ready_for_publication` | ✓ | 出版可能状態。致命的/重要 issue が残る場合は `false`。 |
+| `overall_assessment` | ✓ | レビュー全体の短い総評。 |
+| `strengths` | ✓ | 改稿で維持すべき良い点の一覧。 |
+| `issues` | ✓ | 指摘事項の一覧。問題がなければ空配列。 |
+
+`issues[]` のフィールドは以下です。
 
 | フィールド | 必須 | 説明 |
 |---|---|---|
@@ -118,6 +127,7 @@
 | `suggestion` | ✓ | 修正の提案。どう改善すべきかの方向性を示す。 |
 | `before` | ✓ | 修正前のテキスト（当該フィールド内の該当箇所を引用） |
 | `after` | ✓ | 修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。 |
+| `publication_blocking` |  | 出版前に必ず解消すべき問題なら `true`。 |
 
 ## 6. プレースホルダ自動置換
 
@@ -188,4 +198,4 @@ src/novel_forge/engine/
 
 ---
 
-*Last updated: 2026-07-03* (review.json スキーマから category フィールドを削除しました（レビュー指摘では severity、field、description, suggestion, before, after のみを使用）。config.yaml の品質ゲート設定も併せて更新しています（max_generation_count / max_review_count / transport_retries）。
+*Last updated: 2026-07-06* (`review.json` は `ready_for_publication`, `overall_assessment`, `strengths`, `issues` を必須とする統一レビュースキーマです。`scene_summary_and_bible_update.json` の `world_rules` は `string[]` に簡素化しました。)

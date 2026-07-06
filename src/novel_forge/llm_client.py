@@ -16,6 +16,7 @@ from novel_forge.json_parser import JsonParseError, parse_json_response
 from novel_forge.logging_config import Console, get_logger
 
 console = Console()
+_log = get_logger("novel_forge.llm")
 
 _OLLAMA_OPTION_KEYS = [
     "temperature", "top_k", "top_p", "repeat_penalty",
@@ -88,8 +89,9 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
                 data = _YAML.safe_load(f)
             if isinstance(data, dict):
                 return data
-        except Exception:
-            pass
+            _log.warning("Config file is not a mapping; ignoring: %s", p)
+        except Exception as exc:
+            _log.warning("Failed to load config file; ignoring: %s", p, exc_info=exc)
     return {}
 
 

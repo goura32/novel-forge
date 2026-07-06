@@ -249,9 +249,13 @@ class BibleManager:
 
         # World rules
         for r_data in result.get("world_rules", []):
-            if not isinstance(r_data, dict):
+            if isinstance(r_data, str):
+                rule = r_data.strip()
+            elif isinstance(r_data, dict):
+                # Backward compatibility with older outputs that used {"rule": "..."}.
+                rule = str(r_data.get("rule", "")).strip()
+            else:
                 continue
-            rule = r_data.get("rule", "")
             if rule and rule not in bible.world_rules:
                 bible.world_rules.append(rule)
 

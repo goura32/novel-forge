@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from novel_forge.logging_config import get_logger
+
 _NAMES_FILE = "used_names.json"
+_log = get_logger("novel_forge.name_registry")
 
 
 def load_used_names(workdir: Path) -> set[str]:
@@ -16,7 +19,8 @@ def load_used_names(workdir: Path) -> set[str]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return set(data.get("names", []))
-    except Exception:
+    except Exception as exc:
+        _log.warning("Failed to load used character names; continuing with empty registry: %s", path, exc_info=exc)
         return set()
 
 

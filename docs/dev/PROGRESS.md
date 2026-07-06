@@ -1,6 +1,6 @@
 # NovelForge Improvement Progress
 
-最終更新: 2026-07-05
+最終更新: 2026-07-06
 対象: `/mnt/hdd/projects/novel-forge`
 
 ## 0. 運用ルール
@@ -148,3 +148,33 @@
 | P17-02 | JSON/schema出力不備を工程retryへ移管 | Done | parse / schema / schema echo は `LLMError` として上位へ返し、`max_generation_count` が制御 |
 | P17-03 | config互換性維持 | Done | `llm.transport_retries` を主名化。旧 `llm.max_retries` は alias として読める |
 | P17-04 | 契約テスト追加 | Done | generation counter retry、transport retry、旧alias互換をテスト化 |
+
+## 16. Phase 18 — prompt/schema/fallback hardening（進行中）
+
+| ID | Task | Status | メモ |
+|---|---|---:|---|
+| P18-01 | prompt template を `system.md` 以外で統一構成へ整理 | Done | `目的/応答方針/実行指示/入力情報/出力仕様` に統一。editable prompts と packaged resources を同期 |
+| P18-02 | review prompt と `review.json` の publication readiness を同期 | Done | `ready_for_publication`, `overall_assessment`, `strengths`, `publication_blocking` の判断規則を明示 |
+| P18-03 | scene draft の本文品質制約を強化 | Done | 完成本文のみ、2000〜5000字、常体、Show Don't Tell、POV、感覚描写、メタ説明禁止を契約化 |
+| P18-04 | 生成系 prompt の必須フィールド説明を補強 | Done | `chapter_turning_point`, `hook`, `world_rules`, `main_characters[]`, `planned_volumes[]`, `chapters[]`, KDP metadata, cover prompt を補強 |
+| P18-05 | `scene_summary_and_bible_update` schema を簡素化 | Done | `world_rules` を `string[]` に統一。`facts[].object` は任意化。legacy `{rule: ...}` は reader 側で後方互換維持 |
+| P18-06 | fallback/logging を監査し不適切な無言fallbackを修正 | Done | unknown schema は fail-fast。破損state/config/registry復旧は warning。schema補正ログも warning 化 |
+| P18-07 | 契約テスト・回帰テストを追加/更新 | Done | prompt品質契約、schema契約、bible manager、json parser、storage、name registry 等を更新 |
+| P18-08 | ローカル品質ゲートを通す | Done | `uv run pytest` → 288 passed。`git diff --check` OK。`uv run ruff check src tests` → All checks passed |
+| P18-09 | hardening 差分を commit/push | In progress | 次アクション: diffを最終確認し、関連差分をまとめて commit/push。push後に remote SHA を確認 |
+| P18-10 | 実LLM smoke を1シリーズで実行 | Todo | 次アクション: `plan-series` 相当→ `write-volume` 相当を最小構成で実行し、raw/verbose log と schema failure を分類 |
+| P18-11 | smoke結果から schema簡素化/ prompt微修正の要否を判断 | Todo | 失敗が継続する場合は prompt追記ではなく schema/注入schema表現の簡素化を優先 |
+| P18-12 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+
+### Phase 18 復帰メモ
+
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-09 以降から再開する。
+- 直近検証済みコマンド:
+  - `uv run pytest` → 288 passed
+  - `git diff --check` → OK
+  - `uv run ruff check src tests` → All checks passed
+- 次に迷わず実行すること:
+  1. `git diff --stat` と主要diffを確認
+  2. `git add` → commit → push
+  3. `git ls-remote origin main` で remote SHA を確認
+  4. 実LLM smoke のコマンド/設定を確認して最小実行

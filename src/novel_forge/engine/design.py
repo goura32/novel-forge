@@ -6,7 +6,6 @@ No mixin classes.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 from typing import TYPE_CHECKING, Any
@@ -72,8 +71,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         try:
             plan = json.loads(plan_path.read_text(encoding="utf-8"))
             total_vol = str(len(plan.get("planned_volumes", [])))
-        except Exception:
-            pass
+        except Exception as exc:
+            engine._log.warning("Failed to read series plan while preparing design: %s", plan_path, exc_info=exc)
 
     engine._log.info(f"▶ Design: slug='{slug}' vol={vol_num}/{total_vol} PID={os.getpid()}")
     system = engine._prompts.render("system.md", {"lang": engine._lang})
@@ -86,8 +85,10 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     if vol_num > 1:
         prev_vol_path = engine._series_dir / f"vol{vol_num - 1:02d}" / f"vol{vol_num - 1:02d}.json"
         if prev_vol_path.exists():
-            with contextlib.suppress(Exception):
+            try:
                 prev_design = prev_vol_path.read_text(encoding="utf-8")
+            except Exception as exc:
+                engine._log.warning("Failed to read previous volume design: %s", prev_vol_path, exc_info=exc)
     vol_design_data, _vol_review = generate_and_review(
         generate_fn=lambda p, s: engine._llm.complete_json(
             "volume_design", system, p, get_schema("volume_design"), seed_offset=s),
@@ -132,8 +133,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
             try:
                 prev_vol = json.loads(prev_vol_path.read_text(encoding="utf-8"))
                 prev_volume_summary = prev_vol.get("summary", "") or prev_vol.get("premise", "")
-            except Exception:
-                pass
+            except Exception as exc:
+                engine._log.warning("Failed to read previous volume summary: %s", prev_vol_path, exc_info=exc)
     for ch_idx in range(1, chapters_count + 1):
         ch_data = chapters[ch_idx - 1] if ch_idx <= len(chapters) else {}
         ch_prompt = engine._prompts.render("chapter_design.md",

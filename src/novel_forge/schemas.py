@@ -88,9 +88,9 @@ def coerce_array_fields(data: dict, schema: dict) -> dict:
     for key, prop_schema in properties.items():
         if key in data and isinstance(data[key], dict) and prop_schema.get("type") == "array":
             # If an array field is actually returned as object from LLM, replace with []
-            _log.debug(
-                "Coerced expected array '%s' (got object: %r) to []",
-                key, type(data[key])
+            _log.warning(
+                "Coerced schema array field '%s' from object to []",
+                key,
             )
             data[key] = []
     
@@ -118,10 +118,7 @@ def validate_or_raise(name: str, data: dict[str, Any]) -> None:
 
 
 def get_schema(name: str) -> dict[str, Any]:
-    try:
-        return _load_schema(name)
-    except FileNotFoundError:
-        return {}
+    return _load_schema(name)
 
 
 def list_schemas() -> list[str]:

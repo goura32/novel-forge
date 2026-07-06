@@ -92,8 +92,8 @@ def _get_existing_slugs(engine: NovelEngineBase) -> set[str]:
                 slug = data.get("slug", "")
                 if slug:
                     existing.add(slug)
-            except Exception:
-                pass
+            except Exception as exc:
+                engine._log.warning("Failed to read existing series plan while checking slug collisions: %s", plan_path, exc_info=exc)
     return existing
 
 

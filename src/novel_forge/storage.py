@@ -6,7 +6,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from novel_forge.logging_config import get_logger
 from novel_forge.models import Bible, Blackboard, ProjectState
+
+_log = get_logger("novel_forge.storage")
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -43,13 +46,20 @@ class StateStorage:
         try:
             data = json.loads(self._state_path.read_text(encoding="utf-8"))
             return ProjectState(**data)
-        except (json.JSONDecodeError, Exception):
+        except Exception as exc:
+            _log.warning("Failed to load state file; attempting backup: %s", self._state_path, exc_info=exc)
             if self._backup_path.exists():
                 try:
                     data = json.loads(self._backup_path.read_text(encoding="utf-8"))
                     return ProjectState(**data)
-                except (json.JSONDecodeError, Exception):
-                    pass
+                except Exception as backup_exc:
+                    _log.warning(
+                        "Failed to load state backup; using default state: %s",
+                        self._backup_path,
+                        exc_info=backup_exc,
+                    )
+            else:
+                _log.warning("State backup not found; using default state: %s", self._backup_path)
             return ProjectState(workdir=str(self._workdir))
 
     def save(self, state: ProjectState) -> None:

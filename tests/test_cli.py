@@ -47,7 +47,6 @@ def test_plan_omitted_cli_options_do_not_override_config(monkeypatch, tmp_path) 
     assert result.exit_code == 0
     assert captured["args"][1] is None  # model omitted; engine/config/default decide
     assert captured["kwargs"]["verbose"] is None
-    assert captured["kwargs"]["raw_log"] is None
 
 
 def test_plan_explicit_cli_options_override_config(monkeypatch, tmp_path) -> None:
@@ -68,13 +67,12 @@ def test_plan_explicit_cli_options_override_config(monkeypatch, tmp_path) -> Non
 
     result = CliRunner().invoke(
         cli.app,
-        ["plan", "テスト", "--workdir", str(tmp_path), "--model", "cli-model", "--verbose", "--raw-log"],
+        ["plan", "テスト", "--workdir", str(tmp_path), "--model", "cli-model", "--verbose"],
     )
 
     assert result.exit_code == 0
     assert captured["args"][1] == "cli-model"
     assert captured["kwargs"]["verbose"] is True
-    assert captured["kwargs"]["raw_log"] is True
 
 
 def test_doctor_omitted_options_use_workdir_config(monkeypatch, tmp_path) -> None:

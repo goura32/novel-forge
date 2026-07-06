@@ -44,12 +44,23 @@ def test_all_prompt_templates_have_consistent_basic_structure() -> None:
         if not text.lstrip().startswith("# "):
             prompt_issues.append("missing top-level title")
         if prompt_path.name != "system.md":
-            if "## 役割" not in text:
-                prompt_issues.append("missing role section")
-            if "## 出力構造" not in text:
-                prompt_issues.append("missing output schema section")
-            if "{schema}" not in text:
-                prompt_issues.append("missing {schema} placeholder")
+            required_sections = [
+                "## 目的",
+                "## 応答方針",
+                "## 実行指示",
+                "## 入力情報",
+                "## 出力仕様",
+            ]
+            for section in required_sections:
+                if section not in text:
+                    prompt_issues.append(f"missing {section} section")
+            if "## 役割" in text:
+                prompt_issues.append("contains legacy role section")
+            if "## 出力構造" in text:
+                prompt_issues.append("contains legacy output schema section")
+            expected_output_spec = "下記のスキーマに適合する JSON のみ出力すること。\n{schema}"
+            if expected_output_spec not in text:
+                prompt_issues.append("missing unified output spec")
         if prompt_issues:
             issues[prompt_path.name] = prompt_issues
 
@@ -209,8 +220,8 @@ def _missing_minimum_content_constraints(
     if isinstance(node, dict):
         node_type = node.get("type")
         path_text = ".".join(path) or "$"
-        if node_type == "string" and int(node.get("minLength", 0)) < 1:
-            issues.append(f"{path_text}: missing minLength>=1")
+        if required and node_type == "string" and int(node.get("minLength", 0)) < 1:
+            issues.append(f"{path_text}: required string missing minLength>=1")
         if (
             required
             and node_type == "array"

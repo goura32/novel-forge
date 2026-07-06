@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 from fixtures.factories import series_plan_concept_data, volume_design_data
 
@@ -49,9 +51,9 @@ class TestGetSchema:
         assert "properties" in schema
         assert "title" in schema["properties"]
 
-    def test_unknown_schema_returns_empty(self):
-        schema = get_schema("nonexistent_schema")
-        assert schema == {}
+    def test_unknown_schema_raises(self):
+        with pytest.raises(FileNotFoundError):
+            get_schema("nonexistent_schema")
 
 
 # ── validate ────────────────────────────────────────────────────────────
@@ -81,6 +83,15 @@ class TestValidate:
         data = series_plan_concept_data(extra_field="should be rejected")
         errors = validate("series_plan_concept", data)
         assert any("Additional properties are not allowed" in error for error in errors)
+
+    def test_object_for_array_field_logs_warning(self, caplog):
+        data = series_plan_concept_data()
+        data["themes"] = {"unexpected": "object"}
+
+        with caplog.at_level(logging.WARNING, logger="novel_forge.schemas"):
+            validate("series_plan_concept", data)
+
+        assert "Coerced schema array field 'themes' from object to []" in caplog.text
 
     def test_wrong_type_string_for_array(self):
         data = {
@@ -197,6 +208,36 @@ class TestValidate:
         }
         errors = validate("scene_summary_and_bible_update", data)
         assert len(errors) == 0
+
+    def test_bible_update_accepts_string_world_rules(self):
+        data = {
+            "summary": "シーンの要約",
+            "facts": [{"subject": "主人公", "predicate": "失踪した"}],
+            "continuity_notes": [],
+            "characters": [],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": ["魔法は代償なしには使えない"],
+        }
+        errors = validate("scene_summary_and_bible_update", data)
+        assert errors == []
+
+    def test_bible_update_rejects_legacy_world_rule_objects(self):
+        data = {
+            "summary": "シーンの要約",
+            "facts": [],
+            "continuity_notes": [],
+            "characters": [],
+            "foreshadowing": [],
+            "relationships": [],
+            "subplots": [],
+            "glossary": [],
+            "world_rules": [{"rule": "魔法は代償なしには使えない"}],
+        }
+        errors = validate("scene_summary_and_bible_update", data)
+        assert any("is not of type 'string'" in error for error in errors)
 
     def test_valid_volume_design(self):
         data = volume_design_data()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from novel_forge.json_parser import (
@@ -40,11 +42,13 @@ class TestExtractJsonText:
 
 
 class TestCoerceArrayFields:
-    def test_object_to_array(self):
+    def test_object_to_array(self, caplog):
         data = {"items": {"a": "b"}}
         schema = {"properties": {"items": {"type": "array"}}}
-        _coerce_array_fields(data, schema)
+        with caplog.at_level(logging.WARNING, logger="novel_forge.json_parser"):
+            _coerce_array_fields(data, schema)
         assert data["items"] == []
+        assert "Coerced schema array field 'items' from object to []" in caplog.text
 
     def test_already_array_unchanged(self):
         data = {"items": ["a", "b"]}
@@ -136,9 +140,9 @@ class TestValidate:
         # Should not have minItems errors (constraint removed from schema)
         assert not any("minItems" in e for e in errors)
 
-    def test_unknown_schema_returns_empty(self):
+    def test_unknown_schema_returns_error(self):
         errors = validate("nonexistent_schema", {"a": 1})
-        assert errors == []
+        assert errors == ["Schema not found: nonexistent_schema"]
 
     def test_validate_or_raise_valid(self):
         data = {"title": "Test", "slug": "test", "logline": "A", "genre": ["f"], "themes": ["t"], "selling_points": ["s"], "world_summary": "W", "world_rules": ["r"], "target_audience": "A"}

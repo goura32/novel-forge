@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -18,8 +17,10 @@ from novel_forge.engine.infra import (
     console,
     make_engine,
 )
+from novel_forge.logging_config import get_logger
 
 app = typer.Typer(help="NovelForge — Local-LLM novel production pipeline")
+_log = get_logger("novel_forge.cli")
 
 
 @app.command()
@@ -243,10 +244,12 @@ def list(
             state_path = d / ".novel_forge_state"
             st = "unknown"
             if state_path.exists():
-                with contextlib.suppress(Exception):
+                try:
                     st = _json.loads(state_path.read_text(encoding="utf-8")).get("status", "?")
+                except Exception as exc:
+                    _log.warning("Failed to read series state while listing: %s", state_path, exc_info=exc)
             table.add_row(slug, title, str(volumes), st)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log.warning("Failed to read series plan while listing: %s", plan_path, exc_info=exc)
 
     console.print(table)

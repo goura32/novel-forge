@@ -47,3 +47,23 @@ def test_apply_update_maps_relationship_type_alias(tmp_path) -> None:
     rel = manager.bible.relationships[0]
     assert isinstance(rel, RelationshipItem)
     assert rel.relationship_type == "師弟"
+
+
+def test_apply_update_accepts_world_rules_as_strings(tmp_path) -> None:
+    storage = BibleStorage(tmp_path)
+    storage.save(Bible())
+    manager = BibleManager(storage)
+
+    manager.apply_update({"world_rules": ["魔法は代償なしには使えない"]}, scene_number=1)
+
+    assert manager.bible.world_rules == ["魔法は代償なしには使えない"]
+
+
+def test_apply_update_keeps_legacy_world_rule_object_compatibility(tmp_path) -> None:
+    storage = BibleStorage(tmp_path)
+    storage.save(Bible())
+    manager = BibleManager(storage)
+
+    manager.apply_update({"world_rules": [{"rule": "契約は満月の夜だけ成立する"}]}, scene_number=1)
+
+    assert manager.bible.world_rules == ["契約は満月の夜だけ成立する"]
