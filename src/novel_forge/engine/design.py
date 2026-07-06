@@ -6,6 +6,7 @@ No mixin classes.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 from typing import TYPE_CHECKING, Any
@@ -155,6 +156,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
             except Exception as exc:
                 engine._log.warning("Failed to read previous volume summary: %s", prev_vol_path, exc_info=exc)
     chapter_schema = get_schema("chapter_design")
+    chapter_generation_schema = copy.deepcopy(chapter_schema)
+    chapter_generation_schema.get("properties", {}).get("purpose", {}).pop("enum", None)
     purpose_enum = set(chapter_schema.get("properties", {}).get("purpose", {}).get("enum", []))
     for ch_idx in range(1, chapters_count + 1):
         ch_data = chapters[ch_idx - 1] if ch_idx <= len(chapters) else {}
@@ -171,7 +174,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
         def _generate_chapter_design(prompt: str, seed_offset: int) -> dict:
             data = engine._llm.complete_json(
-                "chapter_design", system, prompt, chapter_schema, seed_offset=seed_offset)
+                "chapter_design", system, prompt, chapter_generation_schema, seed_offset=seed_offset)
             return _normalize_invalid_chapter_purpose(data)
 
         def _revise_chapter_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
@@ -179,7 +182,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
                     {"current_chapter": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
                      "review": format_review_text(review)}),
-                chapter_schema, seed_offset=seed_offset)
+                chapter_generation_schema, seed_offset=seed_offset)
             return _normalize_invalid_chapter_purpose(revised)
 
         ch_prompt = engine._prompts.render("chapter_design.md",

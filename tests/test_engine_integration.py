@@ -544,6 +544,15 @@ class TestOutline:
         """design() should repair only invalid chapter purpose values from the source chapter."""
         mock_llm._sequence = []
         mock_llm._seq_idx = 0
+        original_complete_json = mock_llm.complete_json
+        chapter_schemas = []
+
+        def capture_complete_json(kind, system_prompt, user_prompt, schema=None, seed_offset=0):
+            if kind == "chapter_design":
+                chapter_schemas.append(schema)
+            return original_complete_json(kind, system_prompt, user_prompt, schema, seed_offset)
+
+        mock_llm.complete_json = capture_complete_json
         mock_llm.add_sequence("volume_design", _make_design_response(
             title="第1巻",
             premise="祈り機械との出会いを描く巻です。",
@@ -603,6 +612,11 @@ class TestOutline:
         result = planned_engine.design(volume_number=1)
 
         assert result["chapters"][0]["purpose"] == "導入"
+        assert chapter_schemas
+        assert all(
+            "enum" not in (schema or {}).get("properties", {}).get("purpose", {})
+            for schema in chapter_schemas
+        )
 
 
 # ── Outline review → revise loop ────────────────────────────────────────
