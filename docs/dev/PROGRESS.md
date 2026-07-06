@@ -176,17 +176,19 @@
 | P18-21 | review 出力の readiness 正規化 | Done | LLM review出力で各issueの `publication_blocking` 欠落をfalse補完し、`ready_for_publication = not any(publication_blocking)` に再計算。contradictionだけで落ちず、実際のblocking issueは改訂ループへ流す。`uv run pytest` → 294 passed、ruff OK |
 | P18-22 | 実LLM smoke を6回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_120430`: Design `chapter_design` で `purpose` enum に `導入：...` のような説明文が付いて schema validation error。retry後も同種で停止 |
 | P18-23 | enum prefix 正規化を追加 | Done | `purpose` 等の enum 値が `導入：説明` のように許容enum+区切り文字で始まる場合、先頭enumへ丸める。`uv run pytest` → 295 passed、ruff OK |
-| P18-24 | 実LLM smoke を7回目実行 | In progress | `proc_4f7da8bd1dc7` / `workspace/phase18_real_smoke_20260706_121701`。P18-23修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行中。Design通過とWrite到達を確認 |
-| P18-25 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
+| P18-24 | 実LLM smoke を7回目実行 | Blocked | `workspace/phase18_real_smoke_20260706_121701`: Plan完了、Design `volume_design` で4回改訂後、最終reviewが既に修正済みの `齿轮`→`歯車` を stale blocking issue として返し停止 |
+| P18-25 | stale resolved review issue 除外 | Done | `before` が現在JSONになく `after` が現在JSONにある issue は解決済みとして除外し、残issueから readiness を再計算。`uv run pytest` → 296 passed、ruff OK |
+| P18-26 | 実LLM smoke を8回目実行 | Todo | P18-25修正後に `--max-generation-count 3 --max-review-count 4 --verbose` で再実行。Design通過とWrite到達を確認 |
+| P18-27 | `system.md` を別タスクでレビュー | Todo | 実LLM smoke 後。JSON only 指示、役割混同、品質方針との矛盾を確認 |
 
 ### Phase 18 復帰メモ
 
-- 現在の正: この `PROGRESS.md`。中断復帰時は P18-24 以降から再開する。
+- 現在の正: この `PROGRESS.md`。中断復帰時は P18-26 以降から再開する。
 - 直近検証済みコマンド:
-  - `uv run pytest` → 295 passed
+  - `uv run pytest` → 296 passed
   - `git diff --check` → OK
   - `uv run ruff check src tests` → All checks passed
 - 次に迷わず実行すること:
-  1. `process(action="poll", session_id="proc_4f7da8bd1dc7")` で smoke の終了を確認
-  2. `workspace/phase18_real_smoke_20260706_121701/novel_forge.log` と `_raw_logs` を読む
+  1. P18-25を commit/push
+  2. P18-26として `--max-review-count 4` で実LLM smoke を再実行
   3. smokeがPlan以降へ進まない場合は raw log の `review` と `revision` を読み、schema簡素化/判定ルール修正/プロンプト微修正/engine判定修正のどれかに分類

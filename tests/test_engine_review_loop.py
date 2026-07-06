@@ -139,3 +139,37 @@ def test_review_loop_revises_publication_blocking_issues() -> None:
 
     assert result == {"version": 2}
     assert review == {"issues": [], "ready_for_publication": True}
+
+
+def test_review_loop_ignores_stale_resolved_issue() -> None:
+    """Resolved before→after issues should not force another revision."""
+    revise_calls: list[dict] = []
+
+    result, review = generate_and_review(
+        generate_fn=lambda _prompt, _seed_offset: {"title": "雨音と錆びた歯車の序曲"},
+        validate_fn=lambda _result: [],
+        review_fn=lambda _result, _system: {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "title",
+                    "description": "簡体字が残っている",
+                    "suggestion": "日本語表記に統一する",
+                    "before": "雨音と錆びた齿轮の序曲",
+                    "after": "雨音と錆びた歯車の序曲",
+                    "publication_blocking": True,
+                }
+            ],
+            "ready_for_publication": False,
+        },
+        revise_fn=lambda result, review, _system, _seed_offset: revise_calls.append(review) or result,
+        system="sys",
+        user_prompt="usr",
+        kind="volume_design",
+        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+        quality=Quality(),
+    )
+
+    assert result == {"title": "雨音と錆びた歯車の序曲"}
+    assert review == {"issues": [], "ready_for_publication": True}
+    assert revise_calls == []

@@ -7,6 +7,7 @@ test with simple mocks.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from novel_forge.llm_client import LLMError, SchemaValidationError
@@ -49,6 +50,33 @@ def _blocking_issues(review: dict) -> list[dict]:
         for issue in review.get("issues", [])
         if isinstance(issue, dict) and issue.get("publication_blocking") is True
     ]
+
+
+def _drop_resolved_issues(review: dict, result: dict) -> dict:
+    """Remove stale issues whose suggested replacement is already present."""
+    issues = review.get("issues", [])
+    if not isinstance(issues, list):
+        return review
+    result_text = json.dumps(result, ensure_ascii=False)
+    kept = []
+    dropped = 0
+    for issue in issues:
+        if not isinstance(issue, dict):
+            kept.append(issue)
+            continue
+        before = str(issue.get("before", "") or "")
+        after = str(issue.get("after", "") or "")
+        if before and after and before not in result_text and after in result_text:
+            dropped += 1
+            continue
+        kept.append(issue)
+    if dropped:
+        review = {**review, "issues": kept}
+        review["ready_for_publication"] = not any(
+            isinstance(issue, dict) and issue.get("publication_blocking") is True
+            for issue in kept
+        )
+    return review
 
 
 def generate_and_review(
@@ -151,6 +179,7 @@ def generate_and_review(
         # First review (after initial generation)
         try:
             review = review_fn(result, system)
+            review = _drop_resolved_issues(review, result)
             review_cycles += 1
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
@@ -202,6 +231,7 @@ def generate_and_review(
         # Re-review the revised result
         try:
             review = review_fn(result, system)
+            review = _drop_resolved_issues(review, result)
             review_cycles += 1  # Count this as a review cycle
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
