@@ -279,7 +279,7 @@ def _generate_plan_characters(engine: NovelEngineBase, concept: dict, system: st
         ),
         validate_fn=_validate_plan_characters,
         review_fn=lambda r, sys: _review_plan_characters(engine, r, concept, sys),
-        revise_fn=lambda r, rv, sys, so=0: _revise_plan_characters(engine, r, rv, sys, so),
+        revise_fn=lambda r, rv, sys, so=0: _revise_plan_characters(engine, r, rv, concept, sys, so),
         system=system,
         user_prompt=prompt,
         kind="series_plan_characters",
@@ -299,14 +299,14 @@ def _review_plan_characters(engine: NovelEngineBase, characters: dict, concept: 
 
 
 def _revise_plan_characters(
-    engine: NovelEngineBase, characters: dict, review: dict, system: str, seed_offset: int = 0
+    engine: NovelEngineBase, characters: dict, review: dict, concept: dict, system: str, seed_offset: int = 0
 ) -> dict:
     review_text = format_review_text(review)
     prompt = engine._prompts.render(
         "series_plan_characters_revision.md",
         {
             "current_characters": json.dumps(characters, ensure_ascii=False, indent=2),
-            "concept_text": "",
+            "concept_text": json.dumps(concept, ensure_ascii=False, indent=2),
             "review": review_text,
         },
     )
@@ -333,7 +333,7 @@ def _generate_plan_volumes(engine: NovelEngineBase, concept: dict, characters: d
         ),
         validate_fn=_validate_plan_volumes,
         review_fn=lambda r, sys: _review_plan_volumes(engine, r, concept, characters, sys),
-        revise_fn=lambda r, rv, sys, so=0: _revise_plan_volumes(engine, r, rv, sys, so),
+        revise_fn=lambda r, rv, sys, so=0: _revise_plan_volumes(engine, r, rv, concept, sys, so),
         system=system,
         user_prompt=prompt,
         kind="series_plan_volumes",
@@ -355,12 +355,16 @@ def _review_plan_volumes(
 
 
 def _revise_plan_volumes(
-    engine: NovelEngineBase, volumes: dict, review: dict, system: str, seed_offset: int = 0
+    engine: NovelEngineBase, volumes: dict, review: dict, concept: dict, system: str, seed_offset: int = 0
 ) -> dict:
     review_text = format_review_text(review)
     prompt = engine._prompts.render(
         "series_plan_volumes_revision.md",
-        {"current_volumes": json.dumps(volumes, ensure_ascii=False, indent=2), "concept_text": "", "review": review_text},
+        {
+            "current_volumes": json.dumps(volumes, ensure_ascii=False, indent=2),
+            "concept_text": json.dumps(concept, ensure_ascii=False, indent=2),
+            "review": review_text,
+        },
     )
     revised = engine._llm.complete_json(
         "series_plan_volumes", system, prompt, get_schema("series_plan_volumes")
