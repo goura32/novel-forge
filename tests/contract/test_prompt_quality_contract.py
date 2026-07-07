@@ -216,3 +216,25 @@ def test_series_plan_concept_prompts_require_japanese_punctuation() -> None:
             issues[prompt.name] = missing
 
     assert issues == {}
+
+
+def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> None:
+    prompts = [
+        PROMPTS_DIR / "series_plan_concept.md",
+        PROMPTS_DIR / "series_plan_concept_revision.md",
+    ]
+
+    required_fragments = [
+        "中核ルール",
+        "同じ現象を複数の別ルールで説明しない",
+        "不可逆・絶対条件",
+        "未定義の新リスクや新儀式",
+    ]
+    issues = {}
+    for prompt in prompts:
+        text = prompt.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        if missing:
+            issues[prompt.name] = missing
+
+    assert issues == {}
