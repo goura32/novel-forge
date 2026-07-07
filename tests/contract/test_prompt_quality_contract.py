@@ -26,6 +26,69 @@ def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
     assert missing == []
 
 
+def test_prompts_do_not_use_ok_ng_examples() -> None:
+    forbidden_fragments = [
+        "OK例",
+        "NG例",
+        "良い例",
+        "悪い例",
+        "### 例",
+        "## 例",
+    ]
+    issues = {}
+    for prompt_path in sorted(PROMPTS_DIR.glob("*.md")):
+        text = prompt_path.read_text(encoding="utf-8")
+        found = [fragment for fragment in forbidden_fragments if fragment in text]
+        if found:
+            issues[prompt_path.name] = found
+
+    assert issues == {}
+
+
+def test_revision_prompts_preserve_unmentioned_fields() -> None:
+    revision_prompts = sorted(PROMPTS_DIR.glob("*_revision.md"))
+
+    assert revision_prompts, "expected revision prompts"
+    required_fragments = [
+        "`issues[].field` に関係しないフィールドは原則として元の値を保持",
+        "整合性調整が必要な場合だけ、最小限変更",
+        "明示的な指摘がない限り変更しない",
+    ]
+    issues = {}
+    for prompt_path in revision_prompts:
+        text = prompt_path.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        if missing:
+            issues[prompt_path.name] = missing
+
+    assert issues == {}
+
+
+def test_scene_summary_bible_update_forbids_inference() -> None:
+    prompt = (PROMPTS_DIR / "scene_summary_and_bible_update.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "本文に明示されていない過去設定、能力、関係性、世界ルールを推測で追加しない",
+        "比喩表現や登場人物の主観を、客観的事実として Bible に登録しない",
+        "一時的な感情や誤解は、恒久的な関係性変化として扱わない",
+    ]
+
+    missing = [fragment for fragment in required_fragments if fragment not in prompt]
+    assert missing == []
+
+
+def test_volume_design_preserves_given_title_exactly() -> None:
+    prompt = (PROMPTS_DIR / "volume_design.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "入力の「既定巻タイトル」と完全一致",
+        "表記ゆれ、装飾、サブタイトル追加、言い換えをしない",
+    ]
+
+    missing = [fragment for fragment in required_fragments if fragment not in prompt]
+    assert missing == []
+
+
 def test_review_prompts_emit_only_actionable_issues() -> None:
     review_prompts = sorted(PROMPTS_DIR.glob("*_review.md"))
 
@@ -33,6 +96,7 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
     required_fragments = [
         "### 指摘対象",
         "改訂工程がそのまま使える指摘事項だけ",
+        "修正可能な差分に限定",
         "出版可否、総評、長所、スコア",
         "`issues` が空配列なら改訂不要、1件以上なら改訂を継続",
         "問題がない場合は、無理に指摘を作らず `issues` を空配列にする。",
