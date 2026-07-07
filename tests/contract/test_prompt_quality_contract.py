@@ -227,6 +227,10 @@ def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> Non
     required_fragments = [
         "中核ルール",
         "同じ現象を複数の別ルールで説明しない",
+        "発動条件",
+        "直接の効果",
+        "解除または緩和条件",
+        "中核ギミックの型は途中で変えない",
         "不可逆・絶対条件",
         "未定義の新リスクや新儀式",
     ]
