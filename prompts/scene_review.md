@@ -32,12 +32,29 @@
 
 ## 入力情報
 
-- コンセプトJSON: {concept_json}
-- シーン本文: {scene}
-- 巻デザイン: {outline}
-- コンテキスト: {context}
-- 進行中のサブプロット: {subplots}
-- キャラクター関係性: {relationships}
+### コンセプトJSON
+
+{concept_json}
+
+### シーン本文
+
+{scene}
+
+### 巻デザイン
+
+{outline}
+
+### コンテキスト
+
+{context}
+
+### 進行中のサブプロット
+
+{subplots}
+
+### キャラクター関係性
+
+{relationships}
 
 ## 出力仕様
 

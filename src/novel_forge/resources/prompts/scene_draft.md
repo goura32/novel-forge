@@ -33,10 +33,13 @@
 
 {outline}
 
-### 章情報
+### 章タイトル
 
-- 章タイトル: {chapter_title}
-- 章の役割: {chapter_purpose}
+{chapter_title}
+
+### 章の役割
+
+{chapter_purpose}
 
 ### このシーンの設計
 
@@ -65,4 +68,5 @@
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

@@ -24,9 +24,17 @@
 
 ## 入力情報
 
-- キーワード: {keywords}
-- 現在の企画: {current_plan}
-- レビュー結果: {review}
+### キーワード
+
+{keywords}
+
+### 現在の企画
+
+{current_plan}
+
+### レビュー結果
+
+{review}
 
 ## 出力仕様
 

@@ -23,11 +23,25 @@
 
 ## 入力情報
 
-- シリーズ企画: {series_plan}
-- 巻番号: {volume_number}
-- 既定巻タイトル: {volume_title}
-- ジャンル: {genre}
-- 前巻デザイン: {previous_design}
+### シリーズ企画
+
+{series_plan}
+
+### 巻番号
+
+{volume_number}
+
+### 既定巻タイトル
+
+{volume_title}
+
+### ジャンル
+
+{genre}
+
+### 前巻デザイン
+
+{previous_design}
 
 ## 出力仕様
 

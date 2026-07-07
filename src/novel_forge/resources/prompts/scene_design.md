@@ -26,26 +26,53 @@
 
 {series_plan}
 
-### 巻情報
+### 巻番号
 
-- 巻番号: {volume_number}
-- 巻タイトル: {volume_title}
-- 巻の前提: {volume_premise}
+{volume_number}
 
-### 章情報
+### 巻タイトル
 
-- 章番号: {chapter_number}
-- 章タイトル: {chapter_title}
-- 章の役割: {chapter_purpose}
-- 章のテーマ: {chapter_theme}
-- 章の感情の弧: {chapter_emotional_arc}
-- 章の伏線メモ: {chapter_foreshadowing_notes}
-- 章のサブプロットメモ: {chapter_subplot_notes}
+{volume_title}
 
-### このシーンの位置
+### 巻の前提
 
-- シーン番号: {scene_number}（全{scene_count}シーン中）
-- 章内位置: {chapter_scene_number}/{chapter_scene_count}
+{volume_premise}
+
+### 章番号
+
+{chapter_number}
+
+### 章タイトル
+
+{chapter_title}
+
+### 章の役割
+
+{chapter_purpose}
+
+### 章のテーマ
+
+{chapter_theme}
+
+### 章の感情の弧
+
+{chapter_emotional_arc}
+
+### 章の伏線メモ
+
+{chapter_foreshadowing_notes}
+
+### 章のサブプロットメモ
+
+{chapter_subplot_notes}
+
+### シーン番号
+
+{scene_number}（全{scene_count}シーン中）
+
+### 章内位置
+
+{chapter_scene_number}/{chapter_scene_count}
 
 ### シーン種
 
@@ -62,4 +89,5 @@
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。
+
 {schema}

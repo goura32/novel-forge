@@ -76,24 +76,46 @@ def test_all_task_prompts_have_schema_placeholder() -> None:
     assert missing == []
 
 
-def test_input_info_sections_are_flat_placeholder_lists() -> None:
+def test_input_info_sections_use_subsections_with_line_start_placeholders() -> None:
     issues: dict[str, list[str]] = {}
     for prompt_path in sorted(p for p in PROMPTS_DIR.glob("*.md") if p.name != "system.md"):
         lines = prompt_path.read_text(encoding="utf-8").splitlines()
         start = lines.index("## 入力情報") + 1
         end = lines.index("## 出力仕様")
-        bad_lines: list[str] = []
-        for line in lines[start:end]:
-            stripped = line.strip()
+        section = lines[start:end]
+        prompt_issues: list[str] = []
+        has_subsection = False
+        index = 0
+        while index < len(section):
+            stripped = section[index].strip()
             if not stripped:
+                index += 1
                 continue
-            if stripped.startswith("###"):
-                bad_lines.append(stripped)
+            if stripped.startswith("- "):
+                prompt_issues.append(f"flat input item is not allowed: {stripped}")
+                index += 1
                 continue
-            if not (stripped.startswith("- ") and "{" in stripped and "}" in stripped):
-                bad_lines.append(stripped)
-        if bad_lines:
-            issues[prompt_path.name] = bad_lines
+            if not stripped.startswith("### "):
+                prompt_issues.append(f"unexpected input line: {stripped}")
+                index += 1
+                continue
+            has_subsection = True
+            next_index = index + 1
+            while next_index < len(section) and not section[next_index].strip():
+                next_index += 1
+            if next_index >= len(section):
+                prompt_issues.append(f"missing placeholder under {stripped}")
+            else:
+                placeholder_line = section[next_index]
+                if not placeholder_line.startswith("{"):
+                    prompt_issues.append(
+                        f"placeholder must start at line head under {stripped}: {placeholder_line}"
+                    )
+            index = next_index + 1
+        if not has_subsection:
+            prompt_issues.append("missing input subsections")
+        if prompt_issues:
+            issues[prompt_path.name] = prompt_issues
 
     assert issues == {}
 

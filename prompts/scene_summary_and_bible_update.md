@@ -23,8 +23,13 @@
 
 ## 入力情報
 
-- シーン本文: {scene}
-- 現在の Bible: {current_bible}
+### シーン本文
+
+{scene}
+
+### 現在の Bible
+
+{current_bible}
 
 ## 出力仕様
 

@@ -31,8 +31,13 @@
 
 ## 入力情報
 
-- シリーズ構想: {concept_text}
-- 巻設計: {design}
+### シリーズ構想
+
+{concept_text}
+
+### 巻設計
+
+{design}
 
 ## 出力仕様
 

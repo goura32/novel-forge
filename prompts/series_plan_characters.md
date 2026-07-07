@@ -23,8 +23,13 @@
 
 ## 入力情報
 
-- シリーズ企画: {series_plan_json}
-- 使用済み名前: {used_names}
+### シリーズ企画
+
+{series_plan_json}
+
+### 使用済み名前
+
+{used_names}
 
 ## 出力仕様
 

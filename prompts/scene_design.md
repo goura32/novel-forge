@@ -22,22 +22,69 @@
 
 ## 入力情報
 
-- シリーズ企画: {series_plan}
-- 巻番号: {volume_number}
-- 巻タイトル: {volume_title}
-- 巻の前提: {volume_premise}
-- 章番号: {chapter_number}
-- 章タイトル: {chapter_title}
-- 章の役割: {chapter_purpose}
-- 章のテーマ: {chapter_theme}
-- 章の感情の弧: {chapter_emotional_arc}
-- 章の伏線メモ: {chapter_foreshadowing_notes}
-- 章のサブプロットメモ: {chapter_subplot_notes}
-- シーン番号: {scene_number}（全{scene_count}シーン中）
-- 章内位置: {chapter_scene_number}/{chapter_scene_count}
-- シーン種: {scene_seed}
-- 前シーンの結果: {previous_outcome}
-- 前巻の主要な結果: {previous_volume_summary}
+### シリーズ企画
+
+{series_plan}
+
+### 巻番号
+
+{volume_number}
+
+### 巻タイトル
+
+{volume_title}
+
+### 巻の前提
+
+{volume_premise}
+
+### 章番号
+
+{chapter_number}
+
+### 章タイトル
+
+{chapter_title}
+
+### 章の役割
+
+{chapter_purpose}
+
+### 章のテーマ
+
+{chapter_theme}
+
+### 章の感情の弧
+
+{chapter_emotional_arc}
+
+### 章の伏線メモ
+
+{chapter_foreshadowing_notes}
+
+### 章のサブプロットメモ
+
+{chapter_subplot_notes}
+
+### シーン番号
+
+{scene_number}（全{scene_count}シーン中）
+
+### 章内位置
+
+{chapter_scene_number}/{chapter_scene_count}
+
+### シーン種
+
+{scene_seed}
+
+### 前シーンの結果
+
+{previous_outcome}
+
+### 前巻の主要な結果
+
+{previous_volume_summary}
 
 ## 出力仕様
 

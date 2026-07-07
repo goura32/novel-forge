@@ -32,8 +32,13 @@
 
 ## 入力情報
 
-- コンセプトJSON: {concept_json}
-- キャラクター設計: {characters}
+### コンセプトJSON
+
+{concept_json}
+
+### キャラクター設計
+
+{characters}
 
 ## 出力仕様
 

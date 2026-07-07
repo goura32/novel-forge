@@ -25,9 +25,17 @@
 
 ## 入力情報
 
-- シリーズ企画: {series_plan}
-- 現在の章設計: {current_chapter}
-- レビュー結果: {review}
+### シリーズ企画
+
+{series_plan}
+
+### 現在の章設計
+
+{current_chapter}
+
+### レビュー結果
+
+{review}
 
 ## 出力仕様
 

@@ -22,8 +22,13 @@
 
 ## 入力情報
 
-- シリーズ構想: {core_text}
-- メインキャラクター: {characters_text}
+### シリーズ構想
+
+{core_text}
+
+### メインキャラクター
+
+{characters_text}
 
 ## 出力仕様
 
