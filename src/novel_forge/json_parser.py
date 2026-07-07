@@ -47,6 +47,50 @@ def _quote_unquoted_japanese_string_values(text: str) -> str:
     )
 
 
+def _escape_unescaped_quotes_in_strings(text: str) -> str:
+    """Escape unescaped quote characters that appear inside JSON strings.
+
+    LLMs sometimes emit Japanese text such as `"英語の "Forgiveness" が..."`.
+    A quote inside a string is only a legitimate terminator when the next
+    non-space character is a JSON delimiter for a key/value boundary.
+    """
+
+    repaired: list[str] = []
+    in_string = False
+    escaped = False
+    changed = False
+    length = len(text)
+
+    for index, char in enumerate(text):
+        if escaped:
+            repaired.append(char)
+            escaped = False
+            continue
+        if char == "\\" and in_string:
+            repaired.append(char)
+            escaped = True
+            continue
+        if char == '"':
+            if not in_string:
+                in_string = True
+                repaired.append(char)
+                continue
+            next_index = index + 1
+            while next_index < length and text[next_index].isspace():
+                next_index += 1
+            next_char = text[next_index] if next_index < length else ""
+            if next_char in {"", ",", "}", "]", ":"}:
+                in_string = False
+                repaired.append(char)
+                continue
+            repaired.append('\\"')
+            changed = True
+            continue
+        repaired.append(char)
+
+    return "".join(repaired) if changed else text
+
+
 def _escape_literal_newlines_in_strings(text: str) -> str:
     """Escape raw newline characters that appear inside JSON strings.
 
@@ -124,6 +168,7 @@ def _loads_with_repairs(text: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError:
         repaired = _escape_literal_newlines_in_strings(text)
+        repaired = _escape_unescaped_quotes_in_strings(repaired)
         repaired = _quote_unquoted_japanese_string_values(repaired)
         repaired = _close_missing_object_before_array_end(repaired)
         if repaired != text:

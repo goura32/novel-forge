@@ -150,7 +150,7 @@ def render(self, name: str, variables: dict[str, str]) -> str:
 ## 7. ファイル構成
 
 ```
-prompts/
+src/novel_forge/resources/prompts/
 ├── system.md                         # システムプロンプト
 ├── series_plan_concept.md               # 生成: シリーズ構想
 ├── series_plan_concept_review.md        # レビュー: シリーズ構想

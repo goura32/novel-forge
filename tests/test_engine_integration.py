@@ -156,7 +156,7 @@ def _make_review_response(score: float = 80.0, issues: list | None = None) -> di
 @pytest.fixture
 def tmp_workdir(tmp_path):
     """Create a minimal workdir with prompts and schemas."""
-    src_prompts = Path(__file__).resolve().parent.parent / "prompts"
+    src_prompts = Path(__file__).resolve().parent.parent / "src" / "novel_forge" / "resources" / "prompts"
     dst_prompts = tmp_path / "prompts"
     if src_prompts.exists():
         import shutil
@@ -834,11 +834,11 @@ class TestOutline:
         )
         assert chapter_review_prompts
         final_review_prompt = chapter_review_prompts[-1]
-        assert "テーマ: 記憶喪失と冒険への入口" in final_review_prompt
-        assert "感情の弧: 孤独から小さな好奇心へ移る。" in final_review_prompt
-        assert "結果: 主人公が異常な祈り機械を受け取り、次の調査へ向かう。" in final_review_prompt
-        assert "シーン構成:" in final_review_prompt
-        assert "シーン1: 古物店の共鳴" in final_review_prompt
+        assert '"theme": "記憶喪失と冒険への入口"' in final_review_prompt
+        assert '"emotional_arc": "孤独から小さな好奇心へ移る。"' in final_review_prompt
+        assert '"outcome": "主人公が異常な祈り機械を受け取り、次の調査へ向かう。"' in final_review_prompt
+        assert '"scenes": [' in final_review_prompt
+        assert '"title": "古物店の共鳴"' in final_review_prompt
 
 
 # ── Outline review → revise loop ────────────────────────────────────────

@@ -13,7 +13,7 @@ novel-forge/
 │   ├── PIPELINE.md
 │   ├── PROMPTS.md
 │   └── GLOSSARY.md
-├── prompts/                      # プロンプトテンプレート
+├── src/novel_forge/resources/prompts/ # プロンプトテンプレート
 │   ├── system.md                 # 共通システムプロンプト
 │   ├── series_plan_concept.md    # シリーズ企画（構想）
 │   ├── series_plan_concept_review.md

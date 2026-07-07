@@ -215,7 +215,7 @@ class TestCompleteJsonRetry:
         assert mock_stream.call_count == 1
 
     def test_does_not_retry_schema_validation_failure_in_transport_layer(self):
-        """Schema validation failures should surface to the generation counter without transport-layer retry."""
+        """Schema validation failures surface to the generation retry loop."""
         schema = {
             "type": "object",
             "properties": {"ok": {"type": "boolean"}},
@@ -286,6 +286,22 @@ class TestCompleteJsonRetry:
 
         assert set(review) == {"issues"}
         assert "publication_blocking" not in review["issues"][0]
+
+    def test_normalizes_review_output_caps_extra_issues(self):
+        """Review normalization should cap issue payload count before schema validation."""
+        issue = {
+            "severity": "重要",
+            "field": "x",
+            "description": "説" * 200,
+            "suggestion": "案" * 200,
+            "before": "前",
+            "after": "後",
+        }
+        review = {"issues": [dict(issue) for _ in range(10)]}
+
+        LLMClient._normalize_review_output(review)
+
+        assert len(review["issues"]) == 8
 
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""

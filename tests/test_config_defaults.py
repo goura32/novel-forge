@@ -24,7 +24,7 @@ def test_missing_config_uses_builtin_defaults(monkeypatch, tmp_path) -> None:
     assert engine._llm.num_ctx == 262144
     assert engine._llm.num_predict == -1
     assert engine._quality.generation_max_count == 4
-    assert engine._quality.review_max_count == 4
+    assert engine._quality.review_max_count == 6
     assert engine._verbose is False
 
 

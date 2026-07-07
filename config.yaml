@@ -10,10 +10,10 @@
 # 品質ゲート設定
 quality:
   # 生成API（APIエラー＋バリデーション）の最大リトライ回数
-  max_generation_count: 4
+  max_generation_count: 6
 
   # レビュー（レビュー→修正サイクル）の最大回数
-  max_review_count: 4
+  max_review_count: 6
 
 llm:
   # モデル名

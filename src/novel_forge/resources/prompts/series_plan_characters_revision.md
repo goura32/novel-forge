@@ -28,19 +28,21 @@
 - arc フィールドを空欄にしない。
 - スキーマ定義、description、type、items_properties などの説明用メタ情報は出力しない。実際のキャラクターデータのみ出力する。
 
-## 入力情報
+## 改訂対象
 
-### シリーズ構想
-
-{concept_text}
-
-### 現在のキャラクター設計
+### キャラクター設計
 
 {current_characters}
 
 ### レビュー結果
 
 {review}
+
+## 補足情報
+
+### シリーズ構想
+
+{concept_text}
 
 ## 出力仕様
 

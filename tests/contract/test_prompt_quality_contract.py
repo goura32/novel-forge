@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "src" / "novel_forge" / "resources" / "prompts"
 
 
 def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
@@ -95,11 +95,20 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
     assert review_prompts, "expected review prompts"
     required_fragments = [
         "### 指摘対象",
-        "改訂工程がそのまま使える指摘事項だけ",
+        "後続工程を阻害する致命的・重要な問題だけ",
+        "軽微な問題、好み、文体調整、さらなる具体化",
         "修正可能な差分に限定",
         "出版可否、総評、長所、スコア",
         "`issues` が空配列なら改訂不要、1件以上なら改訂を継続",
         "問題がない場合は、無理に指摘を作らず `issues` を空配列にする。",
+        "`before` には入力JSON内の実際の値だけを書く",
+        "入力キーワードまたは前工程JSONに明示された期間、職業、役割、性別、タイトル、ジャンル、固有名は正として扱い",
+        "後続工程で具体化できる未定義要素",
+        "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞は言語純度の問題にしない",
+        "`issues` は最大8件に限定",
+        "`description` と `suggestion` は短文にする",
+        "二重引用符を書かない",
+        "`after` は1つの完成値だけを書く",
     ]
     forbidden_fragments = [
         "### 出版可否",
@@ -118,6 +127,18 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
             issues[prompt.name] = {"missing": missing, "forbidden": forbidden}
 
     assert issues == {}
+
+
+def test_concept_review_does_not_over_specify_design_details() -> None:
+    text = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "人物の詳細設定、逃走・追跡ギミックの運用細部は重要指摘にしない",
+        "主人公・相棒の詳細な職能、関係性、救出手段、逃走手順、監視回避の技術的細部はDesign/Character工程で具体化できるため指摘しない",
+    ]
+
+    missing = [fragment for fragment in required_fragments if fragment not in text]
+    assert missing == []
 
 
 def test_series_plan_volumes_requires_non_empty_final_volume_hook() -> None:
@@ -140,6 +161,7 @@ def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
         "scene_design.md": ["hook", "turning_point", "ending_hook", "key_events"],
         "series_plan_concept.md": ["world_rules", "selling_points", "target_audience"],
         "series_plan_characters.md": ["main_characters[]", "motivation", "flaw", "arc"],
+        "series_plan_characters_review.md": ["役割ラベルの `antagonist`", "敵対者の破滅・自滅展開の好みは重要指摘にしない", "成長弧や動機は、文字列がほぼ同一"],
         "series_plan_volumes.md": ["planned_volumes[]", "emotional_arc", "cliffhanger"],
         "volume_design.md": ["chapters[]", "title", "purpose"],
         "scene_summary_and_bible_update.md": ["facts[]", "subject", "predicate", "world_rules[]", "文字列の配列"],

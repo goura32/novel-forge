@@ -65,6 +65,10 @@ def _drop_resolved_issues(review: dict, result: dict) -> dict:
         if before and after and before == after:
             dropped += 1
             continue
+        # Drop only clearly stale issues: the old text is gone and the suggested
+        # replacement is already present. If ``after`` is not present, keep the
+        # issue because ``before`` may be only a location hint from the reviewer,
+        # not a verbatim substring of the current JSON.
         if before and after and before not in result_text and after in result_text:
             dropped += 1
             continue
@@ -195,6 +199,20 @@ def generate_and_review(
                 ]
             }
             review_cycles += 1
+        except LLMError as e:
+            _log.warning(
+                "  [REVIEW LLM ERROR] %s: msg=%s attempt=%d/%d",
+                kind,
+                str(e)[:200],
+                review_cycles + 1,
+                review_max,
+            )
+            if review_cycles >= review_max - 1:
+                raise RuntimeError(
+                    f"{kind}: review failed after {review_max} retries: msg={str(e)[:200]}"
+                ) from e
+            review_cycles += 1
+            continue
 
         if len(_revision_issues(review)) == 0:
             return result, review
@@ -203,9 +221,10 @@ def generate_and_review(
             msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
 
-        while generation_cycles < max_generation:
+        for revision_attempt in range(max_generation):
+            seed_offset = generation_cycles + revision_attempt
             try:
-                revised = revise_fn(result, review, system, generation_cycles)
+                revised = revise_fn(result, review, system, seed_offset)
             except SchemaValidationError as e:
                 path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
                 _log.warning(
@@ -213,45 +232,43 @@ def generate_and_review(
                     kind,
                     path,
                     e.message,
-                    generation_cycles,
+                    revision_attempt + 1,
                     max_generation,
                 )
-                if generation_cycles >= max_generation - 1:
+                if revision_attempt >= max_generation - 1:
                     raise RuntimeError(
                         f"{kind}: revision validation failed after {max_generation} retries: path={path} msg={e.message}"
                     ) from e
-                generation_cycles += 1
                 continue
             except LLMError as e:
                 _log.warning(
                     "  [REVISION LLM ERROR] %s: msg=%s attempt=%d/%d",
                     kind,
                     str(e)[:200],
-                    generation_cycles,
+                    revision_attempt + 1,
                     max_generation,
                 )
-                if generation_cycles >= max_generation - 1:
+                if revision_attempt >= max_generation - 1:
                     raise RuntimeError(
                         f"{kind}: revision failed after {max_generation} retries: msg={str(e)[:200]}"
                     ) from e
-                generation_cycles += 1
                 continue
 
-            generation_cycles += 1
             errors = _validation_errors(validate_fn, revised, kind, "POST-REVISION VALIDATION")
             if errors:
                 _log.warning(
                     "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
                     kind,
                     errors,
-                    generation_cycles,
+                    revision_attempt + 1,
                     max_generation,
                 )
-                if generation_cycles >= max_generation:
+                if revision_attempt >= max_generation - 1:
                     raise RuntimeError(f"{kind}: post-revision validation failed after {max_generation} retries: {errors}")
                 continue
 
             result = revised
+            generation_cycles += 1
             break
         else:
             raise RuntimeError(f"{kind}: revision failed after {max_generation} retries")

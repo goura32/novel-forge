@@ -5,9 +5,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-_DEV_PROMPT_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
-_PACKAGED_PROMPT_DIR = resources.files("novel_forge") / "resources" / "prompts"
-_PROMPT_DIR = _DEV_PROMPT_DIR if _DEV_PROMPT_DIR.exists() else _PACKAGED_PROMPT_DIR
+_PROMPT_DIR = resources.files("novel_forge") / "resources" / "prompts"
 
 
 def render_prompt(template: str, variables: dict[str, str]) -> str:
@@ -23,7 +21,7 @@ def render_prompt(template: str, variables: dict[str, str]) -> str:
 
 
 class PromptManager:
-    """Loads and renders prompt templates from the prompts/ directory."""
+    """Loads and renders prompt templates from packaged prompt resources."""
 
     def __init__(self, prompt_dir: Path | None = None):
         self._dir = prompt_dir or _PROMPT_DIR

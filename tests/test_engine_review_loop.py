@@ -64,6 +64,66 @@ def test_generation_loop_raises_after_generation_count_llm_output_failures() -> 
     assert calls == [0, 1, 2]
 
 
+def test_review_loop_retries_review_llm_output_failures_without_revision() -> None:
+    """Invalid review JSON should retry review generation, not revise content immediately."""
+    review_calls = 0
+    revise_calls = 0
+
+    def review_fn(_result: dict, _system: str) -> dict:
+        nonlocal review_calls
+        review_calls += 1
+        if review_calls == 1:
+            raise LLMError("JSON parse error: invalid review output")
+        return {"issues": []}
+
+    def revise_fn(result: dict, _review: dict, _system: str, _seed_offset: int) -> dict:
+        nonlocal revise_calls
+        revise_calls += 1
+        return result
+
+    result, review = generate_and_review(
+        generate_fn=lambda _prompt, _seed_offset: {"ok": True},
+        validate_fn=lambda _result: [],
+        review_fn=review_fn,
+        revise_fn=revise_fn,
+        system="sys",
+        user_prompt="usr",
+        kind="test_kind",
+        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+        quality=type("Quality", (), {"generation_max_count": 3, "review_max_count": 3})(),
+    )
+
+    assert result == {"ok": True}
+    assert review == {"issues": []}
+    assert review_calls == 2
+    assert revise_calls == 0
+
+
+def test_review_loop_raises_after_review_llm_output_failure_limit() -> None:
+    """Repeated invalid review JSON should stop at review_max_count."""
+    review_calls = 0
+
+    def review_fn(_result: dict, _system: str) -> dict:
+        nonlocal review_calls
+        review_calls += 1
+        raise LLMError("JSON parse error: invalid review output")
+
+    with pytest.raises(RuntimeError, match="review failed after 2 retries"):
+        generate_and_review(
+            generate_fn=lambda _prompt, _seed_offset: {"ok": True},
+            validate_fn=lambda _result: [],
+            review_fn=review_fn,
+            revise_fn=lambda result, _review, _system, _seed_offset: result,
+            system="sys",
+            user_prompt="usr",
+            kind="test_kind",
+            llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+            quality=Quality(),
+        )
+
+    assert review_calls == 2
+
+
 def test_review_loop_revises_any_actionable_issue() -> None:
     """Any emitted issue should consume a revision cycle."""
     revise_calls: list[dict] = []
@@ -277,4 +337,45 @@ def test_review_loop_ignores_noop_before_after_issue() -> None:
 
     assert result["goal"].startswith("連日続く梅雨")
     assert review == {"issues": []}
-    assert revise_calls == []
+
+
+def test_review_loop_raises_when_blocking_issues_remain_at_review_limit() -> None:
+    """A blocking issue at the review limit must stop the next phase."""
+    review_calls = 0
+    revise_calls: list[int] = []
+
+    def review_fn(_result: dict, _system: str) -> dict:
+        nonlocal review_calls
+        review_calls += 1
+        return {
+            "issues": [
+                {
+                    "severity": "重要",
+                    "field": "logline",
+                    "description": "さらなる具体化要求",
+                    "suggestion": "表現を磨く",
+                    "before": f"v{review_calls}",
+                    "after": f"v{review_calls + 1}",
+                }
+            ],
+        }
+
+    def revise_fn(result: dict, _review: dict, _system: str, seed_offset: int) -> dict:
+        revise_calls.append(seed_offset)
+        return {"version": result["version"] + 1}
+
+    with pytest.raises(RuntimeError, match="revision needed but max count reached"):
+        generate_and_review(
+            generate_fn=lambda _prompt, _seed_offset: {"version": 1},
+            validate_fn=lambda _result: [],
+            review_fn=review_fn,
+            revise_fn=revise_fn,
+            system="sys",
+            user_prompt="usr",
+            kind="series_plan_concept",
+            llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+            quality=Quality(),
+        )
+
+    assert review_calls == 2
+    assert revise_calls == [0]

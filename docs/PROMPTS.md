@@ -2,7 +2,7 @@
 
 ## プロンプトの管理方針
 
-プロンプトは `prompts/` の Markdown ファイルで管理する。コードには直書きしない。
+プロンプトは `src/novel_forge/resources/prompts/` の Markdown ファイルで一元管理する。コードには直書きしない。
 
 **用語の定義**: [GLOSSARY.md](GLOSSARY.md)
 
@@ -11,7 +11,7 @@
 詳細な対応表は [PROMPT_SCHEMA_MAP.md](PROMPT_SCHEMA_MAP.md) を参照してください。
 
 ```
-prompts/
+src/novel_forge/resources/prompts/
 ├── system.md                                # システムプロンプト
 ├── series_plan_concept.md                   # 生成: シリーズ構想
 ├── series_plan_concept_review.md            # レビュー: シリーズ構想

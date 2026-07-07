@@ -345,7 +345,8 @@ class LLMClient:
             parsed.pop(key, None)
         if not isinstance(issues, list):
             return
-        for issue in issues:
+        parsed["issues"] = issues[:8]
+        for issue in parsed["issues"]:
             if not isinstance(issue, dict):
                 continue
             issue.pop("publication_blocking", None)

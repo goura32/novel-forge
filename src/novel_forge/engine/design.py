@@ -274,7 +274,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     def _revise_volume_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
         revised = engine._llm.complete_json(
             "volume_design", sys, engine._prompts.render("volume_design_revision.md",
-                {"concept_text": series_plan, "current_volume": json.dumps(data, ensure_ascii=False),
+                {"concept_text": series_plan, "current_volume": json.dumps(data, ensure_ascii=False, indent=2),
                  "review": format_review_text(review), "previous_design": prev_design,
                  "series_plan": series_plan}),
             volume_generation_schema, seed_offset=seed_offset)
@@ -347,7 +347,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         def _revise_chapter_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
             revised = engine._llm.complete_json(
                 "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
-                    {"current_chapter": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
+                    {"current_chapter": json.dumps(data, ensure_ascii=False, indent=2), "series_plan": series_plan,
                      "review": format_review_text(review)}),
                 chapter_generation_schema, seed_offset=seed_offset)
             revised = _apply_review_text_replacements(revised, review)
@@ -409,7 +409,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
             def _revise_scene_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
                 revised = engine._llm.complete_json(
                     "scene_design", sys, engine._prompts.render("scene_design_revision.md",
-                        {"current_scene": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
+                        {"current_scene": json.dumps(data, ensure_ascii=False, indent=2), "series_plan": series_plan,
                          "review": format_review_text(review)}),
                     get_schema("scene_design"), seed_offset=seed_offset)
                 return cast(dict, _apply_review_text_replacements(revised, review))
@@ -486,49 +486,21 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
 
 def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    chapters_info = ""
-    for i, ch in enumerate(data.get("chapters", []), 1):
-        chapters_info += f"\n  第{i}章: {ch.get('title', '')} (役割: {ch.get('purpose', '')})"
-    text = f"巻設計:\n  タイトル: {data.get('title', '')}\n  章数: {len(data.get('chapters', []))}{chapters_info}"
+    text = json.dumps(data, ensure_ascii=False, indent=2)
     user = engine._prompts.render("volume_design_review.md",
         {"design": text, "concept_text": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    scene_lines = []
-    for i, scene in enumerate(data.get("scenes", []), 1):
-        scene_lines.extend([
-            f"  - シーン{i}: {scene.get('title', '')}",
-            f"    POV: {scene.get('pov', '')}",
-            f"    目標: {scene.get('goal', '')}",
-            f"    葛藤: {scene.get('conflict', '')}",
-            f"    結果: {scene.get('outcome', '')}",
-        ])
-    scenes_text = "\n".join(scene_lines) if scene_lines else "  - なし"
-    text = (
-        "章設計:\n"
-        f"  タイトル: {data.get('title', '')}\n"
-        f"  目的: {data.get('purpose', '')}\n"
-        f"  テーマ: {data.get('theme', '')}\n"
-        f"  感情の弧: {data.get('emotional_arc', '')}\n"
-        f"  結果: {data.get('outcome', '')}\n"
-        f"  章の転換点: {data.get('chapter_turning_point', '')}\n"
-        f"  章のフック: {data.get('chapter_hook', '')}\n"
-        f"  伏線: {', '.join(data.get('foreshadowing_notes', []))}\n"
-        f"  サブプロット: {', '.join(data.get('subplot_notes', []))}\n"
-        "  シーン構成:\n"
-        f"{scenes_text}"
-    )
+    text = json.dumps(data, ensure_ascii=False, indent=2)
     user = engine._prompts.render("chapter_design_review.md",
         {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
-    text = (f"シーン設計:\\n  タイトル: {data.get('title', '')}\\n"
-            f"  目標: {data.get('goal', '')}\\n  葛藤: {data.get('conflict', '')}\\n"
-            f"  結果: {data.get('outcome', '')}")
+    text = json.dumps(data, ensure_ascii=False, indent=2)
     user = engine._prompts.render("scene_design_review.md",
         {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))

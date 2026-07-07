@@ -11,7 +11,7 @@ from pathlib import Path
 
 from novel_forge.prompts import PromptManager
 
-PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "src" / "novel_forge" / "resources" / "prompts"
 SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
 
 
@@ -48,9 +48,12 @@ def test_all_prompt_templates_have_consistent_basic_structure() -> None:
                 "## 目的",
                 "## 応答方針",
                 "## 実行指示",
-                "## 入力情報",
                 "## 出力仕様",
             ]
+            data_section_required = ["## レビュー対象", "## 改訂対象", "## 入力情報"]
+            has_any_data_section = any(s in text for s in data_section_required)
+            if not has_any_data_section:
+                prompt_issues.append("missing review/target/input section")
             for section in required_sections:
                 if section not in text:
                     prompt_issues.append(f"missing {section} section")
@@ -80,8 +83,21 @@ def test_input_info_sections_use_subsections_with_line_start_placeholders() -> N
     issues: dict[str, list[str]] = {}
     for prompt_path in sorted(p for p in PROMPTS_DIR.glob("*.md") if p.name != "system.md"):
         lines = prompt_path.read_text(encoding="utf-8").splitlines()
-        start = lines.index("## 入力情報") + 1
-        end = lines.index("## 出力仕様")
+        data_sections = ["## レビュー対象", "## 改訂対象", "## 入力情報", "## 補足情報"]
+        # find which data section header exists first before ## 出力仕様
+        output_spec_idx = lines.index("## 出力仕様")
+        found_section_start = None
+        for section_header in data_sections:
+            if section_header in lines:
+                idx = lines.index(section_header)
+                if idx < output_spec_idx:
+                    if found_section_start is None or idx > found_section_start:
+                        found_section_start = idx
+        if found_section_start is None:
+            issues[prompt_path.name] = ["missing review/target/input section (no subsection header found)"]
+            continue
+        start = found_section_start + 1
+        end = output_spec_idx
         section = lines[start:end]
         prompt_issues: list[str] = []
         has_subsection = False

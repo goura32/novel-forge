@@ -112,6 +112,14 @@ class TestParseJsonResponse:
         assert result["emotional_arc"] == "\n孤独から不安へ移り、\n祈り機械への信頼が芽生える。"
         assert result["purpose"] == "展開"
 
+    def test_repairs_unescaped_quotes_inside_japanese_string_value(self):
+        text = '{"issues": [{"description": "テーマ欄に英語の "Forgiveness（許し）" が混在している。", "field": "theme"}]}'
+
+        result = parse_json_response(text)
+
+        assert result["issues"][0]["description"] == 'テーマ欄に英語の "Forgiveness（許し）" が混在している。'
+        assert result["issues"][0]["field"] == "theme"
+
     def test_repairs_missing_object_close_before_array_end(self):
         text = """
         {
@@ -161,6 +169,22 @@ class TestValidate:
         data = {"title": "Test", "slug": "test", "logline": "A", "genre": "not-array", "themes": [], "selling_points": [], "world_summary": "W", "world_rules": [], "target_audience": "A"}
         errors = validate("series_plan_concept", data)
         assert any("expected array" in e for e in errors)
+
+    def test_review_schema_limits_issue_count(self):
+        issue = {
+            "severity": "重要",
+            "field": "field",
+            "description": "説" * 121,
+            "suggestion": "案" * 121,
+            "before": "前",
+            "after": "後",
+        }
+        data = {"issues": [issue for _ in range(9)]}
+
+        errors = validate("review", data)
+
+        assert any("issues: array length 9 > maxItems 8" in e for e in errors)
+        assert not any("maxLength" in e for e in errors)
 
     def test_enum_validation(self):
         data = {"chapters": [{"title": "Ch1", "purpose": "invalid"}]}
