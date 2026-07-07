@@ -19,6 +19,8 @@
 - logline には主人公、具体的な危機・葛藤、立ち向かい方を含める。「真実を探る」「自分を見つける」だけの曖昧表現は禁止。
 - 売りポイントは読者が体験や場面を想像できる具体性で書く。
 - 世界観には物語上の制約として機能する独自ルールを含める。
+- `logline`, `target_audience`, `world_summary` は日本語の句読点「、」「。」で文を区切り、1文を長くしすぎない。
+- `selling_points[]` と `world_rules[]` の各要素も、複数要素を詰め込まず、必要に応じて「、」「。」で自然に区切る。
 - 不自然な英語・簡体字・ハングル等を混在させない。
 - `title`, `genre`, `target_audience`, `themes`, `selling_points`, `world_summary`, `world_rules` はすべて後続工程で参照できる具体性で埋める。
 - `themes` と `selling_points` は抽象語だけにせず、読者が期待できる葛藤・場面・体験に結びつける。

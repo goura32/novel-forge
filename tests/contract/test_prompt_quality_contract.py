@@ -195,3 +195,24 @@ def test_series_plan_characters_revision_preserves_real_character_array() -> Non
     forbidden = [fragment for fragment in forbidden_fragments if fragment in prompt]
     assert missing == []
     assert forbidden == []
+
+
+def test_series_plan_concept_prompts_require_japanese_punctuation() -> None:
+    prompts = [
+        PROMPTS_DIR / "series_plan_concept.md",
+        PROMPTS_DIR / "series_plan_concept_revision.md",
+    ]
+
+    required_fragments = [
+        "日本語の句読点「、」「。」で文を区切り",
+        "1文を長くしすぎない",
+        "複数要素を詰め込まず",
+    ]
+    issues = {}
+    for prompt in prompts:
+        text = prompt.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        if missing:
+            issues[prompt.name] = missing
+
+    assert issues == {}
