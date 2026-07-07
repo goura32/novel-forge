@@ -1,6 +1,10 @@
 """Tests for scene_writer.py — load_scene_draft, assemble_chapter."""
 
+from types import SimpleNamespace
 
+import pytest
+
+from novel_forge.llm_client import LLMError
 from novel_forge.quality_gate import QualityGate
 from novel_forge.storage import BibleStorage, BlackboardStorage
 
@@ -74,4 +78,48 @@ class TestLoadSceneDraft:
         assert result == ""
 
 
+class TestSceneReviewRetry:
+    """Tests for SceneWriter review API retry behavior."""
+
+    def test_review_api_retry_count_uses_transport_retries(self, tmp_path):
+        """Scene review should not keep its own fixed retry count."""
+        from novel_forge.scene_writer import SceneWriter
+
+        class FakeLLM:
+            transport_retries = 2
+
+            def __init__(self):
+                self.calls = 0
+
+            def complete_json(self, *_args, **_kwargs):
+                self.calls += 1
+                raise LLMError("temporary transport failure")
+
+        class FakePrompts:
+            def render(self, name, values):
+                return f"{name}:{sorted(values)}"
+
+        llm = FakeLLM()
+        series_dir = tmp_path / "series"
+        series_dir.mkdir()
+        writer = SceneWriter(
+            workdir=tmp_path,
+            llm_client=llm,
+            prompt_manager=FakePrompts(),
+            quality=QualityGate(max_retries=2),
+            blackboard_storage=BlackboardStorage(series_dir),
+            bible_storage=BibleStorage(series_dir),
+            series_dir=series_dir,
+        )
+        ctx = SimpleNamespace(
+            lang="ja",
+            get_series_plan_summary_fn=lambda: "series",
+            get_outline_summary_fn=lambda _design: "outline",
+            build_context_fn=lambda: "context",
+        )
+
+        with pytest.raises(LLMError, match="temporary transport failure"):
+            writer._call_review_api("draft", SimpleNamespace(), SimpleNamespace(), ctx)
+
+        assert llm.calls == 2
 

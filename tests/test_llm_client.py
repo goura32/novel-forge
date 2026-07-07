@@ -183,8 +183,8 @@ class TestCompleteJsonRetry:
             with pytest.raises(LLMError):
                 client.complete_json("test_kind", "sys", "usr")
 
-    def test_retries_json_parse_failure(self):
-        """Malformed model output should retry as an invalid generation."""
+    def test_does_not_retry_json_parse_failure_in_transport_layer(self):
+        """Malformed model output should surface to the generation counter without transport-layer retry."""
         bad_resp = _make_streaming_response(_ndjson_response("not json"))
         good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
 
@@ -193,13 +193,13 @@ class TestCompleteJsonRetry:
                 api_url="http://localhost:11434/api/chat",
                 max_retries=2,
             )
-            result = client.complete_json("test_kind", "sys", "usr")
+            with pytest.raises(LLMError, match="JSON parse error"):
+                client.complete_json("test_kind", "sys", "usr")
 
-        assert result == {"ok": True}
-        assert mock_stream.call_count == 2
+        assert mock_stream.call_count == 1
 
-    def test_retries_schema_echo_failure(self):
-        """Schema echo should retry as an invalid generation."""
+    def test_does_not_retry_schema_echo_failure_in_transport_layer(self):
+        """Schema echo should surface to the generation counter without transport-layer retry."""
         schema_echo = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
         bad_resp = _make_streaming_response(_ndjson_response(json.dumps(schema_echo)))
         good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
@@ -209,13 +209,13 @@ class TestCompleteJsonRetry:
                 api_url="http://localhost:11434/api/chat",
                 max_retries=2,
             )
-            result = client.complete_json("test_kind", "sys", "usr")
+            with pytest.raises(LLMError, match="schema structure"):
+                client.complete_json("test_kind", "sys", "usr")
 
-        assert result == {"ok": True}
-        assert mock_stream.call_count == 2
+        assert mock_stream.call_count == 1
 
-    def test_retries_schema_validation_failure(self):
-        """Schema validation failures should retry before surfacing to callers."""
+    def test_does_not_retry_schema_validation_failure_in_transport_layer(self):
+        """Schema validation failures should surface to the generation counter without transport-layer retry."""
         schema = {
             "type": "object",
             "properties": {"ok": {"type": "boolean"}},
@@ -230,10 +230,10 @@ class TestCompleteJsonRetry:
                 api_url="http://localhost:11434/api/chat",
                 max_retries=2,
             )
-            result = client.complete_json("test_kind", "sys", "usr", schema)
+            with pytest.raises(LLMError, match="schema validation error"):
+                client.complete_json("test_kind", "sys", "usr", schema)
 
-        assert result == {"ok": True}
-        assert mock_stream.call_count == 2
+        assert mock_stream.call_count == 1
 
     def test_normalizes_review_output_drops_legacy_bookkeeping_fields(self):
         """Review normalization should keep only actionable issue data."""

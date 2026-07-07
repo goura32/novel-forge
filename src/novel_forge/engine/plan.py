@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.name_registry import load_used_names, record_names
@@ -387,4 +387,4 @@ def _revise_plan_volumes(
     revised = engine._llm.complete_json(
         "series_plan_volumes", system, prompt, get_schema("series_plan_volumes")
     )
-    return _apply_review_text_replacements(revised, review)
+    return cast(dict, _apply_review_text_replacements(revised, review))

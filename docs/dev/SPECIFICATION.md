@@ -127,7 +127,7 @@ llm:
 
 quality:
   max_generation_count: 4  # 生成API＋バリデーション最大リトライ（同一工程内）
-  max_review_count: 7      # レビュー→修正サイクル最大回数（複数工程にまたがる）
+  max_review_count: 4      # レビュー→修正サイクル最大回数（複数工程にまたがる）
 ```
 
 優先順位: CLI引数 > config.yaml > デフォルト値

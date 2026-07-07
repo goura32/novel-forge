@@ -189,16 +189,23 @@ class SceneWriter:
         )
         schema = get_schema("review")
         self._log.info("  [REVIEW START]")
-        for attempt in range(3):
+        retry_count = getattr(self._llm, "transport_retries", 1)
+        attempt_limit = max(retry_count, 1) if isinstance(retry_count, int) else 1
+        for attempt in range(attempt_limit):
             try:
                 result = self._llm.complete_json(
                     "review", system, user, schema, seed_offset=0
                 )
-                self._log.info("  [REVIEW DONE] issues=%d", len(result.get("issues", [])))
-                return cast(dict[str, Any], result)
+                self._log.info("  [REVIEW DONE]")
+                return cast(dict, result)
             except Exception as e:
-                if attempt < 2:
-                    self._log.warning("  [REVIEW RETRY] attempt %d/3: %s", attempt + 1, e)
+                if attempt < attempt_limit - 1:
+                    self._log.warning(
+                        "  [REVIEW RETRY] attempt %d/%d: %s",
+                        attempt + 1,
+                        attempt_limit,
+                        e,
+                    )
                     continue
                 raise
         return {"issues": [], "revision_needed": True}

@@ -74,7 +74,7 @@ class NovelEngineBase:
     _DEFAULT_TIMEOUT = 3600
     _DEFAULT_MAX_RETRIES = 2
     _DEFAULT_MAX_GENERATION_COUNT = 4
-    _DEFAULT_MAX_REVIEW_COUNT = 7
+    _DEFAULT_MAX_REVIEW_COUNT = 4
 
     def __init__(
         self,

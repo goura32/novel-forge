@@ -9,7 +9,7 @@ quality:
   max_generation_count: 4
 
   # Maximum review -> revision cycles.
-  max_review_count: 7
+  max_review_count: 4
 
 llm:
   # Ollama model name.

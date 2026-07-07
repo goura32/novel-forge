@@ -23,8 +23,8 @@ uv run novel-forge complete -w <dir> "keyword1 keyword2"
 |------------------------------|-----------------------------------|-----------------------------|
 | `--workdir, -w`            | `.`                              | 系列の出力先 / `config.yaml` 探索起点 |
 | `--model, -m`              | `config.yaml` → `qwen3.6:35b-a3b-mtp-q4_K_M` | Ollama モデル名          |
-| `--max-generation-count`   | `config.yaml` → `3`              | 生成・バリデーションの最大試行数 |
-| `--max-review-count`       | `config.yaml` → `8`              | レビュー→修正サイクルの最大数 |
+| `--max-generation-count`   | `config.yaml` → `4`              | 生成・バリデーションの最大試行数 |
+| `--max-review-count`       | `config.yaml` → `4`              | レビュー→修正サイクルの最大数 |
 | `--verbose, -v`            | `config.yaml` → `false`          | 詳細ログ出力                 |
 
 

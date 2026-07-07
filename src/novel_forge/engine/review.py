@@ -8,7 +8,7 @@ test with simple mocks.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 from novel_forge.llm_client import LLMError, SchemaValidationError
 from novel_forge.logging_config import get_logger
@@ -74,6 +74,16 @@ def _drop_resolved_issues(review: dict, result: dict) -> dict:
     return review
 
 
+def _validation_errors(validate_fn, result: dict, kind: str, label: str) -> list[str]:
+    """Run semantic validation and normalize schema exceptions to error strings."""
+    try:
+        return cast(list[str], validate_fn(result))
+    except SchemaValidationError as e:
+        path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
+        _log.warning("  [%s] %s: path=%s msg=%s (exception)", label, kind, path, e.message)
+        return [f"path={path} msg={e.message}"]
+
+
 def generate_and_review(
     generate_fn,
     validate_fn,
@@ -89,10 +99,9 @@ def generate_and_review(
 ) -> tuple[dict, dict]:
     """Generate → validate → review → revise loop. Returns (data, review).
 
-    Stateful dependencies (LLM client, quality gate) are passed
-    in, not captured — making this fully testable with mocks.
-
-    Strict mode is ALWAYS ON: revision failure after max count raises RuntimeError.
+    Generation retries re-run the original prompt after invalid model output or
+    semantic validation failure. Review/revision cycles keep revising the current
+    result until review passes or the review limit is reached.
     """
     max_generation = (
         generation_max_count
@@ -104,17 +113,12 @@ def generate_and_review(
         if review_max_count is not None
         else quality.review_max_count
     )
-    generation_cycles = 0  # Single counter for generation API + validation
-    review_cycles = 0      # Separate counter for review → revise cycles
+    generation_cycles = 0
+    review_cycles = 0
     result: dict = {}
     review: dict = {"issues": []}
 
     while generation_cycles < max_generation:
-        # Check if we've exceeded review max for this attempt
-        if review_cycles >= review_max and generation_cycles > 0:
-            msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
-            raise RuntimeError(msg)
-
         try:
             result = generate_fn(user_prompt, generation_cycles)
         except SchemaValidationError as e:
@@ -148,20 +152,14 @@ def generate_and_review(
             generation_cycles += 1
             continue
 
-        if llm._is_schema_echo(result):
+        if llm._is_schema_echo(result) is True:
             _log.warning("  [SCHEMA ECHO] %s retry=%d", kind, generation_cycles)
+            if generation_cycles >= max_generation - 1:
+                raise RuntimeError(f"{kind}: schema echo failed after {max_generation} retries")
             generation_cycles += 1
             continue
 
-        try:
-            errors = validate_fn(result)
-        except SchemaValidationError as e:
-            # Log detailed path info for debugging
-            path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
-            _log.warning(
-                "  [VALIDATION FAIL] %s: path=%s msg=%s (exception)", kind, path, e.message
-            )
-            errors = [f"path={path} msg={e.message}"]
+        errors = _validation_errors(validate_fn, result, kind, "VALIDATION FAIL")
         if errors:
             _log.warning(
                 "  [VALIDATION FAIL] %s: %s attempt=%d/%d", kind, errors, generation_cycles, max_generation
@@ -170,8 +168,11 @@ def generate_and_review(
                 raise RuntimeError(f"{kind}: validation failed after {max_generation} retries: {errors}")
             generation_cycles += 1
             continue
+        break
+    else:
+        return result, review
 
-        # First review (after initial generation)
+    while True:
         try:
             review = review_fn(result, system)
             review = _drop_resolved_issues(review, result)
@@ -179,7 +180,8 @@ def generate_and_review(
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
             _log.warning("  [REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
-            # Force revision by injecting a critical issue
+            if review_cycles >= review_max - 1:
+                raise RuntimeError(f"{kind}: review validation failed after {review_max} retries") from e
             review = {
                 "issues": [
                     {
@@ -192,63 +194,64 @@ def generate_and_review(
                     }
                 ]
             }
-            if review_cycles >= review_max - 1:
-                raise RuntimeError(f"{kind}: review validation failed after {review_max} retries") from e
-            continue
+            review_cycles += 1
 
-        revision_needed = len(_revision_issues(review)) > 0
-
-        if not revision_needed:
+        if len(_revision_issues(review)) == 0:
             return result, review
 
         if review_cycles >= review_max:
             msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
             raise RuntimeError(msg)
 
-        result = revise_fn(result, review, system, generation_cycles)
-        generation_cycles += 1
+        while generation_cycles < max_generation:
+            try:
+                revised = revise_fn(result, review, system, generation_cycles)
+            except SchemaValidationError as e:
+                path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
+                _log.warning(
+                    "  [REVISION VALIDATION ERROR] %s: path=%s msg=%s attempt=%d/%d",
+                    kind,
+                    path,
+                    e.message,
+                    generation_cycles,
+                    max_generation,
+                )
+                if generation_cycles >= max_generation - 1:
+                    raise RuntimeError(
+                        f"{kind}: revision validation failed after {max_generation} retries: path={path} msg={e.message}"
+                    ) from e
+                generation_cycles += 1
+                continue
+            except LLMError as e:
+                _log.warning(
+                    "  [REVISION LLM ERROR] %s: msg=%s attempt=%d/%d",
+                    kind,
+                    str(e)[:200],
+                    generation_cycles,
+                    max_generation,
+                )
+                if generation_cycles >= max_generation - 1:
+                    raise RuntimeError(
+                        f"{kind}: revision failed after {max_generation} retries: msg={str(e)[:200]}"
+                    ) from e
+                generation_cycles += 1
+                continue
 
-        errors = validate_fn(result)
-        if errors:
-            _log.warning(
-                "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
-                kind,
-                errors,
-                generation_cycles,
-                max_generation,
-            )
-            if generation_cycles >= max_generation - 1:
-                raise RuntimeError(f"{kind}: post-revision validation failed after {max_generation} retries: {errors}")
-            continue
+            generation_cycles += 1
+            errors = _validation_errors(validate_fn, revised, kind, "POST-REVISION VALIDATION")
+            if errors:
+                _log.warning(
+                    "  [POST-REVISION VALIDATION] %s: %s attempt=%d/%d",
+                    kind,
+                    errors,
+                    generation_cycles,
+                    max_generation,
+                )
+                if generation_cycles >= max_generation:
+                    raise RuntimeError(f"{kind}: post-revision validation failed after {max_generation} retries: {errors}")
+                continue
 
-        # Re-review the revised result
-        try:
-            review = review_fn(result, system)
-            review = _drop_resolved_issues(review, result)
-            review_cycles += 1  # Count this as a review cycle
-        except SchemaValidationError as e:
-            path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
-            _log.warning("  [POST-REVISION REVIEW VALIDATION ERROR] %s: path=%s msg=%s", kind, path, e.message)
-            if review_cycles >= review_max:
-                raise RuntimeError(f"{kind}: post-revision review validation failed after {review_max} retries") from e
-            continue
-
-        blocking_count = len(_revision_issues(review))
-
-        # Check review max separately for post-revision review
-        if blocking_count > 0 and review_cycles >= review_max:
-            msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
-            raise RuntimeError(msg)
-
-        if blocking_count == 0:
-            return result, review
-
-        # Only revise again if we haven't hit review_max yet
-        if review_cycles >= review_max:
-            raise RuntimeError(f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})")
-
-        result = revise_fn(result, review, system, generation_cycles)
-        generation_cycles += 1
-        # Loop back for another validation + review cycle
-
-    return result, review
+            result = revised
+            break
+        else:
+            raise RuntimeError(f"{kind}: revision failed after {max_generation} retries")

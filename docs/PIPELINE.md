@@ -10,8 +10,8 @@
 | `--series` | `-s` | なし | 既存シリーズの slug |
 | `--volume` | `-V` | `1` | 処理対象の巻番号 |
 | `--model` | `-m` | `config.yaml` → built-in | LLM モデル名 |
-| `--max-generation-count` | | `config.yaml` → `3` | 生成API（APIエラー＋バリデーション）の最大試行数 |
-| `--max-review-count` | | `config.yaml` → `8` | レビュー→修正サイクルの最大回数 |
+| `--max-generation-count` | | `config.yaml` → `4` | 生成API（APIエラー＋バリデーション）の最大試行数 |
+| `--max-review-count` | | `config.yaml` → `4` | レビュー→修正サイクルの最大回数 |
 | `--verbose` | `-v` | `config.yaml` → `false` | 詳細出力 |
 
 ### 1.2 排他制御
@@ -398,8 +398,8 @@ llm:
     top_p: 0.9
 
 quality:
-  max_generation_count: 3
-  max_review_count: 8
+  max_generation_count: 4
+  max_review_count: 4
 
 logging:
   verbose: false

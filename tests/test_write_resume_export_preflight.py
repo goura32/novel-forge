@@ -64,7 +64,7 @@ class TestWriteResumeCheckpoint:
             call_count += 1
             kind = args[0] if args else kwargs.get("kind", "")
             if kind == "scene_draft":
-                return {"title": f"シーン{call_count}", "content": "*" * 500}
+                return {"title": f"シーン{call_count}", "content": "*" * 3000}
             if kind == "review":
                 return {
                     "ready_for_publication": True,

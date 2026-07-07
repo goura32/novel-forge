@@ -14,8 +14,8 @@
 |---|---|---|
 | `--workdir, -w` | 系列の出力先ディレクトリ / `config.yaml` 探索起点 | `.` |
 | `--model, -m` | Ollama のモデル名を明示上書き | `config.yaml` → `qwen3.6:35b-a3b-mtp-q4_K_M` |
-| `--max-generation-count` | LLM API + validation の最大試行数 | `config.yaml` → `3` |
-| `--max-review-count` | レビュー→修正サイクルの最大回数 | `config.yaml` → `8` |
+| `--max-generation-count` | LLM API + validation の最大試行数 | `config.yaml` → `4` |
+| `--max-review-count` | レビュー→修正サイクルの最大回数 | `config.yaml` → `4` |
 | `-v, --verbose` | 詳細ログ出力 | `config.yaml` → `false` |
 
 ---

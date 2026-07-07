@@ -281,16 +281,16 @@ class LLMClient:
                 raise
             except JsonParseError as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                last_error = LLMError(f"JSON parse error: {str(e)[:200]}")
+                raise LLMError(f"JSON parse error: {str(e)[:200]}") from e
             except (SchemaValidationError, JsonSchemaValidationError) as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                last_error = LLMError(f"schema validation error: {str(e)[:200]}")
+                raise LLMError(f"schema validation error: {str(e)[:200]}") from e
             except LLMTransportError as e:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 last_error = e
-            except LLMError as e:
+            except LLMError:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
-                last_error = e
+                raise
             except Exception:
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
                 raise

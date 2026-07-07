@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 import json
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.schemas import get_schema
@@ -412,7 +412,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                         {"current_scene": json.dumps(data, ensure_ascii=False), "series_plan": series_plan,
                          "review": format_review_text(review)}),
                     get_schema("scene_design"), seed_offset=seed_offset)
-                return _apply_review_text_replacements(revised, review)
+                return cast(dict, _apply_review_text_replacements(revised, review))
 
             scene_obj, _sc_review = generate_and_review(
                           generate_fn=lambda p, s: engine._llm.complete_json(
