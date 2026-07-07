@@ -414,6 +414,10 @@ class LLMClient:
         except httpx.HTTPStatusError as e:
             self._write_raw_log("_http_err", str(e))
             raise LLMTransportError(f"Ollama HTTP error: {e}") from e
+        except httpx.RequestError as e:
+            text = "\n".join(lines)
+            self._write_raw_log("_transport_err", text or str(e))
+            raise LLMTransportError(f"Ollama transport error: {e}") from e
         text = "\n".join(lines)
         result, thinking_combined = self._parse_ndjson(text)
         if not result or not result.strip():

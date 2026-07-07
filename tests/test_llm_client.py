@@ -169,6 +169,27 @@ class TestCompleteJsonRetry:
         assert result == {"ok": True}
         assert call_count == 2
 
+    def test_retry_on_connect_error(self):
+        """Transient DNS/connect failures should use transport retries."""
+        import httpx
+
+        full_json = json.dumps({"ok": True})
+        mock_resp = _make_streaming_response(_ndjson_response(full_json))
+        request = httpx.Request("POST", "http://localhost:11434/api/chat")
+
+        with patch(
+            "novel_forge.llm_client.httpx.stream",
+            side_effect=[httpx.ConnectError("temporary DNS failure", request=request), mock_resp],
+        ) as mock_stream:
+            client = LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                max_retries=2,
+            )
+            result = client.complete_json("test_kind", "sys", "usr")
+
+        assert result == {"ok": True}
+        assert mock_stream.call_count == 2
+
     def test_retry_exhausted_raises(self):
         """Should raise LLMError after all transport retries are exhausted."""
         import httpx
