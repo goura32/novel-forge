@@ -324,6 +324,21 @@ class TestCompleteJsonRetry:
 
         assert len(review["issues"]) == 8
 
+    def test_normalizes_review_severity_variants(self):
+        """Common Japanese/English severity variants should match review schema enum."""
+        review = {
+            "issues": [
+                {"severity": "致命", "field": "a", "description": "a", "suggestion": "a", "before": "a", "after": "a"},
+                {"severity": "重大", "field": "b", "description": "b", "suggestion": "b", "before": "b", "after": "b"},
+                {"severity": "important", "field": "c", "description": "c", "suggestion": "c", "before": "c", "after": "c"},
+                {"severity": "minor", "field": "d", "description": "d", "suggestion": "d", "before": "d", "after": "d"},
+            ]
+        }
+
+        LLMClient._normalize_review_output(review)
+
+        assert [issue["severity"] for issue in review["issues"]] == ["致命的", "致命的", "重要", "軽微"]
+
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""
         import httpx

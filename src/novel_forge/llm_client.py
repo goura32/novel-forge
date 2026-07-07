@@ -350,6 +350,22 @@ class LLMClient:
             if not isinstance(issue, dict):
                 continue
             issue.pop("publication_blocking", None)
+            severity = issue.get("severity")
+            if isinstance(severity, str):
+                normalized = severity.strip().lower()
+                severity_map = {
+                    "致命": "致命的",
+                    "致命的": "致命的",
+                    "重大": "致命的",
+                    "critical": "致命的",
+                    "blocker": "致命的",
+                    "重要": "重要",
+                    "important": "重要",
+                    "major": "重要",
+                    "軽微": "軽微",
+                    "minor": "軽微",
+                }
+                issue["severity"] = severity_map.get(normalized, severity)
 
 
     @staticmethod
