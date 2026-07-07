@@ -155,6 +155,24 @@ def test_series_plan_volumes_requires_non_empty_final_volume_hook() -> None:
     assert missing == []
 
 
+def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
+    generation = (PROMPTS_DIR / "series_plan_volumes.md").read_text(encoding="utf-8")
+    review = (PROMPTS_DIR / "series_plan_volumes_review.md").read_text(encoding="utf-8")
+
+    generation_fragments = [
+        "自然な日本語だけで書く",
+        "中国語・簡体字由来の表現",
+        "具体的な出来事として書く",
+    ]
+    review_fragments = [
+        "章タイトルの表記ゆれだけを致命的・重要な問題にしない",
+        "key_events に抽象テーマだけが置かれている場合",
+    ]
+
+    assert [fragment for fragment in generation_fragments if fragment not in generation] == []
+    assert [fragment for fragment in review_fragments if fragment not in review] == []
+
+
 def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
     expectations = {
         "chapter_design.md": ["chapter_turning_point", "chapter_hook", "scenes[]", "foreshadowing_notes"],

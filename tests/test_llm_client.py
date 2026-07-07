@@ -332,12 +332,21 @@ class TestCompleteJsonRetry:
                 {"severity": "重大", "field": "b", "description": "b", "suggestion": "b", "before": "b", "after": "b"},
                 {"severity": "important", "field": "c", "description": "c", "suggestion": "c", "before": "c", "after": "c"},
                 {"severity": "minor", "field": "d", "description": "d", "suggestion": "d", "before": "d", "after": "d"},
+                {"severity": "重要な問題", "field": "e", "description": "e", "suggestion": "e", "before": "e", "after": "e"},
+                {"severity": "致命的な問題", "field": "f", "description": "f", "suggestion": "f", "before": "f", "after": "f"},
             ]
         }
 
         LLMClient._normalize_review_output(review)
 
-        assert [issue["severity"] for issue in review["issues"]] == ["致命的", "致命的", "重要", "軽微"]
+        assert [issue["severity"] for issue in review["issues"]] == [
+            "致命的",
+            "致命的",
+            "重要",
+            "軽微",
+            "重要",
+            "致命的",
+        ]
 
     def test_no_retry_when_zero(self):
         """max_retries=0 should not retry."""

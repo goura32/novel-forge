@@ -19,6 +19,8 @@
 - `planned_volumes[]` の各要素は `title`, `premise`, `theme`, `key_events`, `emotional_arc`, `cliffhanger` をすべて埋める。
 - `premise` は巻単体の中心状況、`key_events` は主要な転換点、`emotional_arc` は読者が追う感情変化として書く。
 - 巻ごとの `theme`, `key_events`, `emotional_arc` は重複させず、シリーズ全体で段階的に強くする。
+- 自然な日本語だけで書く。中国語・簡体字由来の表現（例: 而非、牺牲、卷末）や不自然な漢文調を混ぜない。
+- `key_events` は抽象テーマや心理説明だけにせず、登場人物が何を見つけ、選び、対立し、変化させるかを具体的な出来事として書く。
 
 ## 入力情報
 

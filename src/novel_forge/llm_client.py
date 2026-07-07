@@ -360,10 +360,12 @@ class LLMClient:
                     "critical": "致命的",
                     "blocker": "致命的",
                     "重要": "重要",
+                    "重要な問題": "重要",
                     "important": "重要",
                     "major": "重要",
                     "軽微": "軽微",
                     "minor": "軽微",
+                    "致命的な問題": "致命的",
                 }
                 issue["severity"] = severity_map.get(normalized, severity)
 
