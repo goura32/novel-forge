@@ -153,35 +153,32 @@ def test_quality_schema_fields_exist_for_generation_pipeline() -> None:
     assert {"chapter_turning_point", "chapter_hook", "foreshadowing_notes", "subplot_notes"} <= set(chapter["properties"])
 
 
-def _object_paths_missing_additional_properties_false(
+def _schema_paths_with_keyword(
     node: object,
+    target_keyword: str,
     path: tuple[str, ...] = (),
 ) -> list[str]:
     issues: list[str] = []
     if isinstance(node, dict):
-        if (node.get("type") == "object" or "properties" in node) and node.get(
-            "additionalProperties"
-        ) is not False:
+        if target_keyword in node:
             issues.append(".".join(path) or "$")
 
         properties = node.get("properties")
         if isinstance(properties, dict):
             for key, value in properties.items():
-                issues.extend(
-                    _object_paths_missing_additional_properties_false(value, (*path, key))
-                )
+                issues.extend(_schema_paths_with_keyword(value, target_keyword, (*path, key)))
         items = node.get("items")
         if items is not None:
-            issues.extend(
-                _object_paths_missing_additional_properties_false(items, (*path, "[]"))
-            )
-        for keyword in ("oneOf", "anyOf", "allOf"):
-            subschemas = node.get(keyword)
+            issues.extend(_schema_paths_with_keyword(items, target_keyword, (*path, "[]")))
+        for combinator in ("oneOf", "anyOf", "allOf"):
+            subschemas = node.get(combinator)
             if isinstance(subschemas, list):
                 for index, subschema in enumerate(subschemas):
                     issues.extend(
-                        _object_paths_missing_additional_properties_false(
-                            subschema, (*path, f"{keyword}[{index}]")
+                        _schema_paths_with_keyword(
+                            subschema,
+                            target_keyword,
+                            (*path, f"{combinator}[{index}]"),
                         )
                     )
     return issues
@@ -199,12 +196,12 @@ def test_all_schema_fields_have_actionable_descriptions() -> None:
     assert issues == {}
 
 
-def test_all_object_schemas_reject_unknown_fields() -> None:
-    """Unknown LLM fields should fail validation instead of leaking downstream."""
+def test_schemas_avoid_strict_unknown_field_rejection() -> None:
+    """Avoid additionalProperties=false because local LLMs often emit harmless extras."""
     issues: dict[str, list[str]] = {}
     for schema_path in sorted(SCHEMAS_DIR.glob("*.json")):
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        schema_issues = _object_paths_missing_additional_properties_false(schema)
+        schema_issues = _schema_paths_with_keyword(schema, "additionalProperties")
         if schema_issues:
             issues[schema_path.name] = schema_issues
 
@@ -239,7 +236,37 @@ EMPTY_ARRAY_ALLOWED_PATHS = {
 }
 
 
-def _missing_minimum_content_constraints(
+def _schema_paths_with_min_length(
+    node: object,
+    path: tuple[str, ...] = (),
+) -> list[str]:
+    issues: list[str] = []
+    if isinstance(node, dict):
+        path_text = ".".join(path) or "$"
+        if "minLength" in node:
+            issues.append(f"{path_text}: minLength should be described, not schema-enforced")
+
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            for key, value in properties.items():
+                issues.extend(_schema_paths_with_min_length(value, (*path, key)))
+        items = node.get("items")
+        if items is not None:
+            issues.extend(_schema_paths_with_min_length(items, (*path, "[]")))
+        for combinator in ("oneOf", "anyOf", "allOf"):
+            subschemas = node.get(combinator)
+            if isinstance(subschemas, list):
+                for index, subschema in enumerate(subschemas):
+                    issues.extend(
+                        _schema_paths_with_min_length(
+                            subschema,
+                            (*path, f"{combinator}[{index}]"),
+                        )
+                    )
+    return issues
+
+
+def _missing_min_items_constraints(
     node: object,
     schema_name: str,
     path: tuple[str, ...] = (),
@@ -247,18 +274,11 @@ def _missing_minimum_content_constraints(
 ) -> list[str]:
     issues: list[str] = []
     if isinstance(node, dict):
-        node_type = node.get("type")
         path_text = ".".join(path) or "$"
         if (
             required
-            and node_type == "string"
-            and (schema_name, path_text) not in EMPTY_STRING_ALLOWED_PATHS
-            and int(node.get("minLength", 0)) < 1
-        ):
-            issues.append(f"{path_text}: required string missing minLength>=1")
-        if (
-            required
-            and node_type == "array"
+            and
+            node.get("type") == "array"
             and (schema_name, path_text) not in EMPTY_ARRAY_ALLOWED_PATHS
             and int(node.get("minItems", 0)) < 1
         ):
@@ -270,7 +290,7 @@ def _missing_minimum_content_constraints(
             required_names = set(required_keys) if isinstance(required_keys, list) else set()
             for key, value in properties.items():
                 issues.extend(
-                    _missing_minimum_content_constraints(
+                    _missing_min_items_constraints(
                         value,
                         schema_name,
                         (*path, key),
@@ -280,29 +300,46 @@ def _missing_minimum_content_constraints(
         items = node.get("items")
         if items is not None:
             issues.extend(
-                _missing_minimum_content_constraints(items, schema_name, (*path, "[]"))
+                _missing_min_items_constraints(
+                    items,
+                    schema_name,
+                    (*path, "[]"),
+                    required=required,
+                )
             )
-        for keyword in ("oneOf", "anyOf", "allOf"):
-            subschemas = node.get(keyword)
+        for combinator in ("oneOf", "anyOf", "allOf"):
+            subschemas = node.get(combinator)
             if isinstance(subschemas, list):
                 for index, subschema in enumerate(subschemas):
                     issues.extend(
-                        _missing_minimum_content_constraints(
+                        _missing_min_items_constraints(
                             subschema,
                             schema_name,
-                            (*path, f"{keyword}[{index}]"),
+                            (*path, f"{combinator}[{index}]"),
                             required=required,
                         )
                     )
     return issues
 
 
-def test_string_fields_and_required_arrays_have_minimum_content_constraints() -> None:
-    """Schema-valid LLM output should not pass with empty strings or required empty lists."""
+def test_string_fields_avoid_min_length_constraints() -> None:
+    """Avoid minLength because descriptions guide content while schema stays LLM-friendly."""
     issues: dict[str, list[str]] = {}
     for schema_path in sorted(SCHEMAS_DIR.glob("*.json")):
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        schema_issues = _missing_minimum_content_constraints(schema, schema_path.name)
+        schema_issues = _schema_paths_with_min_length(schema)
+        if schema_issues:
+            issues[schema_path.name] = schema_issues
+
+    assert issues == {}
+
+
+def test_required_arrays_have_minimum_content_constraints() -> None:
+    """Required arrays that drive downstream generation should still avoid empty placeholders."""
+    issues: dict[str, list[str]] = {}
+    for schema_path in sorted(SCHEMAS_DIR.glob("*.json")):
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema_issues = _missing_min_items_constraints(schema, schema_path.name)
         if schema_issues:
             issues[schema_path.name] = schema_issues
 

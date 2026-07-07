@@ -9,14 +9,11 @@
   "properties": {
     "title": {
       "description": "シーンタイトル。3〜100文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "content": {
       "description": "シーン本文。500〜5000文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     }
-  },
-  "additionalProperties": false
+  }
 }

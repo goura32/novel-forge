@@ -78,11 +78,11 @@ class TestValidate:
         errors = validate("nonexistent_schema", {})
         assert errors == ["Schema not found: nonexistent_schema"]
 
-    def test_extra_fields_rejected(self):
-        """Strict schemas should reject unknown LLM fields."""
-        data = series_plan_concept_data(extra_field="should be rejected")
+    def test_extra_fields_allowed(self):
+        """Schemas should tolerate harmless unknown LLM fields."""
+        data = series_plan_concept_data(extra_field="should be ignored by consumers")
         errors = validate("series_plan_concept", data)
-        assert any("Additional properties are not allowed" in error for error in errors)
+        assert errors == []
 
     def test_object_for_array_field_logs_warning(self, caplog):
         data = series_plan_concept_data()
@@ -161,7 +161,7 @@ class TestValidate:
         errors = validate("review", data)
         assert errors == []
 
-    def test_review_rejects_empty_after_for_missing_field_issue(self):
+    def test_review_allows_empty_after_at_schema_level(self):
         data = {
             "issues": [
                 {
@@ -175,9 +175,9 @@ class TestValidate:
             ],
         }
         errors = validate("review", data)
-        assert any("[issues/0/after] '' should be non-empty" in error for error in errors)
+        assert errors == []
 
-    def test_review_rejects_legacy_readiness_fields(self):
+    def test_review_tolerates_legacy_readiness_fields_at_schema_level(self):
         data = {
             "ready_for_publication": True,
             "overall_assessment": "問題ありません。",
@@ -185,9 +185,9 @@ class TestValidate:
             "issues": [],
         }
         errors = validate("review", data)
-        assert any("Additional properties are not allowed" in error for error in errors)
+        assert errors == []
 
-    def test_review_rejects_legacy_publication_blocking_issue_field(self):
+    def test_review_tolerates_legacy_publication_blocking_issue_field_at_schema_level(self):
         data = {
             "issues": [
                 {
@@ -202,7 +202,7 @@ class TestValidate:
             ],
         }
         errors = validate("review", data)
-        assert any("[issues/0] Additional properties are not allowed" in error for error in errors)
+        assert errors == []
 
     def test_review_allows_single_actionable_minor_issue(self):
         data = {

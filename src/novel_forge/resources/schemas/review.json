@@ -28,23 +28,19 @@
               "致命的",
               "重要",
               "軽微"
-            ],
-            "minLength": 1
+            ]
           },
           "field": {
             "description": "修正対象のフィールド名。可能ならスキーマ上のフィールド名、配列要素の場合は対象が特定できるパスを書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "description": {
             "description": "問題の説明。何がどの後続工程に影響するかを具体的に記述する。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "suggestion": {
             "description": "修正方針。改訂工程が迷わず適用できる具体的な指示を書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "before": {
             "description": "修正前のテキスト。当該フィールド内の該当箇所を引用する。欠落フィールドを追加する指摘では空文字列を許可する。",
@@ -52,14 +48,11 @@
           },
           "after": {
             "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質にする。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           }
         },
-        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
-        "additionalProperties": false
+        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       }
     }
-  },
-  "additionalProperties": false
+  }
 }

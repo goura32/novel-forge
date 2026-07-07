@@ -23,58 +23,47 @@
         "properties": {
           "name": {
             "description": "名称。他フィールドや後続工程から参照できるよう、省略せず一意に識別できる値を書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "role": {
             "description": "役割（主人公の恩師、ライバル、相棒など具体的に）",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "personality": {
             "description": "性格。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "motivation": {
             "description": "動機。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "flaw": {
             "description": "flaw。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "arc": {
             "description": "変化の方向性。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "occupation": {
             "description": "occupation。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "appearance": {
             "description": "外見。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "background": {
             "description": "背景。主要登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           }
         },
-        "description": "主要登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
-        "additionalProperties": false
+        "description": "主要登場人物を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       },
       "minItems": 1
     }
   },
   "required": [
     "main_characters"
-  ],
-  "additionalProperties": false
+  ]
 }

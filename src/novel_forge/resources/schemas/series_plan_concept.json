@@ -6,42 +6,36 @@
   "properties": {
     "title": {
       "description": "シリーズのタイトル。30〜100文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "slug": {
       "description": "a-z0-9と_のみからなる128文字以内のスラッグ（アンダースコア区切り）。",
       "type": "string",
-      "pattern": "^[a-z0-9_]+$",
-      "minLength": 1
+      "pattern": "^[a-z0-9_]+$"
     },
     "logline": {
       "description": "シリーズのあらすじ。1-2文、200〜800文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "genre": {
       "description": "ジャンル。2〜5個推奨、各最大64文字。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "ジャンル。ジャンルの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "ジャンル。ジャンルの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       },
       "minItems": 1
     },
     "target_audience": {
       "description": "ターゲット読者。100〜500文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "themes": {
       "description": "テーマ。2〜5個推奨、各最大64文字。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "themes。themesの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "themes。themesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       },
       "minItems": 1
     },
@@ -50,23 +44,20 @@
       "type": "array",
       "items": {
         "type": "string",
-        "description": "selling points。selling pointsの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "selling points。selling pointsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       },
       "minItems": 1
     },
     "world_summary": {
       "description": "世界観の概要。200〜1000文字推奨。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "world_rules": {
       "description": "世界観の独自ルール。1〜10個推奨、各最大200文字。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "世界観ルール。世界観ルールの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "世界観ルール。世界観ルールの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       },
       "minItems": 1
     }
@@ -81,6 +72,5 @@
     "world_summary",
     "world_rules",
     "target_audience"
-  ],
-  "additionalProperties": false
+  ]
 }

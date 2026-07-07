@@ -17,8 +17,7 @@
   "properties": {
     "title": {
       "description": "章タイトル（5〜100文字推奨）",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "purpose": {
       "description": "目的。物語上の機能や状態が分かる具体的な日本語で書く。",
@@ -29,23 +28,19 @@
         "転換",
         "クライマックス",
         "収束"
-      ],
-      "minLength": 1
+      ]
     },
     "theme": {
       "description": "章のテーマ（20〜300文字推奨）",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "emotional_arc": {
       "description": "感情の弧（30〜500文字推奨）",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "outcome": {
       "description": "章の結果・結末（30〜300文字推奨）",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "scenes": {
       "description": "シーンのリスト。2〜4個推奨。",
@@ -65,36 +60,30 @@
         "properties": {
           "title": {
             "description": "シーンタイトル。3〜100文字推奨。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "pov": {
             "description": "視点（誰の視点で描くか）",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "goal": {
             "description": "シーンの目標（20〜300文字推奨）",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "conflict": {
             "description": "シーンの葛藤（20〜300文字推奨）",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "outcome": {
             "description": "シーンの結果（20〜300文字推奨）",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "characters": {
             "description": "登場キャラクター。1〜10個推奨。",
             "type": "array",
             "items": {
               "type": "string",
-              "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-              "minLength": 1
+              "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
             },
             "minItems": 1
           },
@@ -103,64 +92,53 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-              "minLength": 1
+              "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
             },
             "minItems": 1
           },
           "setting": {
             "description": "舞台設定（20〜300文字推奨）",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "scene_function": {
             "description": "setup/confrontation/reversal/payoff/aftermath/reveal等のシーン機能。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "emotional_shift": {
             "description": "このシーンで変化する感情。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "hook": {
             "description": "hook。シーンの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "turning_point": {
             "description": "転換点。シーンの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "ending_hook": {
             "description": "末尾フック。シーンの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           }
         },
-        "description": "シーンを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。",
-        "additionalProperties": false
+        "description": "シーンを構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
       },
       "minItems": 1
     },
     "chapter_turning_point": {
       "description": "章内で不可逆に変わる出来事・関係・認識。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "chapter_hook": {
       "description": "章末で次章へ読ませる引き・余韻。",
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "foreshadowing_notes": {
       "description": "章で設置・回収する伏線メモ。",
       "type": "array",
       "items": {
         "type": "string",
-        "description": "foreshadowing notes。foreshadowing notesの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "foreshadowing notes。foreshadowing notesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "subplot_notes": {
@@ -168,8 +146,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "description": "subplot notes。subplot notesの文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "subplot notes。subplot notesの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     },
     "characters": {
@@ -177,10 +154,8 @@
       "type": "array",
       "items": {
         "type": "string",
-        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-        "minLength": 1
+        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
     }
-  },
-  "additionalProperties": false
+  }
 }
