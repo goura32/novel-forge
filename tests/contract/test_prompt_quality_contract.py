@@ -234,6 +234,32 @@ def test_series_plan_characters_revision_preserves_real_character_array() -> Non
     assert forbidden == []
 
 
+def test_series_plan_characters_keeps_field_responsibilities_separate() -> None:
+    prompts = [
+        PROMPTS_DIR / "series_plan_characters.md",
+        PROMPTS_DIR / "series_plan_characters_revision.md",
+        PROMPTS_DIR / "series_plan_characters_review.md",
+    ]
+
+    required_fragments = [
+        "内面的な目的・判断基準",
+        "追跡・察知・提案・説得・取引成立",
+        "人物固有の弱点・行動傾向",
+        "〜を描く",
+        "初期配置での物語上の立場",
+        "関係変化",
+    ]
+
+    issues = {}
+    for prompt in prompts:
+        text = prompt.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        if missing:
+            issues[prompt.name] = missing
+
+    assert issues == {}
+
+
 def test_series_plan_concept_prompts_require_japanese_punctuation() -> None:
     prompts = [
         PROMPTS_DIR / "series_plan_concept.md",
