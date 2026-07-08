@@ -182,6 +182,10 @@ def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
     review_fragments = [
         "章タイトルの表記ゆれだけを致命的・重要な問題にしない",
         "key_events に抽象テーマだけが置かれている場合",
+        "装置名、数値、移動経路、侵入手段、作戦手順、物理メカニズムの追加要求は Design 工程で扱う",
+        "単語1個の動詞違和感、文体の好み、トーンの微調整、読者反応の言い換えだけを issue にしない",
+        "メタ説明、巻間コピー、固有名詞の実質的な不統一は指摘する",
+        "緊迫感の強弱や余韻の好みだけで別案に置き換えない",
     ]
 
     assert [fragment for fragment in generation_fragments if fragment not in generation] == []
