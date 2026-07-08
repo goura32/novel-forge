@@ -457,6 +457,10 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
     vol = engine._current_volume()
     vol.status = "デザイン済"
+    vol.scenes.clear()
+    for sc in scenes:
+        sc_num = int(sc.get("number") or len(vol.scenes) + 1)
+        engine._get_or_create_scene_record(vol, sc_num)
     result: dict[str, Any] = {
         "title": vol_title,
         "premise": vol_premise,

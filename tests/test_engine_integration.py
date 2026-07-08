@@ -1231,6 +1231,17 @@ class TestFileNamingConvention:
         legacy = planned_engine._series_dir / "design.json"
         assert not legacy.exists()
 
+    def test_design_updates_volume_progress_scenes(self, planned_engine, mock_llm):
+        """design() should expose generated scene count through status()."""
+        result = planned_engine.design(volume_number=1)
+
+        scene_count = len(result["scenes"])
+        status = planned_engine.status()
+
+        assert scene_count > 0
+        assert status["scenes_total"] == scene_count
+        assert len(planned_engine._current_volume().scenes) == scene_count
+
 
 # ── Prompt input completeness tests ────────────────────────────────────
 
