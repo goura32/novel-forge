@@ -14,6 +14,7 @@
 - メインキャラクター、世界観、巻固有の葛藤や象徴を反映する。
 - 商業的な訴求力を意識し、サムネイルでも伝わる明確な要素にする。
 - 画像生成ツールで使える具体的な表現にする。
+- この工程では画像生成ツール連携のため、指定フィールドのみ英語で記述する。他の説明・構造はスキーマに従う。
 - `style.composition` を指定する場合は「portrait」「landscape」「action」「symbolic」「atmospheric」から選ぶ。
 - `visual_elements.subject.description` は英語の画像生成プロンプトとして記述する。
 - `title`, `genre`, `mood`, `style`, `visual_elements`, `color_palette`, `typography`, `negative_prompt`, `prompt` をすべて埋める。

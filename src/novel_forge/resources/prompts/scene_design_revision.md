@@ -29,7 +29,7 @@
 
 ### シーン設計
 
-{design}
+{current_scene}
 
 ### レビュー結果
 

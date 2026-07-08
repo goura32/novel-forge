@@ -95,8 +95,9 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
     assert review_prompts, "expected review prompts"
     required_fragments = [
         "### 指摘対象",
-        "後続工程を阻害する致命的・重要な問題だけ",
-        "軽微な問題、好み、文体調整、さらなる具体化",
+        "レビュー対象に根拠があり、改訂工程で具体的に修正できる問題に限定",
+        "severity は後続工程への影響度で決める",
+        "軽微に見える表記・用語でも、後続工程で固定化・拡散する場合は指摘する",
         "修正可能な差分に限定",
         "出版可否、総評、長所、スコア",
         "`issues` が空配列なら改訂不要、1件以上なら改訂を継続",
@@ -104,7 +105,7 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
         "`before` には入力JSON内の実際の値だけを書く",
         "入力キーワードまたは前工程JSONに明示された期間、職業、役割、性別、タイトル、ジャンル、固有名は正として扱い",
         "後続工程で具体化できる未定義要素",
-        "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞は言語純度の問題にしない",
+        "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞、日本語として成立する漢語は言語純度の問題にしない",
         "`issues` は最大8件に限定",
         "`description` と `suggestion` は短文にする",
         "二重引用符を書かない",
@@ -134,7 +135,7 @@ def test_concept_review_does_not_over_specify_design_details() -> None:
 
     required_fragments = [
         "人物の詳細設定、逃走・追跡ギミックの運用細部は重要指摘にしない",
-        "主人公・相棒の詳細な職能、関係性、救出手段、逃走手順、監視回避の技術的細部はDesign/Character工程で具体化できるため指摘しない",
+        "人物の詳細な職能、関係性の細部、具体的な作戦手順、専門技術、場面単位の実行方法は Character/Design 工程で具体化できる",
     ]
 
     missing = [fragment for fragment in required_fragments if fragment not in text]
@@ -161,7 +162,7 @@ def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
 
     generation_fragments = [
         "自然な日本語だけで書く",
-        "中国語・簡体字由来の表現",
+        "日本語文脈で不自然な簡体字、中国語構文、英語混在、ハングル混在",
         "具体的な出来事として書く",
     ]
     review_fragments = [
@@ -179,7 +180,7 @@ def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
         "scene_design.md": ["hook", "turning_point", "ending_hook", "key_events"],
         "series_plan_concept.md": ["world_rules", "selling_points", "target_audience"],
         "series_plan_characters.md": ["main_characters[]", "motivation", "flaw", "arc"],
-        "series_plan_characters_review.md": ["役割ラベルの `antagonist`", "敵対者の破滅・自滅展開の好みは重要指摘にしない", "成長弧や動機は、文字列がほぼ同一"],
+        "series_plan_characters_review.md": ["役割ラベル・分類名・固有識別子", "結末や報復方法の好み", "成長弧や動機は、文字列がほぼ同一"],
         "series_plan_volumes.md": ["planned_volumes[]", "emotional_arc", "cliffhanger"],
         "volume_design.md": ["chapters[]", "title", "purpose"],
         "scene_summary_and_bible_update.md": ["facts[]", "subject", "predicate", "world_rules[]", "文字列の配列"],
@@ -243,17 +244,17 @@ def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> Non
     ]
 
     required_fragments = [
-        "中核ルール",
+        "中核ギミックや独自ルール",
         "同じ現象を複数の別ルールで説明しない",
         "発動条件",
         "直接の効果",
         "解除または緩和条件",
-        "中核ギミックの型は途中で変えない",
+        "入力キーワードで指定された中核ギミックの型は途中で変えない",
         "不可逆・絶対条件",
         "未定義の新リスクや新儀式",
-        "入力キーワードに「記憶」「忘却」「喪失」「人格改変」などがない場合",
+        "入力キーワードに明示されていない場合",
         "重い不可逆ルールを勝手に追加しない",
-        "ロマンスと政治劇を進めやすい制約を優先する",
+        "入力ジャンルの物語を進めやすい制約を優先する",
     ]
     issues = {}
     for prompt in prompts:
@@ -276,7 +277,7 @@ def test_series_plan_concept_prompts_guard_raw_run_failures() -> None:
         "logline は要素の羅列にしない",
         "中心課題を1つに絞り",
         "能動的な行動目標",
-        "読者層・恋愛濃度・官能性・サスペンス濃度を矛盾させない",
+        "読者層、ジャンル期待、感情濃度、緊張感、対象年齢を矛盾させない",
         "slug はローマ字ならローマ字で統一",
         "英単語を混在させない",
         "主要語3〜6個程度",
@@ -295,11 +296,9 @@ def test_series_plan_concept_review_must_flag_non_japanese_contamination() -> No
     prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
-        "日本語として不自然な簡体字、中国語表現、英語混在、ハングル混在を必ず指摘する",
-        "细腻",
-        "而非",
-        "牺牲",
-        "卷末",
+        "日本語文脈で不自然な簡体字、中国語構文、英語混在、ハングル混在を指摘する",
+        "指摘時は問題文字列を引用する",
+        "日本語として成立する漢語は問題にしない",
     ]
 
     missing = [fragment for fragment in required_fragments if fragment not in prompt]
@@ -311,8 +310,9 @@ def test_all_review_prompts_must_flag_non_japanese_contamination() -> None:
     assert review_prompts, "expected review prompts"
 
     required_fragments = [
-        "日本語として不自然な簡体字、中国語表現、英語混在、ハングル混在を必ず指摘する",
-        "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞は問題にしない",
+        "日本語文脈で不自然な簡体字、中国語構文、英語混在、ハングル混在を指摘する",
+        "指摘時は問題文字列を引用する",
+        "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞、日本語として成立する漢語は問題にしない",
     ]
 
     issues = {}
@@ -329,10 +329,10 @@ def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
     prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
-        "入力キーワードまたはタイトルに「入れ替わり」がある場合",
-        "身体の入れ替わり、魂の入れ替わり、役割の入れ替わり、身代わり潜入は別物",
-        "身代わり潜入だけで置き換えた場合は重要指摘",
-        "`after` でも入れ替わりの型を保持",
+        "入力キーワードまたはタイトルに中核ギミックが含まれる場合",
+        "何が、誰に、どの範囲で、どの条件で変化・交換・喪失・制限されるのか",
+        "別種のギミックへ置き換わっている場合は重要指摘",
+        "`after` でも元のギミックの型を保持",
     ]
 
     missing = [fragment for fragment in required_fragments if fragment not in prompt]
