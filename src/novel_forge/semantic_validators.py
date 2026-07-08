@@ -23,6 +23,16 @@ _SIMPLIFIED_CHINESE_MARKERS = (
     "牺牲",
 )
 
+_SWAP_TITLE_MARKERS = ("入れ替わり", "入れ替わる", "入れ替え")
+_SWAP_MECHANISM_MARKERS = (
+    "入れ替わり",
+    "入れ替わる",
+    "入れ替え",
+    "入れ替えられ",
+    "交換",
+)
+_SUBSTITUTION_ONLY_MARKERS = ("身代わり", "代役", "替え玉")
+
 
 def _positive_int(value: object) -> int | None:
     return value if isinstance(value, int) and value > 0 else None
@@ -42,7 +52,7 @@ def _iter_text_values(value: Any, path: str = ""):
 
 
 def validate_series_plan_concept_semantics(data: dict[str, Any]) -> list[str]:
-    """Validate language purity constraints that JSON Schema cannot express."""
+    """Validate language purity and cross-field concept consistency."""
     errors: list[str] = []
     for path, text in _iter_text_values(data):
         found = [marker for marker in _SIMPLIFIED_CHINESE_MARKERS if marker in text]
@@ -50,6 +60,28 @@ def validate_series_plan_concept_semantics(data: dict[str, Any]) -> list[str]:
             errors.append(
                 f"[{path}] non-Japanese contamination: "
                 f"simplified Chinese marker(s) {', '.join(sorted(set(found)))}"
+            )
+
+    title = data.get("title")
+    if isinstance(title, str) and any(marker in title for marker in _SWAP_TITLE_MARKERS):
+        world_rules = data.get("world_rules")
+        if not isinstance(world_rules, list):
+            world_rules = []
+        core_values = [
+            data.get("logline", ""),
+            data.get("world_summary", ""),
+            *world_rules,
+        ]
+        core_text = "\n".join(value for value in core_values if isinstance(value, str))
+        has_swap_mechanism = any(marker in core_text for marker in _SWAP_MECHANISM_MARKERS)
+        has_substitution_only = any(marker in core_text for marker in _SUBSTITUTION_ONLY_MARKERS)
+        if not has_swap_mechanism:
+            detail = (
+                "substitution-only wording is present" if has_substitution_only else "core fields omit the swap mechanism"
+            )
+            errors.append(
+                "[series_plan_concept] swap gimmick mismatch: title promises 入れ替わり, "
+                f"but logline/world_summary/world_rules do not define a concrete swap mechanism ({detail})."
             )
     return errors
 

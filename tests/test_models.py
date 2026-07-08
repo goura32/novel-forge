@@ -249,6 +249,52 @@ class TestSchemas:
 
         assert any("non-Japanese contamination" in error for error in errors)
 
+    def test_validate_series_plan_rejects_swap_title_reduced_to_substitution(self):
+        data = {
+            "title": "薔薇庭園の聖女入れ替わり",
+            "slug": "bara_teien_seijo_irekawari",
+            "logline": "記憶を改ざんされ貴族令嬢の身代わりとして帝都へ潜入した元聖女は、呪われ皇太子の婚約者として公の場で精霊契約により呪いを抑制しながら生き延びる。",
+            "genre": ["ロマンスファンタジー"],
+            "target_audience": "20代から40代の女性読者。宮廷恋愛、呪い、精霊契約、記憶喪失の謎を好む層。",
+            "themes": ["記憶と自己", "呪いからの解放", "宮廷恋愛"],
+            "selling_points": [
+                "薔薇庭園で交わした精霊契約が、皇太子の呪いと聖女の記憶を結びつける。",
+                "舞踏会と騎士団の駆け引きが、身代わりの正体を追い詰める。",
+            ],
+            "world_summary": "帝都では禁断魔法が厳しく禁じられている。元聖女は記憶を改ざんされ、貴族令嬢の身代わりとして宮廷へ送られる。薔薇庭園の精霊契約は呪いを一時的に抑えるが、記憶を取り戻すたびに魔力暴走の危険が高まる。",
+            "world_rules": [
+                "薔薇庭園で交わした精霊契約は、契約者の記憶を魔力へ変換する。",
+                "皇太子の呪いは日没時に強まり、契約者の魔力供給で一時的に抑制される。",
+            ],
+        }
+
+        errors = validate("series_plan_concept", data)
+
+        assert any("swap gimmick" in error for error in errors)
+
+    def test_validate_series_plan_allows_explicit_swap_mechanism(self):
+        data = {
+            "title": "薔薇庭園の聖女入れ替わり",
+            "slug": "bara_teien_seijo_irekawari",
+            "logline": "聖女召喚の儀式で魂を貴族令嬢の身体へ入れ替えられた元聖女は、失われた記憶を取り戻しながら呪われ皇太子を救うため、薔薇庭園の精霊契約で禁断魔法の真相へ迫る。",
+            "genre": ["ロマンスファンタジー"],
+            "target_audience": "20代から40代の女性読者。宮廷恋愛、呪い、精霊契約、入れ替わりの謎を好む層。",
+            "themes": ["記憶と自己", "呪いからの解放", "宮廷恋愛"],
+            "selling_points": [
+                "魂の入れ替わりと失われた記憶が、皇太子の呪い解除条件と連動する。",
+                "舞踏会と騎士団の駆け引きが、入れ替わった聖女の正体を追い詰める。",
+            ],
+            "world_summary": "帝都では禁断魔法が厳しく禁じられている。元聖女は召喚儀式で魂を貴族令嬢と入れ替えられ、記憶を失ったまま宮廷へ送られる。薔薇庭園の精霊契約は呪いを一時的に抑えるが、記憶を取り戻すたびに魔力暴走の危険が高まる。",
+            "world_rules": [
+                "召喚儀式で魂の入れ替わりが起きると、元の身体には呪いの刻印が残り、入れ替わった魂だけが記憶を失う。",
+                "皇太子の呪いは日没時に強まり、契約者の魔力供給で一時的に抑制される。",
+            ],
+        }
+
+        errors = validate("series_plan_concept", data)
+
+        assert errors == []
+
     def test_chapter_design_schema_has_new_fields(self):
         schema = get_schema("chapter_design")
         assert "theme" in schema["required"]

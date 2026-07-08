@@ -304,3 +304,17 @@ def test_series_plan_concept_review_must_flag_non_japanese_contamination() -> No
 
     missing = [fragment for fragment in required_fragments if fragment not in prompt]
     assert missing == []
+
+
+def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
+    prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "入力キーワードまたはタイトルに「入れ替わり」がある場合",
+        "身体の入れ替わり、魂の入れ替わり、役割の入れ替わり、身代わり潜入は別物",
+        "身代わり潜入だけで置き換えた場合は重要指摘",
+        "`after` でも入れ替わりの型を保持",
+    ]
+
+    missing = [fragment for fragment in required_fragments if fragment not in prompt]
+    assert missing == []
