@@ -306,6 +306,25 @@ def test_series_plan_concept_review_must_flag_non_japanese_contamination() -> No
     assert missing == []
 
 
+def test_all_review_prompts_must_flag_non_japanese_contamination() -> None:
+    review_prompts = sorted(PROMPTS_DIR.glob("*_review.md"))
+    assert review_prompts, "expected review prompts"
+
+    required_fragments = [
+        "日本語として不自然な簡体字、中国語表現、英語混在、ハングル混在を必ず指摘する",
+        "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞は問題にしない",
+    ]
+
+    issues = {}
+    for prompt_path in review_prompts:
+        text = prompt_path.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        if missing:
+            issues[prompt_path.name] = missing
+
+    assert issues == {}
+
+
 def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
     prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
 

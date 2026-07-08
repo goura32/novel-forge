@@ -17,6 +17,7 @@ from fakes import MockLLMClient
 from novel_forge.context_builder import ContextBuilder
 from novel_forge.engine import NovelEngine
 from novel_forge.engine.design import _apply_review_text_replacements
+from novel_forge.engine.plan import MAX_SERIES_SLUG_LENGTH
 from novel_forge.models import (
     Bible,
     CharacterProfile,
@@ -323,11 +324,11 @@ class TestPlan:
         for i, vol in enumerate(result.get("planned_volumes", []), 1):
             assert vol["number"] == i
 
-    def test_plan_slug_truncated(self, engine, mock_llm):
-        """Slug longer than 32 chars should be truncated."""
+    def test_plan_slug_truncated_to_schema_limit(self, engine, mock_llm):
+        """Slug longer than schema limit should be simply truncated."""
         long_slug = "a" * 300
         mock_llm.add_sequence("series_plan_concept", _make_plan_response(slug=long_slug))
-        mock_llm.add_sequence("series_plan_concept", _make_plan_response(slug="a" * 32))
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response(slug="a" * MAX_SERIES_SLUG_LENGTH))
         mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
         mock_llm.add_sequence("series_plan_characters", _make_chars_response())
         mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
@@ -335,7 +336,21 @@ class TestPlan:
         mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
 
         result = engine.plan("テスト")
-        assert len(result["slug"]) <= 32
+        assert result["slug"] == "a" * MAX_SERIES_SLUG_LENGTH
+
+    def test_plan_preserves_real_run_slug_longer_than_old_limit(self, engine, mock_llm):
+        """The 33-char keiyaku slug should not be damaged by the old 32-char cap."""
+        raw_slug = "tsuihou_reijou_gokyo_maho_keiyaku"
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response(slug=raw_slug))
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_characters", _make_chars_response())
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
+
+        result = engine.plan("テスト")
+
+        assert result["slug"] == raw_slug
 
 
 # ── Plan review → revise loop ──────────────────────────────────────────

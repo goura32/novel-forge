@@ -10,19 +10,6 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-_SIMPLIFIED_CHINESE_MARKERS = (
-    "细",
-    "腻",
-    "牺",
-    "这",
-    "让",
-    "续",
-    "而非",
-    "卷末",
-    "细腻",
-    "牺牲",
-)
-
 _SWAP_TITLE_MARKERS = ("入れ替わり", "入れ替わる", "入れ替え")
 _SWAP_MECHANISM_MARKERS = (
     "入れ替わり",
@@ -52,15 +39,8 @@ def _iter_text_values(value: Any, path: str = ""):
 
 
 def validate_series_plan_concept_semantics(data: dict[str, Any]) -> list[str]:
-    """Validate language purity and cross-field concept consistency."""
+    """Validate cross-field concept consistency."""
     errors: list[str] = []
-    for path, text in _iter_text_values(data):
-        found = [marker for marker in _SIMPLIFIED_CHINESE_MARKERS if marker in text]
-        if found:
-            errors.append(
-                f"[{path}] non-Japanese contamination: "
-                f"simplified Chinese marker(s) {', '.join(sorted(set(found)))}"
-            )
 
     title = data.get("title")
     if isinstance(title, str) and any(marker in title for marker in _SWAP_TITLE_MARKERS):

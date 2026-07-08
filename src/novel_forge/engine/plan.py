@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from novel_forge.engine.base import NovelEngineBase
 
 
+MAX_SERIES_SLUG_LENGTH = 128
+
+
 def _validate_plan_concept(concept: dict) -> list[str]:
     # Normalize slug before validation (LLM may output hyphens/whitespace which 
     # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
@@ -143,7 +146,7 @@ def plan(engine: NovelEngineBase, keywords: str) -> dict[str, Any]:
     slug = concept.get("slug") or _slugify(concept.get("title", ""))
     # Normalize: replace hyphens/whitespace with underscores to match regex ^[a-z0-9_]+$
     slug = re.sub(r"[^a-z0-9_]", "_", slug.lower()) 
-    slug = slug[:32]
+    slug = slug[:MAX_SERIES_SLUG_LENGTH]
     engine._slug = slug
 
     # Phase 2: Characters
@@ -199,7 +202,7 @@ def _slugify(title: str) -> str:
         slug = "_".join(p.lower() for p in romaji_parts)
         slug = re.sub(r"[^a-z0-9_]", "", slug)
         if slug:
-            return slug[:32]
+            return slug[:MAX_SERIES_SLUG_LENGTH]
     h = hashlib.md5(title.encode()).hexdigest()[:12]
     return f"series_{h}"
 

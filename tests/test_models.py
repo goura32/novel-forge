@@ -229,7 +229,7 @@ class TestSchemas:
         }
         validate_or_raise("series_plan_concept", data)  # Should not raise
 
-    def test_validate_series_plan_rejects_simplified_chinese_contamination(self):
+    def test_validate_series_plan_does_not_mechanically_reject_chinese_markers(self):
         data = {
             "title": "契約婚の悪役令嬢と竜公爵",
             "slug": "keiyaku_kon_akuyaku_reijou",
@@ -247,7 +247,7 @@ class TestSchemas:
 
         errors = validate("series_plan_concept", data)
 
-        assert any("non-Japanese contamination" in error for error in errors)
+        assert errors == []
 
     def test_validate_series_plan_rejects_swap_title_reduced_to_substitution(self):
         data = {
