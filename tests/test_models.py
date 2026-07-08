@@ -229,6 +229,26 @@ class TestSchemas:
         }
         validate_or_raise("series_plan_concept", data)  # Should not raise
 
+    def test_validate_series_plan_rejects_simplified_chinese_contamination(self):
+        data = {
+            "title": "契約婚の悪役令嬢と竜公爵",
+            "slug": "keiyaku_kon_akuyaku_reijou",
+            "logline": "破滅を予知した悪役令嬢が、契約結婚を盾に王宮陰謀へ立ち向かう。魔法学院と竜公爵家の身分差を越え、初恋をやり直すために真相を追う。",
+            "genre": ["ロマンスファンタジー"],
+            "target_audience": "20代から40代の女性読者。契約結婚、身分差、王宮陰謀、初恋のやり直しを好む層。",
+            "themes": ["信頼の再構築", "身分差を越える恋", "運命への抵抗"],
+            "selling_points": [
+                "契約という枠組みの中で近づく二人の心理を细腻に描く。",
+                "魔法学院と王宮陰謀を横断する政治劇。",
+            ],
+            "world_summary": "竜公爵家と王宮が魔法契約で均衡を保つ王国。",
+            "world_rules": ["契約魔法は血統と誓約に縛られ、破れば魔力消耗を負う。"],
+        }
+
+        errors = validate("series_plan_concept", data)
+
+        assert any("non-Japanese contamination" in error for error in errors)
+
     def test_chapter_design_schema_has_new_fields(self):
         schema = get_schema("chapter_design")
         assert "theme" in schema["required"]

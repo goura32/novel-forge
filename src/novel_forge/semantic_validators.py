@@ -10,9 +10,48 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+_SIMPLIFIED_CHINESE_MARKERS = (
+    "细",
+    "腻",
+    "牺",
+    "这",
+    "让",
+    "续",
+    "而非",
+    "卷末",
+    "细腻",
+    "牺牲",
+)
+
 
 def _positive_int(value: object) -> int | None:
     return value if isinstance(value, int) and value > 0 else None
+
+
+def _iter_text_values(value: Any, path: str = ""):
+    if isinstance(value, str):
+        yield path or "(root)", value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            yield from _iter_text_values(item, child_path)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            child_path = f"{path}[{index}]"
+            yield from _iter_text_values(item, child_path)
+
+
+def validate_series_plan_concept_semantics(data: dict[str, Any]) -> list[str]:
+    """Validate language purity constraints that JSON Schema cannot express."""
+    errors: list[str] = []
+    for path, text in _iter_text_values(data):
+        found = [marker for marker in _SIMPLIFIED_CHINESE_MARKERS if marker in text]
+        if found:
+            errors.append(
+                f"[{path}] non-Japanese contamination: "
+                f"simplified Chinese marker(s) {', '.join(sorted(set(found)))}"
+            )
+    return errors
 
 
 def validate_volume_design_semantics(data: dict[str, Any]) -> list[str]:

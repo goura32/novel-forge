@@ -90,9 +90,10 @@ def test_input_info_sections_use_subsections_with_line_start_placeholders() -> N
         for section_header in data_sections:
             if section_header in lines:
                 idx = lines.index(section_header)
-                if idx < output_spec_idx:
-                    if found_section_start is None or idx > found_section_start:
-                        found_section_start = idx
+                if idx < output_spec_idx and (
+                    found_section_start is None or idx > found_section_start
+                ):
+                    found_section_start = idx
         if found_section_start is None:
             issues[prompt_path.name] = ["missing review/target/input section (no subsection header found)"]
             continue

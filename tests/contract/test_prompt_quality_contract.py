@@ -263,3 +263,44 @@ def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> Non
             issues[prompt.name] = missing
 
     assert issues == {}
+
+def test_series_plan_concept_prompts_guard_raw_run_failures() -> None:
+    prompts = [
+        PROMPTS_DIR / "series_plan_concept.md",
+        PROMPTS_DIR / "series_plan_concept_revision.md",
+    ]
+
+    required_fragments = [
+        "不自然な英語・簡体字・ハングル等を混在させない",
+        "簡体字・中国語表現・不自然な外来語",
+        "logline は要素の羅列にしない",
+        "中心課題を1つに絞り",
+        "能動的な行動目標",
+        "読者層・恋愛濃度・官能性・サスペンス濃度を矛盾させない",
+        "slug はローマ字ならローマ字で統一",
+        "英単語を混在させない",
+        "主要語3〜6個程度",
+    ]
+    issues = {}
+    for prompt in prompts:
+        text = prompt.read_text(encoding="utf-8")
+        missing = [fragment for fragment in required_fragments if fragment not in text]
+        if missing:
+            issues[prompt.name] = missing
+
+    assert issues == {}
+
+
+def test_series_plan_concept_review_must_flag_non_japanese_contamination() -> None:
+    prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "日本語として不自然な簡体字、中国語表現、英語混在、ハングル混在を必ず指摘する",
+        "细腻",
+        "而非",
+        "牺牲",
+        "卷末",
+    ]
+
+    missing = [fragment for fragment in required_fragments if fragment not in prompt]
+    assert missing == []

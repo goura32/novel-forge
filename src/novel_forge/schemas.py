@@ -8,6 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, ValidationError
 
 from novel_forge.logging_config import get_logger
+from novel_forge.semantic_validators import validate_series_plan_concept_semantics
 
 _log = get_logger("novel_forge.schemas")
 
@@ -120,6 +121,8 @@ def validate_data(name: str, schema: dict[str, Any], data: dict[str, Any]) -> li
     coerce_array_fields(data, schema)
     _coerce_enum_prefixes_in_container(data, schema)
     errors = _validate_with_schema(schema, data)
+    if name == "series_plan_concept":
+        errors.extend(validate_series_plan_concept_semantics(data))
     return errors
 
 
