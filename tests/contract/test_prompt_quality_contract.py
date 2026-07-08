@@ -142,6 +142,20 @@ def test_concept_review_does_not_over_specify_design_details() -> None:
     assert missing == []
 
 
+def test_concept_review_does_not_create_clarity_rewrite_loops() -> None:
+    text = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "明確化・文体改善・もっと精密そうな別案という理由だけで指摘しない",
+        "新しいキーアイテム、解除条件、制度名、用語、対立構造、因果関係を追加して別設定に作り替えない",
+        "同じ中核ギミックを別角度から説明しているだけなら重複・矛盾扱いしない",
+        "対象、条件、効果、期限が同時に両立不能な場合だけ指摘する",
+    ]
+
+    missing = [fragment for fragment in required_fragments if fragment not in text]
+    assert missing == []
+
+
 def test_series_plan_volumes_requires_non_empty_final_volume_hook() -> None:
     prompt = (PROMPTS_DIR / "series_plan_volumes.md").read_text(encoding="utf-8")
 
