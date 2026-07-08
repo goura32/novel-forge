@@ -386,3 +386,22 @@ def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
 
     missing = [fragment for fragment in required_fragments if fragment not in prompt]
     assert missing == []
+
+
+def test_series_plan_concept_guards_against_meta_explanations() -> None:
+    generation = (PROMPTS_DIR / "series_plan_concept.md").read_text(encoding="utf-8")
+    review = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+
+    for fragment in ["〜を描く", "読者は", "追体験する"]:
+        assert fragment in generation
+        assert fragment in review
+
+
+def test_series_plan_characters_requires_cast_not_solo_lead() -> None:
+    generation = (PROMPTS_DIR / "series_plan_characters.md").read_text(encoding="utf-8")
+    review = (PROMPTS_DIR / "series_plan_characters_review.md").read_text(encoding="utf-8")
+
+    assert "3〜5人" in generation
+    assert "2人以下" in review
+    assert "恋愛相手" in generation
+    assert "対立者" in review

@@ -33,6 +33,7 @@
 - `title`, `genre`, `target_audience`, `themes`, `selling_points`, `world_summary`, `world_rules` はすべて後続工程で参照できる具体性で埋める。
 - `themes` と `selling_points` は抽象語だけにせず、読者が期待できる葛藤・場面・体験に結びつける。
 - `world_rules` は物語上の制約・代償・禁止事項など、展開に影響するルール文を入れる。
+- `world_rules` と `selling_points` は作品内の設定・魅力として書き、「〜を描く」「〜を示す」「読者は」「追体験する」などの執筆方針・読者向けメタ説明を書かない。
 
 ## 入力情報
 
