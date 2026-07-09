@@ -186,12 +186,15 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         user_prompt=engine._prompts.render("volume_design.md",
             {"series_plan": series_plan, "volume_number": str(vol_num),
              "volume_title": planned_volume_title or f"第{vol_num}巻", "genre": genre,
-             "previous_design": prev_design, "lang": engine._lang}),
+             "previous_design": prev_design, "lang": engine._lang,
+             "bible": engine._bible_mgr.to_text_slice("volume", {"vol_num": vol_num})}),
         kind="volume_design",
         llm=engine._llm,
         quality=engine._quality,
     )
     if isinstance(vol_design_data, dict):
+        # 巻設計確定 → 聖典を更新（design の意図ベース、冪等）
+        engine._bible_mgr.apply_design_update("volume", vol_design_data, {"vol_num": vol_num})
         raw_chapters = vol_design_data.get("chapters", [vol_design_data])
         chapters: list[dict[str, Any]] = [
             chapter for chapter in raw_chapters if isinstance(chapter, dict)
@@ -256,7 +259,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
              "chapter_purpose": ch_data.get("purpose", ""),
              "previous_chapter_outcome": prev_chapter_outcome,
              "previous_volume_summary": prev_volume_summary,
-             "lang": engine._lang})
+             "lang": engine._lang,
+             "bible": engine._bible_mgr.to_text_slice("chapter", {"vol_num": vol_num, "ch_num": ch_idx})})
         ch_result, _ch_review = generate_and_review(
                   generate_fn=_generate_chapter_design,
                   validate_fn=_validate_chapter_design,
@@ -270,6 +274,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
               )
         chapter_results.append(ch_result)
         if isinstance(ch_result, dict):
+            # 章設計確定 → 聖典を更新（design の意図ベース、冪等）
+            engine._bible_mgr.apply_design_update("chapter", ch_result, {"vol_num": vol_num, "ch_num": ch_idx})
             prev_chapter_outcome = ch_result.get("outcome", "") or ch_result.get("emotional_arc", "")
     chapters = chapter_results
     engine._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)}/{chapters_count} ch done")
@@ -301,7 +307,11 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "scene_seed": json.dumps(sc_data, ensure_ascii=False),
                  "previous_outcome": prev_outcome,
                  "previous_volume_summary": prev_volume_summary,
-                 "lang": engine._lang})
+                 "lang": engine._lang,
+                 "bible": engine._bible_mgr.to_text_slice("scene", {
+                     "vol_num": vol_num, "ch_num": ch_num, "sc_num": scene_counter,
+                     "character_names": sc_data.get("characters", []) if isinstance(sc_data, dict) else [],
+                 })})
             def _revise_scene_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
                 revised = engine._llm.complete_json(
                     "scene_design", sys, engine._prompts.render("scene_design_revision.md",
@@ -330,6 +340,10 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 scene_obj.setdefault("chapter_scene_number", chapter_scene_number)
                 scene_obj["number"] = scene_counter
                 scenes.append(scene_obj)
+                # シーン設計確定 → 聖典を更新（design の意図ベース、冪等）
+                engine._bible_mgr.apply_design_update("scene", scene_obj, {
+                    "vol_num": vol_num, "ch_num": ch_num, "sc_num": scene_counter,
+                })
                 prev_outcome = scene_obj.get("outcome", "")
     engine._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)} sc done")
 

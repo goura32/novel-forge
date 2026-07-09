@@ -95,6 +95,10 @@ class SceneDesign(BaseModel):
     sensory_focus: list[str] = Field(default_factory=list)
     subtext: str = Field(max_length=300, default="")
     foreshadowing: list[str] = Field(default_factory=list)
+    resolves_foreshadowing: list[str] = Field(
+        default_factory=list,
+        description="このシーンで回収する伏線の識別情報（description または id）。設計者の意図による明示的回収。",
+    )
     key_events: list[str] = Field(default_factory=list)
     setting: str = Field(max_length=200, default="")
     notes: str = Field(max_length=500, default="")

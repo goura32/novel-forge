@@ -30,17 +30,6 @@ class BibleManager:
     def save(self, bible: Bible) -> None:
         self._storage.save(bible)
 
-    # ── finalize ─────────────────────────────────────────────────────
-
-    def finalize(self, continuity_notes: list[str]) -> None:
-        """Resolve foreshadowing items referenced in continuity notes."""
-        bible = self.bible
-        for note in continuity_notes:
-            for fh in bible.foreshadowing:
-                if not fh.resolved and fh.description in note:
-                    fh.resolved = True
-        self.save(bible)
-
     # ── unresolved items ────────────────────────────────────────────
 
     def get_unresolved_foreshadowing(self) -> list[ForeshadowingItem]:
@@ -63,6 +52,7 @@ class BibleManager:
                     f"{c.personality or '性格未設定'} / "
                     f"動機: {c.motivation or '未設定'} / "
                     f"外見: {c.appearance or '未設定'}"
+                    + (f" / 現在: {c.state}" if c.state else "")
                 )
         if bible.foreshadowing:
             lines.append("伏線:")
@@ -79,8 +69,8 @@ class BibleManager:
                 )
         if bible.subplots:
             lines.append("サブプロット:")
+            # Do NOT include status markers like [in_progress] — LLM may copy them into text
             for sp in bible.subplots:
-                # Do NOT include status markers like [in_progress] — LLM may copy them into text
                 lines.append(f"  - {sp.name}: {sp.progress_note or '進捗なし'}")
         if bible.glossary:
             lines.append("用語:")
@@ -91,6 +81,68 @@ class BibleManager:
             for rule_text in bible.world_rules:
                 lines.append(f"  - {rule_text}")
         return "\n".join(lines) if lines else "（Bible は空です）"
+
+    # ── staged slice for design prompts ────────────────────────────
+
+    def to_text_slice(self, stage: str, context: dict | None = None) -> str:
+        """Serialize a stage-specific slice of Bible for design prompts.
+
+        Design reads only the slice relevant to the current stage:
+          - volume:  meta (logline/world_rules) + 進行中 subplots
+          - chapter: global constraints + 進行中 subplots + 未回収 foreshadowing
+          - scene:   global constraints + 登場 characters + 未回収 foreshadowing + relationships
+
+        Args:
+            stage: "volume" | "chapter" | "scene"
+            context: optional dict with keys used to narrow (e.g. character_names)
+        """
+        bible = self.bible
+        context = context or {}
+        lines: list[str] = []
+
+        if stage in ("volume", "chapter", "scene"):
+            if bible.world_rules:
+                lines.append("## 世界観ルール（遵守）")
+                for rule in bible.world_rules:
+                    lines.append(f"  - {rule}")
+
+        if stage == "volume":
+            if bible.subplots:
+                active = [s for s in bible.subplots if s.status != "完了"]
+                if active:
+                    lines.append("## 進行中サブプロット")
+                    for s in active:
+                        lines.append(f"  - {s.name}: {s.progress_note or ''}")
+
+        if stage in ("chapter", "scene"):
+            unresolved = [f for f in bible.foreshadowing if not f.resolved]
+            if unresolved:
+                lines.append("## 未回収伏線（この章/シーンで回収するなら明示）")
+                for f in unresolved:
+                    lines.append(f"  - {f.description}")
+
+        if stage == "scene":
+            char_names = set(context.get("character_names", []) or [])
+            if bible.characters:
+                if char_names:
+                    relevant = [c for c in bible.characters if c.name in char_names]
+                else:
+                    relevant = bible.characters
+                if relevant:
+                    lines.append("## 登場人物の現在状態")
+                    for c in relevant:
+                        state = f" / 現在: {c.state}" if c.state else ""
+                        lines.append(f"  - {c.name}（{c.role or ''}）{state}")
+            if bible.relationships:
+                lines.append("## 人物関係")
+                for r in bible.relationships:
+                    lines.append(
+                        f"  - {r.character_a} ↔ {r.character_b}: "
+                        f"{r.relationship_type or ''}"
+                        + (f" / {r.status}" if r.status else "")
+                    )
+
+        return "\n".join(lines) if lines else "（参照すべき聖典情報はありません）"
 
     # ── apply update (from scene_summary_and_bible_update / bible_update) ──
 
@@ -258,5 +310,118 @@ class BibleManager:
                 continue
             if rule and rule not in bible.world_rules:
                 bible.world_rules.append(rule)
+
+        self.save(bible)
+
+    # ── apply design update (intentional, from design stage) ─────────
+
+    def apply_design_update(
+        self,
+        stage: str,
+        data: dict,
+        context: dict | None = None,
+    ) -> None:
+        """Apply a design-stage update to Bible (intentional, idempotent).
+
+        Unlike ``apply_update`` (which is driven by runtime draft extraction in
+        write), this is driven by the design-stage *intent*: the design directly
+        declares what it plants / resolves. Called after a scene/chapter/volume
+        design is confirmed (review passed). Never reads draft text.
+
+        Idempotency:
+          - characters: matched by name; update in place, append if new.
+          - foreshadowing (setup): keyed by ``description``; skip if already present.
+          - foreshadowing (resolve): matched by ``description`` or ``id``; set resolved=True.
+          - subplots: keyed by ``id``; update status/note in place, append if new.
+
+        Args:
+            stage: "scene" | "chapter" | "volume"
+            data: design object as dict (SceneDesign / ChapterDesign / VolumeDesign).
+            context: optional dict with keys like ``vol_num``, ``ch_num``, ``sc_num``.
+        """
+        bible = self.bible
+        context = context or {}
+        loc = (
+            f"vol{context.get('vol_num', '?')}"
+            f"/ch{context.get('ch_num', '?')}"
+            f"/sc{context.get('sc_num', '?')}"
+        )
+
+        if stage == "scene":
+            # 1. characters: update state / add new
+            for name in data.get("characters", []) or []:
+                if not isinstance(name, str) or not name.strip():
+                    continue
+                name = name.strip()
+                existing = next((c for c in bible.characters if c.name == name), None)
+                if existing:
+                    # design は状態変化を意図して渡すので、state を上書き（冪等）
+                    if data.get("notes"):
+                        existing.state = data["notes"]
+                else:
+                    bible.characters.append(
+                        CharacterProfile(name=name, state=data.get("notes", "") or "")
+                    )
+
+            # 2. foreshadowing setup: append if not already present (keyed by description)
+            existing_descs = {f.description.strip() for f in bible.foreshadowing}
+            for desc in data.get("foreshadowing", []) or []:
+                if not isinstance(desc, str) or not desc.strip():
+                    continue
+                desc = desc.strip()
+                if desc not in existing_descs:
+                    bible.foreshadowing.append(
+                        ForeshadowingItem(description=desc, resolved=False)
+                    )
+                    existing_descs.add(desc)
+
+            # 3. resolves_foreshadowing: explicit resolution by description or id
+            for key in data.get("resolves_foreshadowing", []) or []:
+                if not isinstance(key, str) or not key.strip():
+                    continue
+                key = key.strip()
+                for fh in bible.foreshadowing:
+                    if not fh.resolved and (
+                        fh.description.strip() == key
+                        or fh.description.strip().endswith(key)
+                        or key in fh.description.strip()
+                    ):
+                        fh.resolved = True
+                        break
+
+        elif stage == "chapter":
+            # foreshadowing_notes → setup (idempotent by description)
+            existing_descs = {f.description.strip() for f in bible.foreshadowing}
+            for desc in data.get("foreshadowing_notes", []) or []:
+                if not isinstance(desc, str) or not desc.strip():
+                    continue
+                desc = desc.strip()
+                if desc not in existing_descs:
+                    bible.foreshadowing.append(
+                        ForeshadowingItem(description=desc, resolved=False)
+                    )
+                    existing_descs.add(desc)
+
+            # subplot_notes → subplots (idempotent by name)
+            existing_names = {s.name for s in bible.subplots}
+            for note in data.get("subplot_notes", []) or []:
+                if not isinstance(note, str) or not note.strip():
+                    continue
+                note = note.strip()
+                if note not in existing_names:
+                    bible.subplots.append(
+                        SubplotItem(
+                            id=f"sp_{len(bible.subplots) + 1:03d}",
+                            name=note,
+                            status="進行中",
+                            progress_note=note,
+                        )
+                    )
+                    existing_names.add(note)
+
+        elif stage == "volume":
+            # volume design intent: keep subplots progressing.
+            # premise/logline は series_plan からの引き継ぎなのでここでは上書きしない。
+            pass
 
         self.save(bible)

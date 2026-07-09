@@ -94,6 +94,14 @@
         "type": "string",
         "description": "伏線。伏線の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
       }
+    },
+    "resolves_foreshadowing": {
+      "description": "このシーンで回収する既存伏線の識別情報（description または id）。聖典の設計者意図による明示的回収に使う。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "回収する伏線の説明またはID。聖典の未回収伏線と一致させる。"
+      }
     }
   },
   "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"

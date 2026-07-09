@@ -22,8 +22,9 @@ def export(engine, volume_number: int | None = None) -> dict[str, Any]:
     engine._log.info(f"Export started: volume={vol_num} slug='{slug}'")
     vol = engine._current_volume()
 
-    bb = engine._bb_storage.load()
-    engine._bible_mgr.finalize(bb.continuity_notes)
+    # NOTE: Bible は design 段階で更新済。export は bible を参照・更新しない
+    # （runtime discovery 禁止の原則）。未回収伏線・未完サブプロットは
+    # get_unresolved_foreshadowing() / get_incomplete_subplots() で bible から読むのみ。
 
     _export_preflight(engine, vol_num)
     _assemble_manuscript(engine, vol_num)

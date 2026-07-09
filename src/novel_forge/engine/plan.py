@@ -156,6 +156,38 @@ def plan(engine: NovelEngineBase, keywords: str) -> dict[str, Any]:
     engine._save_path(0, "series_plan.json", result)
     engine._state.status = "企画済"
     engine._save()
+
+    # ── 聖典（Series Bible）初版作成 ──────────────────────────────────
+    # plan の出力を聖典の seed とする（設計時の SSOT）。
+    # meta/characters/world_rules は series_plan から引き継ぎ、
+    # 以降は plan を参照せず design が聖典を更新する。
+    from novel_forge.bible_manager import BibleManager
+    from novel_forge.models import Bible, CharacterProfile
+    from novel_forge.storage import BibleStorage
+
+    bible = Bible(
+        characters=[
+            CharacterProfile(
+                name=c.get("name", ""),
+                role=c.get("role", ""),
+                arc=c.get("arc", ""),
+                appearance=c.get("appearance", ""),
+                personality=c.get("personality", ""),
+                motivation=c.get("motivation", ""),
+                flaw=c.get("flaw", ""),
+                age=c.get("age", ""),
+                occupation=c.get("occupation", ""),
+                background=c.get("background", ""),
+                state=c.get("state", ""),
+            )
+            for c in characters.get("main_characters", [])
+            if isinstance(c, dict) and c.get("name")
+        ],
+        world_rules=list(concept.get("world_rules", []) or []),
+    )
+    BibleManager(BibleStorage(engine._series_dir)).save(bible)
+    engine._log.info(f"✓ Bible 初版作成: title='{result['title']}' characters={len(bible.characters)} world_rules={len(bible.world_rules)}")
+
     engine._log.info(f"✓ Plan complete: title='{result['title']}' slug='{slug}'")
 
     # Record character names for future dedup

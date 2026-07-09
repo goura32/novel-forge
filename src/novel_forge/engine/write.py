@@ -92,7 +92,6 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
                     get_series_plan_summary_fn=engine._ctx_builder.get_series_plan_summary,
                     get_outline_summary_fn=engine._ctx_builder.get_outline_summary,
                     get_scene_summary_fn=engine._ctx_builder.get_scene_summary,
-                    get_bible_text_fn=engine._bible_mgr.to_text,
                     load_scene_draft_fn=engine._scene_writer.load_scene_draft,
                 ),
             )
@@ -101,12 +100,6 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
             # Per-scene checkpoint — crash recovery skips already completed scenes
             engine._save()
 
-            draft_text = engine._scene_writer.load_scene_draft(
-                vol_num, scene.number, chapter.number
-            )
-            engine._scene_writer.summarize_and_update_bible(
-                record.scene_number, draft_text, engine._lang, engine._bible_mgr.to_text
-            )
             engine._log.info(f"    ✓ sc{scene.number}")
 
         engine._log.info(f"  ✓ ch{chapter.number}/{total_ch}")
