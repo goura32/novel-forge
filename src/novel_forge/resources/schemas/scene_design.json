@@ -18,19 +18,19 @@
   ],
   "properties": {
     "title": {
-      "description": "シーンタイトル。3〜100文字推奨。",
+      "description": "そのシーンで起きる中心的な出来事が分かる固有名（例：「初めての契約」）。",
       "type": "string"
     },
     "goal": {
-      "description": "シーン開始時の状況と主人公の行動。20〜300文字推奨。",
+      "description": "そのシーンでPOV人物が求める具体的な目的（例：子の熱を下げる薬を調合する）。",
       "type": "string"
     },
     "outcome": {
-      "description": "シーン終了時の実際の結果。20〜300文字推奨。",
+      "description": "シーン末で確定する結果（例：主人公が精霊契約で熱を鎮める）。",
       "type": "string"
     },
     "conflict": {
-      "description": "シーン内の障害・対立。20〜300文字推奨。",
+      "description": "目的を阻む具体的な対立・制約（例：王印断絶で常法の魔法薬が効かない）。",
       "type": "string"
     },
     "pov": {
@@ -56,23 +56,23 @@
       "minItems": 1
     },
     "setting": {
-      "description": "舞台設定。20〜300文字推奨。",
+      "description": "場所・時間・環境の具体（例：雪国の療養村、未明、薬炉の火と外の吹雪）。",
       "type": "string"
     },
     "hook": {
-      "description": "冒頭1-2文で提示すべき具体的な異変・行動・対立。",
+      "description": "冒頭1〜2文で使える具体的な引き（例：薬炉の前で子が青く痙攣している）。進行中の異変・欲求から始める。",
       "type": "string"
     },
     "turning_point": {
-      "description": "シーン中盤から終盤で不可逆に変わる事実・関係・決意。",
+      "description": "場面中の不可逆な変化（例：主人公が静寂回路を開き結晶を解かす）。このシーン固有の変化に。",
       "type": "string"
     },
     "emotional_arc": {
-      "description": "シーン開始時から終了時までの感情変化。",
+      "description": "POV人物がそのシーンを通して追う感情の変化（例：無力感から、新たな契約への希望へ）。",
       "type": "string"
     },
     "ending_hook": {
-      "description": "次シーンへ読者を進ませる疑問・緊張・余韻。",
+      "description": "次シーンへの引き（例：解けた結晶から小さな精霊の光が漏れ出す）。未解決の問いとして機能させる。",
       "type": "string"
     },
     "sensory_focus": {
@@ -84,11 +84,11 @@
       }
     },
     "subtext": {
-      "description": "台詞や行動の裏にある本音・隠し事・対立。",
+      "description": "台詞や行動の裏にある本音・隠し事・対立（例：助言しつつも王都への密書を隠す）。",
       "type": "string"
     },
     "foreshadowing": {
-      "description": "設置または回収する伏線。",
+      "description": "設置または回収する伏線（例：薬炉の灰に混じる青い結晶の欠片）。後の回収が見える具体に。",
       "type": "array",
       "items": {
         "type": "string",

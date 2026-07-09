@@ -99,12 +99,6 @@
           },
           "change_direction": {
             "type": "string",
-            "enum": [
-              "改善",
-              "悪化",
-              "変化",
-              "変化なし"
-            ],
             "description": "関係変化。人物関係の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
           },
           "trigger_event": {

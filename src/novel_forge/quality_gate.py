@@ -17,20 +17,21 @@ class QualityGateResult:
 
     @property
     def blocker_count(self) -> int:
-        return sum(1 for i in self.issues if i.get("severity") == "critical")
+        # severity は任意の文字列。critical/致命的 を blocker とする。
+        return sum(1 for i in self.issues if i.get("severity") in ("critical", "致命的"))
 
     @property
     def critical_count(self) -> int:
-        # 旧スキーマ互換: "critical" のみ
-        return sum(1 for i in self.issues if i.get("severity") == "critical")
+        # 旧スキーマ互換: critical/致命的 を blocker として扱う
+        return sum(1 for i in self.issues if i.get("severity") in ("critical", "致命的"))
 
     @property
     def major_count(self) -> int:
-        return sum(1 for i in self.issues if i.get("severity") == "important")
+        return sum(1 for i in self.issues if i.get("severity") in ("important", "重要"))
 
     @property
     def minor_count(self) -> int:
-        return sum(1 for i in self.issues if i.get("severity") == "minor")
+        return sum(1 for i in self.issues if i.get("severity") in ("minor", "軽微"))
 
     @property
     def revision_needed(self) -> bool:

@@ -10,15 +10,15 @@
   ],
   "properties": {
     "title": {
-      "description": "書籍タイトル。30〜200文字推奨。",
+      "description": "その巻の内容とトーンが伝わる書籍タイトル。",
       "type": "string"
     },
     "description": {
-      "description": "書籍説明文。200〜4000文字推奨。",
+      "description": "購入前に興味を持てる巻の説明。葛藤・魅力・読後感を含め、ネタバレしすぎない。",
       "type": "string"
     },
     "keywords": {
-      "description": "キーワード。3〜7個推奨、各最大50文字。",
+      "description": "読者の検索意図に近く内容と一致するキーワード。無関係な流行語で水増ししない。",
       "type": "array",
       "items": {
         "type": "string",
@@ -27,7 +27,7 @@
       "minItems": 1
     },
     "categories": {
-      "description": "カテゴリ。2〜3個推奨、各最大100文字。",
+      "description": "内容と一致するカテゴリ。販売棚として適切なものを選ぶ。",
       "type": "array",
       "items": {
         "type": "string",
