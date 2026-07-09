@@ -1,201 +1,42 @@
-# NovelForge: コード・プロンプト・スキーマ対応表
+# Prompt / Schema / Runtime 対応
 
-このドキュメントは、コード（Python）、プロンプトテンプレート（.md）、JSONスキーマ（.json）の3層の整合性を記録します。
+最終更新: 2026-07-10
 
-## 1. 生成フェーズ（Generate）
+この表は、現在実装されている v1 runtime の対応です。Series Bible v2 の未実装 Schema は含めません。
 
-### 1.1 Plan フェーズ
+## 生成・レビュー・改稿
 
-| プロンプト | スキーマ | コード (validate_fn) | 出力先 |
-|---|---|---|---|
-| `series_plan_concept.md` | `series_plan_concept.json` | `_validate_plan_concept` | `series_plan.json` |
-| `series_plan_characters.md` | `series_plan_characters.json` | `_validate_plan_characters` | `series_plan.json` |
-| `series_plan_volumes.md` | `series_plan_volumes.json` | `_validate_plan_volumes` | `series_plan.json` |
+| 工程 | 生成 prompt / schema | review prompt / schema | revision prompt / schema | 主な実行箇所 |
+|---|---|---|---|---|
+| Series concept | `series_plan_concept.md` / `series_plan_concept.json` | `series_plan_concept_review.md` / `review.json` | `series_plan_concept_revision.md` / `series_plan_concept.json` | `engine/plan.py` |
+| Characters | `series_plan_characters.md` / `series_plan_characters.json` | `series_plan_characters_review.md` / `review.json` | `series_plan_characters_revision.md` / `series_plan_characters.json` | `engine/plan.py` |
+| Volumes | `series_plan_volumes.md` / `series_plan_volumes.json` | `series_plan_volumes_review.md` / `review.json` | `series_plan_volumes_revision.md` / `series_plan_volumes.json` | `engine/plan.py` |
+| Volume design | `volume_design.md` / `volume_design.json` | `volume_design_review.md` / `review.json` | `volume_design_revision.md` / `volume_design.json` | `engine/design.py` |
+| Chapter design | `chapter_design.md` / `chapter_design.json` | `chapter_design_review.md` / `review.json` | `chapter_design_revision.md` / `chapter_design.json` | `engine/design.py` |
+| Scene design | `scene_design.md` / `scene_design.json` | `scene_design_review.md` / `review.json` | `scene_design_revision.md` / `scene_design.json` | `engine/design.py` |
+| Scene draft | `scene_draft.md` / `scene_draft.json` | `scene_review.md` / `review.json` | `scene_revision.md` / `scene_draft.json` | `scene_writer.py` |
+| Scene summary + v1 Bible update | `scene_summary_and_bible_update.md` / `scene_summary_and_bible_update.json` | — | — | `scene_writer.py` |
 
-### 1.2 Design フェーズ
+`system.md` は全 LLM task で共通に使われます。
 
-| プロンプト | スキーマ | コード (validate_fn) | 出力先 |
-|---|---|---|---|
-| `volume_design.md` | `volume_design.json` | `_validate_volume_design` | `vol{NN}.json` |
-| `chapter_design.md` | `chapter_design.json` | `_validate_chapter_design` | `vol{NN}.json` |
-| `scene_design.md` | `scene_design.json` | `_validate_scene_design` | `vol{NN}.json` |
+## 例外・未使用のリソース
 
-### 1.3 Write フェーズ
+| リソース | 現状 |
+|---|---|
+| `kdp_metadata.md` / `kdp_metadata.json` | export のメタデータは `engine/export.py` が Python で生成するため、現行 runtime は template を render しない |
+| `cover_prompt.md` / `cover_prompt.json` | runtime から呼ばれない |
 
-| プロンプト | スキーマ | コード (validate_fn) | 出力先 |
-|---|---|---|---|
-| `scene_draft.md` | `scene_draft.json` | `_validate_fn` (content length) | `scenes/vol{NN}/sc{NN}.json` |
+これらは package resource として残っていますが、現行 runtime contract ではありません。削除・再導入は、実装とテストを同じ変更で扱ってください。
 
----
+## Schema 展開と検証
 
-## 2. レビューフェーズ（Review）
+1. `PromptManager.render()` が `{schema}` を対応 Schema の簡略化表現へ展開する。
+2. prompt variables を置換する。
+3. `LLMClient.complete_json()` が Ollama 呼び出し、JSON parse、Schema validation を行う。
+4. plan / design / export などが工程固有の semantic validation を追加する。
 
-### 2.1 Plan レビュー
+Review の共通 Schema は `review.json` です。`publication_blocking` は severity と独立した、次工程へ進めない問題の印です。
 
-| プロンプト | スキーマ | コード (review_fn) | 備考 |
-|---|---|---|---|
-| `series_plan_concept_review.md` | `review.json` | `_review_plan_concept` | LLM が指摘事項を生成 |
-| `series_plan_characters_review.md` | `review.json` | `_review_plan_characters` | LLM が指摘事項を生成 |
-| `series_plan_volumes_review.md` | `review.json` | `_review_plan_volumes` | LLM が指摘事項を生成 |
+## v2 への注意
 
-### 2.2 Design レビュー
-
-| プロンプト | スキーマ | コード (review_fn) | 備考 |
-|---|---|---|---|
-| `volume_design_review.md` | `review.json` | `_review_volume_design` | LLM が指摘事項を生成 |
-| `chapter_design_review.md` | `review.json` | `_review_chapter_design` | LLM が指摘事項を生成 |
-| `scene_design_review.md` | `review.json` | `_review_scene_design` | LLM が指摘事項を生成 |
-
-### 2.3 Write レビュー
-
-| プロンプト | スキーマ | コード (review_fn) | 備考 |
-|---|---|---|---|
-| `scene_review.md` | `review.json` | `_call_review_api` | LLM が指摘事項を生成 |
-
----
-
-## 3. 修正フェーズ（Revise）
-
-### 3.1 Plan 修正
-
-| プロンプト | スキーマ | コード (revise_fn) | 備考 |
-|---|---|---|---|
-| `series_plan_concept_revision.md` | `series_plan_concept.json` | `complete_json` | 生成スキーマと同じ |
-| `series_plan_characters_revision.md` | `series_plan_characters.json` | `complete_json` | 生成スキーマと同じ |
-| `series_plan_volumes_revision.md` | `series_plan_volumes.json` | `complete_json` | 生成スキーマと同じ |
-
-### 3.2 Design 修正
-
-| プロンプト | スキーマ | コード (revise_fn) | 備考 |
-|---|---|---|---|
-| `volume_design_revision.md` | `volume_design.json` | `complete_json` | 生成スキーマと同じ |
-| `chapter_design_revision.md` | `chapter_design.json` | `complete_json` | 生成スキーマと同じ |
-| `scene_design_revision.md` | `scene_design.json` | `complete_json` | 生成スキーマと同じ |
-
-### 3.3 Write 修正
-
-| プロンプト | スキーマ | コード (revise_fn) | 備考 |
-|---|---|---|---|
-| `scene_revision.md` | `scene_draft.json` | `_revise_scene` | 生成スキーマと同じ |
-
----
-
-## 4. その他のプロンプト
-
-| プロンプト | スキーマ | 用途 | 備考 |
-|---|---|---|---|
-| `scene_summary_and_bible_update.md` | `scene_summary_and_bible_update.json` | シーン要約・更新 | レビューとは別 |
-| `kdp_metadata.md` | `kdp_metadata.json` | KDPメタデータ生成 | 単体実行 |
-| `system.md` | なし | システムプロンプト | 全フェーズで使用 |
-| `cover_prompt.md` | `cover_prompt.json` | 表紙生成プロンプト | 未使用 |
-
----
-
-## 5. スキーマとコードの対応詳細
-
-### 5.1 必須フィールド検証（validate_fn）
-
-| スキーマ | 必須フィールド | コード |
-|---|---|---|
-| `series_plan_concept.json` | title, slug, logline, genre, target_audience, themes, selling_points, world_summary, world_rules | `_validate_plan_concept` |
-| `series_plan_characters.json` | main_characters (各キャラ: name, role, personality, background, arc, relationships) | `_validate_plan_characters` |
-| `series_plan_volumes.json` | planned_volumes (各巻: title, premise) | `_validate_plan_volumes` |
-| `volume_design.json` | chapters | `_validate_volume_design` |
-| `chapter_design.json` | title, purpose, theme, emotional_arc, outcome, scenes | `_validate_chapter_design` |
-| `scene_design.json` | title, goal, conflict, outcome, pov, characters, key_events, setting | `_validate_scene_design` |
-| `scene_draft.json` | title, content（文字数下限チェックなし／推奨2500〜3000字だが未強制） | `_validate_fn` |
-| `kdp_metadata.json` | title, description, keywords, categories | なし |
-
-### 5.2 統一レビュースキーマ（review.json）
-
-すべてのレビューで単一の `review.json` スキーマを使用。トップレベルで出版可否・総評・長所・指摘一覧を返します。
-
-| フィールド | 必須 | 説明 |
-|---|---|---|
-| `ready_for_publication` | ✓ | 次工程または出版へ進める状態。`publication_blocking=true` の issue が残る場合は `false`。 |
-| `overall_assessment` | ✓ | レビュー全体の短い総評。 |
-| `strengths` | ✓ | 改稿で維持すべき良い点の一覧。 |
-| `issues` | ✓ | 指摘事項の一覧。問題がなければ空配列。 |
-
-`issues[]` のフィールドは以下です。
-
-| フィールド | 必須 | 説明 |
-|---|---|---|
-| `severity` | ✓ | 修正の緊急性: `致命的` / `重要` / `軽微` |
-| `field` | ✓ | 修正対象のフィールド名（各フェーズ固有） |
-| `description` | ✓ | 問題の説明。何がどう問題かを具体的に記述。 |
-| `suggestion` | ✓ | 修正の提案。どう改善すべきかの方向性を示す。 |
-| `before` | ✓ | 修正前のテキスト（当該フィールド内の該当箇所を引用） |
-| `after` | ✓ | 修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質。 |
-| `publication_blocking` |  | 出版前または次工程前に必ず解消すべき問題なら `true`。severity とは独立して判定する。 |
-
-## 6. プレースホルダ自動置換
-
-`prompts.py` の `render()` メソッドは `{schema}` を自動的にスキーマJSONに置換します。
-
-```python
-# prompts.py
-def render(self, name: str, variables: dict[str, str]) -> str:
-    ...
-    if "{schema}" in result:
-        schema_json = json.dumps(get_schema(schema_name), ensure_ascii=False, indent=2)
-        result = result.replace("{schema}", schema_json)
-    return render_prompt(result, variables)
-```
-
-そのため、コードで `schema` キーを渡す必要はありません。
-
----
-
-## 7. ファイル構成
-
-```
-src/novel_forge/resources/prompts/
-├── system.md                         # システムプロンプト
-├── series_plan_concept.md               # 生成: シリーズ構想
-├── series_plan_concept_review.md        # レビュー: シリーズ構想
-├── series_plan_concept_revision.md      # 修正: シリーズ構想
-├── series_plan_characters.md         # 生成: キャラクター設計
-├── series_plan_characters_review.md  # レビュー: キャラクター設計
-├── series_plan_characters_revision.md # 修正: キャラクター設計
-├── series_plan_volumes.md            # 生成: 各巻設計
-├── series_plan_volumes_review.md     # レビュー: 各巻設計
-├── series_plan_volumes_revision.md   # 修正: 各巻設計
-├── volume_design.md                  # 生成: 巻設計
-├── volume_design_review.md           # レビュー: 巻設計
-├── volume_design_revision.md         # 修正: 巻設計
-├── chapter_design.md                 # 生成: 章設計
-├── chapter_design_review.md          # レビュー: 章設計
-├── chapter_design_revision.md        # 修正: 章設計
-├── scene_design.md                   # 生成: シーン設計
-├── scene_design_review.md            # レビュー: シーン設計
-├── scene_design_revision.md          # 修正: シーン設計
-├── scene_draft.md                    # 生成: シーン本文
-├── scene_review.md                   # レビュー: シーン本文
-├── scene_revision.md                 # 修正: シーン本文
-├── scene_summary_and_bible_update.md # 要約・更新
-├── kdp_metadata.md                   # KDPメタデータ生成
-└── cover_prompt.md                   # カバー生成（未使用）
-
-schemas/
-├── series_plan_concept.json             # シリーズ構想スキーマ
-├── series_plan_characters.json       # キャラクター設計スキーマ
-├── series_plan_volumes.json          # 各巻設計スキーマ
-├── volume_design.json                # 巻設計スキーマ
-├── chapter_design.json               # 章設計スキーマ
-├── scene_design.json                 # シーン設計スキーマ
-├── scene_draft.json                  # シーン本文スキーマ
-├── review.json                       # 統一レビュースキーマ（全フェーズ共通）
-├── scene_summary_and_bible_update.json # 要約スキーマ
-├── kdp_metadata.json                 # KDPメタデータスキーマ
-└── cover_prompt.json                 # カバースキーマ（未使用）
-
-src/novel_forge/engine/
-├── plan.py                           # plan() — 3フェーズ
-├── design.py                         # design() — 3フェーズ
-└── scene_writer.py                   # write_scene() — シーン執筆
-```
-
----
-
-*Last updated: 2026-07-06* (`review.json` は `ready_for_publication`, `overall_assessment`, `strengths`, `issues` を必須とする統一レビュースキーマです。`scene_summary_and_bible_update.json` の `world_rules` は `string[]` に簡素化しました。)
+`scene_summary_and_bible_update` と `bible*.json` は現行 v1 runtime の契約です。Canon Event ベースの v2 では Pydantic domain model と `CanonPatch` / `CanonEvent` を使用し、現行の update 経路を廃止します。v2 の設計判断は [SERIES_BIBLE_SCHEMA_REDESIGN](dev/SERIES_BIBLE_SCHEMA_REDESIGN.md) を参照してください。

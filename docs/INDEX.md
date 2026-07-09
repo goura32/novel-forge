@@ -1,61 +1,31 @@
 # ドキュメント索引
 
-最終更新: 2026-07-05
+最終更新: 2026-07-10
 
-対象読者別に案内しています。必要なセクションだけ選んでください。
+この索引にある文書だけを現行の案内・仕様として扱います。完了済みの改善計画、過去の監査レポート、廃止済み Bible 仕様は Git 履歴で参照してください。
 
----
+## 利用者・運用者
 
-## 利用者向け
-
-| # | ファイル |
+| 目的 | 文書 |
 |---|---|
-1 | [README.md](../README.md) - プロジェクト概要・セットアップ・クイックスタート
-2 | [USER_GUIDE.md](./USER_GUIDE.md) - セットアップ詳細・基本操作 - 原稿の確認方法
-3 | [CLI_REFERENCE.md](./CLI_REFERENCE.md) - 全コマンドのヘルプ同期仕様
-4 | [OPERATIONS.md](./OPERATIONS.md) - 運用手順 - 中断・再開・障害対応
+| 導入と最短実行 | [README](../README.md) |
+| 基本的な操作 | [USER_GUIDE](USER_GUIDE.md) |
+| CLI の引数と出力 | [CLI_REFERENCE](CLI_REFERENCE.md) |
+| 中断、ログ、接続障害の対応 | [OPERATIONS](OPERATIONS.md) |
+| 入力キーワードの作り方 | [KEYWORD_SELECTION_GUIDE](KEYWORD_SELECTION_GUIDE.md) |
+| 用語 | [GLOSSARY](GLOSSARY.md) |
 
-**おすすめの流れ**: README → USER_GUIDE → CLI_REFERENCE / OPERATIONS
+## 開発者
 
----
-
-## プロンプト改善者向け
-
-| # | ファイル |
+| 目的 | 文書 |
 |---|---|
-1 | [PROMPTS.md](./PROMPTS.md) - プロンプト一覧と運用方針
-2 | [PROMPT_SCHEMA_MAP.md](./PROMPT_SCHEMA_MAP.md) - prompt / schema / code 対応表
-3 | [TEMPLATE_SCHEMA_CONTRACT.md](./TEMPLATE_SCHEMA_CONTRACT.md) - テンプレート・スキーマの責務分担
-4 | [PROMPT_SCHEMA_QUALITY_REVIEW.md](dev/PROMPT_SCHEMA_QUALITY_REVIEW.md) - 品質観点レビューと改善方針
+| 現在の runtime 構成、データフロー、v2 との境界 | [ARCHITECTURE](dev/ARCHITECTURE.md) |
+| prompt の役割・改善方針 | [PROMPTS](PROMPTS.md) |
+| prompt / schema / 実行経路 | [PROMPT_SCHEMA_MAP](PROMPT_SCHEMA_MAP.md) |
+| JSON Schema の変更と検証 | [schema_maintenance](dev/schema_maintenance.md) |
+| raw LLM log の保存形式 | [RAW_LOG_FORMAT](dev/raw_log_format.md) |
+| Ollama 接続・payload の実装上の契約 | [OLLAMA_API](dev/OLLAMA_API.md) |
 
----
+## Series Bible v2
 
-## 開発者向け
-
-| # | ファイル |
-|---|---|
-1 | [ARCHITECTURE.md](./dev/ARCHITECTURE.md) - 実装レイヤー構成・データフロー
-2 | [REFACTOR_PLAN.md](./dev/REFACTOR_PLAN.md) - リファクタリング計画（Phase 0-7）
-3 | [TEST_REVIEW_AND_REBUILD_PLAN.md](./dev/TEST_REVIEW_AND_REBUILD_PLAN.md) - テスト監査・再構築計画
-4 | [MASTER_IMPROVEMENT_PLAN.md](./dev/MASTER_IMPROVEMENT_PLAN.md) - 統合改善計画と進捗管理
-5 | [SPECIFICATION.md](./dev/SPECIFICATION.md) - 実装仕様
-
----
-
-## 運用（障害調査）
-
-| # | ファイル |
-|---|---|
-1 | [OPERATIONS.md](./OPERATIONS.md) - runbook - Ollama・ロック・スキーマエラー対応
-2 | [RAW_LOG_FORMAT.md](./dev/raw_log_format.md) - raw log ファイル形式仕様（verbose=true時のみ有効）
-3 | [OLLAMA_API.md](./dev/OLLAMA_API.md) - Ollama API ペイロード / response 形式
-4 | [schema_maintenance.md](./dev/schema_maintenance.md) - スキーマ修正チェックリスト
-
----
-
-## 用語集
-
-| # | ファイル |
-|---|---|
-1 | [GLOSSARY.md](./GLOSSARY.md) - 主要な用語一覧
-2 | [KEYWORD_SELECTION_GUIDE.md](./KEYWORD_SELECTION_GUIDE.md) - キーワード選択ガイド（入力支援）
+[Series Bible v2 — Canon Event Architecture](dev/SERIES_BIBLE_SCHEMA_REDESIGN.md) が、**未実装の破壊的再設計に関する唯一の仕様正本**です。現行 runtime の `bible.json` を説明する文書ではありません。

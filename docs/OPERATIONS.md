@@ -1,166 +1,75 @@
-# OPERATIONS — 運用 runbook
+# 運用 runbook
 
-
-## 0 通常運用手順 ( plan → design → write → export )
-
-```bash
-uv run novel-forge plan    -w <dir> "keyword1 keyword2"
-uv run novel-forge design  -w <dir> --volume 0   # —all volumes
-uv run novel-forge write   -w <dir>
-uv run novel-forge export  -w <dir>
-```
-
-`complete` を使えば全部一発:
+## 通常の実行順
 
 ```bash
-uv run novel-forge complete -w <dir> "keyword1 keyword2"
+uv run novel-forge plan -w <workdir> "キーワード"
+uv run novel-forge design -w <workdir> -s <series-slug> -V 1
+uv run novel-forge write -w <workdir> -s <series-slug> -V 1
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1
 ```
 
+一括実行には `complete` を使えます。複数シリーズがある workdir では、plan 後の command に必ず `-s <series-slug>` を渡してください。
 
-## 1 オプション共通
-
-| オプション                    | 省略時の解決                         | 役割                        |
-|------------------------------|-----------------------------------|-----------------------------|
-| `--workdir, -w`            | `.`                              | 系列の出力先 / `config.yaml` 探索起点 |
-| `--model, -m`              | `config.yaml` → `qwen3.6:35b-a3b-mtp-q4_K_M` | Ollama モデル名          |
-| `--max-generation-count`   | `config.yaml` → `4`              | 生成・バリデーションの最大試行数 |
-| `--max-review-count`       | `config.yaml` → `4`              | レビュー→修正サイクルの最大数 |
-| `--verbose, -v`            | `config.yaml` → `false`          | 詳細ログ出力                 |
-
-
-省略時の優先順位は `CLI引数 > NOVEL_FORGE_CONFIG > --workdir/config.yaml > カレントディレクトリから親方向のconfig.yaml > built-in既定値` です。`config.yaml` が存在しなくても built-in 既定値で動作します。
-
-> **注意**: `--strict` フラグは廃止済み。スキーマ validation failure で即座に停止します。
-
-## 2 raw log とデバッグ
+## 中断・再開
 
 ```bash
-# LLM request/response の raw log と人間向けsummaryを書き出す
-uv run novel-forge write -w <dir>
+uv run novel-forge status -w <workdir> -s <series-slug>
+uv run novel-forge resume -w <workdir> -s <series-slug>
 ```
 
-| path | 内容 |
-|------|------|
-| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary.md` | 人間向け索引。詳細Markdownとgzip rawへのリンク |
-| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/request_*.md` | API設定とprompt本文 |
-| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/response_*.md` | `message.content` のみをJSON整形。`thinking` は含めない |
-| `_raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/details/*.json.gz` | 完全な生request/response。thinking確認が必要な場合はこちらを展開 |
+write はシーンごとに状態を保存します。通信断や停止後は status を確認してから resume を実行してください。
 
----
-
-
-## 3 中断・再開
+## Ollama 接続不良
 
 ```bash
-uv run novel-forge complete -w <dir> "keyword1"
-# ⏸️ Ctrl-C or network error
-
-uv run novel-forge status -w <dir>    # current state / latest step
-uv run novel-forge resume   -w <dir>  # next step to resume
+curl -fsS http://localhost:11434/api/tags >/dev/null && echo OK || echo FAIL
+uv run novel-forge doctor -w <workdir>
+uv run novel-forge doctor -w <workdir> --ollama-host <host:port>
 ```
 
+モデル名・接続先は `config.yaml`、`NOVEL_FORGE_CONFIG`、CLI 引数で解決されます。優先順位は [使い方ガイド](USER_GUIDE.md#6-設定の優先順位) を参照してください。
 
-| ステータス      | 意味                                  |
-|----------------|---------------------------------------|
-| `PlanCreated` | 企画終了。次は design。                 |
-| `DesignReady` | デザイン中 / design が完了              |
-| `Writing`     | write フェーズ実行中                    |
-| `DraftComplete` | 初稿完了。次は export                |
+## LLM 出力または schema validation の失敗
 
-
-## 4 Ollama 接続失敗時
+生成・JSON parse・schema / semantic validation の失敗は、`--max-generation-count` の上限まで再生成されます。上限に達した場合は、verbose で再実行して raw log を確認してください。
 
 ```bash
-curl -s http://localhost:11434/api/tags > /dev/null && echo OK || echo FAIL
-uv run novel-forge doctor
+uv run novel-forge design -w <workdir> -s <series-slug> -V 1 -v
 ```
 
----
+`-v` を指定した実行では、`<workdir>/_raw_logs/` に request / response の raw gzip と、人間向け summary が保存されます。形式は [RAW_LOG_FORMAT](dev/raw_log_format.md) を参照してください。
 
+## レビューが収束しない
 
-## 5 スキーマ validation failure 時
+`--max-review-count` 到達時の扱いは工程により異なります。raw log の review 入出力を確認し、次を区別してください。
 
-スキーマ違反で停止した場合 → 人間向けsummaryで LLM が返したJSONを確認できます:
+- schema / JSON の破損: prompt または schema / parser の問題
+- 同じ根拠ある指摘の反復: prompt / revision の問題
+- 根拠のない好みや no-op 指摘: review prompt または validator の問題
 
-```bash
-less _raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/response_*.md
-# 完全な生NDJSONが必要な場合
-gzip -dc _raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/details/response_*.json.gz
-```
+修正では raw request / response を先に確認し、プロンプト単体で期待出力を出せるかを判断してください。
 
-`issues[].before / issues[].after` はレビューの指摘内容（修正前後の差分例示）である。改訂は機械的な before→after 置換ではなく、LLM がレビュー全体を読んで文脈理解で柔軟に行う。指摘内容から設計情報・プロンプト・スキーマの改善点を抽出し、必要に応じて修正後にリトライする。
+## export の preflight 失敗
 
+export は以下を満たさない場合に停止します。
 
-## 6 プロンプト placeholder 不整合時
+- 対象巻の全シーンが `修正済` または `強制出力済`
+- 巻設計が存在し、scene 参照が意味的に整合している
+- 設計された全 scene draft が存在し、空でない
 
-```bash
-uv run python scripts/validate_prompts.py
-```
+不足のある scene を `write` で処理してから export を再実行してください。
 
-不一致の出力例:
+## lock の問題
 
-```text
-⚠️ {volume_title} → design.py (chapter_design) not found
-```
+同一シリーズでは同時実行を避けてください。停止したプロセスの lock は runtime が stale と判定すれば回収します。残る場合はまず `status` と lock ファイルの PID を確認し、実行中プロセスがないことを確かめてから対処してください。
 
-→ `src/novel_forge/engine/design.py` で prompt variables (`prompt_vars`) に該当する変数を追加するか、テンプレート側の placeholder を修正してください。
-
-
-## 7 開発用ローカル品質ゲート
-
-CIは前提にせず、コミット前にローカルで同じゲートをまとめて実行します。
+## 開発品質ゲート
 
 ```bash
 uv run python scripts/check_dev_quality.py
-```
-
-実行内容:
-
-- `uv run pytest tests -q`
-- `uv run ruff check src/novel_forge tests scripts`
-- `uv run mypy src/novel_forge tests --show-error-codes`
-- `uv run python scripts/validate_prompts.py`
-
-配布物まで確認する場合:
-
-```bash
+# wheel build も含める場合
 uv run python scripts/check_dev_quality.py --full
 ```
 
-`--full` は上記に加えて `uv build` を実行します。
-
-
-## 8 設定ファイル
-
-`config.example.yaml` をコピーしてローカル環境用に調整します。
-
-```bash
-cp config.example.yaml config.yaml
-```
-
-`NOVEL_FORGE_CONFIG=/path/to/config.yaml` を指定すると任意の設定ファイルを読めます。
-
-設定探索順:
-
-1. CLI引数
-2. `NOVEL_FORGE_CONFIG`
-3. `--workdir/config.yaml`（series dir指定時は親も確認）
-4. カレントディレクトリから親方向の `config.yaml`
-5. built-in 既定値
-
-`config.yaml` が存在しない場合の主要built-in既定値は、`model=qwen3.6:35b-a3b-mtp-q4_K_M`, `ollama_host=ws1.local:11434`, `max_generation_count=3`, `max_review_count=8`, `raw_log=false` です。
-
-
-## 9 lock エラー
-
-
-
-| error                           |   action                                       |
-|---------------------------------|--------------------------------------------------|
-| stale lock (PID not found)      | `rm series_dir/.lock`                          |
-
-
-```bash
-# ロック状態の確認
-cat <dir>/.lock.json
-```
+このスクリプトは pytest、ruff、mypy、prompt validator をまとめて実行します。

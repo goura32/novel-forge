@@ -1,115 +1,53 @@
-# Ollama API 仕様調査
+# Ollama API 契約
 
-2026-06-20 実施。qwen3.6:35b-a3b-mtp-q4_K_M モデルを使用。
+この文書は、NovelForge が現在利用する Ollama API の実装上の契約です。特定バージョンでの過去の性能測定や数値を仕様として固定しません。接続先やモデルは `config.yaml` で上書きできます。
 
-## 採用設定（絶対）
+## 接続
 
-```
-API:      /api/chat（/generate ではない）
-think:    true（必須）
-format:   schema（JSON Schema オブジェクトを直接指定）
-stream:   true（Ollama 0.30.10 では stream: false がタイムアウトするため stream: true を使用）
-num_ctx:  262144
-num_predict: -1（無制限）
-timeout:  3600秒
-seed:     42（リトライ時にインクリメント）
-```
+- endpoint: `http://<ollama-host>/api/chat`
+- host の解決: `config.yaml` の `llm.ollama_host` → `OLLAMA_HOST` → runtime 既定値
+- 診断: `uv run novel-forge doctor -w <workdir>`
 
-**理由:**
-- `format=schema` + `think=true` で最も安定した構造化出力
-- `think: false` は配列フィールドが空になる問題あり
-- `num_predict: -1` で無制限出力（32768 も安定値）
-- `num_ctx: 262144` は qwen3.6:35b の最大コンテキスト長
+## request payload
 
-## エンドポイント
+`LLMClient.complete_json()` は次の形式で `/api/chat` を呼び出します。
 
-### `/api/chat`（採用）
-- `think` / `format` / `options` すべてが正しく機能
-- `format=schema` でネスト構造も正しく適用可能
-- 配列内のオブジェクトも正しく適用可能
-
-### `/api/generate`（非採用）
-- 旧バージョンで使用。現在は非推奨
-- `think: true` + `format: schema` で空レスポンス問題
-
-### `/v1/chat/completions`（OpenAI 互換、非採用）
-- `think` パラメータは **効かない**
-- `reasoning` フィールドが常に返る
-
-## パラメータマトリクス
-
-### `/api/chat`
-
-| パラメータ | 位置 | 必須 | 備考 |
-|---|---|---|---|
-| model | トップレベル | ✅ | |
-| messages | トップレベル | ✅ | OpenAI 形式 |
-| stream | トップレベル | ✅ | `true` 固定（Ollama 0.30.10 では `false` がタイムアウトするため） |
-| think | トップレベル | ✅ | qwen3.6 では `true` を採用 |
-| format | トップレベル | schema使用時 | JSON schema オブジェクトを直接指定 |
-| options | トップレベル | ✅ | num_ctx, num_predict 等 |
-
-### options パラメータ
-
-| パラメータ | 値 | 備考 |
-|---|---|---|
-| num_ctx | 262144 | qwen3.6:35b の最大値（auto-detect も可） |
-| num_predict | 32768 | 出力トークン数上限（-1 = 無制限） |
-| think | true | 思考モード（options 指定が優先） |
-
-## テスト結果
-
-### 環境
-- ホスト: ws1.local:11434
-- モデル: qwen3.6:35b-a3b-mtp-q4_K_M
-- Ollama: 0.30.10
-
-### `/api/chat` + `format=schema` + `think=true` テスト
-
-| # | スキーマ | 結果 | 備考 |
-|---|---|---|---|
-| 1 | scene_draft (depth 3) | ✅ OK | 15.8s |
-| 2 | scene_outline (depth 4) | ✅ OK | 3.3s |
-| 3 | chapter_design (depth 4) | ✅ OK | 1.6s |
-| 4 | scene_review (depth 7) | ✅ OK | 6.4s |
-| 5 | series_plan (depth 8) | ✅ OK | 10.4s |
-| 6 | volume_outline (depth 10) | ✅ OK | 15.9s |
-
-### 配列フィールド安定性
-
-| # | フィールド | 結果 | 備考 |
-|---|---|---|---|
-| 1 | characters (array of string) | ✅ 2-3 items | 全seedで安定 |
-| 2 | key_events (array of string) | ✅ 3-4 items | 全seedで安定 |
-| 3 | foreshadowing_notes (array of string) | ✅ 2+ items | 全seedで安定 |
-| 4 | themes (array of string) | ✅ 1+ items | 全seedで安定 |
-
-### 多seed安定性
-
-| seed | volume_outline title | chapters | scenes | speed |
-|------|---------------------|----------|--------|-------|
-| 0 | 皇居外苑の黄昏に溶けて | 3 | 6 | 47s |
-| 42 | 丸ノ内の黄金色 | 3 | 6 | 41s |
-| 100 | 暮れゆく新宿の交差点 | 3 | 7 | 38s |
-
-## 結論
-
-### 推奨構成
-```
-/api/chat + think: true + format: schema + num_predict: -1
+```json
+{
+  "model": "qwen3.6:35b-a3b-mtp-q4_K_M",
+  "messages": [
+    {"role": "system", "content": "..."},
+    {"role": "user", "content": "..."}
+  ],
+  "format": "json",
+  "options": {
+    "num_ctx": 262144,
+    "num_predict": -1,
+    "seed": 123,
+    "temperature": 0.7,
+    "top_p": 0.9
+  },
+  "think": false
+}
 ```
 
-- `format=schema` + `think=true` で最も安定
-- 配列フィールドはプロンプトに「最低2つの要素を含める」と明示することで安定化
-- ネスト構造（depth 10）でも正しく適用可能
-- `num_predict: -1`（無制限）を推奨（Ollama 0.30.10 では thinking トークンの出力に長さ制限があるため）
+- `options` には `llm.ollama_options` の値が追加されます。
+- `think` は `options` 内ではなく top-level に送信されます。
+- `seed` はリトライごとにインクリメントされます。
+- `config.example.yaml` の既定値は `think: false` です。`think: true` を使うと JSON 出力時に `content` が空になるモデルがあるため、本番利用前は verbose log と smoke test で確認してください。
 
-### スキーマ設計ルール
-- 配列にすべき項目は配列を使用（curl で動作確認済み）
-- ネスト構造は `format=schema` + `think=true` で正しく適用可能
-- スキーマ変更時は必ず curl で事前動作確認
+## JSON と Schema
 
-## 変更履歴
-- 2026-06-20: 初版作成。`/api/generate` ベース
-- 2026-06-20: `/api/chat` ベースに更新。`think: true` + `format: schema` に統一
-- 2026-06-20: 全19スキーマで動作確認完了。`num_predict: 32768`, `num_ctx: 262144` に更新
+- API の `format` は `"json"` です。
+- prompt 内の `{schema}` は `PromptManager.render()` が展開済みです。`LLMClient` は受け取った payload をそのまま送信し、後処理で JSON parse と Schema validation を行います。
+- 空 content、JSON parse 失敗、Schema 不一致は、`quality.max_generation_count` の上限まで再生成します。transport 層のエラーは `transport_retries` で別に制御します。
+
+## response
+
+- `/api/chat` は NDJSON ストリーミングです。各 chunk の `message.content` を結合して回答とします。
+- `message.thinking` などの非表示推論は raw log にのみ保存し、人間向け summary には含めません。
+- コンテキスト長は `/api/show` の `context_length` から検出し、取得できない場合は既定値で動作します。
+
+## 失敗時の調査
+
+`-v` を付けると `<workdir>/_raw_logs/` に request / response の生 payload が保存されます。形式は [raw_log_format](raw_log_format.md) を参照してください。

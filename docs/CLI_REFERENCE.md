@@ -1,123 +1,92 @@
-# CLI_REFERENCE — コマンド一覧
+# CLI リファレンス
 
-> **Note**: 次のコマンドで最新情報を取得可能
-> ```bash
-> uv run novel-forge --help
-> uv run novel-forge <command> --help
-> ```
-
----
-
-## 全般
-
-| オプション | 説明 | 省略時の解決 |
-|---|---|---|
-| `--workdir, -w` | 系列の出力先ディレクトリ / `config.yaml` 探索起点 | `.` |
-| `--model, -m` | Ollama のモデル名を明示上書き | `config.yaml` → `qwen3.6:35b-a3b-mtp-q4_K_M` |
-| `--max-generation-count` | LLM API + validation の最大試行数 | `config.yaml` → `4` |
-| `--max-review-count` | レビュー→修正サイクルの最大回数 | `config.yaml` → `4` |
-| `-v, --verbose` | 詳細ログ出力 | `config.yaml` → `false` |
-
----
-
-## plan
-
-```
-uv run novel-forge plan -w <dir> "keyword1 keyword2 keyword3"
-```
-
-**役割**: キーワードからシリーズ企画（コンセプト、キャラクター、各巻構成）を生成。最終的に `series_plan.json` を作成。
-
-| オプション | 説明 | デフォルト |
-|---|---|---|
-| `keywords` (必須) | スペース区切りのキーワード | — |
-
-**補足**: `--strict` フラグは廃止済み。schema validation failure で即座に停止します。
-
----
-
-## design
-
-```
-uv run novel-forge design -w <dir> [-V 0｜1｜2… ]
-```
-
-**役割**: シリーズ企画にもとづき巻のデザイン（章構成→章設計→シーン設計）を生成する。
-
-| オプション | 説明 | デフォルト |
-|---|---|---|
-| `-V, --volume` | 対象の巻番号。`0` で全巻一括生成 | 1 |
-
-**補足**: `series_plan.json` が存在しないとエラーになる。design は自動レビュー + リトライ付き。
-
----
-
-## write
-
-```
-uv run novel-forge write -w <dir>
-```
-
-**役割**: シーン草稿を執筆。Blackboard / Bible による継続性（伏線、キャラクター変化）を保つ。
-
-| オプション | 説明 | デフォルト |
-|---|---|---|
-| `-V, --volume` | 対象巻番号 | 1 |
-
-**補足**: schema validation → review → revise ループ付き。最大回数に達すると停止します。
-
----
-
-## export
-
-```
-uv run novel-forge export -w <dir>
-```
-
-**役割**: 完成原稿を markdown/KDP用パッケージとして出力する。
-
-| オプション | 説明 | デフォルト |
-|---|---|---|
-| `-V, --volume` | 巻番号 | 1 |
-
-**出力ファイル**:
-- `exports/<slug>_volNN.md` — シーン本文を結合した原稿
-- `exports/<slug>_volNN_metadata.json` — タイトル案、説明文、カテゴリ、キーワード
-- `exports/<slug>_volNN_kdp_readiness_report.md` — KDP 出版準備度レポート
-
----
-
-## complete
-
-```
-uv run novel-forge complete -w <dir> "keyword1 keyword2"
-```
-
-**役割**: `plan → design → write → export` を一度に実行する。各工程の中間状態を skip する場合や、一発で完走したい場合に便利。
-
----
-
-## resume / status
-
-```
-uv run novel-forge resume -w <dir>    # 中断した工程から再開
-uv run novel-forge status -w <dir>    # プロジェクトのステータスとロック状況を表示
-```
-
-| ステータス | 意味 |
-|---|---|
-| PlanCreated | 企画済み。次は design |
-| DesignReady | 設計済。次は write |
-| Writing | シーン執筆中 |
-| DraftComplete | 初稿完了。次は export |
-| Exported | エクスポート済み |
-
----
-
-## doctor / list
+この文書は 2026-07-10 に取得した `novel-forge --help` と各 command help を基準にしています。実行環境では常に次を正としてください。
 
 ```bash
-uv run novel-forge doctor                         # Ollama 接続・モデルの確認
-uv run novel-forge doctor -w <dir>                # <dir>/config.yaml の model/ollama_host で確認
-uv run novel-forge list -w <dir>                   # そのディレクトリ配下の一覧表示
+uv run novel-forge --help
+uv run novel-forge <command> --help
 ```
+
+## 共通オプション
+
+| オプション | 対象 | 内容 |
+|---|---|---|
+| `-w, --workdir PATH` | 全 command | 作業ディレクトリ。既定値は `.` |
+| `-s, --series TEXT` | plan 以外のシリーズ操作 | 対象シリーズの slug |
+| `-m, --model TEXT` | LLM を使う command | モデル名を上書き |
+| `--max-generation-count INTEGER` | plan / design / write / complete | API・JSON・検証失敗を含む生成試行の上限 |
+| `--max-review-count INTEGER` | plan / design / write / complete | レビュー→改稿サイクルの上限 |
+| `-v, --verbose` | LLM を使う command | 詳細ログと raw LLM log を有効化 |
+
+`--strict` は存在しません。schema / semantic validation に失敗した生成は、生成上限まで再試行します。
+
+## `plan`
+
+```bash
+uv run novel-forge plan -w <workdir> "keyword1 keyword2"
+```
+
+キーワードからシリーズ企画と slug を生成します。`KEYWORDS` は必須の位置引数です。
+
+## `design`
+
+```bash
+uv run novel-forge design -w <workdir> -s <series-slug> -V 1
+```
+
+巻・章・シーン設計を生成します。
+
+| オプション | 既定値 | 内容 |
+|---|---:|---|
+| `-V, --volume INTEGER` | `1` | 対象巻。`0` は全巻 |
+
+## `write`
+
+```bash
+uv run novel-forge write -w <workdir> -s <series-slug> -V 1
+```
+
+対象巻のシーン草稿を生成し、レビューと改稿を行います。
+
+| オプション | 既定値 | 内容 |
+|---|---:|---|
+| `-V, --volume INTEGER` | `1` | 対象巻 |
+
+## `export`
+
+```bash
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1
+```
+
+設計上の全シーンに空でない草稿があることを preflight で検査してから、次を出力します。
+
+- `exports/<slug>_volNN.md` — 結合済み原稿
+- `exports/<slug>_volNN_metadata.json` — タイトル・巻番号・言語のメタデータ
+- `exports/<slug>_volNN_kdp_readiness_report.md` — 草稿状態・未回収要素などの確認レポート
+
+## `complete`
+
+```bash
+uv run novel-forge complete -w <workdir> "keyword1 keyword2"
+```
+
+`plan → design → write → export` を順に実行します。必要に応じて `-V`、モデル、生成/レビュー上限、verbose を指定できます。
+
+## `status` / `resume`
+
+```bash
+uv run novel-forge status -w <workdir> -s <series-slug>
+uv run novel-forge resume -w <workdir> -s <series-slug>
+```
+
+`status` はシリーズと現在巻の進捗を表示します。`resume` は保存済み状態から次に実行すべき工程を再開します。
+
+## `doctor` / `list`
+
+```bash
+uv run novel-forge doctor -w <workdir>
+uv run novel-forge doctor --ollama-host localhost:11434
+uv run novel-forge list -w <workdir>
+```
+
+`doctor` は Ollama 接続と指定モデルを確認します。`list` は workdir 内のシリーズを表示します。

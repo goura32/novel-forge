@@ -1,50 +1,32 @@
-# スキーマファイル修正時の再発防止チェックリスト
+# Schema / Prompt 変更時の検証
 
-## 修正前の確認
+JSON Schema、prompt template、対応する Python のどれかを変更した場合は、三者を同じ変更単位で確認します。
 
-1. `json.load()` でパース確認
+## 必須手順
+
+1. JSON を構文検査する。
    ```bash
-   python -c "import json; json.load(open('schemas/series_plan_characters.json'))"
+   python -m json.tool schemas/<name>.json >/dev/null
+   ```
+2. prompt placeholder を検査する。
+   ```bash
+   uv run python scripts/validate_prompts.py
+   ```
+3. 関連する contract / unit test を実行する。
+   ```bash
+   uv run pytest tests/contract -q
+   ```
+4. 変更を含む品質ゲートを実行する。
+   ```bash
+   uv run python scripts/check_dev_quality.py
    ```
 
-2. 全スキーマファイルの一括検証
-   ```bash
-   python scripts/validate_schemas.py
-   ```
+## ルール
 
-## 修正後の確認
+- Schema は機械検証すべき構造・型・有限 enum・必要な整合制約を定義する。
+- Prompt は各フィールドに何を書くか、品質基準、工程の責務を明示する。
+- Review は対象 artifact と前工程の根拠に基づいて issue を出す。好み・根拠のない言い換えは issue にしない。
+- Revision は issue を反映するが、未指摘 field を壊さない。
+- `{schema}` は `PromptManager.render()` が対応 Schema から自動展開する。Python 側で `schema` 変数を渡さない。
 
-1. 修正対象ファイルのパース確認
-2. `validate_schemas.py` で全ファイル確認
-3. `plan` コマンドで実動作確認（`--raw-log` 付き）
-
-## よくある落とし穴
-
-### trailing comma（末尾カンマ）
-
-```json
-// ❌ ダメ
-{
-  "maxItems": 5,
-}
-
-// ✅ 良い
-{
-  "maxItems": 5
-}
-```
-
-LLM が生成した JSON に trailing comma が含まれることが多い。
-`json.load()` はデフォルトで trailing comma を許可しない。
-
-### プロンプトでの予防
-
-スキーマ生成プロンプトに以下を追加：
-- 「JSON の末尾に trailing comma（末尾カンマ）は含めないこと」
-- 「有効な JSON のみを出力し、説明文は含めないこと」
-
-### 自動修正
-
-`json_parser.py` の `_fix_trailing_comma()` で LLM 出力の trailing comma
-は自動修正されるが、スキーマファイル自体には適用されない。
-スキーマファイルを手動修正した場合は必ず `json.load()` で確認すること。
+Series Bible v2 の Schema は、実装開始後に Pydantic domain model の `model_json_schema()` から生成します。現行の `schemas/bible*.json` は v1 runtime の契約です。

@@ -1,74 +1,71 @@
 # NovelForge
 
-**NovelForge** は、Ollama モデルを使って小説シリーズを企画・構成・執筆・レビュー・出力する Python CLI ツールです。
+NovelForge は、Ollama を使って小説シリーズを **企画 → 設計 → 執筆 → 出力** する Python CLI です。シリーズ、巻、章、シーンの階層で制作物を管理し、各生成工程で JSON Schema 検証とレビュー・改稿を行います。
 
-KDP での商用出版を視野に入れ、LLM の出力揺れや能力不足をツール側で補う設計にして
-います。**シリーズ > 巻 > 章 > シーン** の階層で制作を管理します。
+> **出版品質は保証しません。** KDP などへの提出前に、原稿・メタデータ・準備完了レポートを人が確認してください。
 
-> **注意**: NovelForge は「出版保証ツール」ではありません。KDP 出版可能品質の最終判断は人間が行う前提です。
-
-## インストール
+## セットアップ
 
 ```bash
 git clone https://github.com/goura32/novel-forge.git
 cd novel-forge
-uv venv --python 3.14 .venv && uv pip install -e .
+uv venv --python 3.14 .venv
+uv pip install -e .
+
+# 任意: ローカル設定を固定する場合
+cp config.example.yaml config.yaml
+uv run novel-forge doctor
 ```
 
-Ollama に `qwen3.6:35b-a3b-mtp-q4_K_M` が存在することを確認してください。
+既定モデルは `qwen3.6:35b-a3b-mtp-q4_K_M` です。Ollama の接続先・モデル・品質上限は `config.yaml`、環境変数、CLI 引数で上書きできます。
 
 ## クイックスタート
 
 ```bash
-# 段階的に進める（KEYWORDS はスペース区切り）
-uv run novel-forge plan    --workdir <output_dir> "近未来東京 記憶探偵"
-uv run novel-forge design  --workdir <output_dir>      # デフォルト vol.01
-uv run novel-forge write   --workdir <output_dir>
-uv run novel-forge export  --workdir <output_dir>
+# 段階実行
+uv run novel-forge plan -w <workdir> "近未来東京 記憶探偵"
+uv run novel-forge design -w <workdir> -s <series-slug> -V 1
+uv run novel-forge write -w <workdir> -s <series-slug> -V 1
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1
 
-# 全工程を一度に実行（complete）
-uv run novel-forge complete --workdir <output_dir> "キーワード"
+# 一括実行
+uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
 ```
 
-詳細: [USER_GUIDE.md](docs/USER_GUIDE.md) | [CLI_REFERENCE.md](docs/CLI_REFERENCE.md)
+`plan` はシリーズ slug を生成します。以後の `design` / `write` / `export` では、複数シリーズを置く workdir なら `-s <series-slug>` を指定してください。
 
-## キーコマンド
+## 主なコマンド
 
-| コマンド      | 役割                        |
-|-------------|----------------------------|
-| `plan`     | シリーズ企画を生成           |
-| `design`   | 巻デザイン（章構成→章設計→シーン設計） |
-| `write`    | シーン執筆                   |
-| `export`   | KDP 用エクスポート            |
-| `complete` | plan → design → write → export を一発実行 |
-| `resume`   | 中断した工程から再開           |
-| `status`   | プロジェクトのステータス表示      |
-| `doctor`   | Ollama 接続とモデル確認         |
-| `list`     | 利用可能なシリーズ一覧           |
+| コマンド | 役割 |
+|---|---|
+| `plan` | キーワードからシリーズ企画を生成 |
+| `design` | 巻・章・シーンの設計を生成 |
+| `write` | シーン草稿を生成・レビュー・改稿 |
+| `export` | 原稿、最小メタデータ、KDP 準備完了レポートを出力 |
+| `complete` | `plan → design → write → export` を実行 |
+| `resume` / `status` | 中断地点からの再開 / 現在状態の表示 |
+| `doctor` / `list` | Ollama 接続診断 / workdir 内シリーズ一覧 |
 
 ## ドキュメント
 
-| カテゴリ     | ファイル                              |
-|------------|--------------------------------------|
-| **利用者用**   | [INDEX](docs/INDEX.md) · [USER_GUIDE](docs/USER_GUIDE.md) · [CLI_REFERENCE](docs/CLI_REFERENCE.md) · [OPERATIONS](docs/OPERATIONS.md) |
-| **開発者用**  | [ARCHITECTURE](docs/dev/ARCHITECTURE.md) · [MASTER_IMPROVEMENT_PLAN](docs/dev/MASTER_IMPROVEMENT_PLAN.md) |
-| その他      | [GLOSSARY](docs/GLOSSARY.md) · [KEYWORD_GUIDE](docs/KEYWORD_SELECTION_GUIDE.md) |
+| 対象 | 読む文書 |
+|---|---|
+| 利用者 | [使い方](docs/USER_GUIDE.md) · [CLI リファレンス](docs/CLI_REFERENCE.md) · [運用 runbook](docs/OPERATIONS.md) |
+| 開発者 | [アーキテクチャ](docs/dev/ARCHITECTURE.md) · [Prompt / Schema 対応](docs/PROMPT_SCHEMA_MAP.md) · [スキーマ保守](docs/dev/schema_maintenance.md) |
+| Series Bible v2 実装 | [Canon Event Architecture](docs/dev/SERIES_BIBLE_SCHEMA_REDESIGN.md) |
+| 全体 | [ドキュメント索引](docs/INDEX.md) |
 
-## 品質ゲート
-
-開発中のコミット前チェック:
+## 開発品質ゲート
 
 ```bash
 uv run python scripts/check_dev_quality.py
-```
-
-配布物まで確認する場合:
-
-```bash
+# 配布物の build まで確認する場合
 uv run python scripts/check_dev_quality.py --full
 ```
 
-ローカル設定は任意です。`config.yaml` がなくても built-in 既定値で動作します。固定したい場合は `config.example.yaml` を `config.yaml` にコピーして調整できます。CLI省略時は `CLI引数 > NOVEL_FORGE_CONFIG > --workdir/config.yaml > カレントディレクトリから親方向のconfig.yaml > built-in既定値` の順に解決します。
+## Series Bible の状態
+
+現在の runtime は v1 の `bible.json` / `blackboard.json` を使用します。将来の破壊的移行である Canon Event ベースの Series Bible v2 は、まだ実装されていません。v2 の唯一の仕様正本は [`SERIES_BIBLE_SCHEMA_REDESIGN.md`](docs/dev/SERIES_BIBLE_SCHEMA_REDESIGN.md) です。
 
 ## ライセンス
 
