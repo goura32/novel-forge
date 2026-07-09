@@ -50,6 +50,35 @@ def _revision_issues(review: dict) -> list[dict]:
     return [issue for issue in review.get("issues", []) if isinstance(issue, dict)]
 
 
+def _normalize_review_severity(review: dict) -> dict:
+    """Normalize severity labels to the schema enum (致命的/重要/軽微).
+
+    Some models emit English labels (important/minor/light/critical). Map them
+    to the Japanese enum so downstream filtering and logging stay consistent.
+    """
+    mapping = {
+        "critical": "致命的", "致命": "致命的", "致命的": "致命的",
+        "important": "重要", "重要": "重要",
+        "minor": "軽微", "light": "軽微", "軽微": "軽微",
+        "trivial": "軽微",
+    }
+    issues = review.get("issues", [])
+    if not isinstance(issues, list):
+        return review
+    normalized = []
+    for issue in issues:
+        if not isinstance(issue, dict):
+            normalized.append(issue)
+            continue
+        sev = str(issue.get("severity", "")).strip().lower()
+        if sev in mapping:
+            issue = {**issue, "severity": mapping[sev]}
+        normalized.append(issue)
+    if normalized != issues:
+        review = {**review, "issues": normalized}
+    return review
+
+
 def _drop_resolved_issues(review: dict, result: dict) -> dict:
     """Remove stale issues whose suggested replacement is already present."""
     issues = review.get("issues", [])
@@ -181,6 +210,7 @@ def generate_and_review(
     while True:
         try:
             review = review_fn(result, system)
+            review = _normalize_review_severity(review)
             review_cycles += 1
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
