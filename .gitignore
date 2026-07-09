@@ -31,3 +31,8 @@ Thumbs.db
 
 # Workspace (generated data, not part of the project)
 workspace/
+
+# Scratch / ad-hoc debug & measurement scripts (not project source)
+_debug_*.py
+_measure_*.py
+_measure_out.txt

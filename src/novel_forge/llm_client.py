@@ -257,6 +257,7 @@ class LLMClient:
                     kind, chunk_count, total_bytes, call_elapsed, meta, done_reason,
                 )
                 self._write_raw_log(f"response_{attempt}_{seed_offset}", raw_text)
+                self._write_content_log(f"response_{attempt}_{seed_offset}", raw)
                 self._append_raw_summary(f"response_{attempt}_{seed_offset}", raw_text)
 
                 parsed = parse_json_response(raw)
@@ -493,6 +494,23 @@ class LLMClient:
                 f.write(raw_text.encode("utf-8"))
         except Exception as e:
             self._log.debug("  [RAW LOG WRITE FAILED] %s", e)
+
+    def _write_content_log(self, file_type: str, content_text: str) -> None:
+        """Write the LLM content only (no thinking, no NDJSON wrapper) as plain JSON.
+
+        This makes post-hoc analysis trivial: json.load() the .content.json file
+        directly instead of parsing Ollama streaming NDJSON.
+        """
+        if not self.raw_log_dir:
+            return
+        if file_type.startswith("request"):
+            return
+        call_dir = self._make_call_dir(self._current_kind)
+        try:
+            path = self._non_overwriting_path(call_dir / f"{file_type}.content.json")
+            path.write_text(content_text, encoding="utf-8")
+        except Exception as e:
+            self._log.debug("  [CONTENT LOG WRITE FAILED] %s", e)
 
     def _append_raw_summary(self, file_type: str, raw_text: str) -> None:
         """Write human-readable summaries next to exact raw gzip files.
