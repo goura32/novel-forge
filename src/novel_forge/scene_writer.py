@@ -125,10 +125,10 @@ class SceneWriter:
             return result
 
         def _validate_fn(result: dict) -> list[str]:
+            # 文字数下限チェックは行わない。
+            # LLMが指示文字数を守らなくてもリトライで改善しない実績があり、
+            # ユーザー指示により文字数不足は見逃す方針。
             errors = []
-            content = result.get("content", "")
-            if len(content) < 3000:
-                errors.append(f"content too short ({len(content)} < 3000)")
             return errors
 
         def _review_fn(result: dict, sys: str) -> dict:

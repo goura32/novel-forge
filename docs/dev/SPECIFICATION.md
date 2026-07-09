@@ -219,7 +219,7 @@ novel-forge write --workdir /mnt/hdd/novel --max-generation-count 5 --max-review
 }
 ```
 
-機械的修正には `field` + `before` + `after` のみで十分。
+改訂は機械的な `before`→`after` 置換ではなく、LLM がレビュー全体（`field` + `before` + `after` の指摘意図）を読み、文脈理解で全文を柔軟に改訂する。`before`/`after` はあくまで「指摘箇所と修正案の例示」として review に含まれ、実際の置換は行わない。
 
 ---
 

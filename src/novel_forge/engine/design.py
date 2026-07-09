@@ -51,110 +51,6 @@ def _validate_volume_design(data: dict) -> list[str]:
     return errors
 
 
-def _apply_review_text_replacements(data: Any, review: dict) -> Any:
-    """Apply review before/after text diffs inside nested JSON-like data.
-
-    Reviews sometimes quote a whole scene as labeled lines (for example
-    `POV: ...`, `目標: ...`, `葛藤: ...`) instead of quoting one JSON field.
-    Split those labeled blocks into individual value replacements too.
-    """
-    replacements: list[tuple[str, str]] = []
-    field_replacements: list[tuple[str, str, str]] = []
-
-    def normalize_text(text: str) -> str:
-        return "".join(ch for ch in text if ch.isalnum())
-
-    def add_replacement(before_text: str, after_text: str) -> None:
-        before_text = before_text.strip()
-        after_text = after_text.strip()
-        if before_text and after_text and before_text != after_text:
-            replacements.append((before_text, after_text))
-
-    def add_field_replacement(field_text: str, before_text: str, after_text: str) -> None:
-        field_text = field_text.strip()
-        before_text = before_text.strip()
-        after_text = after_text.strip()
-        if field_text and before_text and after_text and before_text != after_text:
-            field_replacements.append((field_text, before_text, after_text))
-
-    def labeled_parts(text: str) -> dict[str, str]:
-        parts: dict[str, str] = {}
-        for raw_line in text.splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
-            separator = ":" if ":" in line else "：" if "：" in line else ""
-            if not separator:
-                continue
-            label, value = line.split(separator, 1)
-            label = label.strip()
-            value = value.strip()
-            if label and value:
-                parts[label] = value
-        return parts
-
-    for issue in review.get("issues", []) or []:
-        if not isinstance(issue, dict):
-            continue
-        before = str(issue.get("before", "") or "")
-        after = str(issue.get("after", "") or "")
-        field = str(issue.get("field", "") or "")
-        add_replacement(before, after)
-        add_field_replacement(field, before, after)
-        before_parts = labeled_parts(before)
-        after_parts = labeled_parts(after)
-        for label, before_value in before_parts.items():
-            after_value = after_parts.get(label, "")
-            add_replacement(before_value, after_value)
-
-    if not replacements and not field_replacements:
-        return data
-
-    field_aliases = {
-        "title": ("title", "タイトル"),
-        "goal": ("goal", "目標"),
-        "conflict": ("conflict", "葛藤"),
-        "outcome": ("outcome", "結果"),
-        "pov": ("pov", "POV", "視点"),
-        "setting": ("setting", "舞台"),
-        "chapter_hook": ("chapter_hook", "章のフック", "フック"),
-        "chapter_turning_point": ("chapter_turning_point", "章の転換点", "転換点"),
-        "emotional_arc": ("emotional_arc", "感情の弧"),
-        "theme": ("theme", "テーマ"),
-    }
-
-    def field_matches(key: str, field_text: str) -> bool:
-        aliases = field_aliases.get(key, (key,))
-        return any(alias in field_text for alias in aliases)
-
-    def fuzzy_matches(value: str, before: str) -> bool:
-        norm_value = normalize_text(value)
-        norm_before = normalize_text(before)
-        if len(norm_value) < 4 or len(norm_before) < 4:
-            return False
-        return norm_value in norm_before or norm_before in norm_value
-
-    def visit(value: Any, key: str = "") -> Any:
-        if isinstance(value, str):
-            text = value
-            for before, after in replacements:
-                text = text.replace(before, after)
-            if text != value:
-                return text
-            if key:
-                for field_text, before, after in field_replacements:
-                    if field_matches(key, field_text) and fuzzy_matches(value, before):
-                        return after
-            return text
-        if isinstance(value, list):
-            return [visit(item, key) for item in value]
-        if isinstance(value, dict):
-            return {item_key: visit(item, item_key) for item_key, item in value.items()}
-        return value
-
-    return visit(data)
-
-
 def _has_vague_next_clue_placeholder(text: object) -> bool:
     value = str(text or "")
     return any(
@@ -278,7 +174,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "review": format_review_text(review), "previous_design": prev_design,
                  "series_plan": series_plan}),
             volume_generation_schema, seed_offset=seed_offset)
-        revised = _apply_review_text_replacements(revised, review)
+        # 機械的な before→after 置換は行わない（指摘箇所以外との不整合防止）
         return _normalize_volume_design(revised)
 
     vol_design_data, _vol_review = generate_and_review(
@@ -350,7 +246,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                     {"current_chapter": json.dumps(data, ensure_ascii=False, indent=2), "series_plan": series_plan,
                      "review": format_review_text(review)}),
                 chapter_generation_schema, seed_offset=seed_offset)
-            revised = _apply_review_text_replacements(revised, review)
+            # 機械的な before→after 置換は行わない（指摘箇所以外との不整合防止）
             return _normalize_invalid_chapter_purpose(revised)
 
         ch_prompt = engine._prompts.render("chapter_design.md",
@@ -412,7 +308,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                         {"current_scene": json.dumps(data, ensure_ascii=False, indent=2), "series_plan": series_plan,
                          "review": format_review_text(review)}),
                     get_schema("scene_design"), seed_offset=seed_offset)
-                return cast(dict, _apply_review_text_replacements(revised, review))
+                # 機械的な before→after 置換は行わない（指摘箇所以外との不整合防止）
+                return cast(dict, revised)
 
             scene_obj, _sc_review = generate_and_review(
                           generate_fn=lambda p, s: engine._llm.complete_json(

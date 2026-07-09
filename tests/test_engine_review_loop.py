@@ -266,30 +266,39 @@ def test_review_loop_revises_issues() -> None:
     assert review == {"issues": []}
 
 
-def test_review_loop_ignores_stale_resolved_issue() -> None:
-    """Resolved before→after issues should not force another revision."""
+def test_review_loop_revises_on_any_issue_without_mechanical_drop() -> None:
+    """Engine no longer mechanically drops resolved issues; any emitted issue
+    triggers a revision so the review LLM (not the engine) owns the decision.
+    When the review LLM stops emitting issues, the loop passes normally."""
     revise_calls: list[dict] = []
+    review_round = {"n": 0}
 
-    def record_stale_revision(result: dict, review: dict, _system: str, _seed_offset: int) -> dict:
+    def review_fn(_result: dict, _system: str) -> dict:
+        review_round["n"] += 1
+        if review_round["n"] == 1:
+            return {
+                "issues": [
+                    {
+                        "severity": "重要",
+                        "field": "title",
+                        "description": "簡体字が残っている",
+                        "suggestion": "日本語表記に統一する",
+                        "before": "雨音と錆びた齿轮の序曲",
+                        "after": "雨音と錆びた歯車の序曲",
+                    }
+                ],
+            }
+        return {"issues": []}
+
+    def record_revision(result: dict, review: dict, _system: str, _seed_offset: int) -> dict:
         revise_calls.append(review)
         return result
 
     result, review = generate_and_review(
         generate_fn=lambda _prompt, _seed_offset: {"title": "雨音と錆びた歯車の序曲"},
         validate_fn=lambda _result: [],
-        review_fn=lambda _result, _system: {
-            "issues": [
-                {
-                    "severity": "重要",
-                    "field": "title",
-                    "description": "簡体字が残っている",
-                    "suggestion": "日本語表記に統一する",
-                    "before": "雨音と錆びた齿轮の序曲",
-                    "after": "雨音と錆びた歯車の序曲",
-                }
-            ],
-        },
-        revise_fn=record_stale_revision,
+        review_fn=review_fn,
+        revise_fn=record_revision,
         system="sys",
         user_prompt="usr",
         kind="volume_design",
@@ -297,50 +306,16 @@ def test_review_loop_ignores_stale_resolved_issue() -> None:
         quality=Quality(),
     )
 
+    # Issue present in round 1 -> one revision cycle runs; engine does NOT drop it.
+    assert len(revise_calls) == 1
     assert result == {"title": "雨音と錆びた歯車の序曲"}
     assert review == {"issues": []}
-    assert revise_calls == []
 
 
-def test_review_loop_ignores_noop_before_after_issue() -> None:
-    """A blocking issue with identical before/after is not an actionable revision."""
-    revise_calls: list[dict] = []
-
-    def record_noop_revision(result: dict, review: dict, _system: str, _seed_offset: int) -> dict:
-        revise_calls.append(review)
-        return result
-
-    result, review = generate_and_review(
-        generate_fn=lambda _prompt, _seed_offset: {
-            "goal": "連日続く梅雨を避け、神楽坂蓮は茶屋で静寂を取り戻す。"
-        },
-        validate_fn=lambda _result: [],
-        review_fn=lambda _result, _system: {
-            "issues": [
-                {
-                    "severity": "重要",
-                    "field": "目標",
-                    "description": "主人公名が誤っているという誤検知",
-                    "suggestion": "キャラクター名を正しく修正する。",
-                    "before": "神楽坂蓮は茶屋で静寂を取り戻す。",
-                    "after": "神楽坂蓮は茶屋で静寂を取り戻す。",
-                }
-            ],
-        },
-        revise_fn=record_noop_revision,
-        system="sys",
-        user_prompt="usr",
-        kind="scene_design",
-        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
-        quality=Quality(),
-    )
-
-    assert result["goal"].startswith("連日続く梅雨")
-    assert review == {"issues": []}
-
-
-def test_review_loop_raises_when_blocking_issues_remain_at_review_limit() -> None:
-    """A blocking issue at the review limit must stop the next phase."""
+def test_review_loop_abandons_revision_when_blocking_issues_remain_at_review_limit() -> None:
+    """At the review limit with blocking issues, abandon revision and return
+    the current result so the next phase proceeds (per user policy: the current
+    architecture cannot prevent rollback, so we stop retrying instead of raising)."""
     review_calls = 0
     revise_calls: list[int] = []
 
@@ -364,18 +339,22 @@ def test_review_loop_raises_when_blocking_issues_remain_at_review_limit() -> Non
         revise_calls.append(seed_offset)
         return {"version": result["version"] + 1}
 
-    with pytest.raises(RuntimeError, match="revision needed but max count reached"):
-        generate_and_review(
-            generate_fn=lambda _prompt, _seed_offset: {"version": 1},
-            validate_fn=lambda _result: [],
-            review_fn=review_fn,
-            revise_fn=revise_fn,
-            system="sys",
-            user_prompt="usr",
-            kind="series_plan_concept",
-            llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
-            quality=Quality(),
-        )
+    # No RuntimeError is raised; the loop returns the latest result.
+    result, review = generate_and_review(
+        generate_fn=lambda _prompt, _seed_offset: {"version": 1},
+        validate_fn=lambda _result: [],
+        review_fn=review_fn,
+        revise_fn=revise_fn,
+        system="sys",
+        user_prompt="usr",
+        kind="series_plan_concept",
+        llm=type("LLM", (), {"_is_schema_echo": staticmethod(lambda _value: False)})(),
+        quality=Quality(),
+    )
 
     assert review_calls == 2
     assert revise_calls == [0]
+    # Returns the result after the single revision that fit within the limit.
+    assert result == {"version": 2}
+    # Review still carries the unresolved issues (recorded for the next phase).
+    assert len(review.get("issues", [])) == 1

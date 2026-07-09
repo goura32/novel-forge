@@ -43,12 +43,18 @@
             "type": "string"
           },
           "before": {
-            "description": "修正前のテキスト。当該フィールド内の該当箇所を引用する。欠落フィールドを追加する指摘では空文字列を許可する。",
-            "type": "string"
+            "description": "修正前のテキスト。当該フィールド内の該当箇所を引用する。欠落フィールドを追加する指摘では空文字列を許可する。複数箇所を列挙する場合は配列でも可。",
+            "anyOf": [
+              {"type": "string"},
+              {"type": "array", "items": {"type": "string"}}
+            ]
           },
           "after": {
-            "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質にする。",
-            "type": "string"
+            "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質にする。複数箇所を列挙する場合は配列でも可。",
+            "anyOf": [
+              {"type": "string"},
+              {"type": "array", "items": {"type": "string"}}
+            ]
           }
         },
         "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"

@@ -33,7 +33,9 @@ def format_review_text(review: dict) -> str:
         if sug:
             lines.append(f"    提案: {sug}")
         if before or after:
-            lines.append(f"    修正: {before} → {after}")
+            b_text = " / ".join(before) if isinstance(before, list) else str(before)
+            a_text = " / ".join(after) if isinstance(after, list) else str(after)
+            lines.append(f"    修正: {b_text} → {a_text}")
     return "\n".join(lines)
 
 
@@ -179,7 +181,6 @@ def generate_and_review(
     while True:
         try:
             review = review_fn(result, system)
-            review = _drop_resolved_issues(review, result)
             review_cycles += 1
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
@@ -218,8 +219,22 @@ def generate_and_review(
             return result, review
 
         if review_cycles >= review_max:
-            msg = f"  [REVIEW] {kind}: revision needed but max count reached ({review_cycles}/{review_max})"
-            raise RuntimeError(msg)
+            _log.warning(
+                "  [REVIEW ABANDONED] %s: 改訂が必要だが max_review_count に達したため改訂を諦めて次工程へ進みます (%d/%d)。"
+                " 未解決の指摘 %d 件（次工程ではこれを前提として処理）:",
+                kind,
+                review_cycles,
+                review_max,
+                len(_revision_issues(review)),
+            )
+            for issue in _revision_issues(review):
+                _log.warning(
+                    "    - [%s] (%s): %s",
+                    issue.get("severity", ""),
+                    issue.get("field", ""),
+                    issue.get("description", ""),
+                )
+            return result, review
 
         for revision_attempt in range(max_generation):
             seed_offset = generation_cycles + revision_attempt

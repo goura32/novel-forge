@@ -80,35 +80,6 @@ def _validate_plan_volumes(volumes: dict) -> list[str]:
     return errors
 
 
-def _apply_review_text_replacements(data: Any, review: dict) -> Any:
-    """Apply exact review before/after text diffs inside nested JSON-like data."""
-    replacements: list[tuple[str, str]] = []
-    for issue in review.get("issues", []) or []:
-        if not isinstance(issue, dict):
-            continue
-        before = str(issue.get("before", "") or "")
-        after = str(issue.get("after", "") or "")
-        if before and after and before != after:
-            replacements.append((before, after))
-
-    if not replacements:
-        return data
-
-    def visit(value: Any) -> Any:
-        if isinstance(value, str):
-            text = value
-            for before, after in replacements:
-                text = text.replace(before, after)
-            return text
-        if isinstance(value, list):
-            return [visit(item) for item in value]
-        if isinstance(value, dict):
-            return {key: visit(item) for key, item in value.items()}
-        return value
-
-    return visit(data)
-
-
 def _get_existing_slugs(engine: NovelEngineBase) -> set[str]:
     existing: set[str] = set()
     workdir = engine.workdir
@@ -372,4 +343,6 @@ def _revise_plan_volumes(
     revised = engine._llm.complete_json(
         "series_plan_volumes", system, prompt, get_schema("series_plan_volumes")
     )
-    return cast(dict, _apply_review_text_replacements(revised, review))
+    # NOTE: 機械的な before→after 置換は行わない。
+    # 指摘箇所以外との不整合を防ぐため、LLM の改訂出力をそのまま使用する。
+    return cast(dict, revised)

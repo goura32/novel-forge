@@ -10,10 +10,11 @@
 # 品質ゲート設定
 quality:
   # 生成API（APIエラー＋バリデーション）の最大リトライ回数
-  max_generation_count: 6
+  # 必須キー欠落やキー名タイポ等の LLM 出力揺らぎはシード値リトライで吸収するため、余裕を持たせる
+  max_generation_count: 10
 
   # レビュー（レビュー→修正サイクル）の最大回数
-  max_review_count: 10
+  max_review_count: 3
 
 llm:
   # モデル名

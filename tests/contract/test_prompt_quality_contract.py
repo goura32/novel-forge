@@ -12,7 +12,7 @@ def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
 
     required_fragments = [
         "完成した小説本文のみ",
-        "2000〜5000字",
+        "推奨2500〜3000字",
         "常体",
         "冒頭1-2文",
         "Show Don't Tell",

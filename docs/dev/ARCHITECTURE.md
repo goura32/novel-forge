@@ -173,7 +173,7 @@ if schema is not None:
   }
 }
 
-機械的修正には `field` + `before` + `after` のみで十分。
+機械的修正には `field` + `before` + `after` のみで十分（※実装上はこれらを使った文字列置換は行わず、LLM が review を読んで全文を柔軟に改訂する）。
 
 ### generate_and_review パターン
 

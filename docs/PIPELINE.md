@@ -10,8 +10,8 @@
 | `--series` | `-s` | なし | 既存シリーズの slug |
 | `--volume` | `-V` | `1` | 処理対象の巻番号 |
 | `--model` | `-m` | `config.yaml` → built-in | LLM モデル名 |
-| `--max-generation-count` | | `config.yaml` → `4` | 生成API（APIエラー＋バリデーション）の最大試行数 |
-| `--max-review-count` | | `config.yaml` → `4` | レビュー→修正サイクルの最大回数 |
+| `--max-generation-count` | | `config.yaml` → `10` | 生成API（APIエラー＋バリデーション）の最大試行数 |
+| `--max-review-count` | | `config.yaml` → `3` | レビュー→修正サイクルの最大回数 |
 | `--verbose` | `-v` | `config.yaml` → `false` | 詳細出力 |
 
 ### 1.2 排他制御
@@ -190,6 +190,8 @@ while generation_cycles < max_generation:
         raise RuntimeError("max review cycles reached")
 
     result = revise_fn(result, review, system, generation_cycles)
+    # NOTE: revise_fn はレビューを読み、LLM が全文を文脈理解で柔軟に改訂する。
+    # 機械的な before→after 文字列置換は行わない（指摘箇所以外への意図せぬ波及を防ぐため）。
     generation_cycles += 1
 
     # Post-revision validation
@@ -217,6 +219,8 @@ while generation_cycles < max_generation:
 
     # Another revise cycle
     result = revise_fn(result, review, system, generation_cycles)
+    # NOTE: revise_fn はレビューを読み、LLM が全文を文脈理解で柔軟に改訂する。
+    # 機械的な before→after 文字列置換は行わない（指摘箇所以外への意図せぬ波及を防ぐため）。
     generation_cycles += 1
     # Loop back for another validation + review cycle
 ```
@@ -398,8 +402,8 @@ llm:
     top_p: 0.9
 
 quality:
-  max_generation_count: 4
-  max_review_count: 4
+  max_generation_count: 10
+  max_review_count: 3
 
 logging:
   verbose: false

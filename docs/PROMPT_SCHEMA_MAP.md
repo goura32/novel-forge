@@ -103,7 +103,7 @@
 | `volume_design.json` | chapters | `_validate_volume_design` |
 | `chapter_design.json` | title, purpose, theme, emotional_arc, outcome, scenes | `_validate_chapter_design` |
 | `scene_design.json` | title, goal, conflict, outcome, pov, characters, key_events, setting | `_validate_scene_design` |
-| `scene_draft.json` | title, content (minLength 3000) | `_validate_fn` |
+| `scene_draft.json` | title, content（文字数下限チェックなし／推奨2500〜3000字だが未強制） | `_validate_fn` |
 | `kdp_metadata.json` | title, description, keywords, categories | なし |
 
 ### 5.2 統一レビュースキーマ（review.json）

@@ -88,8 +88,7 @@ less _raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/summary/response_*.md
 gzip -dc _raw_logs/<phase>/<ts>_<pid>_<seq>_<kind>/details/response_*.json.gz
 ```
 
-`issues[].before / issues[].after` の差分を元に手動で修正するか、設計情報に問題があれば
-スキーマやプロンプトテンプレートを更新後リトライします。
+`issues[].before / issues[].after` はレビューの指摘内容（修正前後の差分例示）である。改訂は機械的な before→after 置換ではなく、LLM がレビュー全体を読んで文脈理解で柔軟に行う。指摘内容から設計情報・プロンプト・スキーマの改善点を抽出し、必要に応じて修正後にリトライする。
 
 
 ## 6 プロンプト placeholder 不整合時

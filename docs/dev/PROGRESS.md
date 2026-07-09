@@ -235,3 +235,9 @@
   1. `uv run pytest tests/test_json_parser.py tests/test_scene_design_validation.py tests/test_engine_design_validation.py tests/test_engine_integration.py -q`
   2. `uv run pytest && git diff --check && uv run ruff check src tests`
   3. commit/push後、正式prompt `近未来の京都, 記憶を失った修復師, 祈りで動く機械, 静かな冒険` でP20再smokeを実行し、Write到達を確認
+
+### Phase 20 以降の変更（機械的置換の廃止）
+- P18-57/61/63/65/67/69 で導入した `_apply_review_text_replacements`（review issue の `before`→`after` 安全弁）は **2026-07-09 に全廃止**。
+- 理由：指摘箇所のみの機械的置換は、指摘外の同一文字列へ意図せぬ波及（例：キャラ名 `レオンハルト` が6箇所置換される）や、置換漏れによる不整合を生むため。
+- 現在の改訂：LLM が review 全体（`field`+`before`+`after` の指摘意図）を読み、文脈理解で全文を柔軟に改訂。`before`/`after` は指摘例示として review に含まれるのみ。
+- 関連テスト（`test_*_applies_concrete_review_diff` 等）は削除済み。review.json の `before`/`after` は `anyOf[string, array]` に緩和（LLM が配列を返しても検証失敗しない）。
