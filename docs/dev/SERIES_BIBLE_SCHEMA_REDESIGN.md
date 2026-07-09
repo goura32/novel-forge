@@ -5,6 +5,8 @@
 > 対象：`bible.json`、Bible の Pydantic モデル、design 成果物の Bible 更新契約、旧 runtime 更新経路。
 >
 > 目的：Series Bible を「設計時の SSOT」として、参照可能・検証可能・冪等に更新可能な正規化モデルへ移行する。
+>
+> 互換性方針：**本番運用前のため旧 Bible データとの互換性・移行は提供しない。** 新規プロジェクトは v2 だけを生成・読み込む。
 
 ---
 
@@ -313,10 +315,11 @@ series/
 
 ### Phase 1 — v2 モデル・Schema・Storage
 
-- `Bible` と子モデルを v2 へ置換。
-- Pydantic `extra="forbid"` を採用。
-- `BibleStorage` に v1→v2 one-way migration を実装する。
-- `bible.json` の旧データは read 時に migration し、成功後にバックアップを残す。
+- `Bible` と子モデルを v2 へ置換する。
+- Pydantic `extra="forbid"` を採用する。
+- `BibleStorage` は **v2 だけを受理**する。`schema_version != 2` のファイルは migration せず、明確なエラーで停止する。
+- Bible が存在しない状態は `plan` 実行前だけとし、`BibleFactory` が v2 の初版を明示的に作成する。design / write / export が Bible 未作成のまま動くことはエラーにする。
+- 旧 format の fixture・テスト・互換コードは残さない。
 
 ### Phase 2 — plan seed
 
@@ -358,7 +361,7 @@ series/
 
 この設計を採用する場合の決定は以下。
 
-- Bible は互換維持しない。**v2 へ one-way migration**。
+- Bible は旧 format と互換維持しない。**v2 専用で開始し、migration は実装しない。**
 - stable ID は必須。
 - `resolved: bool` は廃止し、`foreshadowing.status` と `resolved_at` へ置換。
 - 文字列ベースの `foreshadowing_notes` / `subplot_notes` を Canon 更新の根拠にしない。
