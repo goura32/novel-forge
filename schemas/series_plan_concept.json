@@ -5,20 +5,20 @@
   "type": "object",
   "properties": {
     "title": {
-      "description": "シリーズのタイトル。30〜100文字推奨。",
+      "description": "シリーズ全体の内容とトーンが伝わるタイトル。",
       "type": "string"
     },
     "slug": {
-      "description": "a-z0-9と_のみからなる128文字以内のスラッグ（アンダースコア区切り）。",
+      "description": "a-z0-9と_のみからなるスラッグ（アンダースコア区切り、パス識別子として短く）。",
       "type": "string",
       "pattern": "^[a-z0-9_]+$"
     },
     "logline": {
-      "description": "シリーズのあらすじ。1-2文、200〜800文字推奨。",
+      "description": "シリーズのあらすじ。1〜2文で。",
       "type": "string"
     },
     "genre": {
-      "description": "ジャンル。2〜5個推奨、各最大64文字。",
+      "description": "物語の分類（例：ファンタジー、癒やし、冒険）。複数の場合は並列で。",
       "type": "array",
       "items": {
         "type": "string",
@@ -27,11 +27,11 @@
       "minItems": 1
     },
     "target_audience": {
-      "description": "ターゲット読者。100〜500文字推奨。",
+      "description": "誰に読ませたいか。年齢層・好む体験・既読の類似作の手がかりを具体に。",
       "type": "string"
     },
     "themes": {
-      "description": "テーマ。2〜5個推奨、各最大64文字。",
+      "description": "物語が扱う主題（例：喪失と再生、孤独と繋がり）。複数の場合は並列で。",
       "type": "array",
       "items": {
         "type": "string",
@@ -40,7 +40,7 @@
       "minItems": 1
     },
     "selling_points": {
-      "description": "売りポイント。2〜7個推奨、各最大128文字。",
+      "description": "売りポイント。複数想定。",
       "type": "array",
       "items": {
         "type": "string",
@@ -49,11 +49,11 @@
       "minItems": 1
     },
     "world_summary": {
-      "description": "世界観の概要。200〜1000文字推奨。",
+      "description": "舞台・時代・社会構造・主要な対立を含む世界観の概要。",
       "type": "string"
     },
     "world_rules": {
-      "description": "世界観の独自ルール。1〜10個推奨、各最大200文字。",
+      "description": "世界観の独自ルール。1つの主張につき1要素。存在理由・効果・範囲・例外・代償を含める。",
       "type": "array",
       "items": {
         "type": "string",

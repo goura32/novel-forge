@@ -10,11 +10,11 @@
   ],
   "properties": {
     "title": {
-      "description": "巻のタイトル。5〜64文字推奨。",
+      "description": "入力の巻タイトルと完全一致させる巻のタイトル。",
       "type": "string"
     },
     "premise": {
-      "description": "巻のあらすじ。300〜1000文字推奨。",
+      "description": "その巻が始まる時点の具体的な中心状況（例：主人公が密航船で雪国へ着き村の子らが氷結結晶に苦しむ）。作品内で実際に起きる状況だけを。",
       "type": "string"
     },
     "chapters": {
@@ -28,11 +28,11 @@
         ],
         "properties": {
           "title": {
-            "description": "章タイトル。5〜100文字推奨。",
+            "description": "その章で起きる中心的な出来事が分かる固有名（例：「氷結した子の熱」）。導入・展開等の役割語だけにしない。",
             "type": "string"
           },
           "purpose": {
-            "description": "目的。物語上の機能や状態が分かる具体的な日本語で書く。",
+            "description": "章の機能を「導入」「展開」「転換」「クライマックス」「収束」のいずれか1語で。",
             "type": "string",
             "enum": [
               "導入",

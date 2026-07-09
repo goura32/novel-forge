@@ -19,7 +19,12 @@
 - `visual_elements.subject.description` は英語の画像生成プロンプトとして記述する。
 - `title`, `genre`, `mood`, `style`, `visual_elements`, `color_palette`, `typography`, `negative_prompt`, `prompt` をすべて埋める。
 - `prompt` は画像生成ツールへそのまま渡せる英語の完成プロンプトにする。
-- `negative_prompt` には崩れた手、余分な指、低品質、読めない文字など避けたい要素を具体的に入れる。
+- 各フィールドに含めるべき内容：
+  - `visual_elements.subject.description`：英語の画像生成プロンプトとして、メインキャラクター・世界観・巻固有の葛藤や象徴を具体的に記述する。
+  - `mood`：巻の感情トーンを1語〜短句で（例：serene despair, hopeful tension）。
+  - `color_palette`：サムネイルでも伝わる明確な配色を具体的に（例：frozen blue, ember orange）。
+  - `negative_prompt`：崩れた手、余分な指、低品質、読めない文字など避けたい要素を具体的に入れる。
+  - `style.composition`：`portrait`・`landscape`・`action`・`symbolic`・`atmospheric` から選ぶ。
 
 ## 入力情報
 
