@@ -134,7 +134,7 @@ def test_concept_review_does_not_over_specify_design_details() -> None:
     text = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
-        "人物の詳細設定、逃走・追跡ギミックの運用細部は重要指摘にしない",
+        "人物の詳細設定、逃走・追跡ギミックの運用細部はimportant 指摘にしない",
         "人物の詳細な職能、関係性の細部、具体的な作戦手順、専門技術、場面単位の実行方法は Character/Design 工程で具体化できる",
     ]
 
@@ -183,7 +183,7 @@ def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
         "追体験する",
     ]
     review_fragments = [
-        "章タイトルの表記ゆれだけを致命的・重要な問題にしない",
+        "章タイトルの表記ゆれだけをcritical・important な問題にしない",
         "key_events に抽象テーマだけが置かれている場合",
         "装置名、数値、移動経路、侵入手段、作戦手順、物理メカニズムの追加要求は Design 工程で扱う",
         "単語1個の動詞違和感、文体の好み、トーンの微調整、読者反応の言い換えだけを issue にしない",
@@ -380,7 +380,7 @@ def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
     required_fragments = [
         "入力キーワードまたはタイトルに中核ギミックが含まれる場合",
         "何が、誰に、どの範囲で、どの条件で変化・交換・喪失・制限されるのか",
-        "別種のギミックへ置き換わっている場合は重要指摘",
+        "別種のギミックへ置き換わっている場合はimportant 指摘",
         "`after` でも元のギミックの型を保持",
     ]
 

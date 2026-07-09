@@ -22,12 +22,12 @@
         ],
         "properties": {
           "severity": {
-            "description": "修正優先度。致命的=必ず直す構造破綻、重要=後続工程の品質を落とす問題、軽微=短い差分で直せる明確な問題。",
+            "description": "修正優先度。critical=必ず直す構造破綻、important=後続工程の品質を落とす問題、minor=短い差分で直せる明確な問題。",
             "type": "string",
             "enum": [
-              "致命的",
-              "重要",
-              "軽微"
+              "critical",
+              "important",
+              "minor"
             ]
           },
           "field": {

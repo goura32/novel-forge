@@ -263,9 +263,9 @@ class TestCompleteJsonRetry:
             "overall_assessment": "総評",
             "strengths": ["長所"],
             "issues": [
-                {"severity": "重要", "field": "x", "description": "x", "suggestion": "x", "before": "x", "after": "x"},
+                {"severity": "important", "field": "x", "description": "x", "suggestion": "x", "before": "x", "after": "x"},
                 {
-                    "severity": "重要",
+                    "severity": "important",
                     "field": "y",
                     "description": "y",
                     "suggestion": "y",
@@ -292,7 +292,7 @@ class TestCompleteJsonRetry:
             "revision_needed": False,
             "issues": [
                 {
-                    "severity": "重要",
+                    "severity": "important",
                     "field": "x",
                     "description": "x",
                     "suggestion": "x",
@@ -311,7 +311,7 @@ class TestCompleteJsonRetry:
     def test_normalizes_review_output_caps_extra_issues(self):
         """Review normalization should cap issue payload count before schema validation."""
         issue = {
-            "severity": "重要",
+            "severity": "important",
             "field": "x",
             "description": "説" * 200,
             "suggestion": "案" * 200,
@@ -325,27 +325,26 @@ class TestCompleteJsonRetry:
         assert len(review["issues"]) == 8
 
     def test_normalizes_review_severity_variants(self):
-        """Common Japanese/English severity variants should match review schema enum."""
+        """_normalize_review_output must NOT remap severity; English enum values pass through unchanged.
+
+        Per design decision, severity is the schema enum (critical/important/minor)
+        and model output outside the enum is rejected by schema validation (retry),
+        not silently normalized.
+        """
         review = {
             "issues": [
-                {"severity": "致命", "field": "a", "description": "a", "suggestion": "a", "before": "a", "after": "a"},
-                {"severity": "重大", "field": "b", "description": "b", "suggestion": "b", "before": "b", "after": "b"},
+                {"severity": "critical", "field": "a", "description": "a", "suggestion": "a", "before": "a", "after": "a"},
                 {"severity": "important", "field": "c", "description": "c", "suggestion": "c", "before": "c", "after": "c"},
                 {"severity": "minor", "field": "d", "description": "d", "suggestion": "d", "before": "d", "after": "d"},
-                {"severity": "重要な問題", "field": "e", "description": "e", "suggestion": "e", "before": "e", "after": "e"},
-                {"severity": "致命的な問題", "field": "f", "description": "f", "suggestion": "f", "before": "f", "after": "f"},
             ]
         }
 
         LLMClient._normalize_review_output(review)
 
         assert [issue["severity"] for issue in review["issues"]] == [
-            "致命的",
-            "致命的",
-            "重要",
-            "軽微",
-            "重要",
-            "致命的",
+            "critical",
+            "important",
+            "minor",
         ]
 
     def test_no_retry_when_zero(self):
