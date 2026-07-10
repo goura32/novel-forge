@@ -12,8 +12,8 @@ from typing import Any
 
 from novel_forge.canon.design import SceneDesign
 from novel_forge.canon.public_runtime import V2ProjectRuntime
-from novel_forge.schemas import get_schema
 from novel_forge.llm_client import LLMError
+from novel_forge.schemas import get_schema
 
 
 def _scene_brief(scene: SceneDesign) -> dict[str, Any]:
@@ -177,9 +177,12 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
                 engine._log.warning("  [REVIEW ERROR] scene_draft: %s — 改訂結果を維持して強制出力します", str(e)[:120])
                 review = {"issues": []}
             cycle_result = engine._quality.check_scene(review)
+            # Persist the *final* review for human inspection even when it did
+            # not pass the automated gate. `passed` remains sticky separately
+            # so a later non-blocking note cannot re-open a cleared scene.
+            qg_result = cycle_result
             if cycle_result.passed:
                 passed = True
-                qg_result = cycle_result
             revision_cycle += 1
             if not passed:
                 engine._log.warning(

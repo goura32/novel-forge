@@ -33,8 +33,6 @@ def export(engine, volume_number: int | None = None) -> dict[str, Any]:
     _generate_readiness_report(engine, vol_num)
 
     vol.status = "出力済"
-    if any(s.status == "強制出力済" for s in vol.scenes):
-        vol.status = "強制出力済"
     engine._state.status = vol.status
     engine._save()
 
@@ -205,30 +203,72 @@ def _generate_kdp_metadata(engine, vol_num: int) -> dict[str, Any]:
     return metadata
 
 
+def _final_review_issues(scene: Any) -> list[dict[str, Any]]:
+    """Return persisted final-review issues in a stable, report-safe shape."""
+    quality_gate = getattr(scene, "quality_gate", {})
+    raw_issues = (
+        quality_gate.get("issues", [])
+        if isinstance(quality_gate, dict)
+        else getattr(quality_gate, "issues", [])
+    )
+    if not isinstance(raw_issues, list):
+        return []
+    return [issue for issue in raw_issues if isinstance(issue, dict)]
+
+
+def _report_series_title(engine) -> str:
+    """Use the planned title when state has not been populated yet."""
+    title = str(engine._state.series_title or "")
+    plan_path = engine._series_dir / "series_plan.json"
+    if plan_path.exists():
+        try:
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            plan = {}
+        planned_title = plan.get("title") if isinstance(plan, dict) else None
+        if isinstance(planned_title, str) and planned_title.strip():
+            title = planned_title
+    return title or "（シリーズ名未設定）"
+
+
 def _generate_readiness_report(engine, vol_num: int) -> str:
+    """Write a human-review report; it deliberately makes no publication decision."""
     vol = engine._current_volume()
-    force_count = sum(1 for s in vol.scenes if s.status == "強制出力済")
-    revised_count = sum(1 for s in vol.scenes if s.status == "修正済")
+    scene_issues = [(scene, _final_review_issues(scene)) for scene in vol.scenes]
+    scenes_with_issues = sum(1 for _, issues in scene_issues if issues)
+    issue_total = sum(len(issues) for _, issues in scene_issues)
+    slug = getattr(engine, "_slug", _SLUG_DEFAULT)
+    manuscript_path = engine._series_dir / "exports" / f"{slug}_vol{vol_num:02d}.md"
+
     lines = [
-        "# KDP 準備完了レポート",
+        "# KDP 人間確認レポート",
         "",
-        "## サマリー",
-        f"- シリーズ: {engine._state.series_title}",
+        "> このレポートは機械的な合否判定を行いません。最終的な出版判断は、原稿と各シーンの最終レビュー指摘事項を人が確認して行います。",
+        "",
+        "## 確認対象",
+        f"- 原稿: `{manuscript_path}`",
+        f"- シリーズ: {_report_series_title(engine)}",
         f"- 巻: {vol_num}",
-        f"- ステータス: {vol.status}",
         f"- 総シーン数: {len(vol.scenes)}",
-        f"- 完了シーン: {revised_count}",
-        f"- force_exported シーン: {force_count}",
+        f"- 最終レビュー指摘あり: {scenes_with_issues} シーン",
+        f"- 最終レビュー指摘総数: {issue_total} 件",
+        "",
+        "## 各シーンの最終レビュー指摘事項",
     ]
-    if force_count > 0:
-        lines.extend([
-            "",
-            "## ⚠️ 警告",
-            "以下のシーンは品質ゲート不合格のまま出力されています:",
-        ])
-        for s in vol.scenes:
-            if s.status == "強制出力済":
-                lines.append(f"- シーン {s.scene_number}")
+    for scene, issues in scene_issues:
+        if not issues:
+            lines.extend(["", f"### シーン {scene.scene_number} — 指摘なし"])
+            continue
+        lines.extend(["", f"### シーン {scene.scene_number} — 指摘 {len(issues)}件"])
+        for issue in issues:
+            severity = str(issue.get("severity") or "未分類")
+            field = str(issue.get("field") or "未分類")
+            description = str(issue.get("description") or "内容なし")
+            suggestion = str(issue.get("suggestion") or "")
+            lines.append(f"- **{severity}** · `{field}`")
+            lines.append(f"  - 内容: {description}")
+            if suggestion:
+                lines.append(f"  - 対応案: {suggestion}")
 
     # NOTE: recover() regenerates the materialized canon/bible.json cache if its
     # digest mismatches the replayed seed+events. This is a cache-repair side
@@ -237,22 +277,22 @@ def _generate_readiness_report(engine, vol_num: int) -> str:
     canon = canon_store.recover()
     unresolved = [fh for fh in canon.foreshadowing if fh.status == "planted"]
     if unresolved:
-        lines.extend(["", "## ⚠️ 未回収伏線"])
+        lines.extend(["", "## 未回収伏線（人間確認）"])
         for fh in unresolved:
             lines.append(f"- {fh.description}")
 
     incomplete_sp = [sp for sp in canon.subplots if sp.status == "active"]
     if incomplete_sp:
-        lines.extend(["", "## ⚠️ 未完了サブプロット"])
+        lines.extend(["", "## 未完了サブプロット（人間確認）"])
         for sp in incomplete_sp:
             lines.append(f"- [{sp.status}] {sp.name}: {sp.current_state or '進捗なし'}")
 
     lines.extend(["", "## 提出前確認事項"])
+    lines.append("- [ ] 原稿と最終レビュー指摘事項を確認")
     lines.append("- [ ] 表紙画像の準備")
     lines.append("- [ ] 商品説明文の最終確認")
     lines.append("- [ ] キーワード・カテゴリの確認")
 
     report = "\n".join(lines)
-    slug = getattr(engine, "_slug", _SLUG_DEFAULT)
     _write_export(engine, f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md", report)
     return report

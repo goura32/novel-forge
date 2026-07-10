@@ -138,7 +138,8 @@ class TestExportMixin:
         """
         result = mock_engine._generate_readiness_report(1)
         assert "テストシリーズ" in result
-        assert "KDP 準備完了レポート" in result
+        assert "KDP 人間確認レポート" in result
+        assert "機械的な合否判定を行いません" in result
         # Unresolved foreshadowing (v2 Canon, status=planted)
         assert "正体" in result
         # Incomplete subplots (v2 Canon, status=active)
@@ -171,14 +172,33 @@ class TestExportMixin:
         assert "未回収伏線" not in result
         assert "未完了サブプロット" not in result
 
-    def test_generate_readiness_report_force_exported_warning(self, mock_engine):
-        """Report should warn about force-exported scenes."""
+    def test_generate_readiness_report_lists_human_review_issues(self, mock_engine):
+        """Report is for human review, not a machine pass/fail decision."""
         vol = mock_engine._current_volume()
         vol.scenes[0].status = "強制出力済"
+        vol.scenes[0].quality_gate = {
+            "passed": False,
+            "issues": [
+                {
+                    "severity": "critical",
+                    "field": "pov.consistency",
+                    "description": "POV が不自然に切り替わる可能性がある。",
+                    "suggestion": "視点を統一する。",
+                }
+            ],
+        }
 
         result = mock_engine._generate_readiness_report(1)
-        assert "⚠️ 警告" in result
-        assert "シーン 1" in result
+
+        assert "KDP 人間確認レポート" in result
+        assert "機械的な合否判定を行いません" in result
+        assert "最終レビュー指摘事項" in result
+        assert "シーン 1 — 指摘 1件" in result
+        assert "pov.consistency" in result
+        assert "視点を統一する。" in result
+        assert "シーン 2 — 指摘なし" in result
+        assert "品質ゲート不合格" not in result
+        assert "force_exported" not in result
 
     def test_export_returns_paths(self, mock_engine):
         """export() should return dict with manuscript/metadata/report paths."""
@@ -193,13 +213,13 @@ class TestExportMixin:
         vol = mock_engine._current_volume()
         assert vol.status == "出力済"
 
-    def test_export_force_exported_status(self, mock_engine):
-        """export() should set 強制出力済 if any scene is force-exported."""
+    def test_export_keeps_output_status_with_review_notes(self, mock_engine):
+        """Export status is not a machine quality verdict."""
         vol = mock_engine._current_volume()
         vol.scenes[0].status = "強制出力済"
         mock_engine.export(1)
         vol = mock_engine._current_volume()
-        assert vol.status == "強制出力済"
+        assert vol.status == "出力済"
 
 
 # ── Resume tests (export.py) ───────────────────────────────────────────

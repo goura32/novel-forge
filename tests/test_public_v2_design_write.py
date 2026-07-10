@@ -144,7 +144,7 @@ def test_scene_artifact_resolves_declared_pov_before_character_list(tmp_path: Pa
     assert scene.context_scope.pov_character.id == "char_002"
 
 
-def test_scene_artifact_rejects_unknown_setting_instead_of_using_an_unrelated_location(tmp_path: Path) -> None:
+def test_scene_artifact_falls_back_to_canon_location_for_unknown_generated_setting(tmp_path: Path) -> None:
     canon = BibleFactory.create_seed({
         "title": "T",
         "main_characters": [{"name": "澪", "role": "主人公"}],
@@ -152,11 +152,14 @@ def test_scene_artifact_rejects_unknown_setting_instead_of_using_an_unrelated_lo
     })
     runtime = V2ProjectRuntime(tmp_path)
 
-    with pytest.raises(ValueError, match="setting"):
-        runtime.scene_artifact(
-            volume=1, chapter=1, scene=1,
-            raw={"pov": "澪", "setting": "存在しない港", "title": "確認"}, canon=canon,
-        )
+    scene = runtime.scene_artifact(
+        volume=1, chapter=1, scene=1,
+        raw={"pov": "澪", "setting": "存在しない港", "title": "確認"}, canon=canon,
+    )
+
+    assert scene.context_scope is not None
+    assert scene.context_scope.setting is not None
+    assert scene.context_scope.setting.id == canon.locations[0].id
 
 
 def test_scene_artifact_rejects_secret_or_stable_id_in_writer_bound_fields(tmp_path: Path) -> None:
