@@ -24,6 +24,7 @@
 | prompt / schema / 実行経路 | [PROMPT_SCHEMA_MAP](PROMPT_SCHEMA_MAP.md) |
 | JSON Schema の変更と検証 | [schema_maintenance](dev/schema_maintenance.md) |
 | raw LLM log の保存形式 | [RAW_LOG_FORMAT](dev/raw_log_format.md) |
+| 設定・命名・非上書き run 保全の未実装再設計仕様 | [RUNTIME_ARTIFACT_RETENTION_REDESIGN](dev/RUNTIME_ARTIFACT_RETENTION_REDESIGN.md) |
 | Ollama 接続・payload の実装上の契約 | [OLLAMA_API](dev/OLLAMA_API.md) |
 
 ## Series Bible v2
