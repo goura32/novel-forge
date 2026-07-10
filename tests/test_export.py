@@ -7,14 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from novel_forge.bible_manager import BibleManager
-from novel_forge.models import (
-    Bible,
-    ForeshadowingItem,
-    SceneRecord,
-    SubplotItem,
-    VolumeProgress,
-)
+from novel_forge.models import SceneRecord, VolumeProgress
 
 # ── ExportMixin のテスト (engine/export.py) ─────────────────────────────
 
@@ -55,17 +48,31 @@ class TestExportMixin:
         engine._bb_storage = bb_storage
         engine._bible_mgr = BibleManager(bible_storage)
 
-        # Bible with foreshadowing and subplots
-        bible = Bible(
-            foreshadowing=[
-                ForeshadowingItem(description="剣の秘密", resolved=True),
-                ForeshadowingItem(description="正体", resolved=False),
+        # v2 Canon seed with foreshadowing and subplots (the single source of truth)
+        canon_dir = engine._series_dir / "canon"
+        canon_dir.mkdir(parents=True, exist_ok=True)
+        from novel_forge.canon.models import Canon
+        from novel_forge.canon.store import BibleFactory
+
+        canon_seed = Canon.model_validate({
+            "schema_version": 2,
+            "series": {"id": "series", "title": "テストシリーズ"},
+            "foreshadowing": [
+                {"id": "fh_001", "description": "剣の秘密", "status": "resolved"},
+                {"id": "fh_002", "description": "正体", "status": "planted"},
             ],
-            subplots=[
-                SubplotItem(id="sp1", name="陰謀", status="進行中", progress_note="進行中"),
+            "subplots": [
+                {
+                    "id": "sp_001",
+                    "name": "陰謀",
+                    "status": "active",
+                    "dramatic_question": "誰が陰謀を巡らせているか",
+                    "stakes": "王国の命運",
+                    "current_state": "進行中",
+                },
             ],
-        )
-        bible_storage.save(bible)
+        })
+        BibleFactory.write_seed(canon_dir, canon_seed)
 
         # Series plan
         plan_path = engine._series_dir / "series_plan.json"
@@ -132,28 +139,37 @@ class TestExportMixin:
         assert data["title"] == "テストシリーズ"
 
     def test_generate_readiness_report(self, mock_engine):
-        """_generate_readiness_report should include summary and warnings."""
+        """_generate_readiness_report should include summary and warnings.
+
+        The warnings must be derived from the v2 Canon seed (canon/bible_seed.json),
+        not a legacy bible.json — the planted foreshadowing '正体' and active
+        subplot '陰謀' are seeded into the v2 Canon in the mock_engine fixture.
+        """
         result = mock_engine._generate_readiness_report(1)
         assert "テストシリーズ" in result
         assert "KDP 準備完了レポート" in result
-        # Unresolved foreshadowing
+        # Unresolved foreshadowing (v2 Canon, status=planted)
         assert "正体" in result
-        # Incomplete subplots
+        # Incomplete subplots (v2 Canon, status=active)
         assert "陰謀" in result
 
     def test_generate_readiness_report_no_warnings_when_clean(self, mock_engine):
         """Report should not have warnings when everything is resolved."""
-        # Resolve all foreshadowing and complete subplots
-        bible = Bible(
-            foreshadowing=[
-                ForeshadowingItem(description="剣の秘密", resolved=True),
-                ForeshadowingItem(description="正体", resolved=True),
+        # All foreshadowing resolved, subplots completed — rewrite v2 Canon seed.
+        from novel_forge.canon.models import Canon
+        from novel_forge.canon.store import BibleFactory
+
+        canon_dir = mock_engine._series_dir / "canon"
+        canon_seed = Canon.model_validate({
+            "schema_version": 2,
+            "series": {"id": "series", "title": "テストシリーズ"},
+            "foreshadowing": [
+                {"id": "fh_001", "description": "剣の秘密", "status": "resolved"},
+                {"id": "fh_002", "description": "正体", "status": "resolved"},
             ],
-            subplots=[],
-        )
-        mock_engine._bible_storage.save(bible)
-        # Re-initialize bible_mgr to load updated bible
-        mock_engine._bible_mgr = BibleManager(mock_engine._bible_storage)
+            "subplots": [],
+        })
+        BibleFactory.write_seed(canon_dir, canon_seed)
 
         # Reset scenes to all revised
         vol = mock_engine._current_volume()

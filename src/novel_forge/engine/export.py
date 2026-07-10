@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
+from novel_forge.canon.store import CanonEventStore
 from novel_forge.semantic_validators import validate_volume_design_semantics
 
 _SLUG_DEFAULT = "vol"
@@ -24,7 +25,7 @@ def export(engine, volume_number: int | None = None) -> dict[str, Any]:
 
     # NOTE: Bible は design 段階で更新済。export は bible を参照・更新しない
     # （runtime discovery 禁止の原則）。未回収伏線・未完サブプロットは
-    # get_unresolved_foreshadowing() / get_incomplete_subplots() で bible から読むのみ。
+    # v2 Canon（canon/ 配下の event-sourced store）から回収して読む。
 
     _export_preflight(engine, vol_num)
     _assemble_manuscript(engine, vol_num)
@@ -229,17 +230,22 @@ def _generate_readiness_report(engine, vol_num: int) -> str:
             if s.status == "強制出力済":
                 lines.append(f"- シーン {s.scene_number}")
 
-    unresolved = engine._bible_mgr.get_unresolved_foreshadowing()
+    # NOTE: recover() regenerates the materialized canon/bible.json cache if its
+    # digest mismatches the replayed seed+events. This is a cache-repair side
+    # effect only — export() never mutates the Canon (no events written).
+    canon_store = CanonEventStore(engine._series_dir / "canon")
+    canon = canon_store.recover()
+    unresolved = [fh for fh in canon.foreshadowing if fh.status == "planted"]
     if unresolved:
         lines.extend(["", "## ⚠️ 未回収伏線"])
         for fh in unresolved:
             lines.append(f"- {fh.description}")
 
-    incomplete_sp = engine._bible_mgr.get_incomplete_subplots()
+    incomplete_sp = [sp for sp in canon.subplots if sp.status == "active"]
     if incomplete_sp:
         lines.extend(["", "## ⚠️ 未完了サブプロット"])
         for sp in incomplete_sp:
-            lines.append(f"- [{sp.status}] {sp.name}: {sp.progress_note or '進捗なし'}")
+            lines.append(f"- [{sp.status}] {sp.name}: {sp.current_state or '進捗なし'}")
 
     lines.extend(["", "## 提出前確認事項"])
     lines.append("- [ ] 表紙画像の準備")

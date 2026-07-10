@@ -744,6 +744,45 @@ class TestExportMixin:
         )
         assert meta_path.exists()
 
+    def test_export_readiness_report_uses_v2_canon_not_legacy_bible_mgr(self, planned_engine, mock_llm):
+        """export() readiness report must read unresolved foreshadowing /
+        incomplete subplots from the v2 Canon store, NOT the legacy
+        BibleManager (which is now a no-op under v2 since plan() no longer
+        writes a legacy bible.json).
+        """
+        planned_engine.design(volume_number=1)
+        planned_engine.write(volume_number=1)
+        mock_llm._call_log.clear()
+
+        # If the code path still calls legacy BibleManager, it would silently
+        # return empty (no bible.json).  Spy on it to ensure it is NOT used.
+        calls: list[str] = []
+        orig_unresolved = planned_engine._bible_mgr.get_unresolved_foreshadowing
+        orig_incomplete = planned_engine._bible_mgr.get_incomplete_subplots
+
+        def _spy_unresolved():
+            calls.append("unresolved")
+            return orig_unresolved()
+
+        def _spy_incomplete():
+            calls.append("incomplete")
+            return orig_incomplete()
+
+        planned_engine._bible_mgr.get_unresolved_foreshadowing = _spy_unresolved
+        planned_engine._bible_mgr.get_incomplete_subplots = _spy_incomplete
+
+        planned_engine.export(volume_number=1)
+
+        report_path = (
+            planned_engine._series_dir
+            / "exports"
+            / f"{planned_engine._slug}_vol01_kdp_readiness_report.md"
+        )
+        assert report_path.exists()
+        # The readiness report must be derived from v2 Canon, not the legacy
+        # BibleManager calls.
+        assert calls == [], f"export() still calls legacy BibleManager: {calls}"
+
     def test_export_creates_readiness_report(self, planned_engine, mock_llm):
         """export() should create kdp_readiness_report.md."""
         planned_engine.design(volume_number=1)
