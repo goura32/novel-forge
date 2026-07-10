@@ -4,16 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-# ── 事実記録（Blackboard）──────────────────────────────────────────────
-
-
-class Blackboard(BaseModel):
-    scene_summaries: dict[str, str] = Field(default_factory=dict)
-    subplots: list[SubplotItem] = Field(default_factory=list)
-    timeline: list[dict[str, Any]] = Field(default_factory=list)
-
-
-# ── 設定資料集（Bible）────────────────────────────────────────────────
+# ── キャラクター ───────────────────────────────────────────────────────
 
 
 class CharacterProfile(BaseModel):
@@ -28,44 +19,6 @@ class CharacterProfile(BaseModel):
     occupation: str = ""
     background: str = ""
     state: str = ""
-
-
-class GlossaryItem(BaseModel):
-    term: str
-    definition: str
-
-
-class ForeshadowingItem(BaseModel):
-    description: str
-    resolved: bool = False
-
-
-class RelationshipItem(BaseModel):
-    character_a: str
-    character_b: str
-    relationship_type: str = ""
-    status: str = ""
-    change_direction: str = ""
-    trigger_event: str = ""
-    scene_number: int = 0
-
-
-class SubplotItem(BaseModel):
-    id: str
-    name: str
-    status: str = Field(default="未着手", pattern="^(未着手|進行中|完了)$")
-    progress_note: str = ""
-    related_characters: list[str] = Field(default_factory=list)
-    related_foreshadowing_ids: list[str] = Field(default_factory=list)
-
-
-class Bible(BaseModel):
-    characters: list[CharacterProfile] = Field(default_factory=list)
-    glossary: list[GlossaryItem] = Field(default_factory=list)
-    foreshadowing: list[ForeshadowingItem] = Field(default_factory=list)
-    world_rules: list[str] = Field(default_factory=list)
-    relationships: list[RelationshipItem] = Field(default_factory=list)
-    subplots: list[SubplotItem] = Field(default_factory=list)
 
 
 # ── シーン設計 ─────────────────────────────────────────────────────────
@@ -225,28 +178,3 @@ class ProjectState(BaseModel):
         default="計画中",
         pattern="^(計画中|企画済|デザイン済|執筆中|初稿済|出力済|確定済|強制出力済)$",
     )
-
-
-# ── scene write context (parameter object) ──────────────────────────────
-
-
-class SceneWriteContext(BaseModel):
-    """Parameter object for SceneWriter.write_scene().
-
-    Groups all callback functions and configuration needed for scene writing,
-    avoiding a long parameter list.
-    """
-
-    lang: str = "ja"
-    vol_num: int = 1
-    build_context_fn: Any = None  # () -> str
-    build_continuity_fn: Any = None  # (scene_number: int, vol_num: int) -> str
-    get_series_plan_summary_fn: Any = None  # () -> str
-    get_outline_summary_fn: Any = None  # (outline: VolumeOutline) -> str
-    get_scene_summary_fn: Any = None  # (scene) -> str
-    load_scene_draft_fn: Any = (
-        None  # (vol_num: int, scene_number: int, chapter_number: int = 1) -> str
-    )
-
-
-Blackboard.model_rebuild()

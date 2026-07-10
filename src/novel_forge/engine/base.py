@@ -14,8 +14,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, cast
 
-from novel_forge.bible_manager import BibleManager
-from novel_forge.context_builder import ContextBuilder
 from novel_forge.llm_client import LLMClient, _build_ollama_options, load_config
 from novel_forge.logging_config import console, get_logger, setup_logging
 from novel_forge.models import (
@@ -25,9 +23,8 @@ from novel_forge.models import (
 )
 from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
-from novel_forge.scene_writer import SceneWriter
 from novel_forge.schemas import validate_schemas
-from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+from novel_forge.storage import StateStorage
 
 
 def _is_process_alive(pid: int) -> bool:
@@ -90,11 +87,6 @@ class NovelEngineBase:
         phase: str = "",
         # -- Dependency injection for testing --
         storage: StateStorage | None = None,
-        bb_storage: BlackboardStorage | None = None,
-        bible_storage: BibleStorage | None = None,
-        ctx_builder: ContextBuilder | None = None,
-        bible_mgr: BibleManager | None = None,
-        scene_writer: SceneWriter | None = None,
     ):
         self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
@@ -139,8 +131,10 @@ class NovelEngineBase:
 
         self._log = get_logger("novel_forge.engine")
         self._storage = storage or StateStorage(self._series_dir)
-        self._bb_storage = bb_storage or BlackboardStorage(self._series_dir)
-        self._bible_storage = bible_storage or BibleStorage(self._series_dir)
+        # v1 legacy collaborators (BibleManager / BibleStorage / Blackboard /
+        # ContextBuilder / SceneWriter) are intentionally NOT instantiated here.
+        # The v2 pipeline (plan → design → write → export) is the single source
+        # of truth and never reads/writes the legacy bible.json or blackboard.
 
         lock_path = Path(workdir) / ".lock"
         if lock_path.exists():
@@ -196,17 +190,9 @@ class NovelEngineBase:
         )
         self._state = self._storage.load()
 
-        self._ctx_builder = ctx_builder or ContextBuilder(self._series_dir, self._bb_storage, self._bible_storage)
-        self._bible_mgr = bible_mgr or BibleManager(self._bible_storage)
-        self._scene_writer = scene_writer or SceneWriter(
-            workdir,
-            self._llm,
-            self._prompts,
-            self._quality,
-            self._bb_storage,
-            self._bible_storage,
-            series_dir=self._series_dir,
-        )
+        # v1 legacy collaborators are intentionally NOT instantiated here.
+        # The v2 pipeline (plan → design → write → export) is the single
+        # source of truth and uses the canon/ event store instead.
 
     @property
     def state(self) -> ProjectState:
@@ -259,19 +245,8 @@ class NovelEngineBase:
         """Rebind path-dependent collaborators after the series slug is known."""
         series_dir = self._series_dir
         self._storage = StateStorage(series_dir)
-        self._bb_storage = BlackboardStorage(series_dir)
-        self._bible_storage = BibleStorage(series_dir)
-        self._ctx_builder = ContextBuilder(series_dir, self._bb_storage, self._bible_storage)
-        self._bible_mgr = BibleManager(self._bible_storage)
-        self._scene_writer = SceneWriter(
-            self._workdir,
-            self._llm,
-            self._prompts,
-            self._quality,
-            self._bb_storage,
-            self._bible_storage,
-            series_dir=series_dir,
-        )
+        # v1 legacy collaborators are intentionally NOT rebound here.  The v2
+        # pipeline uses the canon/ event store (CanonEventStore) instead.
 
     def _save(self) -> None:
         self._storage.save(self._state)

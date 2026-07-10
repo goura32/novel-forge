@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from novel_forge.logging_config import get_logger
-from novel_forge.models import Bible, Blackboard, ProjectState
+from novel_forge.models import ProjectState
 
 _log = get_logger("novel_forge.storage")
 
@@ -68,31 +68,3 @@ class StateStorage:
                 self._state_path.read_text(encoding="utf-8"), encoding="utf-8"
             )
         _atomic_write(self._state_path, _model_to_json(state))
-
-
-class BlackboardStorage:
-    def __init__(self, workdir: Path):
-        self._path = workdir / "blackboard.json"
-
-    def load(self) -> Blackboard:
-        if not self._path.exists():
-            return Blackboard()
-        data = json.loads(self._path.read_text(encoding="utf-8"))
-        return Blackboard(**data)
-
-    def save(self, blackboard: Blackboard) -> None:
-        _atomic_write(self._path, _model_to_json(blackboard))
-
-
-class BibleStorage:
-    def __init__(self, workdir: Path):
-        self._path = workdir / "bible.json"
-
-    def load(self) -> Bible:
-        if not self._path.exists():
-            return Bible()
-        data = json.loads(self._path.read_text(encoding="utf-8"))
-        return Bible(**data)
-
-    def save(self, bible: Bible) -> None:
-        _atomic_write(self._path, _model_to_json(bible))

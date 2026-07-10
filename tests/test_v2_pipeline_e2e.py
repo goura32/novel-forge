@@ -319,24 +319,22 @@ def test_no_bible_second_write_path():
     schemas = Path(__file__).resolve().parents[1] / "schemas"
     assert not (prompts / "scene_summary_and_bible_update.md").exists()
     assert not (schemas / "scene_summary_and_bible_update.json").exists()
-    import novel_forge.bible_manager as bm
-
-    assert not hasattr(bm.BibleManager, "apply_update")
-    assert not hasattr(bm.BibleManager, "apply_design_update")
+    # The v1 bible_manager module is removed entirely (single source of truth = Canon).
+    with pytest.raises(ModuleNotFoundError):
+        import novel_forge.bible_manager  # noqa: F401
 
 
 def test_legacy_prompt_adapter_reads_v2_materialized_canon(tmp_path: Path):
-    from novel_forge.bible_manager import BibleManager
-    from novel_forge.storage import BibleStorage
+    from novel_forge.canon.store import CanonEventStore
 
     result = run_v2_pipeline(SERIES_PLAN, [{"context_scope": _BASIC_SCOPE, "patch": _make_patch()}], workdir=tmp_path / "canon")
-    manager = BibleManager(BibleStorage(tmp_path))
-    text = manager.to_text_slice("scene")
+    canon = CanonEventStore(tmp_path / "canon").recover()
+    char = next(c for c in canon.characters if c.id == "char_001")
+    text = char.continuity_card.current_state
     assert "冷凍睡眠" in text
-    assert "char_001" not in text
     assert result["store"].bible_path.exists()
-    with pytest.raises(RuntimeError, match="single mutation route"):
-        manager.save(BibleStorage(tmp_path).load())
+    # The v2 canon is the single source of truth; legacy BibleManager.save is gone.
+    assert not hasattr(canon, "save")
 
 
 def test_review_gate_blocks_rejected_patch_from_event_log(tmp_path: Path):

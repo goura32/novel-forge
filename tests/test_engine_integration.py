@@ -14,17 +14,10 @@ from pathlib import Path
 import pytest
 from fakes import MockLLMClient
 
-from novel_forge.context_builder import ContextBuilder
 from novel_forge.engine import NovelEngine
 from novel_forge.engine.plan import MAX_SERIES_SLUG_LENGTH
-from novel_forge.models import (
-    Bible,
-    CharacterProfile,
-)
 from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
-from novel_forge.scene_writer import SceneWriter
-from novel_forge.storage import BibleStorage, BlackboardStorage
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -744,45 +737,6 @@ class TestExportMixin:
         )
         assert meta_path.exists()
 
-    def test_export_readiness_report_uses_v2_canon_not_legacy_bible_mgr(self, planned_engine, mock_llm):
-        """export() readiness report must read unresolved foreshadowing /
-        incomplete subplots from the v2 Canon store, NOT the legacy
-        BibleManager (which is now a no-op under v2 since plan() no longer
-        writes a legacy bible.json).
-        """
-        planned_engine.design(volume_number=1)
-        planned_engine.write(volume_number=1)
-        mock_llm._call_log.clear()
-
-        # If the code path still calls legacy BibleManager, it would silently
-        # return empty (no bible.json).  Spy on it to ensure it is NOT used.
-        calls: list[str] = []
-        orig_unresolved = planned_engine._bible_mgr.get_unresolved_foreshadowing
-        orig_incomplete = planned_engine._bible_mgr.get_incomplete_subplots
-
-        def _spy_unresolved():
-            calls.append("unresolved")
-            return orig_unresolved()
-
-        def _spy_incomplete():
-            calls.append("incomplete")
-            return orig_incomplete()
-
-        planned_engine._bible_mgr.get_unresolved_foreshadowing = _spy_unresolved
-        planned_engine._bible_mgr.get_incomplete_subplots = _spy_incomplete
-
-        planned_engine.export(volume_number=1)
-
-        report_path = (
-            planned_engine._series_dir
-            / "exports"
-            / f"{planned_engine._slug}_vol01_kdp_readiness_report.md"
-        )
-        assert report_path.exists()
-        # The readiness report must be derived from v2 Canon, not the legacy
-        # BibleManager calls.
-        assert calls == [], f"export() still calls legacy BibleManager: {calls}"
-
     def test_export_creates_readiness_report(self, planned_engine, mock_llm):
         """export() should create kdp_readiness_report.md."""
         planned_engine.design(volume_number=1)
@@ -825,80 +779,6 @@ class TestResume:
         planned_engine.state.status = "初稿済"
         result = planned_engine.resume()
         assert result is not None
-
-
-# ── Context builder tests ──────────────────────────────────────────────
-
-
-class TestContextBuilder:
-    """Verify context building."""
-
-    def test_build_context_empty(self, tmp_workdir):
-        """build_context() with no data should return empty context."""
-        ctx = ContextBuilder(
-            series_dir=tmp_workdir,
-            blackboard_storage=BlackboardStorage(tmp_workdir),
-            bible_storage=BibleStorage(tmp_workdir),
-        )
-        result = ctx.build_context()
-        assert result is not None
-
-    def test_build_context_with_facts(self, tmp_workdir):
-        """build_context() should include facts."""
-        ctx = ContextBuilder(
-            series_dir=tmp_workdir,
-            blackboard_storage=BlackboardStorage(tmp_workdir),
-            bible_storage=BibleStorage(tmp_workdir),
-        )
-        result = ctx.build_context()
-        assert result is not None
-
-
-# ── Bible manager tests ────────────────────────────────────────────────
-
-
-class TestBibleManager:
-    """Verify bible management."""
-
-    def test_to_text_empty(self, tmp_workdir):
-        """Bible with no data should return empty or string."""
-        bible = Bible()
-        # Bible doesn't have to_text(), verify it has basic attributes
-        assert hasattr(bible, "characters") or hasattr(bible, "foreshadowing")
-
-    def test_to_text_with_characters(self, tmp_workdir):
-        """Bible should include character info."""
-        bible = Bible(characters=[CharacterProfile(name="主人公", role="主人公", arc="成長")])
-        # Verify characters are accessible
-        assert len(bible.characters) == 1
-        assert bible.characters[0].name == "主人公"
-
-
-# ── Scene writer tests ─────────────────────────────────────────────────
-
-
-class TestSceneWriter:
-    """Verify scene writing."""
-
-    def test_load_scene_draft(self, tmp_workdir):
-        """load_scene_draft() should load existing draft."""
-        from novel_forge.prompts import PromptManager
-        from novel_forge.quality_gate import QualityGate
-
-        scene_file = tmp_workdir / "test_scene.md"
-        scene_file.write_text("# Test\n\nContent", encoding="utf-8")
-        writer = SceneWriter(
-            workdir=tmp_workdir,
-            llm_client=MockLLMClient(),
-            prompt_manager=PromptManager(prompt_dir=tmp_workdir / "prompts"),
-            quality=QualityGate(),
-            blackboard_storage=BlackboardStorage(tmp_workdir),
-            bible_storage=BibleStorage(tmp_workdir),
-        )
-        result = writer.load_scene_draft(vol_num=1, scene_number=1, chapter_number=1)
-        assert result is not None
-
-
 
 
 class TestQualityGate:

@@ -2,8 +2,8 @@
 
 import logging
 
-from novel_forge.models import Bible, Blackboard, CharacterProfile, ProjectState
-from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+from novel_forge.models import ProjectState
+from novel_forge.storage import StateStorage
 
 
 class TestStateStorageAtomicSave:
@@ -54,22 +54,3 @@ class TestStateStorageAtomicSave:
         loaded = storage.load()
 
         assert loaded.status == "企画済"
-
-
-class TestBlackboardStorage:
-    def test_roundtrip(self, tmp_path):
-        storage = BlackboardStorage(tmp_path)
-        bb = Blackboard(scene_summaries={"1": "summary"})
-        storage.save(bb)
-        loaded = storage.load()
-        assert loaded.scene_summaries["1"] == "summary"
-
-
-class TestBibleStorage:
-    def test_roundtrip(self, tmp_path):
-        storage = BibleStorage(tmp_path)
-        bible = Bible(characters=[CharacterProfile(name="Hero")])
-        storage.save(bible)
-        loaded = storage.load()
-        assert len(loaded.characters) == 1
-        assert loaded.characters[0].name == "Hero"

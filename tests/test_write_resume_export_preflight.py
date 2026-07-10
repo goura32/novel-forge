@@ -14,7 +14,7 @@ class TestWriteResumeCheckpoint:
         """write() should checkpoint each completed scene before final volume save."""
         from novel_forge.engine.base import NovelEngineBase
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
-        from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+        from novel_forge.storage import StateStorage
 
         (tmp_path / "series_plan.json").write_text(
             '{"title":"Test","genre":["fantasy"]}', encoding="utf-8"
@@ -23,8 +23,6 @@ class TestWriteResumeCheckpoint:
             workdir=tmp_path,
             phase="write",
             storage=StateStorage(tmp_path),
-            bb_storage=BlackboardStorage(tmp_path),
-            bible_storage=BibleStorage(tmp_path),
         )
         engine._state = ProjectState(series_title="Test", status="計画中", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="計画中")
@@ -101,7 +99,6 @@ class TestWriteResumeCheckpoint:
 
         engine._llm = MagicMock()
         engine._llm.complete_json = fake_json
-        engine._scene_writer._llm = engine._llm
         engine._log.info = MagicMock()
 
         save_calls = []
@@ -128,7 +125,7 @@ class TestExportPreflight:
         """If a designed scene draft file is missing, export should stop."""
         from novel_forge.engine.base import NovelEngineBase
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
-        from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+        from novel_forge.storage import StateStorage
 
         (tmp_path / "series_plan.json").write_text(
             '{"title":"T","genre":["fantasy"]}', encoding="utf-8"
@@ -140,8 +137,6 @@ class TestExportPreflight:
             workdir=tmp_path,
             phase="export",
             storage=StateStorage(tmp_path),
-            bb_storage=BlackboardStorage(tmp_path),
-            bible_storage=BibleStorage(tmp_path),
         )
         engine._state = ProjectState(series_title="Test", status="初稿済", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="初稿済")
@@ -184,7 +179,7 @@ class TestExportPreflight:
         """If a designed scene draft file is empty, export should stop."""
         from novel_forge.engine.base import NovelEngineBase
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
-        from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+        from novel_forge.storage import StateStorage
 
         (tmp_path / "series_plan.json").write_text(
             '{"title":"T","genre":["fantasy"]}', encoding="utf-8"
@@ -197,8 +192,6 @@ class TestExportPreflight:
             workdir=tmp_path,
             phase="export",
             storage=StateStorage(tmp_path),
-            bb_storage=BlackboardStorage(tmp_path),
-            bible_storage=BibleStorage(tmp_path),
         )
         engine._state = ProjectState(series_title="Test", status="初稿済", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="初稿済")
@@ -224,7 +217,7 @@ class TestExportPreflight:
         """If a scene is not revised or force-exported, export should stop."""
         from novel_forge.engine.base import NovelEngineBase
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
-        from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+        from novel_forge.storage import StateStorage
 
         (tmp_path / "series_plan.json").write_text(
             '{"title":"T","genre":["fantasy"]}', encoding="utf-8"
@@ -237,8 +230,6 @@ class TestExportPreflight:
             workdir=tmp_path,
             phase="export",
             storage=StateStorage(tmp_path),
-            bb_storage=BlackboardStorage(tmp_path),
-            bible_storage=BibleStorage(tmp_path),
         )
         engine._state = ProjectState(series_title="Test", status="初稿済", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="初稿済")
@@ -264,7 +255,7 @@ class TestExportPreflight:
         """Export preflight should reject duplicate final design scene numbers."""
         from novel_forge.engine.base import NovelEngineBase
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
-        from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+        from novel_forge.storage import StateStorage
 
         (tmp_path / "series_plan.json").write_text(
             '{"title":"T","genre":["fantasy"]}', encoding="utf-8"
@@ -278,8 +269,6 @@ class TestExportPreflight:
             workdir=tmp_path,
             phase="export",
             storage=StateStorage(tmp_path),
-            bb_storage=BlackboardStorage(tmp_path),
-            bible_storage=BibleStorage(tmp_path),
         )
         engine._state = ProjectState(series_title="Test", status="初稿済", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="初稿済")

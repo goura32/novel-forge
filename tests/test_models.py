@@ -5,10 +5,7 @@ import pytest
 from novel_forge.engine import NovelEngine
 from novel_forge.llm_client import LLMClient
 from novel_forge.models import (
-    Bible,
-    Blackboard,
     ChapterDesign,
-    CharacterProfile,
     ProjectState,
     SceneDesign,
     SceneRecord,
@@ -17,7 +14,7 @@ from novel_forge.models import (
 from novel_forge.prompts import PromptManager, render_prompt
 from novel_forge.quality_gate import QualityGate
 from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_raise
-from novel_forge.storage import BibleStorage, BlackboardStorage, StateStorage
+from novel_forge.storage import StateStorage
 
 # ── LLM Client ──────────────────────────────────────────────────────────
 
@@ -42,19 +39,6 @@ class TestLLMClient:
 
 
 class TestModels:
-    def test_blackboard_creation(self):
-        bb = Blackboard(
-            scene_summaries={"1": "summary"},
-        )
-        assert bb.scene_summaries == {"1": "summary"}
-
-    def test_bible_creation(self):
-        bible = Bible(
-            characters=[CharacterProfile(name="Alice")],
-            world_rules=["magic exists"],
-        )
-        assert len(bible.characters) == 1
-
     def test_scene_design_creation(self):
         sd = SceneDesign(number=1, title="Prologue", goal="Introduce world")
         assert sd.number == 1
@@ -115,20 +99,6 @@ class TestStorage:
         storage._state_path.write_text("not json", encoding="utf-8")
         loaded = storage.load()
         assert loaded.series_title == "Backup Test"
-
-    def test_blackboard_storage(self, tmp_path):
-        storage = BlackboardStorage(tmp_path)
-        bb = Blackboard(scene_summaries={"1": "summary"})
-        storage.save(bb)
-        loaded = storage.load()
-        assert loaded.scene_summaries == {"1": "summary"}
-
-    def test_bible_storage(self, tmp_path):
-        storage = BibleStorage(tmp_path)
-        bible = Bible(characters=[CharacterProfile(name="Hero")])
-        storage.save(bible)
-        loaded = storage.load()
-        assert len(loaded.characters) == 1
 
 
 # ── Prompts ────────────────────────────────────────────────────────────

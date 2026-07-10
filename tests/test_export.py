@@ -18,9 +18,6 @@ class TestExportMixin:
     @pytest.fixture
     def mock_engine(self, tmp_path):
         """Create a minimal engine-like object with ExportMixin methods."""
-        from novel_forge.bible_manager import BibleManager
-        from novel_forge.storage import BibleStorage, BlackboardStorage
-
         engine = MagicMock()
         engine._workdir = tmp_path
         engine._series_dir = tmp_path / "series"
@@ -41,12 +38,6 @@ class TestExportMixin:
             SceneRecord(scene_number=2, status="修正済"),
         ]
         engine._current_volume = MagicMock(return_value=vol)
-
-        # Storage
-        bb_storage = BlackboardStorage(engine._series_dir)
-        bible_storage = BibleStorage(engine._series_dir)
-        engine._bb_storage = bb_storage
-        engine._bible_mgr = BibleManager(bible_storage)
 
         # v2 Canon seed with foreshadowing and subplots (the single source of truth)
         canon_dir = engine._series_dir / "canon"
