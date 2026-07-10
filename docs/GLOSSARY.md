@@ -4,8 +4,8 @@
 
 | 用語 | 説明 |
 |---|---|
-| Bible (bible.json) | 設定資料集。キャラクター、用語、伏線、世界観ルール、関係性、サブプロットを管理する台帳 |
-| Blackboard (blackboard.json) | 事実記録。facts、シーン要約、引き継ぎメモ、サブプロット進捗、タイムラインを管理 |
+| Bible (bible.json) | **現行 v1 runtime** の設定資料集。キャラクター、用語、伏線、世界観ルール、関係性、サブプロットを管理する台帳。Series Bible v2 では `canon_events.jsonl` が正本となり、本ファイルは replay 生成物に降格する |
+| Blackboard (blackboard.json) | **現行 v1 runtime** の事実記録。facts、シーン要約、引き継ぎメモ、サブプロット進捗、タイムラインを管理。Series Bible v2 では runtime discovery を禁止するため削除対象 |
 
 ## あ行
 
@@ -93,4 +93,4 @@
 
 ---
 
-*Last updated: 2026-07-03*
+*Last updated: 2026-07-10*
