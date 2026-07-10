@@ -61,8 +61,8 @@ def test_scene_design_model_builds():
             required_refs=[EntityRef(kind="world_rule", id="rule_001")],
         ),
         design_intent=DesignIntent(
-            foreshadowing=[{"intent_key": "sister_voice", "action": "plant"}],
-            cast=[{"target_scene_id": "scn_001", "entries": []}],
+            foreshadowing=[{"topic": "sister_voice", "desired_outcome": "plant"}],
+            cast=[{"topic": "港の検問兵", "desired_outcome": "疑念を示す"}],
         ),
         cast=[
             CastCharacter(character=EntityRef(kind="character", id="char_001")),

@@ -28,6 +28,7 @@ from novel_forge.canon.models import (
     CanonEvent,
     CanonPatch,
     EntityRef,
+    EventRef,
     SourceRef,
     compute_canonical_digest,
 )
@@ -70,15 +71,53 @@ def apply_patch(canon: Canon, patch: CanonPatch, event: CanonEvent) -> Canon:
     §6.1 patch semantics) so replay and live application cannot diverge.
     """
     applier = CanonPatchApplier()
-    new_canon, _ = applier.apply(
+    new_canon, applied_event = applier.apply(
         canon=canon,
         patch=patch,
         source=event.source,
         review_evidence=event.review_evidence,
         id_gen=StableIdGenerator(),
+        scene_cast_ids=set(event.scene_cast_ids),
         existing_events=[event],
     )
+    _apply_provenance(new_canon, patch, event, applied_event.created_entity_ids)
     return new_canon
+
+
+def _apply_provenance(
+    canon: Canon,
+    patch: CanonPatch,
+    event: CanonEvent,
+    created_entity_ids: dict[str, str],
+) -> None:
+    """Attach the structured EventRef to every entity mutated by the event."""
+    ref = EventRef(scene_id=event.source.scene_id, event_digest=event.artifact_digest)
+    changed: list[tuple[str, str]] = []
+    for key, entity_id in created_entity_ids.items():
+        kind = key.split(":", 1)[0]
+        changed.append((kind, entity_id))
+    def existing_id(value: Any) -> str | None:
+        return getattr(value, "id", None)
+
+    changed.extend(("character", eid) for u in patch.characters.state_updates if (eid := existing_id(u.character)))
+    changed.extend(("character", eid) for u in patch.characters.promote if (eid := existing_id(u.character)))
+    changed.extend(("character", eid) for u in patch.characters.identity_reveals if (eid := existing_id(u.character)))
+    changed.extend(("collective", u.id) for u in patch.collectives.state_updates)
+    changed.extend(("location", u.id) for u in patch.locations.state_updates)
+    changed.extend(("artifact", u.id) for u in patch.artifacts.custody_updates)
+    changed.extend(("artifact", u.id) for u in patch.artifacts.condition_updates)
+    changed.extend(("relationship", eid) for u in patch.relationships.updates if (eid := existing_id(u.relationship)))
+    changed.extend(("foreshadowing", eid) for u in patch.foreshadowing.transitions if (eid := existing_id(u.foreshadowing)))
+    changed.extend(("subplot", eid) for u in patch.subplots.updates if (eid := existing_id(u.subplot)))
+    for kind, entity_id in changed:
+        entity: Any = canon.get_entity(kind, entity_id)
+        if entity is not None and hasattr(entity, "last_changed_by"):
+            entity.last_changed_by = ref
+        if kind == "foreshadowing" and entity is not None:
+            if entity.status == "planted":
+                entity.planted_by = ref
+            elif entity.status in {"resolved", "abandoned"}:
+                entity.resolved_by = ref
 
 
 def _to_event_ref(event: CanonEvent):
@@ -101,7 +140,7 @@ class BibleFactory:
         Supporting / initial Collective / Location / Artifact / Knowledge /
         Chronology / Relationship Arc / WorldRule / Glossary.
         """
-        series_in = plan_data.get("series", {})
+        series_in = plan_data.get("series") or plan_data
         series = {
             "id": series_in.get("id", "series"),
             "title": series_in.get("title", ""),
@@ -117,10 +156,42 @@ class BibleFactory:
         def _with_id(lst, default_prefix):
             out = []
             for i, item in enumerate(lst, 1):
+                if isinstance(item, str):
+                    if default_prefix == "rule":
+                        item = {"name": f"rule_{i:03d}", "statement": item}
+                    elif default_prefix == "term":
+                        item = {"term": item, "definition": ""}
+                    else:
+                        raise ValueError(f"{default_prefix} seed entries must be objects")
                 item = dict(item)
                 item.setdefault("id", f"{default_prefix}_{i:03d}")
                 out.append(item)
             return out
+
+        def _characters(raw_characters):
+            normalized = []
+            for i, raw in enumerate(raw_characters, 1):
+                item = dict(raw)
+                if "identity" not in item:
+                    # Convert the public plan's legacy character shape exactly
+                    # once, at immutable seed creation.
+                    name = item.get("name", f"人物{i}")
+                    item = {
+                        "id": f"char_{i:03d}",
+                        "identity": {"kind": "named", "display_name": name},
+                        "importance": "core",
+                        "tracking_level": "full",
+                        "narrative_function": item.get("role", ""),
+                        "profile": {
+                            key: item[key]
+                            for key in ("appearance", "personality", "motivation", "flaw", "age", "occupation", "background")
+                            if item.get(key)
+                        },
+                        "continuity_card": {"current_state": item.get("state", "")},
+                    }
+                item.setdefault("id", f"char_{i:03d}")
+                normalized.append(item)
+            return normalized
 
         chronology = plan_data.get("chronology")
         if chronology is not None:
@@ -134,7 +205,7 @@ class BibleFactory:
         canon = Canon.model_validate({
             "schema_version": 2,
             "series": series,
-            "characters": [dict(c) for c in _with_id(plan_data.get("characters", []), "char")],
+            "characters": _characters(plan_data.get("characters") or plan_data.get("main_characters", [])),
             "collectives": _with_id(plan_data.get("collectives", []), "grp"),
             "locations": _with_id(plan_data.get("locations", []), "loc"),
             "artifacts": _with_id(plan_data.get("artifacts", []), "art"),
@@ -233,12 +304,59 @@ class CanonEventStore:
         _log.info("saved %d active events", len(events))
 
     def replace_source(self, source: SourceRef, events: list[CanonEvent]) -> None:
-        """Replace all events belonging to ``source.scene_id`` (§7.1)."""
+        """Backward-compatible single-source wrapper for the segment transaction."""
+        self.replace_design_segment([source.scene_id], events)
+
+    def replace_design_segment(
+        self,
+        removed_scene_ids: list[str],
+        replacement_events: list[CanonEvent],
+    ) -> Canon:
+        """Atomically replace an ordered design segment and rematerialize Canon.
+
+        The candidate active set is dependency-checked and replayed *before*
+        replacing ``canon_events.jsonl``.  Thus a rejected replacement cannot
+        leave a partial event set or a divergent ``bible.json`` behind.
+        """
+        if not removed_scene_ids:
+            raise ValueError("replace_design_segment requires at least one source scene_id")
+        removed = set(removed_scene_ids)
+        if any(ev.source.scene_id not in removed for ev in replacement_events):
+            raise ValueError("replacement events must belong to the replaced design segment")
+
         current = self.load_active()
-        kept = [ev for ev in current if ev.source.scene_id != source.scene_id]
-        kept.extend(events)
-        self.save_events(kept)
-        _log.info("replaced source %s (%d events)", source.scene_id, len(events))
+        errors = self.validate_segment_replacement(
+            removed_scene_ids=sorted(removed),
+            replacement_events=replacement_events,
+            events=current,
+        )
+        if errors:
+            raise SegmentDependencyError("; ".join(errors))
+
+        kept = [ev for ev in current if ev.source.scene_id not in removed]
+        candidate = [*kept, *replacement_events]
+        candidate.sort(key=lambda ev: (ev.source.ordinal, ev.source.scene_id, ev.source.revision))
+
+        # Same active source content is a true no-op: do not rewrite timestamps
+        # or the event file merely because a caller retried the same request.
+        active_by_source = {ev.source.scene_id: ev for ev in current}
+        if (
+            len(replacement_events) == len(removed)
+            and all(
+                sid in active_by_source
+                and active_by_source[sid].model_dump(exclude={"created_at"})
+                == next(ev for ev in replacement_events if ev.source.scene_id == sid).model_dump(exclude={"created_at"})
+                for sid in removed
+            )
+        ):
+            return self.recover()
+
+        # Replay candidate first: invalid events never reach durable storage.
+        canon = self.replay(self.load_seed(), candidate)
+        self.save_events(candidate)
+        self.materialize(canon)
+        _log.info("replaced design segment %s (%d events)", sorted(removed), len(replacement_events))
+        return canon
 
     # ----- replay --------------------------------------------------------
     def replay(self, seed: Canon | None = None, events: list[CanonEvent] | None = None) -> Canon:
@@ -286,10 +404,12 @@ class CanonEventStore:
                 stored = Canon.model_validate_json(
                     self.bible_path.read_text(encoding="utf-8")
                 )
-            except json.JSONDecodeError as exc:
-                raise CorruptedCanonError(f"bible.json corrupt: {exc}") from exc
             except Exception as exc:
-                raise SchemaViolationError(f"bible.json schema violation: {exc}") from exc
+                # The materialized file is a cache, not a source of truth.  A
+                # valid seed + event set must recover it automatically.
+                _log.warning("bible.json invalid; regenerating materialized cache: %s", exc)
+                self.materialize(canon)
+                return canon
             if compute_canonical_digest(stored) != digest:
                 _log.warning("bible.json digest mismatch; regenerating")
                 self.materialize(canon)
@@ -299,9 +419,11 @@ class CanonEventStore:
 
     # ----- integrity checks ---------------------------------------------
     def _validate_event_integrity(self, ev: CanonEvent) -> None:
-        if ev.review_evidence.status == "approved" and (
-            ev.review_evidence.reviewed_artifact_digest != ev.artifact_digest
-        ):
+        if ev.review_evidence.status != "approved":
+            raise ReviewEvidenceMismatchError(
+                f"event {ev.event_id}: Canon Events require approved review evidence"
+            )
+        if ev.review_evidence.reviewed_artifact_digest != ev.artifact_digest:
             raise ReviewEvidenceMismatchError(
                 f"event {ev.event_id}: reviewed_artifact_digest != artifact_digest"
             )
@@ -349,6 +471,10 @@ class CanonEventStore:
             dl = dl_u.get("deadline") if isinstance(dl_u, dict) else getattr(dl_u, "deadline", None)
             if dl and dl.get("id"):
                 refs.append(EntityRef(kind="deadline", id=dl["id"]))
+        for rel in patch.relationships.create:
+            refs.extend(EntityRef(kind="character", id=pid) for pid in rel.participant_ids)
+        for fh in patch.foreshadowing.create:
+            refs.extend(fh.related_character_refs)
         return refs
 
     # ----- dependency graph (§3.2 / §7.2) --------------------------------
@@ -442,6 +568,10 @@ class SchemaViolationError(CanonStoreError):
 
 class ReferenceInconsistencyError(CanonStoreError):
     """Dangling reference after replay — hard stop."""
+
+
+class SegmentDependencyError(CanonStoreError):
+    """A segment replacement would orphan entities used by surviving scenes."""
 
 
 class ReviewEvidenceMismatchError(CanonStoreError):

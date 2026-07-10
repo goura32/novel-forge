@@ -19,6 +19,7 @@ from .models import (
     CastLocalRole,
     ContextScope,
     DesignIntent,
+    SceneLocation,
     WriterContext,
 )
 
@@ -64,6 +65,7 @@ class SceneDesign(BaseModel):
     model_config = _forbid()
 
     scene_id: str
+    source_location: SceneLocation | None = None
     context_scope: ContextScope | None = None
     design_intent: DesignIntent | None = None
     cast: list[CastEntry] = Field(default_factory=list)

@@ -319,21 +319,20 @@ def test_artifact_custody_transfer():
     )
     new_canon, event = _apply(canon, patch)
     art = new_canon.get_entity("artifact", "art_001")
-    assert art.custody == {"kind": "character", "id": "char_002"}
+    assert art.custody is not None
+    assert art.custody.model_dump() == {"kind": "character", "id": "char_002"}
 
 
 def test_artifact_custody_invalid_kind_rejected():
-    canon = _base_canon()
-    patch = CanonPatch(
-        artifacts={
-            "custody_updates": [{
-                "id": "art_001",
-                "custody": {"kind": "relationship", "id": "rel_001"},  # forbidden kind
-            }]
-        }
-    )
-    with pytest.raises(PatchValidationError):
-        _apply(canon, patch)
+    with pytest.raises(ValueError, match="character.*collective.*location"):
+        CanonPatch(
+            artifacts={
+                "custody_updates": [{
+                    "id": "art_001",
+                    "custody": {"kind": "relationship", "id": "rel_001"},
+                }]
+            }
+        )
 
 
 def test_artifact_properties_update_rejected():
@@ -403,7 +402,7 @@ def test_knowledge_holder_update_with_basis_ok():
     )
     new_canon, event = _apply(canon, patch, scene_cast_ids={"char_002"})
     k = new_canon.get_entity("knowledge", "know_001")
-    assert k.holders[0]["state"] == "knows"
+    assert k.holders[0].state == "knows"
 
 
 def test_knowledge_confirmed_to_false_belief_rejected():
@@ -485,12 +484,11 @@ def test_relationship_asymmetric_perspective_update():
     )
     new_canon, event = _apply(canon, patch, scene_cast_ids={"char_001"})
     rel = new_canon.get_entity("relationship", "rel_001")
-    p1 = [p for p in rel.perspectives if p["character_id"] == "char_001"][0]
-    p2 = [p for p in rel.perspectives if p["character_id"] == "char_002"][0]
-    assert p1["attitude"] == "trusting"
-    assert p1["trust"] == "open"
-    # char_002 perspective untouched (asymmetric)
-    assert p2["attitude"] == "wary"
+    p1 = [p for p in rel.perspectives if p.character_id == "char_001"][0]
+    p2 = [p for p in rel.perspectives if p.character_id == "char_002"][0]
+    assert p1.attitude == "trusting"
+    assert p1.trust == "open"
+    assert p2.attitude == "wary"
 
 
 def test_relationship_update_offstage_rejected():

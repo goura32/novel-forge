@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -13,7 +12,6 @@ from novel_forge.canon.models import (
     Canon,
     CanonEvent,
     CanonPatch,
-    Marker,
     ReviewEvidence,
     SourceRef,
     compute_canonical_digest,
@@ -21,7 +19,6 @@ from novel_forge.canon.models import (
 from novel_forge.canon.store import (
     BibleFactory,
     CanonEventStore,
-    ReferenceInconsistencyError,
     ReviewEvidenceMismatchError,
     SeedImmutableError,
 )
@@ -195,17 +192,22 @@ def test_recover_regenerates_stale_materialized_view(tmp_path):
 
 def test_recovery_stop_on_review_mismatch(tmp_path):
     store = CanonEventStore(tmp_path)
-    seed = _write_seed(store)
+    _write_seed(store)
     patch = CanonPatch(characters={"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "x"}]})
     ev = _approved_event(_src("scn_A", 1), patch, "sha256:real")
-    # corrupt review evidence: reviewed != artifact
-    ev.review_evidence.reviewed_artifact_digest = "sha256:wrong"
+    ev.review_evidence = ReviewEvidence(
+        status="rejected",
+        reviewed_artifact_digest="sha256:real",
+        review_digest="sha256:real",
+        review_contract_version=1,
+    )
     store.save_events([ev])
     try:
         store.recover()
-        assert False, "expected ReviewEvidenceMismatchError"
     except ReviewEvidenceMismatchError:
         pass
+    else:
+        raise AssertionError("expected ReviewEvidenceMismatchError")
 
 
 def test_dependency_rejection_on_segment_replacement(tmp_path):
@@ -222,7 +224,6 @@ def test_dependency_rejection_on_segment_replacement(tmp_path):
     )
     src_a = _src("scn_A", 1)
     create_patch, created = gen.assign(create_patch, seed, src_a)
-    art_id = created["artifact:key"]
     ev_a = _approved_event(src_a, create_patch, "sha256:a", created_entity_ids=created)
     store.save_events([ev_a])
 
@@ -231,7 +232,13 @@ def test_dependency_rejection_on_segment_replacement(tmp_path):
         characters={"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "持った"}]},
     )
     # make B reference the artifact via an artifact custody update
-    ref_patch.artifacts.custody_updates = [{"id": art_id, "custody": {"kind": "character", "id": "char_001"}}]
+    ref_patch.artifacts = CanonPatch.model_validate({
+        "artifacts": {
+            "custody_updates": [
+                {"id": created["artifact:key"], "custody": {"kind": "character", "id": "char_001"}}
+            ]
+        }
+    }).artifacts
     src_b = _src("scn_B", 2)
     ev_b = _approved_event(src_b, ref_patch, "sha256:b")
     store.save_events([ev_a, ev_b])
@@ -241,7 +248,7 @@ def test_dependency_rejection_on_segment_replacement(tmp_path):
         removed_scene_ids=["scn_A"], replacement_events=[], events=[ev_a, ev_b]
     )
     assert len(errors) == 1
-    assert art_id in errors[0]
+    assert created["artifact:key"] in errors[0]
 
 
 def test_dependency_accepted_when_replacement_survives(tmp_path):
@@ -257,7 +264,6 @@ def test_dependency_accepted_when_replacement_survives(tmp_path):
     )
     src_a = _src("scn_A", 1)
     create_patch, created = gen.assign(create_patch, seed, src_a)
-    art_id = created["artifact:key"]
     ev_a = _approved_event(src_a, create_patch, "sha256:a", created_entity_ids=created)
     store.save_events([ev_a])
 
@@ -284,9 +290,10 @@ def test_plan_seed_immutable_after_events(tmp_path):
     store.save_events([_approved_event(_src("scn_A", 1), patch, "sha256:a")])
     try:
         store.write_seed(seed)
-        assert False, "expected SeedImmutableError"
     except SeedImmutableError:
         pass
+    else:
+        raise AssertionError("expected SeedImmutableError")
 
 
 def test_reset_discards_events(tmp_path):

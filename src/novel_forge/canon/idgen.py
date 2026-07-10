@@ -32,16 +32,19 @@ class StableIdGenerator:
         return max_seq
 
     def _known_map(self, existing_events: list | None = None) -> dict[str, str]:
-        """Map ``scene_id|creation_key`` -> stable id from prior events."""
+        """Map ``scene_id|kind|creation_key`` to stable ids from prior events."""
         known: dict[str, str] = {}
         if not existing_events:
             return known
         for ev in existing_events:
             scene_id = ev.source.scene_id
             for key, eid in (ev.created_entity_ids or {}).items():
-                # key format: "entitykind:creation_key"
-                ck = key.split(":", 1)[1] if ":" in key else key
-                known[f"{scene_id}|{ck}"] = eid
+                # Persisted keys are ``entitykind:creation_key``.  The entity
+                # kind is part of identity: cross-kind reuse is never valid.
+                if ":" not in key:
+                    continue
+                kind, ck = key.split(":", 1)
+                known[f"{scene_id}|{kind}|{ck}"] = eid
         return known
 
     def assign(
@@ -59,6 +62,7 @@ class StableIdGenerator:
         known = self._known_map(existing_events)
         created: dict[str, str] = {}
 
+        seen_creation_keys: set[str] = set()
         for field_name, kind in PATCH_CREATE_KIND.items():
             ops = getattr(patch, field_name)
             creates = getattr(ops, "create", [])
@@ -66,7 +70,13 @@ class StableIdGenerator:
             next_seq = self._max_seq_for_prefix(existing, prefix) + 1
             for create in creates:
                 ck = create.creation_key
-                cache_key = f"{source.scene_id}|{ck}"
+                if ck in seen_creation_keys:
+                    raise ValueError(
+                        f"creation_key '{ck}' is duplicated in source {source.scene_id}; "
+                        "creation keys are source-unique across entity kinds"
+                    )
+                seen_creation_keys.add(ck)
+                cache_key = f"{source.scene_id}|{kind}|{ck}"
                 if cache_key in known:
                     eid = known[cache_key]
                 else:

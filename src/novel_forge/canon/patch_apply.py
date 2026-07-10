@@ -31,6 +31,7 @@ from novel_forge.canon.models import (
     EntityRef,
     Foreshadowing,
     Glossary,
+    HolderState,
     Knowledge,
     Location,
     Relationship,
@@ -160,8 +161,9 @@ class CanonPatchApplier:
             errors.extend(exc.errors if exc.errors else [str(exc)])
 
         if errors:
+            detail = "; ".join(errors)
             raise PatchValidationError(
-                f"canon patch from {source.scene_id} rejected: {len(errors)} violation(s)",
+                f"canon patch from {source.scene_id} rejected: {len(errors)} violation(s): {detail}",
                 errors=errors,
             )
 
@@ -387,14 +389,14 @@ class CanonPatchApplier:
             if c.id is None:
                 errors.append(f"artifact create '{c.creation_key}' missing stable id")
                 continue
-            self._validate_custody(c.custody, errors, f"artifact create '{c.creation_key}'")
+            self._validate_custody(canon, c.custody, errors, f"artifact create '{c.creation_key}'")
             canon.artifacts.append(
                 Artifact(
                     id=c.id,
                     name=c.name,
                     kind=c.kind,
                     properties=c.properties,
-                    custody=c.custody.model_dump() if c.custody is not None else None,
+                    custody=c.custody,
                     condition=c.condition,
                     narrative_significance=c.narrative_significance,
                     last_changed_by=None,
@@ -412,16 +414,16 @@ class CanonPatchApplier:
                 continue
             if u.custody is not None:
                 self._validate_custody(
-                    u.custody, errors, f"artifact '{eid}' custody"
+                    canon, u.custody, errors, f"artifact '{eid}' custody"
                 )
-                ent.custody = u.custody.model_dump()
+                ent.custody = u.custody
         for cu in ops.condition_updates:
             eid = cu.id
             ent = _entity_by_id(canon, "artifact", eid)
             ent.condition = cu.condition
 
     @staticmethod
-    def _validate_custody(custody: Any, errors: list[str], ctx: str) -> None:
+    def _validate_custody(canon: Canon, custody: Any, errors: list[str], ctx: str) -> None:
         if custody is None:
             return
         kind = custody.kind if hasattr(custody, "kind") else (
@@ -438,6 +440,9 @@ class CanonPatchApplier:
                 f"{ctx} custody.kind must be one of {sorted(CUSTODY_KINDS)}, "
                 f"got '{kind}'"
             )
+            return
+        if canon.get_entity(kind, cid) is None:
+            errors.append(f"{ctx} custody references no {kind} entity '{cid}'")
 
     # -- knowledge ----------------------------------------------------------
 
@@ -465,7 +470,7 @@ class CanonPatchApplier:
                     proposition=c.proposition,
                     truth_status=c.truth_status,
                     visibility=c.visibility,
-                    holders=[h.model_dump() for h in c.holders],
+                    holders=c.holders,
                     related_entity_refs=c.related_entity_refs,
                     last_changed_by=None,
                 )
@@ -475,9 +480,7 @@ class CanonPatchApplier:
         for hu in ops.holder_updates:
             ref = _resolve_ref(hu.knowledge, created_map)
             ent = _entity_by_id(canon, "knowledge", ref.id)
-            holders_by_char: dict[str, dict] = {
-                h["holder"]["id"]: h for h in ent.holders if "holder" in h
-            }
+            holders_by_char = {h.holder.id: h for h in ent.holders}
             for upd in hu.holder_updates:
                 holder = upd.holder
                 hid = holder.id
@@ -496,7 +499,8 @@ class CanonPatchApplier:
                 # POV leak guard: never auto-promote to 'knows' from author truth.
                 new_state = upd.state
                 if new_state == "knows":
-                    prior = holders_by_char.get(hid, {}).get("state")
+                    prior_rec = holders_by_char.get(hid)
+                    prior = prior_rec.state if prior_rec is not None else None
                     if (prior is None or prior == "unaware") and basis not in (
                         "transmission",
                         "observation",
@@ -512,16 +516,18 @@ class CanonPatchApplier:
                         f"'{new_state}'"
                     )
             # apply holder changes
-            holder_map = {h["holder"]["id"]: h for h in ent.holders if "holder" in h}
+            holder_map = {h.holder.id: h for h in ent.holders}
             for upd in hu.holder_updates:
                 hid = upd.holder.id
                 rec = holder_map.get(hid)
                 if rec is None:
-                    rec = {"holder": {"kind": upd.holder.kind, "id": hid}}
+                    rec = HolderState(holder=upd.holder, state="unaware")
                     ent.holders.append(rec)
                     holder_map[hid] = rec
                 if upd.state is not None:
-                    rec["state"] = upd.state
+                    rec.state = upd.state
+                if upd.basis is not None:
+                    rec.basis = upd.basis
 
         # visibility_updates
         for vu in ops.visibility_updates:
@@ -613,7 +619,7 @@ class CanonPatchApplier:
             # each participant exactly one perspective
             seen: set[str] = set()
             for p in c.perspectives:
-                cid = p["character_id"]
+                cid = p.character_id
                 if cid in seen:
                     errors.append(
                         f"relationship create '{c.creation_key}' duplicate perspective for "
@@ -669,10 +675,10 @@ class CanonPatchApplier:
                     )
                     continue
                 for rec in ent.perspectives:
-                    if rec["character_id"] == cid:
+                    if rec.character_id == cid:
                         for k, v in pu.model_dump(exclude_none=True).items():
                             if k != "character_id":
-                                rec[k] = v
+                                setattr(rec, k, v)
                         break
                 else:
                     errors.append(
@@ -680,6 +686,14 @@ class CanonPatchApplier:
                     )
             if u.arc_summary is not None:
                 ent.arc_summary = u.arc_summary
+            if u.lifecycle is not None:
+                if ent.lifecycle != "active" or u.lifecycle != "resolved":
+                    errors.append(
+                        f"relationship '{ref.id}' lifecycle transition "
+                        f"'{ent.lifecycle}'→'{u.lifecycle}' forbidden"
+                    )
+                else:
+                    ent.lifecycle = u.lifecycle
 
     # -- foreshadowing / subplots / glossary --------------------------------
 
@@ -765,6 +779,13 @@ class CanonPatchApplier:
             ent = _entity_by_id(canon, "subplot", ref.id)
             if u.current_state is not None:
                 ent.current_state = u.current_state
+            if u.status is not None:
+                if ent.status != "active":
+                    errors.append(
+                        f"subplot '{ref.id}' status transition '{ent.status}'→'{u.status}' forbidden"
+                    )
+                else:
+                    ent.status = u.status
 
     def _apply_glossary(
         self,

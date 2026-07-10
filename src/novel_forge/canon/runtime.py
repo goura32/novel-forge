@@ -27,6 +27,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from novel_forge.canon.design import (
     ChapterDesign,
@@ -39,6 +40,7 @@ from novel_forge.canon.models import (
     CanonEvent,
     CanonPatch,
     ReviewEvidence,
+    SceneLocation,
     SourceRef,
 )
 from novel_forge.canon.patch_apply import CanonPatchApplier
@@ -76,12 +78,11 @@ def build_chapter_intent(
     )
 
 
-def _intent_from_constraints(constraints: list[Any]) -> Any:
+def _intent_from_constraints(constraints: list[Any]):
     from novel_forge.canon.models import DesignIntent
 
-    return DesignIntent(
-        foreshadowing=[], subplots=[], relationship_arcs=[], cast=[]
-    )
+    normalized = [str(item) for item in constraints if str(item).strip()]
+    return DesignIntent(constraints=normalized)
 
 
 # ---------------------------------------------------------------------------
@@ -96,11 +97,19 @@ def build_scene_design(
     cast: list[Any] | None = None,
     relationship_context: Any | None = None,
     design_intent: Any | None = None,
+    scene_id: str | None = None,
+    source_location: SceneLocation | None = None,
 ) -> SceneDesign:
-    """Create a SceneDesign and attach its writer projection from the Canon."""
-    scene_id = f"{chapter.chapter_id}_scn{scene_ordinal:03d}"
+    """Create a SceneDesign with an opaque immutable ID and explicit location."""
+    opaque_scene_id = scene_id or f"scn_{uuid4().hex}"
+    location = source_location or SceneLocation(
+        volume=1,
+        chapter=1,
+        ordinal=scene_ordinal,
+    )
     design = SceneDesign(
-        scene_id=scene_id,
+        scene_id=opaque_scene_id,
+        source_location=location,
         context_scope=context_scope,
         cast=cast or [],
         relationship_context=relationship_context,
@@ -131,10 +140,13 @@ def _empty_intent():
 class ReviewResult:
     passed: bool
     issues: list[str] = field(default_factory=list)
-    # digest of the *reviewed artifact* (scene draft) used for evidence binding
+    # Digest of the exact patch payload reviewed by this result.
     review_digest: str = ""
-    # digest of the *reviewed* canon patch (design digest) for evidence binding
+    # Canon digest used to build the writer projection and review context.
     design_digest: str = ""
+    # Explicit duplicate of the patch binding: retained separately so review
+    # evidence cannot be confused with Canon/projection state.
+    patch_digest: str = ""
 
 
 def review_scene_patch(
@@ -142,6 +154,7 @@ def review_scene_patch(
     patch: dict[str, Any],
     canon: Canon,
     prior_review_digest: str = "",
+    seed: Canon | None = None,
 ) -> ReviewResult:
     """Review a proposed canon_patch for a scene (§6.3 + Phase 3 review wiring).
 
@@ -163,28 +176,72 @@ def review_scene_patch(
         path = "/".join(str(p) for p in err.absolute_path) or "(root)"
         issues.append(f"[canon_patch schema] [{path}] {err.message}")
 
+    # 1b) Semantic preflight against the *current* Canon.  Schema acceptance
+    # is not approval: cast/scope, continuity, relationship, knowledge and
+    # transition rules are evaluated before a review can pass.
+    if not issues:
+        try:
+            typed_patch = CanonPatch.model_validate(patch)
+            source = _source_from_design(scene_design, revision=1)
+            CanonPatchApplier().apply(
+                canon=canon,
+                patch=typed_patch,
+                source=source,
+                review_evidence=ReviewEvidence(
+                    status="approved",
+                    reviewed_artifact_digest="sha256:review-preflight",
+                    review_digest="sha256:review-preflight",
+                ),
+                id_gen=StableIdGenerator(),
+                scene_cast_ids=_scene_cast_ids(scene_design),
+                existing_events=[],
+            )
+        except Exception as exc:
+            issues.append(f"[canon_patch semantic] {exc}")
+
     # 2) POV-leak check: the writer_context carried on the design must not
     #    contain author-only truth (proposition text of secret knowledge the
     #    POV does not hold).  The projection helper already strips these, but
     #    we re-assert the guardrail contract here.
     _check_pov_leak(scene_design, canon, issues)
 
-    # 3) design/review digest consistency: a revision must reference the prior
-    #    review digest unless it is the first pass. The design digest is bound
-    #    to the canon state at projection time; a consistent patch stays within
-    #    that scope closure.
-    _ = prior_review_digest and scene_design.projection_manifest is not None and (
-        scene_design.projection_manifest.canon_digest
-    )
+    # 3b) Cast-relevant Bible slice: relationships must not be changed (created
+    #     / promoted / transitioned / perspective-updated) without the related
+    #     cast in scope (§6.3 cast-relevant slice).
+    _check_cast_relevant_cast(scene_design, patch, canon, issues)
+    # Canon change therefore requires a fresh projection and review.
+    current_digest = compute_canonical_digest(canon)
+    if scene_design.projection_manifest is None:
+        issues.append("[review_evidence] scene design has no projection manifest")
+    elif scene_design.projection_manifest.canon_digest != current_digest:
+        issues.append(
+            "[review_evidence] projection canon digest is stale; rebuild projection and re-review"
+        )
+
+    patch_digest = _stable_hash(patch)
+    if prior_review_digest and prior_review_digest != patch_digest:
+        issues.append("[review_evidence] reviewed patch changed; re-review is required")
 
     design_digest = _design_digest(scene_design)
     review = ReviewResult(
         passed=not issues,
         issues=issues,
-        review_digest=prior_review_digest or _stable_hash(patch),
+        review_digest=prior_review_digest or patch_digest,
         design_digest=design_digest,
+        patch_digest=patch_digest,
     )
     return review
+
+
+def _scene_cast_ids(scene_design: SceneDesign) -> set[str]:
+    """Extract actual Canon character IDs from the persisted scene scope/cast."""
+    ids: set[str] = set()
+    if scene_design.context_scope is not None and scene_design.context_scope.pov_character is not None:
+        ids.add(scene_design.context_scope.pov_character.id)
+    for entry in scene_design.cast:
+        if entry.kind == "character":
+            ids.add(entry.character.id)
+    return ids
 
 
 def _check_pov_leak(scene_design: SceneDesign, canon: Canon, issues: list[str]) -> None:
@@ -223,6 +280,45 @@ def _design_digest(scene_design: SceneDesign) -> str:
     )
 
 
+def _check_cast_relevant_cast(
+    scene_design: SceneDesign, patch: dict[str, Any], canon: Canon, issues: list[str]
+) -> None:
+    """A cast-relevant relationship change requires the related cast in scope (§6.3)."""
+    scope_ids = _scene_cast_ids(scene_design)
+    rel = patch.get("relationships", {})
+    changed_rel_ids: set[str] = set()
+    for op_field in ("create", "promote", "transition", "updates", "perspective_updates"):
+        for item in rel.get(op_field, []):
+            rid = item.get("id") or item.get("creation_key")
+            if rid:
+                changed_rel_ids.add(str(rid))
+    if not changed_rel_ids:
+        return
+    for rid in changed_rel_ids:
+        existing = canon.get_entity("relationship", rid)
+        if existing is None:
+            # new relationship — check participants are in scope
+            created = rel.get("create", [])
+            rel_item: dict[str, Any] = next(
+                (c for c in created if c.get("creation_key") == rid or c.get("id") == rid), {}
+            )
+            raw_parts = rel_item.get("participant_ids", [])
+            participants: list[str] = [
+                str(p.get("id")) if isinstance(p, dict) else str(p) for p in raw_parts
+            ]
+            out_of_scope = [p for p in participants if p and p not in scope_ids]
+            if out_of_scope:
+                issues.append(
+                    f"[cast_relevant] relationship {rid} references out-of-scope cast: {out_of_scope}"
+                )
+        else:
+            out_of_scope = [pid for pid in existing.participant_ids if pid not in scope_ids]
+            if out_of_scope:
+                issues.append(
+                    f"[cast_relevant] relationship {rid} involves out-of-scope cast: {out_of_scope}"
+                )
+
+
 def _stable_hash(obj: Any) -> str:
     import hashlib
     import json
@@ -253,6 +349,14 @@ def apply_reviewed_patch(
     ``CanonPatchApplier.apply`` with a :class:`ReviewEvidence` bound to the
     reviewed artifact + review digests (§6.3).
     """
+    if not review.passed:
+        raise ValueError("review rejected: Canon Event must not be created or persisted")
+    current_digest = compute_canonical_digest(canon)
+    if review.design_digest != current_digest:
+        raise ValueError("review evidence is stale for the current Canon; rebuild projection and re-review")
+    if review.patch_digest and review.patch_digest != _stable_hash(patch):
+        raise ValueError("reviewed patch changed; re-review is required")
+
     source = _source_from_design(scene_design, revision)
     # The reviewed artifact digest MUST equal the post-apply Canon digest
     # (store._validate_event_integrity hard-stops on mismatch). Bind it after
@@ -276,30 +380,30 @@ def apply_reviewed_patch(
     # Now that the artifact digest is known, bind review evidence correctly
     # and re-attach it to the event (models are not frozen).
     event.review_evidence = ReviewEvidence(
-        status="approved" if review.passed else "rejected",
+        status="approved",
         reviewed_artifact_digest=event.artifact_digest,
         review_digest=review.review_digest,
         review_contract_version=1,
     )
-    # persist (replace any prior revision of the same scene)
-    store.replace_source(source, [event])
-    # auto-regenerate the materialized view (§7/§8)
-    store.materialize(new_canon)
-    scene_design.canon_patch = patch
+    # Persist replay-critical scope context with the event.  Replay must never
+    # consult a transient SceneDesign object to validate relationship changes.
+    event.scene_cast_ids = sorted(scene_cast_ids or set())
+    # The store transaction validates dependencies, replays the *active* event
+    # set from immutable seed, and materializes only that replay result.
+    replayed = store.replace_design_segment([source.scene_id], [event])
+
     scene_design.status = "applied"
-    return new_canon, event
+    return replayed, event
 
 
 def _source_from_design(scene_design: SceneDesign, revision: int) -> SourceRef:
-    scope = scene_design.context_scope
-    loc = {"volume": 1, "chapter": 1, "ordinal": 1}
-    if scope is not None and scope.setting is not None:
-        # derive a stable display order from the setting id sequence
-        eid = scope.setting.id
-        digits = "".join(ch for ch in eid if ch.isdigit())
-        if digits:
-            loc = {"volume": 1, "chapter": 1, "ordinal": int(digits)}
-    return SourceRef(scene_id=scene_design.scene_id, location=loc, revision=revision)
+    if scene_design.source_location is None:
+        raise ValueError("SceneDesign.source_location is required for Canon Event creation")
+    return SourceRef(
+        scene_id=scene_design.scene_id,
+        location=scene_design.source_location,
+        revision=revision,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -19,12 +19,66 @@ class BibleManager:
 
     def __init__(self, bible_storage: BibleStorage):
         self._storage = bible_storage
+        self._series_dir = bible_storage._path.parent
+
+    def _active_canon(self):
+        """Load the materialized v2 Canon when this project has migrated."""
+        canon_path = self._series_dir / "canon" / "bible.json"
+        if not canon_path.exists():
+            return None
+        from novel_forge.canon.store import CanonEventStore
+
+        return CanonEventStore(self._series_dir / "canon").recover()
+
+    def _canon_text(self, stage: str, context: dict | None = None) -> str:
+        """Prompt-safe v2 projection; no IDs or author-only internal fields."""
+        canon = self._active_canon()
+        if canon is None:
+            return ""
+        context = context or {}
+        lines: list[str] = []
+        if canon.world_rules:
+            lines.append("## 世界観ルール（遵守）")
+            lines.extend(f"  - {rule.statement}" for rule in canon.world_rules)
+        if stage in {"chapter", "scene"}:
+            active_fh = [f for f in canon.foreshadowing if f.status != "resolved"]
+            if active_fh:
+                lines.append("## 未回収伏線（この章/シーンで回収するなら明示）")
+                lines.extend(f"  - {f.description}" for f in active_fh)
+        if stage == "volume":
+            active_sp = [s for s in canon.subplots if s.status == "active"]
+            if active_sp:
+                lines.append("## 進行中サブプロット")
+                lines.extend(f"  - {s.name}: {s.current_state}" for s in active_sp)
+        if stage == "scene":
+            names = set(context.get("character_names", []) or [])
+            chars = [c for c in canon.characters if not names or c.identity.display_name in names]
+            if chars:
+                lines.append("## 登場人物の現在状態")
+                lines.extend(
+                    f"  - {c.identity.display_name}（{c.narrative_function}） / 現在: {c.continuity_card.current_state}"
+                    for c in chars
+                )
+            if canon.relationships:
+                lines.append("## 人物関係")
+                lines.extend(
+                    f"  - {r.shared_state.current_arrangement or r.shared_state.central_tension}"
+                    for r in canon.relationships
+                )
+        return "\n".join(lines) if lines else "（参照すべき聖典情報はありません）"
+
 
     @property
     def bible(self) -> Bible:
         return self._storage.load()
 
     def save(self, bible: Bible) -> None:
+        # A v2 project has a single mutation route: Canon Events.  Legacy
+        # bible.json remains a one-time compatibility projection only.
+        if (self._series_dir / "canon" / "bible_seed.json").exists():
+            raise RuntimeError(
+                "v2 projects have a single mutation route; legacy Bible mutation is disabled; apply a reviewed CanonPatch instead"
+            )
         self._storage.save(bible)
 
     # ── unresolved items ────────────────────────────────────────────
@@ -39,6 +93,8 @@ class BibleManager:
 
     def to_text(self) -> str:
         """Serialize current Bible to text for LLM prompts (no JSON keys)."""
+        if (canon_text := self._canon_text("scene")):
+            return canon_text
         bible = self.bible
         lines = []
         if bible.characters:
@@ -93,6 +149,9 @@ class BibleManager:
             stage: "volume" | "chapter" | "scene"
             context: optional dict with keys used to narrow (e.g. character_names)
         """
+        canon_text = self._canon_text(stage, context)
+        if canon_text:
+            return canon_text
         bible = self.bible
         context = context or {}
         lines: list[str] = []

@@ -10,13 +10,9 @@ import pytest
 
 from novel_forge.context_builder import ContextBuilder
 from novel_forge.models import (
-    Bible,
     Blackboard,
     ChapterOutline,
-    CharacterProfile,
-    RelationshipItem,
     SceneOutline,
-    SubplotItem,
     VolumeOutline,
 )
 from novel_forge.storage import BibleStorage, BlackboardStorage

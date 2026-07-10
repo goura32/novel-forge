@@ -20,17 +20,10 @@ from novel_forge.canon.design import SceneDesign
 from novel_forge.canon.models import (
     Canon,
     CanonEvent,
-    PatchValidationError,
     ReviewEvidence,
     compute_canonical_digest,
 )
 from novel_forge.canon.registry import get_validator, validate
-from novel_forge.canon.store import (
-    BibleFactory,
-    CanonEventStore,
-    ReferenceInconsistencyError,
-    ReviewEvidenceMismatchError,
-)
 from novel_forge.canon.runtime import (
     apply_reviewed_patch,
     attach_projection,
@@ -39,6 +32,11 @@ from novel_forge.canon.runtime import (
     build_volume_intent,
     review_scene_patch,
     run_v2_pipeline,
+)
+from novel_forge.canon.store import (
+    BibleFactory,
+    CanonEventStore,
+    ReviewEvidenceMismatchError,
 )
 
 # ---------------------------------------------------------------------------
@@ -219,7 +217,7 @@ def test_structured_event_ref():
     ])
     ev = result["events"][0]
     assert ev.source.scene_id
-    assert set(ev.source.location) == {"volume", "chapter", "ordinal"}
+    assert set(ev.source.location.model_dump()) == {"volume", "chapter", "ordinal"}
     assert ev.artifact_digest.startswith("sha256:")
     assert isinstance(ev.review_evidence, ReviewEvidence)
     assert ev.review_evidence.reviewed_artifact_digest == ev.artifact_digest
@@ -248,13 +246,8 @@ def test_typed_reference_dangling_rejected_at_replay():
     store.write_seed(BibleFactory.create_seed(SERIES_PLAN))
     design = _design_for(_BASIC_SCOPE)
     review = review_scene_patch(design, ref_patch, store.load_seed())
-    assert review.passed
-    # a dangling reference is a hard stop when the patch is applied
-    with pytest.raises(PatchValidationError):
-        apply_reviewed_patch(
-            design, ref_patch, store.load_seed(), store, review,
-            scene_cast_ids={"char_999"},
-        )
+    assert not review.passed
+    assert any("semantic" in issue for issue in review.issues)
 
 
 # §12 (6): Design Intent separated from Bible (Canon has no intent field)
@@ -332,7 +325,145 @@ def test_no_bible_second_write_path():
     assert not hasattr(bm.BibleManager, "apply_design_update")
 
 
-# §12 (12a): fake-LLM E2E — minor create + relationship + knowledge contested
+def test_legacy_prompt_adapter_reads_v2_materialized_canon(tmp_path: Path):
+    from novel_forge.bible_manager import BibleManager
+    from novel_forge.storage import BibleStorage
+
+    result = run_v2_pipeline(SERIES_PLAN, [{"context_scope": _BASIC_SCOPE, "patch": _make_patch()}], workdir=tmp_path / "canon")
+    manager = BibleManager(BibleStorage(tmp_path))
+    text = manager.to_text_slice("scene")
+    assert "冷凍睡眠" in text
+    assert "char_001" not in text
+    assert result["store"].bible_path.exists()
+    with pytest.raises(RuntimeError, match="single mutation route"):
+        manager.save(BibleStorage(tmp_path).load())
+
+
+def test_review_gate_blocks_rejected_patch_from_event_log(tmp_path: Path):
+    seed = BibleFactory.create_seed(SERIES_PLAN)
+    design = attach_projection(
+        build_scene_design(
+            build_chapter_intent(build_volume_intent(SERIES_PLAN, 1), 1), 1, _BASIC_SCOPE
+        ),
+        seed,
+    )
+    # a patch that changes a cast member but omits that cast from the scene
+    patch = _make_patch(
+        characters={
+            "state_updates": [
+                {"character": {"kind": "character", "id": "char_001"}, "current_state": "脱出を試みる"}
+            ]
+        }
+    )
+    review = review_scene_patch(design, patch, seed)
+    assert review.passed, "simple in-scope cast change must pass review"
+    # now a patch that references an out-of-scope cast member
+    leak_patch = _make_patch(
+        characters={"create": [{
+            "creation_key": "k_out",
+            "identity": {"kind": "named", "display_name": "侵入者"},
+            "importance": "minor",
+            "tracking_level": "continuity",
+            "narrative_function": "x",
+            "continuity_card": {"current_state": "侵入した"},
+        }]},
+        relationships={"create": [{
+            "creation_key": "rel_out",
+            "relationship_type": "rivalry",
+            "participant_ids": ["char_002", "char_999"],
+            "dynamics": "敵対",
+        }]},
+    )
+    leak_review = review_scene_patch(design, leak_patch, seed)
+    assert not leak_review.passed
+    assert any("cast_relevant" in i for i in leak_review.issues)
+    store = CanonEventStore(tmp_path / "canon")
+    store.write_seed(seed)
+    with pytest.raises(ValueError, match="review rejected"):
+        apply_reviewed_patch(design, leak_patch, seed, store, leak_review)
+    result = run_v2_pipeline(
+        SERIES_PLAN,
+        [{
+            "context_scope": _BASIC_SCOPE,
+            "patch": _make_patch(
+                characters={
+                    "create": [{
+                        "creation_key": "provenance_minor",
+                        "identity": {"kind": "named", "display_name": "証人"},
+                        "importance": "minor",
+                        "tracking_level": "continuity",
+                        "narrative_function": "証言者",
+                        "continuity_card": {"current_state": "待機"},
+                    }],
+                    "state_updates": [], "promote": [], "identity_reveals": [],
+                }
+            ),
+        }],
+        workdir=tmp_path,
+    )
+    event = result["events"][0]
+    created_id = event.created_entity_ids["character:provenance_minor"]
+    character = result["canon"].get_entity("character", created_id)
+    assert character is not None
+    assert character.last_changed_by is not None
+    assert character.last_changed_by.scene_id == event.source.scene_id
+    assert character.last_changed_by.event_digest == event.artifact_digest
+    assert compute_canonical_digest(result["store"].replay()) == compute_canonical_digest(result["canon"])
+
+
+def test_segment_transaction_rejects_orphan_without_writing(tmp_path: Path):
+    result = run_v2_pipeline(
+        SERIES_PLAN,
+        [
+            {
+                "context_scope": _BASIC_SCOPE,
+                "patch": _make_patch(
+                    locations={"create": [{"creation_key": "removable", "name": "港", "kind": "facility", "current_state": "静か"}], "state_updates": []}
+                ),
+            },
+            {
+                "context_scope": _BASIC_SCOPE,
+                "patch": _make_patch(
+                    characters={"create": [{
+                        "creation_key": "depends_on_port",
+                        "identity": {"kind": "named", "display_name": "船頭"},
+                        "importance": "minor", "tracking_level": "continuity", "narrative_function": "案内人",
+                        "continuity_card": {"current_state": "港にいる", "current_location": {"kind": "location", "id": "loc_002"}},
+                    }], "state_updates": [], "promote": [], "identity_reveals": []}
+                ),
+            },
+        ],
+        workdir=tmp_path,
+    )
+    store = result["store"]
+    before = store.events_path.read_bytes()
+    with pytest.raises(Exception, match="references entity"):
+        store.replace_design_segment([result["events"][0].source.scene_id], [])
+    assert store.events_path.read_bytes() == before
+
+
+def test_identical_segment_replacement_is_a_noop(tmp_path: Path):
+    result = run_v2_pipeline(SERIES_PLAN, [{"context_scope": _BASIC_SCOPE, "patch": _make_patch()}], workdir=tmp_path)
+    store = result["store"]
+    event = result["events"][0]
+    before = store.events_path.read_bytes()
+    retried = event.model_copy(update={"created_at": "2099-01-01T00:00:00+00:00"})
+    store.replace_design_segment([event.source.scene_id], [retried])
+    assert store.events_path.read_bytes() == before
+
+
+def test_creation_key_is_unique_across_entity_kinds():
+    with pytest.raises(ValueError, match="source-unique"):
+        run_v2_pipeline(
+            SERIES_PLAN,
+            [{
+                "context_scope": _BASIC_SCOPE,
+                "patch": _make_patch(
+                    characters={"create": [{"creation_key": "same", "identity": {"kind": "named", "display_name": "A"}, "importance": "minor", "tracking_level": "continuity", "narrative_function": "x", "continuity_card": {"current_state": "x"}}], "state_updates": [], "promote": [], "identity_reveals": []},
+                    locations={"create": [{"creation_key": "same", "name": "B", "kind": "facility", "current_state": "x"}], "state_updates": []},
+                ),
+            }],
+        )
 def test_fake_llm_e2e_core_scenarios():
     result = run_v2_pipeline(SERIES_PLAN, [
         {
@@ -352,6 +483,10 @@ def test_fake_llm_e2e_core_scenarios():
         },
         {
             "context_scope": _BASIC_SCOPE,
+            "cast": [
+                {"kind": "character", "character": {"kind": "character", "id": "char_001"}},
+                {"kind": "character", "character": {"kind": "character", "id": "char_002"}},
+            ],
             "patch": _make_patch(
                 relationships={"create": [
                     {
@@ -391,8 +526,8 @@ def test_fake_llm_e2e_core_scenarios():
     know = canon.knowledge[0]
     assert know.truth_status == "contested"
     assert know.visibility == "secret"
-    assert result["drafts"] == ["<<draft vol_001_ch001_scn001>>",
-                                "<<draft vol_001_ch001_scn002>>"]
+    assert len(result["drafts"]) == 2
+    assert all(draft.startswith("<<draft scn_") and draft.endswith(">>") for draft in result["drafts"])
 
 
 # POV-leak guard: writer_context must not expose secret proposition text

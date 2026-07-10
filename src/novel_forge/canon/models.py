@@ -137,18 +137,37 @@ ChangeRef = EntityRef | CreationRef
 # ---------------------------------------------------------------------------
 
 
+class EventRef(BaseModel):
+    """Immutable provenance reference to the Canon Event that changed an entity."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scene_id: SceneId
+    event_digest: str
+
+
+class SceneLocation(BaseModel):
+    """Display/replay position.  It is deliberately distinct from opaque scene_id."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    volume: Annotated[int, Ge(1)]
+    chapter: Annotated[int, Ge(1)]
+    ordinal: Annotated[int, Ge(1)]
+
+
 class SourceRef(BaseModel):
     """Opaque, immutable scene source identity + display/replay order (§3.1)."""
 
     model_config = ConfigDict(extra="forbid")
 
     scene_id: SceneId
-    location: dict[str, int]  # {volume, chapter, ordinal}
+    location: SceneLocation
     revision: int = 1
 
     @property
     def ordinal(self) -> int:
-        return int(self.location.get("ordinal", 0))
+        return self.location.ordinal
 
 
 class ReviewEvidence(BaseModel):
@@ -370,7 +389,7 @@ class Character(BaseModel):
     profile: CharacterProfile | None = None
     continuity_card: ContinuityCard
     affiliations: list[Affiliation] = Field(default_factory=list)
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class Collective(BaseModel):
@@ -383,7 +402,7 @@ class Collective(BaseModel):
     current_state: str
     stance_toward_characters: list[Stance] = Field(default_factory=list)
     summary: str | None = None
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class WorldRule(BaseModel):
@@ -404,6 +423,15 @@ class Glossary(BaseModel):
     definition: str
 
 
+class CustodyRef(BaseModel):
+    """An artifact may only be held by a character, collective, or location."""
+
+    model_config = _forbid()
+
+    kind: Literal["character", "collective", "location"]
+    id: str
+
+
 class Relationship(BaseModel):
     model_config = _forbid()
 
@@ -411,10 +439,10 @@ class Relationship(BaseModel):
     participant_ids: list[str]
     structural_bonds: list[StructuralBond] = Field(default_factory=list)
     shared_state: SharedState = Field(default_factory=SharedState)
-    perspectives: list[dict[str, Any]] = Field(default_factory=list)
+    perspectives: list[Perspective] = Field(default_factory=list)
     arc_summary: str = ""
     lifecycle: Literal["active", "resolved"] = "active"
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
     @model_validator(mode="after")
     def _check(self):
@@ -430,7 +458,7 @@ class Relationship(BaseModel):
         # exactly one perspective per participant, both participants present
         if len(self.perspectives) != 2:
             raise ValueError("Relationship must have exactly 2 perspectives")
-        pset = {p["character_id"] for p in self.perspectives}
+        pset = {p.character_id for p in self.perspectives}
         if pset != set(self.participant_ids):
             raise ValueError("perspectives must cover exactly the two participants")
         return self
@@ -442,12 +470,12 @@ class Foreshadowing(BaseModel):
     id: str
     description: str
     status: Literal["planted", "resolved", "abandoned"] = "planted"
-    planted_by: ChangeRef | None = None
-    resolved_by: ChangeRef | None = None
+    planted_by: EventRef | None = None
+    resolved_by: EventRef | None = None
     intended_payoff: str = ""
     related_character_ids: list[str] = Field(default_factory=list)
     related_subplot_ids: list[str] = Field(default_factory=list)
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class Subplot(BaseModel):
@@ -461,7 +489,7 @@ class Subplot(BaseModel):
     current_state: str = ""
     related_character_ids: list[str] = Field(default_factory=list)
     related_foreshadowing_ids: list[str] = Field(default_factory=list)
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class Location(BaseModel):
@@ -473,7 +501,7 @@ class Location(BaseModel):
     parent_location: EntityRef | None = None
     immutable_constraints: list[str] = Field(default_factory=list)
     current_state: str
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class Artifact(BaseModel):
@@ -483,10 +511,10 @@ class Artifact(BaseModel):
     name: str
     kind: str
     properties: list[str] = Field(default_factory=list)
-    custody: dict[str, Any] | None = None  # {kind, id}; kind = character|collective|location
+    custody: CustodyRef | None = None
     condition: str = ""
     narrative_significance: str = ""
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class Knowledge(BaseModel):
@@ -496,9 +524,9 @@ class Knowledge(BaseModel):
     proposition: str
     truth_status: Literal["confirmed", "contested", "false_belief"] = "confirmed"
     visibility: Literal["public", "secret"] = "public"
-    holders: list[dict[str, Any]] = Field(default_factory=list)
+    holders: list[HolderState] = Field(default_factory=list)
     related_entity_refs: list[EntityRef] = Field(default_factory=list)
-    last_changed_by: ChangeRef | None = None
+    last_changed_by: EventRef | None = None
 
 
 class Chronology(BaseModel):
@@ -595,13 +623,25 @@ class CastLocalRole(BaseModel):
 CastEntry = CastCharacter | CastLocalRole
 
 
+class IntentItem(BaseModel):
+    """A typed, reviewable design commitment retained through all phases."""
+
+    model_config = _forbid()
+
+    topic: str
+    desired_outcome: str = ""
+    constraints: list[str] = Field(default_factory=list)
+    target: EntityRef | CreationRef | None = None
+
+
 class DesignIntent(BaseModel):
     model_config = _forbid()
 
-    foreshadowing: list[dict[str, Any]] = Field(default_factory=list)
-    subplots: list[dict[str, Any]] = Field(default_factory=list)
-    relationship_arcs: list[dict[str, Any]] = Field(default_factory=list)
-    cast: list[dict[str, Any]] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    foreshadowing: list[IntentItem] = Field(default_factory=list)
+    subplots: list[IntentItem] = Field(default_factory=list)
+    relationship_arcs: list[IntentItem] = Field(default_factory=list)
+    cast: list[IntentItem] = Field(default_factory=list)
 
 
 class ContextScope(BaseModel):
@@ -644,9 +684,16 @@ class CharCreate(BaseModel):
     importance: Literal["core", "supporting", "minor"]
     tracking_level: Literal["full", "continuity"]
     narrative_function: str
+    parent_design_intent: IntentItem | None = None
     profile: CharacterProfile | None = None
     continuity_card: ContinuityCard
     affiliations: list[Affiliation] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _supporting_requires_parent_intent(self):
+        if self.importance == "supporting" and self.parent_design_intent is None:
+            raise ValueError("supporting character create requires parent_design_intent")
+        return self
 
 
 class CharStateUpdate(BaseModel):
@@ -745,7 +792,7 @@ class ArtCreate(BaseModel):
     name: str
     kind: str
     properties: list[str] = Field(default_factory=list)
-    custody: EntityRef | None = None
+    custody: CustodyRef | None = None
     narrative_significance: str = ""
     condition: str = ""
 
@@ -754,7 +801,7 @@ class ArtCustodyUpdate(BaseModel):
     model_config = _forbid()
 
     id: str
-    custody: EntityRef | None = None
+    custody: CustodyRef | None = None
     properties: list[str] | None = None
 
 
@@ -838,7 +885,7 @@ class RelCreate(BaseModel):
     participant_ids: list[str]
     structural_bonds: list[StructuralBond] = Field(default_factory=list)
     shared_state: SharedState = Field(default_factory=SharedState)
-    perspectives: list[dict[str, Any]] = Field(default_factory=list)
+    perspectives: list[Perspective] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check(self):
@@ -971,7 +1018,7 @@ class CanonPatch(BaseModel):
                 for e in exc.errors()
             ]
             raise PatchValidationError(
-                f"canon patch rejected: {exc.error_count()} violation(s)",
+                f"canon patch rejected: {exc.error_count()} violation(s): {'; '.join(errs)}",
                 errors=errs,
             ) from exc
 
@@ -1003,6 +1050,9 @@ class CanonEvent(BaseModel):
     review_evidence: ReviewEvidence
     patch: CanonPatch
     created_entity_ids: dict[str, str] = Field(default_factory=dict)
+    # Scope evidence needed to replay cast-relevant semantic validation without
+    # consulting transient runtime design objects.
+    scene_cast_ids: list[str] = Field(default_factory=list)
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 

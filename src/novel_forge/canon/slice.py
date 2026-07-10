@@ -112,17 +112,13 @@ class CanonSliceBuilder:
             if loc.parent_location:
                 link(("location", loc.id), _ref_key(loc.parent_location))
         for art in canon.artifacts:
-            if art.custody and art.custody.get("id"):
-                link(("artifact", art.id), (art.custody["kind"], art.custody["id"]))
+            if art.custody:
+                link(("artifact", art.id), (art.custody.kind, art.custody.id))
         for kn in canon.knowledge:
             for ref in kn.related_entity_refs:
                 link(("knowledge", kn.id), _ref_key(ref))
             for h in kn.holders:
-                holder = h.get("holder", {})
-                hid = holder.get("id")
-                hk = holder.get("kind")
-                if hid:
-                    link(("knowledge", kn.id), (hk, hid))
+                link(("knowledge", kn.id), _ref_key(h.holder))
         for rel in canon.relationships:
             for pid in rel.participant_ids:
                 link(("relationship", rel.id), ("character", pid))
@@ -168,8 +164,7 @@ class CanonSliceBuilder:
     @classmethod
     def _is_pov_knowledge(cls, canon: Canon, kn, pov_id: str) -> bool:
         for h in kn.holders:
-            holder = h.get("holder", {})
-            if holder.get("id") == pov_id:
+            if h.holder.id == pov_id:
                 return True
         return ("knowledge", kn.id) in cls._scope_ids_cache
 
@@ -296,10 +291,10 @@ class CanonSliceBuilder:
             kind, eid, *_ = item
             included_refs.append({"kind": kind, "id": eid})
 
-        # Digest over the *selected* entity set (normalized JSON).
-        selected_entities = self._collect_entities(canon, selected)
-        selected_canon = self._subset_canon(canon, selected_entities)
-        digest = compute_canonical_digest(selected_canon)
+        # Bind the projection to the complete Canon, not a selected subset.  The
+        # subset controls prompt budget, while the full digest makes any Canon
+        # mutation invalidate author-context/review evidence as required by §6.
+        digest = compute_canonical_digest(canon)
 
         projection = Projection(
             projection_version=1,
@@ -465,12 +460,12 @@ class CanonSliceBuilder:
         return ctx
 
 
-def _custody_label(custody: dict[str, Any] | None) -> str:
+def _custody_label(custody: Any | None) -> str:
     """Human-readable custody description without leaking the stable ID."""
     if not custody:
         return "誰も"
-    kind = custody.get("kind")
-    eid = custody.get("id")
+    kind = custody.kind
+    eid = custody.id
     if eid == "char_001":
         return "アリーン"
     # generic fallback by kind
