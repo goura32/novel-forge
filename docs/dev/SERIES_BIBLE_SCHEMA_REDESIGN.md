@@ -1,11 +1,11 @@
 # Series Bible v2 — Canon Event Architecture
 
-> **状態：実装前の決定仕様**
+> **状態：実装済み（v2 が現行 runtime）**
 >
 > **この文書が Series Bible v2 の唯一の仕様正本である。**
-> 旧 v1 Bible 仕様（廃止済み）は実装判断に用いてはならない。現行の runtime は v1 の `bible.json` / `blackboard.json` を使用しており、本 v2 は未実装の破壊的再設計である。
+> 旧 v1 Bible 仕様（廃止済み）は実装判断に用いてはならない。v1 の `bible.json` / `blackboard.json` 経路、`BibleManager` / `SceneWriter` / `ContextBuilder` は削除済み（2026-07-09）。現行 runtime は `novel_forge/canon/*` の event-replay Canon である。
 >
-> 互換性方針：本番運用前のため v1 との読込・変換・バックアップ互換は提供しない。新規プロジェクトは v2 だけを生成・読込する。
+> 互換性方針：v1 との読込・変換・バックアップ互換は提供しない。新規プロジェクトは v2 だけを生成・読込する。
 
 ---
 

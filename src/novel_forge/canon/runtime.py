@@ -46,6 +46,7 @@ from novel_forge.canon.models import (
 from novel_forge.canon.patch_apply import CanonPatchApplier
 from novel_forge.canon.projection import attach_writer_context
 from novel_forge.canon.registry import get_validator
+from novel_forge.canon.self_correction_tracker import SelfCorrectionTracker
 from novel_forge.canon.store import (
     BibleFactory,
     CanonEventStore,
@@ -155,6 +156,7 @@ def review_scene_patch(
     canon: Canon,
     prior_review_digest: str = "",
     seed: Canon | None = None,
+    tracker: SelfCorrectionTracker | None = None,
 ) -> ReviewResult:
     """Review a proposed canon_patch for a scene (§6.3 + Phase 3 review wiring).
 
@@ -167,6 +169,10 @@ def review_scene_patch(
 
     Returns a :class:`ReviewResult`.  When ``passed`` is True the caller may
     call :func:`apply_reviewed_patch`.
+
+    If ``tracker`` is provided, every emitted issue is recorded as a
+    :class:`CorrectionRecord` (append-only telemetry; the Canon is never
+    mutated by tracking).
     """
     issues: list[str] = []
 
@@ -230,6 +236,17 @@ def review_scene_patch(
         design_digest=design_digest,
         patch_digest=patch_digest,
     )
+    if tracker is not None and issues:
+        loc = scene_design.source_location
+        tracker.record_issues(
+            issues,
+            scene_id=scene_design.scene_id,
+            source_ref=(
+                f"vol{loc.volume}/ch{loc.chapter}/ord{loc.ordinal}"
+                if loc is not None
+                else ""
+            ),
+        )
     return review
 
 
@@ -466,6 +483,7 @@ def run_v2_pipeline(
     scene_specs: list[dict[str, Any]],
     writer_draft_fn: Callable[[SceneDesign, str], str] | None = None,
     workdir: Path | None = None,
+    tracker: SelfCorrectionTracker | None = None,
 ) -> dict[str, Any]:
     """End-to-end v2 pipeline: plan → intents → scene patch → write → export.
 
@@ -474,6 +492,10 @@ def run_v2_pipeline(
       * ``cast``          — list[CastEntry] (optional)
       * ``patch``         — a canon_patch dict to validate+apply after review
       * ``relationship_context`` — optional RelationshipContext dict
+
+    If ``tracker`` is provided, every review-gate issue is recorded as a
+    :class:`CorrectionRecord` (append-only telemetry; the Canon is never
+    mutated by tracking).
 
     Returns a dict with ``canon`` (final), ``store``, ``events``, ``designs``,
     ``drafts`` and ``digest`` so E2E tests can assert on every invariant.
@@ -507,7 +529,7 @@ def run_v2_pipeline(
         design = attach_projection(design, current_canon)
 
         patch = spec["patch"]
-        review = review_scene_patch(design, patch, current_canon)
+        review = review_scene_patch(design, patch, current_canon, tracker=tracker)
         if not review.passed:
             raise ValueError(
                 f"scene {design.scene_id} review rejected: {review.issues}"
