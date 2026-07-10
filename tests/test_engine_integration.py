@@ -282,6 +282,27 @@ class TestPlan:
         saved = json.loads(plan_path.read_text(encoding="utf-8"))
         assert saved["title"] == "テストシリーズ長いタイトル"
 
+    def test_plan_does_not_write_legacy_bible_json(self, engine, mock_llm, tmp_workdir):
+        """plan() must NOT create the legacy top-level bible.json.
+
+        v2 projects have a single mutation route (Canon Events); the
+        materialized canon/bible.json is a regenerable cache, never a
+        second write path written by plan().
+        """
+        mock_llm.add_sequence("series_plan_concept", _make_plan_response())
+        mock_llm.add_sequence("series_plan_concept_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_characters", _make_chars_response())
+        mock_llm.add_sequence("series_plan_characters_review", {"issues": [], "suggestions": []})
+        mock_llm.add_sequence("series_plan_volumes", _make_volumes_response())
+        mock_llm.add_sequence("series_plan_volumes_review", {"issues": [], "suggestions": []})
+
+        engine.plan("テスト")
+
+        assert not (engine._series_dir / "bible.json").exists()
+        # v2 seed is written; the materialized canon/bible.json is a
+        # regenerable cache produced later by design/export, not by plan().
+        assert (engine._series_dir / "canon" / "bible_seed.json").exists()
+
     def test_plan_saves_review(self, engine, mock_llm, tmp_workdir):
         """plan() should save the review result."""
         mock_llm.add_sequence("series_plan_concept", _make_plan_response())

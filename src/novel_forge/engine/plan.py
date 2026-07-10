@@ -11,13 +11,10 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, cast
 
-from novel_forge.bible_manager import BibleManager
 from novel_forge.canon.store import BibleFactory, CanonEventStore
 from novel_forge.engine.review import format_review_text, generate_and_review
-from novel_forge.models import Bible, CharacterProfile
 from novel_forge.name_registry import load_used_names, record_names
 from novel_forge.schemas import get_schema
-from novel_forge.storage import BibleStorage
 
 if TYPE_CHECKING:
     from novel_forge.engine.base import NovelEngineBase
@@ -176,33 +173,9 @@ def plan(engine: NovelEngineBase, keywords: str) -> dict[str, Any]:
 
     # ── Series Bible v2 seed (the canonical source of truth) ──────────────
     # Every later Canon change must be an event replayed from this immutable
-    # seed.  The legacy bible.json below is retained only as a compatibility
-    # projection for old export templates; it is never an update path.
-    # ── Legacy prompt/export compatibility projection (read-only) ─────────
-    # TODO: remove after the remaining non-Canon export templates are retired.
-    # This write intentionally happens only at project creation; runtime
-    # prompts prefer canon/bible.json through BibleManager.
-    bible = Bible(
-        characters=[
-            CharacterProfile(
-                name=c.get("name", ""),
-                role=c.get("role", ""),
-                arc=c.get("arc", ""),
-                appearance=c.get("appearance", ""),
-                personality=c.get("personality", ""),
-                motivation=c.get("motivation", ""),
-                flaw=c.get("flaw", ""),
-                age=c.get("age", ""),
-                occupation=c.get("occupation", ""),
-                background=c.get("background", ""),
-                state=c.get("state", ""),
-            )
-            for c in characters.get("main_characters", [])
-            if isinstance(c, dict) and c.get("name")
-        ],
-        world_rules=list(concept.get("world_rules", []) or []),
-    )
-    BibleManager(BibleStorage(engine._series_dir)).save(bible)
+    # seed.  Legacy bible.json is NOT written: v2 projects have a single
+    # mutation route (Canon Events); the materialized canon/bible.json is a
+    # regenerable cache, never a second write path.
     CanonEventStore(engine._series_dir / "canon").write_seed(BibleFactory.create_seed(result))
     engine._log.info(f"✓ Canon v2 seed created: title='{result['title']}'")
 
