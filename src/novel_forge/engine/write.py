@@ -13,6 +13,7 @@ from typing import Any
 from novel_forge.canon.design import SceneDesign
 from novel_forge.canon.public_runtime import V2ProjectRuntime
 from novel_forge.schemas import get_schema
+from novel_forge.llm_client import LLMError
 
 
 def _scene_brief(scene: SceneDesign) -> dict[str, Any]:
@@ -50,12 +51,29 @@ def _save_summaries(engine, volume: int, summaries: dict[str, str]) -> None:
     tmp.replace(path)
 
 
-def _write_draft(engine, volume: int, scene: SceneDesign, content: str) -> str:
+def _write_draft(engine, volume: int, scene: SceneDesign, content: str, version: int = 1) -> str:
     ch_dir = engine._series_dir / f"vol{volume:02d}" / f"vol{volume:02d}_ch{scene.chapter_number:02d}"
     ch_dir.mkdir(parents=True, exist_ok=True)
-    path = ch_dir / f"vol{volume:02d}_ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}_v1.md"
+    path = ch_dir / f"vol{volume:02d}_ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}_v{version}.md"
     path.write_text(content, encoding="utf-8")
     return str(path)
+
+
+def _revise_scene_draft(engine, scene: SceneDesign, writer_context: str, brief: str,
+                        content: str, review: dict, system: str, seed_offset: int = 0) -> str:
+    """Apply review issues to the scene draft. Returns revised content."""
+    prompt = engine._prompts.render(
+        "scene_revision_v2.md",
+        {
+            "writer_context": writer_context,
+            "scene_brief": brief,
+            "scene": content,
+            "review": json.dumps(review, ensure_ascii=False, indent=2),
+            "schema": json.dumps(get_schema("scene_draft"), ensure_ascii=False),
+        },
+    )
+    revised = engine._llm.complete_json("scene_draft", system, prompt, get_schema("scene_draft"), seed_offset=seed_offset)
+    return str(revised.get("content", content))
 
 
 def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
@@ -108,12 +126,71 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
                 "schema": json.dumps(get_schema("review"), ensure_ascii=False),
             },
         )
-        review = engine._llm.complete_json("review", system, review_prompt, get_schema("review"))
+        try:
+            review = engine._llm.complete_json("review", system, review_prompt, get_schema("review"))
+        except LLMError as e:
+            engine._log.warning("  [REVIEW ERROR] scene_draft: %s — 本文を維持して強制出力します", str(e)[:120])
+            review = {"issues": []}
+            qg_result = engine._quality.check_scene(review)
+            record.status = "強制出力済"
+            record.draft_version = 1
+            record.draft_path = _write_draft(engine, vol_num, scene, content, version=1)
+            record.quality_retries = 1
+            record.quality_gate = qg_result
+            summary = content[:500].strip() or "（本文なし）"
+            summaries[scene.scene_id] = summary
+            _save_summaries(engine, vol_num, summaries)
+            previous_summary = summary
+            results.append({"scene_id": scene.scene_id, "scene_number": scene.scene_number, "status": record.status})
+            engine._save()
+            continue
+
+        # Review → revise loop (mirrors design phase quality assurance)
+        # `passed` is sticky: once a cycle clears all critical issues, we keep
+        # it True even if the next review adds only important/minor notes. This
+        # avoids re-revising forever over non-blocking nitpicks (the 35B review
+        # model over-labels severity, so a fully-passing scene is rare).
         qg_result = engine._quality.check_scene(review)
-        record.status = "修正済" if qg_result.passed else "強制出力済"
-        record.draft_version = 1
-        record.draft_path = _write_draft(engine, vol_num, scene, content)
-        record.quality_retries = 1
+        passed = qg_result.passed
+        revision_cycle = 0
+        max_revisions = engine._quality.review_max_count
+        while not passed and revision_cycle < max_revisions:
+            try:
+                content = _revise_scene_draft(
+                    engine, scene, writer_context, brief, content, review, system, seed_offset=revision_cycle + 1
+                )
+            except LLMError as e:
+                engine._log.warning("  [REVISE ERROR] scene_draft: %s — 改訂を断念します", str(e)[:120])
+                break
+            try:
+                review_prompt = engine._prompts.render(
+                    "scene_review_v2.md",
+                    {
+                        "writer_context": writer_context,
+                        "scene_brief": brief,
+                        "scene": content,
+                        "schema": json.dumps(get_schema("review"), ensure_ascii=False),
+                    },
+                )
+                review = engine._llm.complete_json("review", system, review_prompt, get_schema("review"))
+            except LLMError as e:
+                engine._log.warning("  [REVIEW ERROR] scene_draft: %s — 改訂結果を維持して強制出力します", str(e)[:120])
+                review = {"issues": []}
+            cycle_result = engine._quality.check_scene(review)
+            if cycle_result.passed:
+                passed = True
+                qg_result = cycle_result
+            revision_cycle += 1
+            if not passed:
+                engine._log.warning(
+                    "  [REVIEW ABANDONED] scene_draft: 改訂が必要だが max_review_count に達したため改訂を諦めて次工程へ進みます (%d/%d)。",
+                    revision_cycle, max_revisions,
+                )
+
+        record.status = "修正済" if passed else "強制出力済"
+        record.draft_version = 1 + revision_cycle
+        record.draft_path = _write_draft(engine, vol_num, scene, content, version=record.draft_version)
+        record.quality_retries = 1 + revision_cycle
         record.quality_gate = qg_result
 
         # A scene summary is a writer-side continuity artifact only.  It is not

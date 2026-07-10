@@ -52,13 +52,19 @@ class QualityGate:
     def _check(self, review_result: dict) -> QualityGateResult:
         """レビュー結果に基づき品質を判定する。
 
-        判定ルール:
-        - issue が1件以上ある → 不合格
-        - issue なし → 合格
+        判定ルール（severity ベース）:
+        - critical / 致命的 の issue が1件以上 → 不合格
+        - important / minor のみ（または指摘なし） → 合格
+
+        設計意図: review は物語の整合性を幅広く指摘することが望ましいが、
+        出版不能な致命的欠陥（POV の視点破綻、読者に見える論理破綻など）
+        のみをゲートの不合格事由とする。important/minor は警告として
+        許容し、KDP レポートが「全シーン不合格」と誤警告することを防ぐ。
         """
         issues = review_result.get("issues", [])
 
-        passed = len(issues) == 0
+        blocker = sum(1 for i in issues if i.get("severity") in ("critical", "致命的"))
+        passed = blocker == 0
 
         return QualityGateResult(
             passed=passed,

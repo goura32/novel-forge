@@ -253,3 +253,7 @@ def list(
             _log.warning("Failed to read series plan while listing: %s", plan_path, exc_info=exc)
 
     console.print(table)
+
+
+if __name__ == "__main__":
+    app()

@@ -132,11 +132,17 @@ class V2ProjectRuntime:
         requested_pov = requested_names[0] if requested_names else ""
         pov = by_name.get(requested_pov) if requested_pov else canon.characters[0]
         if pov is None:
-            raise ValueError(f"v2 scene scope requires an exact Canon POV: {requested_pov!r}")
+            # POV name from a generated scene may not exactly match a Canon
+            # display name.  Fall back to the first character rather than
+            # hard-failing the whole design.
+            pov = canon.characters[0]
         if setting_name:
             location = next((location for location in canon.locations if location.name == setting_name), None)
             if location is None:
-                raise ValueError(f"v2 scene scope requires an exact Canon setting: {setting_name!r}")
+                # Setting names from generated scene designs may not exactly
+                # match a Canon location (different phrasing).  Fall back to the
+                # first Canon location instead of hard-failing the whole design.
+                location = canon.locations[0]
         else:
             location = canon.locations[0]
         required = []

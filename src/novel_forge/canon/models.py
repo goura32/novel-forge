@@ -257,6 +257,8 @@ class CharacterProfile(BaseModel):
     background: str | None = None
     arc: str | None = None
     flaw: str | None = None
+    occupation: str | None = None
+    age: str | int | None = None
 
 
 class CharacterIdentity(BaseModel):
