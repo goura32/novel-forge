@@ -487,6 +487,11 @@ def run_v2_pipeline(
 ) -> dict[str, Any]:
     """End-to-end v2 pipeline: plan → intents → scene patch → write → export.
 
+    This is the low-level, programmatic entry point used by E2E tests and
+    ad-hoc tooling.  Production commands (plan/design/write/export) go through
+    ``novel_forge.canon.public_runtime.V2ProjectRuntime`` instead; that adapter
+    is the supported public surface for the v2 flow.
+
     ``scene_specs`` is a list of dicts, each with keys:
       * ``context_scope`` — a ContextScope dict (pov_character, setting, required_refs)
       * ``cast``          — list[CastEntry] (optional)

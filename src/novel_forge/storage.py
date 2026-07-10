@@ -63,8 +63,13 @@ class StateStorage:
             return ProjectState(workdir=str(self._workdir))
 
     def save(self, state: ProjectState) -> None:
+        # Snapshot the current state into the backup path atomically before
+        # replacing the live file, so a crash mid-write never leaves a
+        # half-written or stale backup.
         if self._state_path.exists():
-            self._backup_path.write_text(
-                self._state_path.read_text(encoding="utf-8"), encoding="utf-8"
-            )
+            try:
+                current = self._state_path.read_text(encoding="utf-8")
+                _atomic_write(self._backup_path, current)
+            except OSError as exc:
+                _log.warning("Failed to snapshot state backup: %s", self._backup_path, exc_info=exc)
         _atomic_write(self._state_path, _model_to_json(state))
