@@ -11,6 +11,9 @@ import json
 import os
 from typing import TYPE_CHECKING, Any, cast
 
+from novel_forge.canon.design import ChapterDesign as V2ChapterDesign
+from novel_forge.canon.design import VolumeDesign as V2VolumeDesign
+from novel_forge.canon.public_runtime import V2ProjectRuntime
 from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.schemas import get_schema
 
@@ -122,6 +125,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         raise ValueError("Design: slug is empty — run 'plan' first or specify --series")
 
     plan_path = engine._series_dir / "series_plan.json"
+    plan: dict[str, Any] = {}
     total_vol = "?"
     planned_volume_title = ""
     if plan_path.exists():
@@ -138,8 +142,13 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
     engine._log.info(f"▶ Design: slug='{slug}' vol={vol_num}/{total_vol} PID={os.getpid()}")
     system = engine._prompts.render("system.md", {"lang": engine._lang})
-    genre = engine._ctx_builder.get_genre()
-    series_plan = engine._ctx_builder.get_series_plan_summary()
+    # Public design reads author-side Canon projections only.  The series plan
+    # is a derived planning artifact; it is never used as the Canon SSOT.
+    runtime = V2ProjectRuntime(engine._series_dir)
+    canon = runtime.canon()
+    default_scope = runtime.default_scope(canon)
+    genre = ", ".join(plan.get("genre", [])) if plan_path.exists() else ""
+    series_plan = json.dumps(plan, ensure_ascii=False, indent=2) if plan_path.exists() else "{}"
 
     # Phase 1: Volume design (chapters only - title/purpose)
     engine._log.info(f"  ▶ volume_design — vol={vol_num}/{total_vol}")
@@ -187,7 +196,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
             {"series_plan": series_plan, "volume_number": str(vol_num),
              "volume_title": planned_volume_title or f"第{vol_num}巻", "genre": genre,
              "previous_design": prev_design, "lang": engine._lang,
-             "bible": engine._bible_mgr.to_text_slice("volume", {"vol_num": vol_num})}),
+             "bible": runtime.author_context_text("volume", default_scope, canon)}),
         kind="volume_design",
         llm=engine._llm,
         quality=engine._quality,
@@ -259,7 +268,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
              "previous_chapter_outcome": prev_chapter_outcome,
              "previous_volume_summary": prev_volume_summary,
              "lang": engine._lang,
-             "bible": engine._bible_mgr.to_text_slice("chapter", {"vol_num": vol_num, "ch_num": ch_idx})})
+             "bible": runtime.author_context_text("chapter", default_scope, canon)})
         ch_result, _ch_review = generate_and_review(
                   generate_fn=_generate_chapter_design,
                   validate_fn=_validate_chapter_design,
@@ -289,6 +298,12 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         chapter_scene_count = len(ch_scenes)
         for chapter_scene_number, sc_data in enumerate(ch_scenes, 1):
             scene_counter += 1
+            seed_names = sc_data.get("characters", []) if isinstance(sc_data, dict) else []
+            scene_scope = runtime.default_scope(
+                canon,
+                [str(name) for name in seed_names if isinstance(name, str)],
+                str(sc_data.get("setting", "")) if isinstance(sc_data, dict) else "",
+            )
             sc_prompt = engine._prompts.render("scene_design.md",
                 {"series_plan": series_plan, "volume_number": str(vol_num),
                  "volume_title": vol_title, "volume_premise": vol_premise,
@@ -306,10 +321,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "previous_outcome": prev_outcome,
                  "previous_volume_summary": prev_volume_summary,
                  "lang": engine._lang,
-                 "bible": engine._bible_mgr.to_text_slice("scene", {
-                     "vol_num": vol_num, "ch_num": ch_num, "sc_num": scene_counter,
-                     "character_names": sc_data.get("characters", []) if isinstance(sc_data, dict) else [],
-                 })})
+                 "bible": runtime.author_context_text("scene", scene_scope, canon)})
             def _revise_scene_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
                 revised = engine._llm.complete_json(
                     "scene_design", sys, engine._prompts.render("scene_design_revision.md",
@@ -374,7 +386,35 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         "scenes": scenes,
     }
 
-    # Save
+    # Persist the v2 source artifacts.  These—not the compatibility JSON below—
+    # are the inputs to public write().  No Canon mutation happens in design.
+    v2_volume = V2VolumeDesign(
+        volume_id=f"vol{vol_num:02d}",
+        context_scope=default_scope,
+    )
+    v2_chapters = [
+        V2ChapterDesign(
+            chapter_id=f"vol{vol_num:02d}_ch{index:02d}",
+            context_scope=default_scope,
+            scene_seeds=list(chapter.get("scenes", [])),
+        )
+        for index, chapter in enumerate(chapters_with_scenes, 1)
+    ]
+    v2_scenes = [
+        runtime.scene_artifact(
+            volume=vol_num,
+            chapter=int(scene.get("chapter_number") or 1),
+            scene=int(scene.get("number") or index),
+            raw=scene,
+            canon=canon,
+        )
+        for index, scene in enumerate(scenes, 1)
+    ]
+    runtime.save_design(vol_num, v2_volume, v2_chapters, v2_scenes)
+    result["version"] = 2
+
+    # Compatibility presentation artifact for export tools that have not yet
+    # been switched to v2.  Public design/write never read it back.
     engine._save_path(vol_num, f"vol{vol_num:02d}.json", result)
 
     for ch in result.get("chapters", []):
@@ -398,22 +438,32 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = json.dumps(data, ensure_ascii=False, indent=2)
     user = engine._prompts.render("volume_design_review.md",
-        {"design": text, "concept_text": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
+        {"design": text, "concept_text": _series_plan_text(engine), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = json.dumps(data, ensure_ascii=False, indent=2)
     user = engine._prompts.render("chapter_design_review.md",
-        {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
+        {"design": text, "series_plan": _series_plan_text(engine), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
 
 
 def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = json.dumps(data, ensure_ascii=False, indent=2)
     user = engine._prompts.render("scene_design_review.md",
-        {"design": text, "series_plan": engine._ctx_builder.get_series_plan_summary(), "lang": engine._lang})
+        {"design": text, "series_plan": _series_plan_text(engine), "lang": engine._lang})
     return engine._llm.complete_json("review", system, user, get_schema("review"))
+
+
+def _series_plan_text(engine: NovelEngineBase) -> str:
+    path = engine._series_dir / "series_plan.json"
+    if not path.exists():
+        return "{}"
+    try:
+        return json.dumps(json.loads(path.read_text(encoding="utf-8")), ensure_ascii=False, indent=2)
+    except (OSError, json.JSONDecodeError):
+        return "{}"
 
 
 def _default_purpose(i: int, total: int) -> str:

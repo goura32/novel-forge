@@ -41,6 +41,7 @@ def _make_plan_response(**overrides) -> dict:
         "selling_points": ["ユニークな世界観と複雑な魔法システムが社会のあらゆる側面に影響を与えている", "複雑なキャラクター関係がシリーズを通じて自然に進化していく"],
         "world_summary": "魔法が存在し、古代の法則によって規制されている世界。物語は若い魔法使いが自分の力を発見し、魔法能力が社会的地位を決定する社会をナビゲートすることを学ぶところから始まる。",
         "world_rules": ["魔法には貴重な何かを犠牲にする必要がある", "古代の法則がすべての呪文詠唱を支配し、違反は厳しく罰せられる"],
+        "locations": [{"name": "始まりの村", "kind": "village", "current_state": "祭りの準備中", "immutable_constraints": ["日没後は村門を閉じる"]}],
         "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
         "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
     }
@@ -453,7 +454,7 @@ class TestOutline:
                         "outcome": "結果",
                         "characters": ["主人公"],
                         "key_events": ["出来事"],
-                        "setting": "場所",
+                        "setting": "始まりの村",
                     }
                 ],
             })
@@ -508,7 +509,7 @@ class TestOutline:
                         "outcome": "結果",
                         "characters": ["主人公"],
                         "key_events": ["出来事"],
-                        "setting": "場所",
+                        "setting": "始まりの村",
                     }
                 ],
                 }
@@ -530,7 +531,7 @@ class TestOutline:
                     "outcome": "一時的に追手を振り切る",
                     "characters": ["主人公"],
                     "key_events": ["追手の接近", "路地裏への逃走"],
-                    "setting": "夜の路地裏",
+                    "setting": "始まりの村",
                 }
             ],
         })
@@ -584,7 +585,7 @@ class TestOutline:
                         "outcome": "結果",
                         "characters": ["主人公"],
                         "key_events": ["出来事"],
-                        "setting": "場所",
+                        "setting": "始まりの村",
                     }
                 ],
                 }
@@ -606,7 +607,7 @@ class TestOutline:
                     "outcome": "機械を引き取る決意をする",
                     "characters": ["主人公"],
                     "key_events": ["古物店で機械を受け取る", "異常な共鳴を感じる"],
-                    "setting": "近未来京都の古物店",
+                    "setting": "始まりの村",
                 }
             ],
         })
@@ -1078,6 +1079,7 @@ class TestPromptInputCompleteness:
                 "魔法には貴重な何かを犠牲にする必要がある",
                 "古代の法則がすべての呪文詠唱を支配し、違反は厳しく罰せられる",
             ],
+            "locations": [{"name": "始まりの村", "kind": "village", "current_state": "祭りの準備中", "immutable_constraints": ["日没後は村門を閉じる"]}],
             "main_characters": [{"name": "主人公", "role": "主人公", "arc": "成長"}],
             "planned_volumes": [{"title": "第1巻", "premise": "始まり"}],
         }

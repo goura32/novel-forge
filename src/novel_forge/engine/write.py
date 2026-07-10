@@ -1,114 +1,133 @@
-"""Scene writing — write method for NovelEngine.
+"""Public v2 scene writing for NovelEngine.
 
-Standalone function that accepts NovelEngine as first argument.
-No mixin classes.
+The writer input boundary is deliberately narrow: persisted ``SceneDesign``
+writer_context + narrative brief + the immediately preceding scene summary.
+It never opens legacy outlines, Bible/Canon files, Blackboard, or prior drafts.
 """
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from novel_forge.models import SceneWriteContext, VolumeOutline
+from novel_forge.canon.design import SceneDesign
+from novel_forge.canon.public_runtime import V2ProjectRuntime
+from novel_forge.schemas import get_schema
+
+
+def _scene_brief(scene: SceneDesign) -> dict[str, Any]:
+    return {
+        "title": scene.title,
+        "goal": scene.goal,
+        "conflict": scene.conflict,
+        "turning_point": scene.turning_point,
+        "outcome": scene.outcome,
+        "ending_hook": scene.ending_hook,
+        "key_events": scene.key_events,
+    }
+
+
+def _summary_path(engine, volume: int):
+    return engine._series_dir / f"vol{volume:02d}" / "scene_summaries.json"
+
+
+def _load_summaries(engine, volume: int) -> dict[str, str]:
+    path = _summary_path(engine, volume)
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        return {str(key): str(value) for key, value in raw.items()} if isinstance(raw, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_summaries(engine, volume: int, summaries: dict[str, str]) -> None:
+    path = _summary_path(engine, volume)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def _write_draft(engine, volume: int, scene: SceneDesign, content: str) -> str:
+    ch_dir = engine._series_dir / f"vol{volume:02d}" / f"vol{volume:02d}_ch{scene.chapter_number:02d}"
+    ch_dir.mkdir(parents=True, exist_ok=True)
+    path = ch_dir / f"vol{volume:02d}_ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}_v1.md"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
 
 
 def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
-    """Write scene drafts for a volume."""
+    """Write persisted v2 SceneDesign artifacts through the writer boundary."""
     vol_num = volume_number or engine.state.current_volume
+    runtime = V2ProjectRuntime(engine._series_dir)
+    _payload, scenes = runtime.load_design(vol_num)
+    scenes.sort(key=lambda item: (item.chapter_number, item.scene_number, item.scene_id))
+
     engine.state.current_volume = vol_num
     engine._state.status = "執筆中"
-    slug = getattr(engine, "_slug", "?")
-    design_data = engine._load_path(vol_num, f"vol{vol_num:02d}.json")
-    vol_title = design_data.get("title", f"第{vol_num}巻")
+    vol = engine._current_volume()
+    vol.status = "執筆中"
+    summaries = _load_summaries(engine, vol_num)
+    previous_summary = "（最初のシーン）"
+    results: list[dict[str, Any]] = []
+    system = engine._prompts.render("system.md", {"lang": engine._lang})
 
-    # Truncate long fields to satisfy VolumeOutline Pydantic constraints
-    def _trim(value: Any, limit: int) -> str:
-        t = str(value or "")[:limit]
-        return t if len(t) <= limit else t[:limit]
-
-    title = _trim(design_data.get("title", ""), 128)
-    premise = _trim(design_data.get("premise", ""), 200)
-    scenes = design_data.get("scenes", [])
     for scene in scenes:
-        scene["outcome"] = _trim(scene.get("outcome", ""), 200)
+        if scene.writer_context is None:
+            raise ValueError(f"v2 SceneDesign {scene.scene_id} has no writer_context")
+        record = engine._get_or_create_scene_record(vol, scene.scene_number)
+        if record.status in ("修正済", "強制出力済"):
+            if scene.scene_id not in summaries:
+                raise ValueError(f"completed v2 scene {scene.scene_id} has no persisted summary")
+            previous_summary = summaries[scene.scene_id]
+            continue
 
-    # Ensure purpose is set (fallback for legacy designs without purpose)
-    chapters = design_data.get("chapters", [])
-    for i, ch in enumerate(chapters, 1):
-        if not ch.get("purpose"):
-            ch["purpose"] = "導入" if i == 1 else ("収束" if i == len(chapters) else "展開")
-    scenes = design_data.get("scenes", [])
-    # Avoid nesting scenes inside chapters for VolumeOutline
-    chapters_clean = []
-    for ch in chapters:
-        ch_copy = {k: v for k, v in ch.items() if k != "scenes"}
-        chapters_clean.append(ch_copy)
-    design_obj = VolumeOutline.model_validate({
-        "volume_number": vol_num,
-        "title": title,
-        "premise": premise,
-        "chapters": chapters_clean,
-        "scenes": scenes,
-    })
-    engine._log.info(f"▶ Write: series='{slug}' vol={vol_num} title='{vol_title}'")
-    engine._scene_writer._strict = getattr(engine, "_strict", False)
+        writer_input = runtime.writer_payload(scene)
+        writer_context = json.dumps(writer_input["writer_context"], ensure_ascii=False, indent=2)
+        brief = json.dumps(writer_input["scene_brief"], ensure_ascii=False, indent=2)
+        prompt = engine._prompts.render(
+            "scene_draft_v2.md",
+            {
+                "writer_context": writer_context,
+                "scene_brief": brief,
+                "previous_scene_summary": previous_summary,
+                "schema": json.dumps(get_schema("scene_draft"), ensure_ascii=False),
+            },
+        )
+        generated = engine._llm.complete_json("scene_draft", system, prompt, get_schema("scene_draft"))
+        content = str(generated.get("content", ""))
 
-    # Deduplicate chapters
-    seen = {}
-    for ch in design_obj.chapters:
-        if ch.number not in seen:
-            seen[ch.number] = ch
-    design_obj.chapters = sorted(seen.values(), key=lambda c: c.number)
+        review_prompt = engine._prompts.render(
+            "scene_review_v2.md",
+            {
+                "writer_context": writer_context,
+                "scene_brief": brief,
+                "scene": content,
+                "schema": json.dumps(get_schema("review"), ensure_ascii=False),
+            },
+        )
+        review = engine._llm.complete_json("review", system, review_prompt, get_schema("review"))
+        qg_result = engine._quality.check_scene(review)
+        record.status = "修正済" if qg_result.passed else "強制出力済"
+        record.draft_version = 1
+        record.draft_path = _write_draft(engine, vol_num, scene, content)
+        record.quality_retries = 1
+        record.quality_gate = qg_result
 
-    results = []
-    total_ch = len(design_obj.chapters)
-    total_scenes = len(design_obj.scenes)
-    vol = engine._current_volume()
+        # A scene summary is a writer-side continuity artifact only.  It is not
+        # Canon data and is intentionally derived without reopening the draft.
+        summary = content[:500].strip() or "（本文なし）"
+        summaries[scene.scene_id] = summary
+        _save_summaries(engine, vol_num, summaries)
+        previous_summary = summary
+        results.append({"scene_id": scene.scene_id, "scene_number": scene.scene_number, "status": record.status})
+        engine._save()
 
-    engine._log.info(f"  ▶ Write: {total_ch} ch, {total_scenes} sc")
-
-    for chapter in design_obj.chapters:
-        ch_scenes = [s for s in design_obj.scenes if s.chapter_number == chapter.number]
-        engine._log.info(f"    ▶ ch{chapter.number}/{total_ch} — {len(ch_scenes)} sc")
-
-        for scene in ch_scenes:
-            record = engine._get_or_create_scene_record(vol, scene.number)
-            if record.status in ("修正済", "強制出力済"):
-                engine._log.info(f"    ~ sc{scene.number}/{total_scenes} skip")
-                continue
-
-            engine._log.info(f"    ▶ sc{scene.number} — {scene.title}")
-            result = engine._scene_writer.write_scene(
-                design_obj=design_obj,
-                chapter=chapter,
-                scene=scene,
-                record=record,
-                ctx=SceneWriteContext(
-                    lang=engine._lang,
-                    vol_num=vol_num,
-                    build_context_fn=engine._ctx_builder.build_context,
-                    build_continuity_fn=lambda sn, vn: engine._ctx_builder.build_continuity(
-                        sn, vn, engine._scene_writer.load_scene_draft
-                    ),
-                    get_series_plan_summary_fn=engine._ctx_builder.get_series_plan_summary,
-                    get_outline_summary_fn=engine._ctx_builder.get_outline_summary,
-                    get_scene_summary_fn=engine._ctx_builder.get_scene_summary,
-                    load_scene_draft_fn=engine._scene_writer.load_scene_draft,
-                ),
-            )
-            results.append(result)
-
-            # Per-scene checkpoint — crash recovery skips already completed scenes
-            engine._save()
-
-            engine._log.info(f"    ✓ sc{scene.number}")
-
-        engine._log.info(f"  ✓ ch{chapter.number}/{total_ch}")
-
-    vol = engine._current_volume()
+    _save_summaries(engine, vol_num, summaries)
     vol.status = "初稿済"
     engine._state.status = "初稿済"
     engine._save()
-    engine._log.info(
-        f"✓ Write: series='{slug}' vol={vol_num} — {len(results)}/{total_scenes} sc done"
-    )
+    engine._log.info("✓ v2 Write: volume=%s scenes=%s", vol_num, len(results))
     return results

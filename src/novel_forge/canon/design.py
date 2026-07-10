@@ -66,6 +66,18 @@ class SceneDesign(BaseModel):
 
     scene_id: str
     source_location: SceneLocation | None = None
+    # Narrative brief is a design artifact, not Canon fact.  It is deliberately
+    # persisted beside the writer projection so the public writer never needs a
+    # legacy outline, Bible, or Blackboard callback to reconstruct the scene.
+    chapter_number: int = Field(default=1, ge=1)
+    scene_number: int = Field(default=1, ge=1)
+    title: str = ""
+    goal: str = ""
+    conflict: str = ""
+    outcome: str = ""
+    turning_point: str = ""
+    ending_hook: str = ""
+    key_events: list[str] = Field(default_factory=list)
     context_scope: ContextScope | None = None
     design_intent: DesignIntent | None = None
     cast: list[CastEntry] = Field(default_factory=list)

@@ -92,6 +92,11 @@ def test_bible_factory_seed_and_write(tmp_path):
     assert canon.get_entity("character", "char_001") is not None
 
 
+def test_bible_factory_maps_public_plan_genre_to_canon_genres() -> None:
+    canon = BibleFactory.create_seed({"title": "T", "genre": ["mystery", "fantasy"]})
+    assert canon.series.genres == ["mystery", "fantasy"]
+
+
 def test_replay_idempotent(tmp_path):
     store = CanonEventStore(tmp_path)
     seed = _write_seed(store)

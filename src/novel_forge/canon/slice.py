@@ -387,6 +387,32 @@ class CanonSliceBuilder:
                 for ch in canon.characters
                 if ch.id in by_kind["character"]
             ]
+        if "series_constraint" in by_kind:
+            ctx["series_constraints"] = [
+                constraint.statement for constraint in canon.series.constraints if constraint.id in by_kind["series_constraint"]
+            ]
+        if "world_rule" in by_kind:
+            ctx["world_rules"] = [rule.statement for rule in canon.world_rules if rule.id in by_kind["world_rule"]]
+        if "location" in by_kind:
+            ctx["locations"] = [
+                {"name": location.name, "immutable_constraints": location.immutable_constraints, "current_state": location.current_state}
+                for location in canon.locations if location.id in by_kind["location"]
+            ]
+        if "artifact" in by_kind:
+            ctx["artifacts"] = [
+                {"name": artifact.name, "properties": artifact.properties, "condition": artifact.condition, "custody": artifact.custody}
+                for artifact in canon.artifacts if artifact.id in by_kind["artifact"]
+            ]
+        if "deadline" in by_kind and canon.chronology:
+            ctx["deadlines"] = [
+                {"statement": deadline.statement, "due_marker": deadline.due_marker.label, "status": deadline.status}
+                for deadline in canon.chronology.active_deadlines if deadline.id in by_kind["deadline"]
+            ]
+        if "glossary" in by_kind:
+            ctx["glossary"] = [
+                {"term": term.term, "definition": term.definition}
+                for term in canon.glossary if term.id in by_kind["glossary"]
+            ]
         return ctx
 
     def _pov_safe_context(self, canon: Canon, selected: list[tuple], pov_id: str) -> dict[str, Any]:
@@ -438,9 +464,12 @@ class CanonSliceBuilder:
                     }
                 )
         ctx["artifact_constraints"] = [a["properties"] for a in arts if a["properties"]]
+        character_labels = {ch.id: ch.identity.display_name for ch in canon.characters}
+        collective_labels = {grp.id: grp.name for grp in canon.collectives}
+        location_labels = {loc.id: loc.name for loc in canon.locations}
         ctx["artifact_state"] = [
             f"{a['name']} は "
-            f"{_custody_label(a['custody'])} が携行し、{a['condition']}"
+            f"{_custody_label(a['custody'], character_labels, collective_labels, location_labels)} が携行し、{a['condition']}"
             for a in arts
         ]
 
@@ -460,21 +489,21 @@ class CanonSliceBuilder:
         return ctx
 
 
-def _custody_label(custody: Any | None) -> str:
-    """Human-readable custody description without leaking the stable ID."""
+def _custody_label(
+    custody: Any | None,
+    character_labels: dict[str, str],
+    collective_labels: dict[str, str],
+    location_labels: dict[str, str],
+) -> str:
+    """Resolve custody from the current Canon without exposing a stable ID."""
     if not custody:
         return "誰も"
-    kind = custody.kind
-    eid = custody.id
-    if eid == "char_001":
-        return "アリーン"
-    # generic fallback by kind
-    if kind == "character":
-        return "ある人物"
-    if kind == "collective":
-        return "ある組織"
-    if kind == "location":
-        return "ある場所"
+    if custody.kind == "character":
+        return character_labels.get(custody.id, "ある人物")
+    if custody.kind == "collective":
+        return collective_labels.get(custody.id, "ある組織")
+    if custody.kind == "location":
+        return location_labels.get(custody.id, "ある場所")
     return "誰か"
 
 

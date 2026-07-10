@@ -238,6 +238,12 @@ def test_author_context_has_knowledge_proposition():
     ac = proj.author_context
     props = [k["proposition"] for k in ac.get("knowledge", [])]
     assert "妹の記憶は石に封じられている" in props
+    assert "魔法は石を媒体とする" in ac["world_rules"]
+    assert ac["locations"] == [{
+        "name": "石の都",
+        "immutable_constraints": ["夜間は城門が封鎖される"],
+        "current_state": "北門検査強化",
+    }]
 
 
 def test_pov_safe_context_hides_secret_truth_and_ids():
@@ -252,3 +258,5 @@ def test_pov_safe_context_hides_secret_truth_and_ids():
     # guardrail present, secret proposition not leaked
     assert any("断定しない" in g for g in psc.get("unrevealed_guardrails", []))
     assert "妹の記憶は石に封じられている" not in blob
+    # custody labels must come from the active Canon, never a fixed example ID.
+    assert any("アリーン" in state for state in psc.get("artifact_state", []))

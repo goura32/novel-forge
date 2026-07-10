@@ -60,6 +60,22 @@
         "description": "世界観ルール。1つの主張につき1要素。存在理由、発動時の効果、制約の範囲、例外や緩和の条件と代償を含め、喪失・剥奪が新たな力を生む場合はその因果を明記する。相反する状態を1文中に詰め込まない。"
       },
       "minItems": 1
+    },
+    "locations": {
+      "description": "物語開始時点で Canon に登録する主要舞台。後続の scene design が参照する実在の場所だけを入れる。",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "description": "初期 location。名称、種別、開始時の状態と、その場所で守る制約を具体的に記述する。",
+        "properties": {
+          "name": {"type": "string", "description": "作中で使う固有の場所名。"},
+          "kind": {"type": "string", "description": "city、village、building、region 等の場所種別。"},
+          "current_state": {"type": "string", "description": "物語開始時点の観測可能な状況。"},
+          "immutable_constraints": {"type": "array", "description": "この場所で常に成立する制約。", "minItems": 1, "items": {"type": "string", "description": "作中で検証可能な場所固有の制約。"}}
+        },
+        "required": ["name", "kind", "current_state", "immutable_constraints"]
+      }
     }
   },
   "required": [

@@ -33,7 +33,7 @@ def _validate_plan_concept(concept: dict) -> list[str]:
     if isinstance(slug, str):
         concept["slug"] = re.sub(r"[^a-z0-9_]", "_", slug.lower())
     
-    required = ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world_summary", "world_rules"]
+    required = ["title", "slug", "logline", "genre", "target_audience", "themes", "selling_points", "world_summary", "world_rules", "locations"]
     errors = []
     for field in required:
         val = concept.get(field)
@@ -43,6 +43,18 @@ def _validate_plan_concept(concept: dict) -> list[str]:
             errors.append(f"{field} (empty)")
         elif isinstance(val, list) and len(val) == 0:
             errors.append(f"{field} (empty list)")
+    locations = concept.get("locations")
+    if isinstance(locations, list):
+        for index, location in enumerate(locations):
+            if not isinstance(location, dict):
+                errors.append(f"locations[{index}] (must be object)")
+                continue
+            for key in ("name", "kind", "current_state"):
+                if not isinstance(location.get(key), str) or not location[key].strip():
+                    errors.append(f"locations[{index}].{key}")
+            constraints = location.get("immutable_constraints")
+            if not isinstance(constraints, list) or not constraints or not all(isinstance(item, str) and item.strip() for item in constraints):
+                errors.append(f"locations[{index}].immutable_constraints")
     return errors
 
 
@@ -153,6 +165,7 @@ def plan(engine: NovelEngineBase, keywords: str) -> dict[str, Any]:
         "selling_points": concept.get("selling_points", []),
         "world_summary": concept.get("world_summary", ""),
         "world_rules": concept.get("world_rules", []),
+        "locations": concept.get("locations", []),
         "main_characters": characters.get("main_characters", []),
         "planned_volumes": planned_volumes,
     }

@@ -145,7 +145,7 @@ class BibleFactory:
             "id": series_in.get("id", "series"),
             "title": series_in.get("title", ""),
             "logline": series_in.get("logline", ""),
-            "genres": series_in.get("genres", []),
+            "genres": series_in.get("genres", series_in.get("genre", [])),
             "target_audience": series_in.get("target_audience", ""),
             "themes": series_in.get("themes", []),
             "tone": series_in.get("tone", ""),

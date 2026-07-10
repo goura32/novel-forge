@@ -50,6 +50,14 @@ class PromptManager:
 
 def _infer_schema_name(prompt_stem: str) -> str:
     """Infer output schema name from a prompt template stem."""
+    # v2 prompt templates intentionally retain the externally compatible draft
+    # and review response schemas while changing only the input boundary.
+    v2_map = {
+        "scene_draft_v2": "scene_draft",
+        "scene_review_v2": "review",
+    }
+    if prompt_stem in v2_map:
+        return v2_map[prompt_stem]
     if prompt_stem.endswith("_review"):
         return "review"
     revision_map = {

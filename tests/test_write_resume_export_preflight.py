@@ -56,6 +56,29 @@ class TestWriteResumeCheckpoint:
             ],
         }
         engine._save_path(1, "vol01.json", design_data)
+        # Public v2 write reads its typed design artifact exclusively; the legacy
+        # outline above remains only to exercise unrelated state/checkpoint setup.
+        engine._save_path(1, "v2_design.json", {
+            "version": 2,
+            "volume": {"volume_id": "vol_01"},
+            "chapters": [],
+            "scenes": [
+                {
+                    "scene_id": f"scn_01_{i + 1:03d}",
+                    "chapter_number": 1,
+                    "scene_number": i + 1,
+                    "title": f"sc{i + 1}",
+                    "goal": "目標",
+                    "conflict": "葛藤",
+                    "outcome": "結果",
+                    "writer_context": {
+                        "pov": {"display_name": "主人公"},
+                        "required_story_beats": ["目標", "結果"],
+                    },
+                }
+                for i in range(4)
+            ],
+        })
 
         call_count = 0
 
