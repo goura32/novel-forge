@@ -1,0 +1,72 @@
+{
+  "$id": "https://novel-forge.local/schemas/canon/writer_context.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "§6.2 writer projection (no stable IDs / author truth).",
+  "properties": {
+    "artifact_constraints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Artifact Constraints",
+      "type": "array"
+    },
+    "artifact_state": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Artifact State",
+      "type": "array"
+    },
+    "cast_constraints": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Cast Constraints",
+      "type": "array"
+    },
+    "pov": {
+      "additionalProperties": true,
+      "title": "Pov",
+      "type": "object"
+    },
+    "required_story_beats": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Story Beats",
+      "type": "array"
+    },
+    "setting_constraints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Setting Constraints",
+      "type": "array"
+    },
+    "setting_state": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Setting State",
+      "type": "array"
+    },
+    "time_constraints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Time Constraints",
+      "type": "array"
+    },
+    "unrevealed_guardrails": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unrevealed Guardrails",
+      "type": "array"
+    }
+  },
+  "title": "WriterContext",
+  "type": "object"
+}

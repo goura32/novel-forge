@@ -7,17 +7,8 @@ from pydantic import BaseModel, Field
 # ── 事実記録（Blackboard）──────────────────────────────────────────────
 
 
-class Fact(BaseModel):
-    subject: str
-    predicate: str
-    object: str = ""
-    confidence: float = Field(ge=0.0, le=1.0, default=1.0)
-
-
 class Blackboard(BaseModel):
-    facts: list[Fact] = Field(default_factory=list)
     scene_summaries: dict[str, str] = Field(default_factory=dict)
-    continuity_notes: list[str] = Field(default_factory=list)
     subplots: list[SubplotItem] = Field(default_factory=list)
     timeline: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -253,7 +244,6 @@ class SceneWriteContext(BaseModel):
     get_series_plan_summary_fn: Any = None  # () -> str
     get_outline_summary_fn: Any = None  # (outline: VolumeOutline) -> str
     get_scene_summary_fn: Any = None  # (scene) -> str
-    get_bible_text_fn: Any = None  # () -> str
     load_scene_draft_fn: Any = (
         None  # (vol_num: int, scene_number: int, chapter_number: int = 1) -> str
     )

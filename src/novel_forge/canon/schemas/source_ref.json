@@ -1,0 +1,30 @@
+{
+  "$id": "https://novel-forge.local/schemas/canon/source_ref.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Opaque, immutable scene source identity + display/replay order (§3.1).",
+  "properties": {
+    "location": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Location",
+      "type": "object"
+    },
+    "revision": {
+      "default": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "scene_id": {
+      "title": "Scene Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "scene_id",
+    "location"
+  ],
+  "title": "SourceRef",
+  "type": "object"
+}

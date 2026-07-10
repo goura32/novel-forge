@@ -67,18 +67,6 @@
 
 {continuity}
 
-### 進行中のサブプロット
-
-{subplots}
-
-### キャラクター関係性
-
-{relationships}
-
-### このシーンで回収すべき伏線
-
-{foreshadowing_to_resolve}
-
 ## 出力仕様
 
 下記のスキーマに適合する JSON のみ出力すること。

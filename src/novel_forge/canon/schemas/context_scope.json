@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "EntityRef": {
+      "additionalProperties": false,
+      "description": "Typed reference to an *existing* Canon entity (id form).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character",
+            "collective",
+            "location",
+            "artifact",
+            "knowledge",
+            "relationship",
+            "foreshadowing",
+            "subplot",
+            "deadline",
+            "world_rule",
+            "glossary",
+            "series"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    }
+  },
+  "$id": "https://novel-forge.local/schemas/canon/context_scope.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "§5.1 typed context scope (no string-search references).",
+  "properties": {
+    "pov_character": {
+      "anyOf": [
+        {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "required_refs": {
+      "items": {
+        "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+      },
+      "title": "Required Refs",
+      "type": "array"
+    },
+    "setting": {
+      "anyOf": [
+        {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "ContextScope",
+  "type": "object"
+}

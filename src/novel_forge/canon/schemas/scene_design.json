@@ -1,0 +1,17 @@
+{
+  "$id": "https://novel-forge.local/schemas/canon/scene_design.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "canon_patch": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json"
+    },
+    "context_scope": {
+      "$ref": "https://novel-forge.local/schemas/canon/context_scope.json"
+    },
+    "design_intent": {
+      "$ref": "https://novel-forge.local/schemas/canon/design_intent.json"
+    }
+  },
+  "type": "object"
+}

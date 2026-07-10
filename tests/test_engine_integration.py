@@ -226,7 +226,6 @@ def planned_engine(tmp_workdir, mock_llm):
     for _ in range(8):
         mock_llm.add_sequence("scene_draft", {"title": "シーン", "content": "本文" * 2000})
         mock_llm.add_sequence("scene_review", {"issues": []})
-        mock_llm.add_sequence("scene_summary_and_bible_update", {"summary": "要約"})
     # second round
     mock_llm.add_sequence("volume_design", _make_design_response())
     mock_llm.add_sequence("volume_design_review", {"issues": [], "suggestions": []})
@@ -246,7 +245,6 @@ def planned_engine(tmp_workdir, mock_llm):
     for _ in range(2):
         mock_llm.add_sequence("scene_draft", {"title": "シーン", "content": "本文" * 2000})
         mock_llm.add_sequence("scene_review", {"issues": []})
-        mock_llm.add_sequence("scene_summary_and_bible_update", {"summary": "要約"})
 
     prompts = PromptManager(prompt_dir=tmp_workdir / "prompts")
     eng = NovelEngine(

@@ -106,48 +106,7 @@ class ContextBuilder:
     # ── context (Bible + Blackboard) ────────────────────────────────
 
     def build_context(self) -> str:
-        bb = self._bb_storage.load()
-        bible = self._bible_storage.load()
-        parts = []
-        if bb.facts:
-            parts.append(
-                "## 事実記録\n"
-                + "\n".join(f"- {f.subject} {f.predicate} {f.object}" for f in bb.facts[-20:])
-            )
-        if bible.characters:
-            parts.append(
-                "## キャラクター\n"
-                + "\n".join(
-                    f"- {c.name}（{c.role or ''}）: {c.personality or ''} / 動機: {c.motivation or ''}"
-                    for c in bible.characters
-                )
-            )
-        if bible.relationships:
-            parts.append(
-                "## キャラクター関係性\n"
-                + "\n".join(
-                    f"- {r.character_a} ↔ {r.character_b}: {r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
-                    for r in bible.relationships
-                )
-            )
-        if bible.subplots:
-            active_subplots = [
-                sp for sp in bible.subplots if sp.status not in ("completed", "完了")
-            ]
-            if active_subplots:
-                parts.append(
-                    "## サブプロット\n"
-                    + "\n".join(
-                        f"- {sp.name}: {sp.progress_note or '進捗なし'}" for sp in active_subplots
-                    )
-                )
-        if bible.glossary:
-            parts.append(
-                "## 用語\n" + "\n".join(f"- {g.term}: {g.definition}" for g in bible.glossary[-10:])
-            )
-        if bible.world_rules:
-            parts.append("## 世界観ルール\n" + "\n".join(f"- {r}" for r in bible.world_rules))
-        return "\n\n".join(parts)
+        return ""
 
     # ── continuity (previous scene info) ────────────────────────────
 
@@ -174,11 +133,6 @@ class ContextBuilder:
                 summaries.append(f"  シーン{sn}: {s}")
         if summaries:
             parts.append("## 直近シーン要約\n" + "\n".join(summaries))
-
-        # 引き継ぎメモ
-        notes = "\n".join(bb.continuity_notes[-5:]) if bb.continuity_notes else ""
-        if notes:
-            parts.append(f"## 引き継ぎメモ\n{notes}")
 
         # 前シーン全文（最後に配置 — 参照用）
         if scene_number > 1 and vol_num > 0:

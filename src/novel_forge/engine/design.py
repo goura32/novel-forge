@@ -193,8 +193,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         quality=engine._quality,
     )
     if isinstance(vol_design_data, dict):
-        # 巻設計確定 → 聖典を更新（design の意図ベース、冪等）
-        engine._bible_mgr.apply_design_update("volume", vol_design_data, {"vol_num": vol_num})
+        # 巻設計確定（v2 では design intent は Canon へ、Bible への書き戻しは廃止・§10）
         raw_chapters = vol_design_data.get("chapters", [vol_design_data])
         chapters: list[dict[str, Any]] = [
             chapter for chapter in raw_chapters if isinstance(chapter, dict)
@@ -274,8 +273,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
               )
         chapter_results.append(ch_result)
         if isinstance(ch_result, dict):
-            # 章設計確定 → 聖典を更新（design の意図ベース、冪等）
-            engine._bible_mgr.apply_design_update("chapter", ch_result, {"vol_num": vol_num, "ch_num": ch_idx})
+            # 章設計確定（v2 では Canon へ、Bible 書き戻し廃止・§10）
             prev_chapter_outcome = ch_result.get("outcome", "") or ch_result.get("emotional_arc", "")
     chapters = chapter_results
     engine._log.info(f"  ✓ chapter_design — vol={vol_num} {len(chapters)}/{chapters_count} ch done")
@@ -340,10 +338,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 scene_obj.setdefault("chapter_scene_number", chapter_scene_number)
                 scene_obj["number"] = scene_counter
                 scenes.append(scene_obj)
-                # シーン設計確定 → 聖典を更新（design の意図ベース、冪等）
-                engine._bible_mgr.apply_design_update("scene", scene_obj, {
-                    "vol_num": vol_num, "ch_num": ch_num, "sc_num": scene_counter,
-                })
+                # シーン設計確定（v2 では Canon へ、Bible 書き戻し廃止・§10）
                 prev_outcome = scene_obj.get("outcome", "")
     engine._log.info(f"  ✓ scene_design — vol={vol_num} {len(scenes)} sc done")
 

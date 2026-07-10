@@ -259,19 +259,11 @@ EMPTY_ARRAY_ALLOWED_PATHS = {
     ("bible.json", "world_rules"),
     ("bible.json", "relationships"),
     ("bible.json", "subplots"),
-    ("blackboard.json", "facts"),
     ("chapter_design.json", "foreshadowing_notes"),
     ("chapter_design.json", "subplot_notes"),
     ("review.json", "issues"),
     ("scene_summary.json", "characters"),
     ("scene_summary.json", "facts"),
-    ("scene_summary_and_bible_update.json", "facts"),
-    ("scene_summary_and_bible_update.json", "continuity_notes"),
-    ("scene_summary_and_bible_update.json", "characters"),
-    ("scene_summary_and_bible_update.json", "foreshadowing"),
-    ("scene_summary_and_bible_update.json", "relationships"),
-    ("scene_summary_and_bible_update.json", "subplots"),
-    ("scene_summary_and_bible_update.json", "world_rules"),
 }
 
 

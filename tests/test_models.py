@@ -9,7 +9,6 @@ from novel_forge.models import (
     Blackboard,
     ChapterDesign,
     CharacterProfile,
-    Fact,
     ProjectState,
     SceneDesign,
     SceneRecord,
@@ -43,21 +42,11 @@ class TestLLMClient:
 
 
 class TestModels:
-    def test_fact_creation(self):
-        fact = Fact(subject="Alice", predicate="is", object="hero")
-        assert fact.confidence == 1.0
-
-    def test_fact_confidence_range(self):
-        with pytest.raises(ValueError):
-            Fact(subject="A", predicate="is", object="B", confidence=1.5)
-
     def test_blackboard_creation(self):
         bb = Blackboard(
-            facts=[Fact(subject="A", predicate="is", object="B")],
             scene_summaries={"1": "summary"},
-            continuity_notes=["note1"],
         )
-        assert len(bb.facts) == 1
+        assert bb.scene_summaries == {"1": "summary"}
 
     def test_bible_creation(self):
         bible = Bible(
@@ -129,13 +118,10 @@ class TestStorage:
 
     def test_blackboard_storage(self, tmp_path):
         storage = BlackboardStorage(tmp_path)
-        bb = Blackboard(
-            facts=[Fact(subject="A", predicate="met", object="B", confidence=0.9)]
-        )
+        bb = Blackboard(scene_summaries={"1": "summary"})
         storage.save(bb)
         loaded = storage.load()
-        assert len(loaded.facts) == 1
-        assert loaded.facts[0].confidence == 0.9
+        assert loaded.scene_summaries == {"1": "summary"}
 
     def test_bible_storage(self, tmp_path):
         storage = BibleStorage(tmp_path)

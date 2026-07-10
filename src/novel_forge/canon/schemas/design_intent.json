@@ -1,0 +1,41 @@
+{
+  "$id": "https://novel-forge.local/schemas/canon/design_intent.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cast": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Cast",
+      "type": "array"
+    },
+    "foreshadowing": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Foreshadowing",
+      "type": "array"
+    },
+    "relationship_arcs": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Relationship Arcs",
+      "type": "array"
+    },
+    "subplots": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Subplots",
+      "type": "array"
+    }
+  },
+  "title": "DesignIntent",
+  "type": "object"
+}

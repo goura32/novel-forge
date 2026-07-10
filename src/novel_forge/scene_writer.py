@@ -9,12 +9,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
-from novel_forge.bible_manager import BibleManager
 from novel_forge.engine.review import format_review_text, generate_and_review
 from novel_forge.logging_config import get_logger
 from novel_forge.models import (
-    Bible,
-    Fact,
     SceneRecord,
     SceneWriteContext,
     VolumeOutline,
@@ -46,49 +43,8 @@ class SceneWriter:
         self._quality = quality
         self._bb_storage = blackboard_storage
         self._bible_storage = bible_storage
-        self._bible_mgr = BibleManager(bible_storage)
-        self._bible_cache: Bible | None = None
         self._log = get_logger("novel_forge.scene_writer")
         self._strict = False
-
-    # -- Bible helpers --
-
-    def _get_bible(self) -> Bible:
-        if self._bible_cache is None:
-            self._bible_cache = self._bible_storage.load()
-        return self._bible_cache
-
-    def _invalidate_bible_cache(self) -> None:
-        self._bible_cache = None
-
-    def _get_subplots_text(self) -> str:
-        bible = self._get_bible()
-        if not bible.subplots:
-            return "（なし）"
-        lines = []
-        for sp in bible.subplots:
-            if sp.status not in {"完了", "completed"}:
-                lines.append(f"- {sp.name}: {sp.progress_note or '進捗なし'}")
-        return "\n".join(lines) if lines else "（進行中のサブプロットなし）"
-
-    def _get_relationships_text(self) -> str:
-        bible = self._get_bible()
-        if not bible.relationships:
-            return "（なし）"
-        lines = []
-        for r in bible.relationships:
-            lines.append(
-                f"- {r.character_a} ↔ {r.character_b}: "
-                f"{r.relationship_type or '関係未設定'} / 状態: {r.status or '未設定'}"
-            )
-        return "\n".join(lines)
-
-    def _get_foreshadowing_to_resolve_text(self) -> str:
-        bible = self._get_bible()
-        unresolved = [fh for fh in bible.foreshadowing if not fh.resolved]
-        if not unresolved:
-            return "（なし）"
-        return "\n".join(f"- {fh.description}" for fh in unresolved)
 
     # -- main pipeline --
     def write_scene(
@@ -111,9 +67,6 @@ class SceneWriter:
                 "chapter_purpose": chapter.purpose,
                 "context": ctx.build_context_fn(),
                 "continuity": ctx.build_continuity_fn(record.scene_number, ctx.vol_num),
-                "subplots": self._get_subplots_text(),
-                "relationships": self._get_relationships_text(),
-                "foreshadowing_to_resolve": self._get_foreshadowing_to_resolve_text(),
                 "lang": ctx.lang,
             },
         )
@@ -128,7 +81,7 @@ class SceneWriter:
             # 文字数下限チェックは行わない。
             # LLMが指示文字数を守らなくてもリトライで改善しない実績があり、
             # ユーザー指示により文字数不足は見逃す方針。
-            errors = []
+            errors: list[str] = []
             return errors
 
         def _review_fn(result: dict, sys: str) -> dict:
@@ -182,8 +135,6 @@ class SceneWriter:
                 "concept_json": ctx.get_series_plan_summary_fn(),
                 "outline": ctx.get_outline_summary_fn(design_obj),
                 "context": ctx.build_context_fn(),
-                "subplots": self._get_subplots_text(),
-                "relationships": self._get_relationships_text(),
                 "lang": ctx.lang,
             },
         )
@@ -229,39 +180,6 @@ class SceneWriter:
             "scene_draft", system, user, schema, seed_offset=seed_offset
         )
         return cast(str, result.get("content", draft_text))
-
-    # -- summarize --
-
-    def summarize_and_update_bible(
-        self,
-        scene_number: int,
-        draft_text: str,
-        lang: str,
-        get_bible_text_fn,
-    ) -> None:
-        system = self._prompts.render("system.md", {"lang": lang})
-        current_bible_text = get_bible_text_fn()
-
-        user = self._prompts.render(
-            "scene_summary_and_bible_update.md",
-            {
-                "scene": draft_text,
-                "current_bible": current_bible_text,
-                "lang": lang,
-            },
-        )
-        schema = get_schema("scene_summary_and_bible_update")
-        result = self._llm.complete_json("scene_summary_and_bible_update", system, user, schema)
-
-        bb = self._bb_storage.load()
-        bb.scene_summaries[str(scene_number)] = result.get("summary", "")
-        for fact_data in result.get("facts", []):
-            bb.facts.append(Fact(**fact_data))
-        bb.continuity_notes.extend(result.get("continuity_notes", []))
-        self._bb_storage.save(bb)
-
-        self._bible_mgr.apply_update(result, scene_number)
-        self._invalidate_bible_cache()
 
     # -- file I/O --
 

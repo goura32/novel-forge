@@ -28,7 +28,6 @@ class TestListSchemas:
             "scene_design",
             "scene_draft",
             "review",
-            "scene_summary_and_bible_update",
         ]
         for name in expected:
             assert name in schemas, f"Missing schema: {name}"
@@ -220,51 +219,6 @@ class TestValidate:
         errors = validate("review", data)
         assert errors == []
 
-    def test_valid_bible_update(self):
-        data = {
-            "summary": "シーンの要約",
-            "facts": [],
-            "continuity_notes": [],
-            "characters": [],
-            "foreshadowing": [],
-            "relationships": [],
-            "subplots": [],
-            "glossary": [],
-            "world_rules": [],
-        }
-        errors = validate("scene_summary_and_bible_update", data)
-        assert len(errors) == 0
-
-    def test_bible_update_accepts_string_world_rules(self):
-        data = {
-            "summary": "シーンの要約",
-            "facts": [{"subject": "主人公", "predicate": "失踪した"}],
-            "continuity_notes": [],
-            "characters": [],
-            "foreshadowing": [],
-            "relationships": [],
-            "subplots": [],
-            "glossary": [],
-            "world_rules": ["魔法は代償なしには使えない"],
-        }
-        errors = validate("scene_summary_and_bible_update", data)
-        assert errors == []
-
-    def test_bible_update_rejects_legacy_world_rule_objects(self):
-        data = {
-            "summary": "シーンの要約",
-            "facts": [],
-            "continuity_notes": [],
-            "characters": [],
-            "foreshadowing": [],
-            "relationships": [],
-            "subplots": [],
-            "glossary": [],
-            "world_rules": [{"rule": "魔法は代償なしには使えない"}],
-        }
-        errors = validate("scene_summary_and_bible_update", data)
-        assert any("is not of type 'string'" in error for error in errors)
-
     def test_valid_volume_design(self):
         data = volume_design_data()
         errors = validate("volume_design", data)
@@ -439,19 +393,3 @@ class TestSchemaFieldCoverage:
         schema = get_schema("review")
         props = schema["properties"]
         assert "issues" in props
-
-    def test_bible_update_has_all_fields(self):
-        schema = get_schema("scene_summary_and_bible_update")
-        props = schema["properties"]
-        for field in [
-            "summary",
-            "facts",
-            "continuity_notes",
-            "characters",
-            "foreshadowing",
-            "relationships",
-            "subplots",
-            "glossary",
-            "world_rules",
-        ]:
-            assert field in props, f"Missing field in bible_update: {field}"

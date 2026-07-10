@@ -1,0 +1,1623 @@
+{
+  "$defs": {
+    "Affiliation": {
+      "additionalProperties": false,
+      "properties": {
+        "collective": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "status": {
+          "default": "active",
+          "enum": [
+            "active",
+            "inactive"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "collective",
+        "role"
+      ],
+      "title": "Affiliation",
+      "type": "object"
+    },
+    "ArtConditionUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "title": "Condition",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "condition"
+      ],
+      "title": "ArtConditionUpdate",
+      "type": "object"
+    },
+    "ArtCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "default": "",
+          "title": "Condition",
+          "type": "string"
+        },
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "custody": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "narrative_significance": {
+          "default": "",
+          "title": "Narrative Significance",
+          "type": "string"
+        },
+        "properties": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Properties",
+          "type": "array"
+        }
+      },
+      "required": [
+        "creation_key",
+        "name",
+        "kind"
+      ],
+      "title": "ArtCreate",
+      "type": "object"
+    },
+    "ArtCustodyUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "custody": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Properties"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "ArtCustodyUpdate",
+      "type": "object"
+    },
+    "ArtifactPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "condition_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ArtConditionUpdate"
+          },
+          "title": "Condition Updates",
+          "type": "array"
+        },
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ArtCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "custody_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ArtCustodyUpdate"
+          },
+          "title": "Custody Updates",
+          "type": "array"
+        }
+      },
+      "title": "ArtifactPatchOps",
+      "type": "object"
+    },
+    "CharCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliations": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/Affiliation"
+          },
+          "title": "Affiliations",
+          "type": "array"
+        },
+        "continuity_card": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ContinuityCard"
+        },
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharacterIdentity"
+        },
+        "importance": {
+          "enum": [
+            "core",
+            "supporting",
+            "minor"
+          ],
+          "title": "Importance",
+          "type": "string"
+        },
+        "narrative_function": {
+          "title": "Narrative Function",
+          "type": "string"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharacterProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tracking_level": {
+          "enum": [
+            "full",
+            "continuity"
+          ],
+          "title": "Tracking Level",
+          "type": "string"
+        }
+      },
+      "required": [
+        "creation_key",
+        "identity",
+        "importance",
+        "tracking_level",
+        "narrative_function",
+        "continuity_card"
+      ],
+      "title": "CharCreate",
+      "type": "object"
+    },
+    "CharIdentityReveal": {
+      "additionalProperties": false,
+      "properties": {
+        "add_aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Add Aliases",
+          "type": "array"
+        },
+        "character": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Character"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character",
+        "display_name"
+      ],
+      "title": "CharIdentityReveal",
+      "type": "object"
+    },
+    "CharPromote": {
+      "additionalProperties": false,
+      "properties": {
+        "character": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Character"
+        },
+        "profile_additions": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharacterProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "to_importance": {
+          "enum": [
+            "supporting",
+            "core"
+          ],
+          "title": "To Importance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character",
+        "to_importance"
+      ],
+      "title": "CharPromote",
+      "type": "object"
+    },
+    "CharStateUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "character": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Character"
+        },
+        "current_location": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "current_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current State"
+        }
+      },
+      "required": [
+        "character"
+      ],
+      "title": "CharStateUpdate",
+      "type": "object"
+    },
+    "CharacterIdentity": {
+      "additionalProperties": false,
+      "description": "§4.1 named vs role_anchored separation.",
+      "properties": {
+        "aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "named",
+            "role_anchored"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "display_name"
+      ],
+      "title": "CharacterIdentity",
+      "type": "object"
+    },
+    "CharacterPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "identity_reveals": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharIdentityReveal"
+          },
+          "title": "Identity Reveals",
+          "type": "array"
+        },
+        "promote": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharPromote"
+          },
+          "title": "Promote",
+          "type": "array"
+        },
+        "state_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharStateUpdate"
+          },
+          "title": "State Updates",
+          "type": "array"
+        }
+      },
+      "title": "CharacterPatchOps",
+      "type": "object"
+    },
+    "CharacterProfile": {
+      "additionalProperties": false,
+      "description": "Full character profile (Core / Supporting).",
+      "properties": {
+        "appearance": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Appearance"
+        },
+        "arc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arc"
+        },
+        "background": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Background"
+        },
+        "flaw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flaw"
+        },
+        "motivation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Motivation"
+        },
+        "personality": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Personality"
+        }
+      },
+      "title": "CharacterProfile",
+      "type": "object"
+    },
+    "ChronologyPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "advance_to": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/Marker"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "deadline_updates": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Deadline Updates",
+          "type": "array"
+        }
+      },
+      "title": "ChronologyPatchOps",
+      "type": "object"
+    },
+    "CollectiveCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "current_state": {
+          "title": "Current State",
+          "type": "string"
+        },
+        "function": {
+          "title": "Function",
+          "type": "string"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "organization",
+            "faction",
+            "community",
+            "family"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "stance_toward_characters": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/Stance"
+          },
+          "title": "Stance Toward Characters",
+          "type": "array"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "creation_key",
+        "kind",
+        "name",
+        "function",
+        "current_state"
+      ],
+      "title": "CollectiveCreate",
+      "type": "object"
+    },
+    "CollectivePatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CollectiveCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "state_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CollectiveStateUpdate"
+          },
+          "title": "State Updates",
+          "type": "array"
+        }
+      },
+      "title": "CollectivePatchOps",
+      "type": "object"
+    },
+    "CollectiveStateUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "current_state": {
+          "title": "Current State",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "current_state"
+      ],
+      "title": "CollectiveStateUpdate",
+      "type": "object"
+    },
+    "ContinuityCard": {
+      "additionalProperties": false,
+      "properties": {
+        "current_location": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "current_state": {
+          "title": "Current State",
+          "type": "string"
+        },
+        "distinguishing_traits": {
+          "default": "",
+          "title": "Distinguishing Traits",
+          "type": "string"
+        },
+        "known_constraints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Known Constraints",
+          "type": "array"
+        }
+      },
+      "required": [
+        "current_state"
+      ],
+      "title": "ContinuityCard",
+      "type": "object"
+    },
+    "CreationRef": {
+      "additionalProperties": false,
+      "description": "Reference to an entity created within the *same* patch (§3.4).",
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "creation_key"
+      ],
+      "title": "CreationRef",
+      "type": "object"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "description": "Typed reference to an *existing* Canon entity (id form).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character",
+            "collective",
+            "location",
+            "artifact",
+            "knowledge",
+            "relationship",
+            "foreshadowing",
+            "subplot",
+            "deadline",
+            "world_rule",
+            "glossary",
+            "series"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "FhCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "intended_payoff": {
+          "default": "",
+          "title": "Intended Payoff",
+          "type": "string"
+        },
+        "related_character_refs": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+          },
+          "title": "Related Character Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "creation_key",
+        "description"
+      ],
+      "title": "FhCreate",
+      "type": "object"
+    },
+    "FhTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "foreshadowing": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Foreshadowing"
+        },
+        "status": {
+          "enum": [
+            "planted",
+            "resolved",
+            "abandoned"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "foreshadowing",
+        "status"
+      ],
+      "title": "FhTransition",
+      "type": "object"
+    },
+    "ForeshadowingPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/FhCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "transitions": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/FhTransition"
+          },
+          "title": "Transitions",
+          "type": "array"
+        }
+      },
+      "title": "ForeshadowingPatchOps",
+      "type": "object"
+    },
+    "GlossaryPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/TermCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        }
+      },
+      "title": "GlossaryPatchOps",
+      "type": "object"
+    },
+    "HolderState": {
+      "additionalProperties": false,
+      "description": "One holder's knowledge state (§4.6).",
+      "properties": {
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basis"
+        },
+        "holder": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "state": {
+          "enum": [
+            "knows",
+            "suspects",
+            "believes",
+            "unaware"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "holder",
+        "state"
+      ],
+      "title": "HolderState",
+      "type": "object"
+    },
+    "HolderStateUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basis"
+        },
+        "holder": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "state": {
+          "enum": [
+            "knows",
+            "suspects",
+            "believes",
+            "unaware"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "holder",
+        "state"
+      ],
+      "title": "HolderStateUpdate",
+      "type": "object"
+    },
+    "KnowCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "holders": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/HolderState"
+          },
+          "title": "Holders",
+          "type": "array"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "proposition": {
+          "title": "Proposition",
+          "type": "string"
+        },
+        "related_entity_refs": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+          },
+          "title": "Related Entity Refs",
+          "type": "array"
+        },
+        "truth_status": {
+          "default": "confirmed",
+          "enum": [
+            "confirmed",
+            "contested",
+            "false_belief"
+          ],
+          "title": "Truth Status",
+          "type": "string"
+        },
+        "visibility": {
+          "default": "public",
+          "enum": [
+            "public",
+            "secret"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "creation_key",
+        "proposition"
+      ],
+      "title": "KnowCreate",
+      "type": "object"
+    },
+    "KnowledgeHolderUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "holder_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/HolderStateUpdate"
+          },
+          "title": "Holder Updates",
+          "type": "array"
+        },
+        "knowledge": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Knowledge"
+        }
+      },
+      "required": [
+        "knowledge"
+      ],
+      "title": "KnowledgeHolderUpdate",
+      "type": "object"
+    },
+    "KnowledgePatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/KnowCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "holder_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/KnowledgeHolderUpdate"
+          },
+          "title": "Holder Updates",
+          "type": "array"
+        },
+        "truth_status_transitions": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/KnowledgeTruthTransition"
+          },
+          "title": "Truth Status Transitions",
+          "type": "array"
+        },
+        "visibility_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/KnowledgeVisibilityUpdate"
+          },
+          "title": "Visibility Updates",
+          "type": "array"
+        }
+      },
+      "title": "KnowledgePatchOps",
+      "type": "object"
+    },
+    "KnowledgeTruthTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "knowledge": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Knowledge"
+        },
+        "to_status": {
+          "enum": [
+            "confirmed",
+            "false_belief"
+          ],
+          "title": "To Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "knowledge",
+        "to_status"
+      ],
+      "title": "KnowledgeTruthTransition",
+      "type": "object"
+    },
+    "KnowledgeVisibilityUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "knowledge": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "visibility": {
+          "enum": [
+            "public",
+            "secret"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "knowledge",
+        "visibility"
+      ],
+      "title": "KnowledgeVisibilityUpdate",
+      "type": "object"
+    },
+    "LocCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "current_state": {
+          "default": "",
+          "title": "Current State",
+          "type": "string"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "immutable_constraints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Immutable Constraints",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_location": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "creation_key",
+        "name",
+        "kind"
+      ],
+      "title": "LocCreate",
+      "type": "object"
+    },
+    "LocStateUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "current_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current State"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "immutable_constraints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Immutable Constraints",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "LocStateUpdate",
+      "type": "object"
+    },
+    "LocationPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/LocCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "state_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/LocStateUpdate"
+          },
+          "title": "State Updates",
+          "type": "array"
+        }
+      },
+      "title": "LocationPatchOps",
+      "type": "object"
+    },
+    "Marker": {
+      "additionalProperties": false,
+      "description": "§4.6 story time marker.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "ordinal": {
+          "minimum": 0,
+          "title": "Ordinal",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ordinal",
+        "label"
+      ],
+      "title": "Marker",
+      "type": "object"
+    },
+    "PerspectiveUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "attitude": {
+          "title": "Attitude",
+          "type": "string"
+        },
+        "boundary": {
+          "default": "",
+          "title": "Boundary",
+          "type": "string"
+        },
+        "character_id": {
+          "title": "Character Id",
+          "type": "string"
+        },
+        "desire_from_other": {
+          "default": "",
+          "title": "Desire From Other",
+          "type": "string"
+        },
+        "trust": {
+          "default": "conditional",
+          "title": "Trust",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character_id",
+        "attitude"
+      ],
+      "title": "PerspectiveUpdate",
+      "type": "object"
+    },
+    "RelCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "participant_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Participant Ids",
+          "type": "array"
+        },
+        "perspectives": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Perspectives",
+          "type": "array"
+        },
+        "shared_state": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SharedState"
+        },
+        "structural_bonds": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/StructuralBond"
+          },
+          "title": "Structural Bonds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "creation_key",
+        "participant_ids"
+      ],
+      "title": "RelCreate",
+      "type": "object"
+    },
+    "RelationshipPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/RelCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/RelationshipUpdate"
+          },
+          "title": "Updates",
+          "type": "array"
+        }
+      },
+      "title": "RelationshipPatchOps",
+      "type": "object"
+    },
+    "RelationshipUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "arc_summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arc Summary"
+        },
+        "lifecycle": {
+          "anyOf": [
+            {
+              "const": "resolved",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lifecycle"
+        },
+        "perspective_updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/PerspectiveUpdate"
+          },
+          "title": "Perspective Updates",
+          "type": "array"
+        },
+        "relationship": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Relationship"
+        },
+        "shared_state": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SharedState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "relationship"
+      ],
+      "title": "RelationshipUpdate",
+      "type": "object"
+    },
+    "SharedState": {
+      "additionalProperties": false,
+      "properties": {
+        "central_tension": {
+          "default": "",
+          "title": "Central Tension",
+          "type": "string"
+        },
+        "cooperation": {
+          "default": "none",
+          "enum": [
+            "none",
+            "conditional",
+            "full"
+          ],
+          "title": "Cooperation",
+          "type": "string"
+        },
+        "current_arrangement": {
+          "default": "",
+          "title": "Current Arrangement",
+          "type": "string"
+        },
+        "openness": {
+          "default": "open",
+          "enum": [
+            "open",
+            "guarded",
+            "closed"
+          ],
+          "title": "Openness",
+          "type": "string"
+        }
+      },
+      "title": "SharedState",
+      "type": "object"
+    },
+    "SpCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "current_state": {
+          "default": "",
+          "title": "Current State",
+          "type": "string"
+        },
+        "dramatic_question": {
+          "title": "Dramatic Question",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "stakes": {
+          "title": "Stakes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "creation_key",
+        "name",
+        "dramatic_question",
+        "stakes"
+      ],
+      "title": "SpCreate",
+      "type": "object"
+    },
+    "SpUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "current_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current State"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "resolved",
+                "abandoned"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "subplot": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            }
+          ],
+          "title": "Subplot"
+        }
+      },
+      "required": [
+        "subplot"
+      ],
+      "title": "SpUpdate",
+      "type": "object"
+    },
+    "Stance": {
+      "additionalProperties": false,
+      "description": "Collective stance toward a character (§4.1).",
+      "properties": {
+        "character": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "stance": {
+          "enum": [
+            "ally",
+            "suspicious",
+            "hostile",
+            "neutral"
+          ],
+          "title": "Stance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character",
+        "stance"
+      ],
+      "title": "Stance",
+      "type": "object"
+    },
+    "StructuralBond": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "default": "symmetric",
+          "enum": [
+            "symmetric",
+            "asymmetric"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "label"
+      ],
+      "title": "StructuralBond",
+      "type": "object"
+    },
+    "SubplotPatchOps": {
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SpCreate"
+          },
+          "title": "Create",
+          "type": "array"
+        },
+        "updates": {
+          "items": {
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SpUpdate"
+          },
+          "title": "Updates",
+          "type": "array"
+        }
+      },
+      "title": "SubplotPatchOps",
+      "type": "object"
+    },
+    "TermCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "creation_key": {
+          "title": "Creation Key",
+          "type": "string"
+        },
+        "definition": {
+          "title": "Definition",
+          "type": "string"
+        },
+        "term": {
+          "title": "Term",
+          "type": "string"
+        }
+      },
+      "required": [
+        "creation_key",
+        "term",
+        "definition"
+      ],
+      "title": "TermCreate",
+      "type": "object"
+    }
+  },
+  "$id": "https://novel-forge.local/schemas/canon/canon_patch.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "§6 full Canon Patch: per-entity create + typed updates.",
+  "properties": {
+    "artifacts": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ArtifactPatchOps"
+    },
+    "characters": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CharacterPatchOps"
+    },
+    "chronology": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ChronologyPatchOps"
+    },
+    "collectives": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CollectivePatchOps"
+    },
+    "foreshadowing": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ForeshadowingPatchOps"
+    },
+    "glossary": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/GlossaryPatchOps"
+    },
+    "knowledge": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/KnowledgePatchOps"
+    },
+    "locations": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/LocationPatchOps"
+    },
+    "relationships": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/RelationshipPatchOps"
+    },
+    "subplots": {
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SubplotPatchOps"
+    }
+  },
+  "title": "CanonPatch",
+  "type": "object"
+}

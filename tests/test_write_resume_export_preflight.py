@@ -74,7 +74,6 @@ class TestWriteResumeCheckpoint:
                 }
             return {
                 "summary": "要約",
-                "bible_update": {},
             }
 
         engine._llm = MagicMock()

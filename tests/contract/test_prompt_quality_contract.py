@@ -64,19 +64,6 @@ def test_revision_prompts_preserve_unmentioned_fields() -> None:
     assert issues == {}
 
 
-def test_scene_summary_bible_update_forbids_inference() -> None:
-    prompt = (PROMPTS_DIR / "scene_summary_and_bible_update.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "本文に明示されていない過去設定、能力、関係性、世界ルールを推測で追加しない",
-        "比喩表現や登場人物の主観を、客観的事実として Bible に登録しない",
-        "一時的な感情や誤解は、恒久的な関係性変化として扱わない",
-    ]
-
-    missing = [fragment for fragment in required_fragments if fragment not in prompt]
-    assert missing == []
-
-
 def test_volume_design_preserves_given_title_exactly() -> None:
     prompt = (PROMPTS_DIR / "volume_design.md").read_text(encoding="utf-8")
 
@@ -206,7 +193,7 @@ def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
         "series_plan_characters_review.md": ["役割ラベル・分類名・固有識別子", "結末や報復方法の好み", "成長弧や動機は、文字列がほぼ同一"],
         "series_plan_volumes.md": ["planned_volumes[]", "emotional_arc", "cliffhanger"],
         "volume_design.md": ["chapters[]", "title", "purpose"],
-        "scene_summary_and_bible_update.md": ["facts[]", "subject", "predicate", "world_rules[]", "文字列の配列"],
+        "scene_summary.md": ["summary"],
         "kdp_metadata.md": ["title", "description", "keywords", "categories"],
         "cover_prompt.md": ["negative_prompt", "prompt", "画像生成ツール"],
     }

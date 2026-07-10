@@ -1,0 +1,36 @@
+{
+  "$id": "https://novel-forge.local/schemas/canon/entity_ref.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Typed reference to an *existing* Canon entity (id form).",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "character",
+        "collective",
+        "location",
+        "artifact",
+        "knowledge",
+        "relationship",
+        "foreshadowing",
+        "subplot",
+        "deadline",
+        "world_rule",
+        "glossary",
+        "series"
+      ],
+      "title": "Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "id"
+  ],
+  "title": "EntityRef",
+  "type": "object"
+}
