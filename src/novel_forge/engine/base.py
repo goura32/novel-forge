@@ -23,8 +23,16 @@ from novel_forge.models import (
 )
 from novel_forge.prompts import PromptManager
 from novel_forge.quality_gate import QualityGate
+from novel_forge.runtime import (
+    AttemptCapture,
+    RunHandle,
+    RunLock,
+    RunManager,
+    RunRepository,
+)
 from novel_forge.schemas import validate_schemas
 from novel_forge.storage import StateStorage
+from novel_forge.task_registry import DEFAULT_TASK_REGISTRY
 
 
 def _is_process_alive(pid: int) -> bool:
@@ -87,6 +95,11 @@ class NovelEngineBase:
         phase: str = "",
         # -- Dependency injection for testing --
         storage: StateStorage | None = None,
+        # -- Destructive runtime redesign --
+        run: RunHandle | None = None,
+        repository: RunRepository | None = None,
+        manager: RunManager | None = None,
+        workspace_lock: RunLock | None = None,
     ):
         self._workdir = Path(workdir) if isinstance(workdir, str) else workdir
         self._lang = lang
@@ -136,17 +149,6 @@ class NovelEngineBase:
         # The v2 pipeline (plan → design → write → export) is the single source
         # of truth and never reads/writes the legacy bible.json or blackboard.
 
-        lock_path = Path(workdir) / ".lock"
-        if lock_path.exists():
-            try:
-                lock_pid = int(lock_path.read_text().strip())
-                if not _is_process_alive(lock_pid):
-                    lock_path.unlink(missing_ok=True)
-                    console.print(f"[dim]⚠ Removed stale lock (PID={lock_pid}): {lock_path}[/dim]")
-            except (ValueError, OSError):
-                lock_path.unlink(missing_ok=True)
-                console.print(f"[dim]⚠ Removed corrupted lock: {lock_path}[/dim]")
-
         if llm_client is None:
             llm_cfg = cfg.get("llm", {})
             model = model if model is not None else llm_cfg.get("model") or self._DEFAULT_MODEL
@@ -170,6 +172,12 @@ class NovelEngineBase:
                 series_slug=self._slug,
                 volume=vol,
             )
+        self._run = run
+        self._repository = repository
+        self._manager = manager
+        self._workspace_lock = workspace_lock
+        self._attempt: Any = None
+        self._capture: AttemptCapture | None = None
         self._llm = llm_client
         self._prompts = prompt_manager or PromptManager()
         quality_cfg = cfg.get("quality", {})
@@ -291,6 +299,32 @@ class NovelEngineBase:
         data = json.loads(path.read_text(encoding="utf-8"))
         return cast(dict[str, Any], data)
 
+    def _load_series_plan(self) -> dict[str, Any]:
+        """Load the series plan, preferring the runtime artifact when present.
+
+        The redesign commits the series plan to the immutable runtime repository
+        rather than writing a flat ``series_plan.json``.  Fall back to the flat
+        file only for legacy / non-runtime callers.
+        """
+        repo = getattr(self, "_repository", None)
+        slug = getattr(self, "_slug", None)
+        if repo is not None and slug:
+            try:
+                ref = repo.latest_ready_artifact(slug, "plan", "series_plan")
+                if ref is not None:
+                    payload = repo.read_payload(ref)
+                    if isinstance(payload, dict):
+                        return payload
+            except Exception as exc:  # pragma: no cover - defensive
+                self._log.debug("runtime series_plan lookup failed, falling back: %s", exc)
+        flat = self._series_dir / "series_plan.json"
+        if flat.exists():
+            try:
+                return cast(dict[str, Any], json.loads(flat.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                return {}
+        return {}
+
     def _get_or_create_scene_record(self, vol: VolumeProgress, scene_number: int) -> SceneRecord:
         for s in vol.scenes:
             if s.scene_number == scene_number:
@@ -298,3 +332,75 @@ class NovelEngineBase:
         record = SceneRecord(scene_number=scene_number)
         vol.scenes.append(record)
         return record
+
+
+    def _existing_slugs(self) -> set[str]:
+        """Slugs of series that already have a runtime ledger."""
+        if self._repository is None:
+            return set()
+        slugs: set[str] = set()
+        for child in sorted(self._workdir.iterdir()):
+            if not child.is_dir() or child.name.startswith("."):
+                continue
+            if (self._repository.series_runtime_root(child.name) / "ledger").exists():
+                slugs.add(child.name)
+        return slugs
+    def _begin_attempt(self, task_id: str, reason: str, *, retry_number: int = 1, seed: int | None = None):
+        """Start (or resume) an immutable attempt scoped to the active run."""
+        if self._repository is None or self._run is None:
+            raise RuntimeError("runtime repository is not configured for this engine")
+        self._attempt = self._repository.start_attempt(
+            self._run,
+            task_id=task_id,
+            phase=self._phase,
+            reason=reason,
+            retry_number=retry_number,
+            seed=seed,
+        )
+        self._capture = AttemptCapture(self._repository, self._attempt, self._verbose)
+        if self._llm is not None:
+            self._llm._capture = self._capture
+        return self._attempt
+
+    def _commit_artifact(self, *, artifact_type: str, logical_key: str, payload: object, payload_name: str, **kwargs):
+        """Commit a ready artifact for the active attempt and return its id."""
+        if self._repository is None or self._attempt is None:
+            raise RuntimeError("no active attempt to commit")
+        ref = self._repository.commit_artifact(
+            self._attempt,
+            artifact_type=artifact_type,
+            logical_key=logical_key,
+            payload=payload,
+            payload_name=payload_name,
+            **kwargs,
+        )
+        return ref
+
+    def _fail_attempt(self, *, error_code: str, retryable: bool, http_status: int | None = None, detail: str | None = None) -> None:
+        if self._repository is None or self._attempt is None:
+            raise RuntimeError("no active attempt to fail")
+        self._repository.fail_attempt(
+            self._attempt,
+            error_code=error_code,
+            retryable=retryable,
+            http_status=http_status,
+            detail=detail,
+        )
+
+    def _require_task(self, task_id: str):
+        return DEFAULT_TASK_REGISTRY.get(task_id)
+
+    def _slug_exists(self, slug: str) -> bool:
+        if self._repository is None:
+            return False
+        return (self._repository.series_runtime_root(slug) / "ledger").exists()
+
+    def _promote_series_lock(self, slug: str):
+        if self._repository is None or self._manager is None or self._run is None or self._workspace_lock is None:
+            return
+        self._manager.promote_plan_to_series(workspace_lock=self._workspace_lock, run=self._run, slug=slug)
+
+    def _create_selection_snapshot(self, *, slug: str, slots: dict[str, str], reason: str, base_snapshot_id: str | None = None):
+        if self._repository is None:
+            raise RuntimeError("runtime repository is not configured")
+        return self._repository.create_selection_snapshot(slug=slug, slots=slots, reason=reason, base_snapshot_id=base_snapshot_id)

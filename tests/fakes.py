@@ -47,11 +47,25 @@ class MockLLMClient:
         self._call_log.append((kind, user_prompt))
 
         lookup_kind = kind
-        if kind == "review":
+        if kind.endswith(".review"):
+            # Match the next registered review-kind response in the sequence.
             for expected_kind, _resp in self._sequence[self._seq_idx:]:
-                if expected_kind.endswith("_review") or expected_kind.endswith("_revision"):
+                if expected_kind.endswith(".review") and expected_kind.rsplit(".", 1)[0] == kind.rsplit(".", 1)[0]:
                     lookup_kind = expected_kind
                     break
+        elif kind.endswith(".revise"):
+            # Revise steps need a full object (same shape as the generate step).
+            # Tests usually register only the `.generate` response, so fall back
+            # to the matching `.generate` entry WITHOUT consuming the sequence
+            # (the generate step already consumed its own entry, and later
+            # chapters/scenes need their generate entries intact).
+            for expected_kind, _resp in self._sequence:
+                if expected_kind == kind:
+                    return cast(dict[str, Any], deepcopy(_resp))
+            fallback = kind.rsplit(".", 1)[0] + ".generate"
+            for expected_kind, _resp in self._sequence:
+                if expected_kind == fallback:
+                    return cast(dict[str, Any], deepcopy(_resp))
 
         for i in range(self._seq_idx, len(self._sequence)):
             expected_kind, resp = self._sequence[i]

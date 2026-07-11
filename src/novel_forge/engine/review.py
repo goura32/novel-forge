@@ -100,6 +100,7 @@ def generate_and_review(
     kind: str,
     llm: Any,
     quality: Any,
+    engine: Any | None = None,
     generation_max_count: int | None = None,
     review_max_count: int | None = None,
 ) -> tuple[dict, dict]:
@@ -124,8 +125,14 @@ def generate_and_review(
     result: dict = {}
     review: dict = {"issues": []}
 
+    # Destructive-redesign: every generation/review/revise call is wrapped in an
+    # immutable attempt so the raw LLM request/response + parsed JSON are captured
+    # against a fixed attempt directory (or skipped entirely in non-verbose mode).
+
     while generation_cycles < max_generation:
         try:
+            if engine is not None and hasattr(engine, "_begin_attempt"):
+                engine._begin_attempt(f"{kind}.generate", "generation", retry_number=generation_cycles + 1)
             result = generate_fn(user_prompt, generation_cycles)
         except SchemaValidationError as e:
             path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"
@@ -180,6 +187,8 @@ def generate_and_review(
 
     while True:
         try:
+            if engine is not None and hasattr(engine, "_begin_attempt"):
+                engine._begin_attempt(f"{kind}.review", "review", retry_number=review_cycles + 1)
             review = review_fn(result, system)
             review_cycles += 1
         except SchemaValidationError as e:
@@ -228,6 +237,8 @@ def generate_and_review(
         for revision_attempt in range(max_generation):
             seed_offset = generation_cycles + revision_attempt
             try:
+                if engine is not None and hasattr(engine, "_begin_attempt"):
+                    engine._begin_attempt(f"{kind}.revise", "revision", retry_number=revision_attempt + 1)
                 revised = revise_fn(result, review, system, seed_offset)
             except SchemaValidationError as e:
                 path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "?"

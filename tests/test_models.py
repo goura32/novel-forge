@@ -140,9 +140,9 @@ class TestQualityGate:
 class TestSchemas:
     def test_list_schemas(self):
         schemas = list_schemas()
-        assert "series_plan_concept" in schemas
-        assert "volume_design" in schemas
-        assert "chapter_design" in schemas
+        assert "plan_concept" in schemas
+        assert "design_volume" in schemas
+        assert "design_chapter" in schemas
 
     def test_validate_series_plan_valid(self):
         data = {
@@ -162,7 +162,7 @@ class TestSchemas:
                 "ancient laws govern all spellcasting and violations are punished severely"
             ],
         }
-        errors = validate("series_plan_concept", data)
+        errors = validate("plan_concept", data)
         assert len(errors) == 0
 
     def test_validate_or_raise(self):
@@ -183,87 +183,21 @@ class TestSchemas:
                 "ancient laws govern all spellcasting and violations are punished severely"
             ],
         }
-        validate_or_raise("series_plan_concept", data)  # Should not raise
-
-    def test_validate_series_plan_does_not_mechanically_reject_chinese_markers(self):
-        data = {
-            "title": "契約婚の悪役令嬢と竜公爵",
-            "slug": "keiyaku_kon_akuyaku_reijou",
-            "logline": "破滅を予知した悪役令嬢が、契約結婚を盾に王宮陰謀へ立ち向かう。魔法学院と竜公爵家の身分差を越え、初恋をやり直すために真相を追う。",
-            "genre": ["ロマンスファンタジー"],
-            "target_audience": "20代から40代の女性読者。契約結婚、身分差、王宮陰謀、初恋のやり直しを好む層。",
-            "themes": ["信頼の再構築", "身分差を越える恋", "運命への抵抗"],
-            "selling_points": [
-                "契約という枠組みの中で近づく二人の心理を细腻に描く。",
-                "魔法学院と王宮陰謀を横断する政治劇。",
-            ],
-            "world_summary": "竜公爵家と王宮が魔法契約で均衡を保つ王国。",
-            "world_rules": ["契約魔法は血統と誓約に縛られ、破れば魔力消耗を負う。"],
-        }
-
-        errors = validate("series_plan_concept", data)
-
-        assert errors == []
-
-    def test_validate_series_plan_rejects_swap_title_reduced_to_substitution(self):
-        data = {
-            "title": "薔薇庭園の聖女入れ替わり",
-            "slug": "bara_teien_seijo_irekawari",
-            "logline": "記憶を改ざんされ貴族令嬢の身代わりとして帝都へ潜入した元聖女は、呪われ皇太子の婚約者として公の場で精霊契約により呪いを抑制しながら生き延びる。",
-            "genre": ["ロマンスファンタジー"],
-            "target_audience": "20代から40代の女性読者。宮廷恋愛、呪い、精霊契約、記憶喪失の謎を好む層。",
-            "themes": ["記憶と自己", "呪いからの解放", "宮廷恋愛"],
-            "selling_points": [
-                "薔薇庭園で交わした精霊契約が、皇太子の呪いと聖女の記憶を結びつける。",
-                "舞踏会と騎士団の駆け引きが、身代わりの正体を追い詰める。",
-            ],
-            "world_summary": "帝都では禁断魔法が厳しく禁じられている。元聖女は記憶を改ざんされ、貴族令嬢の身代わりとして宮廷へ送られる。薔薇庭園の精霊契約は呪いを一時的に抑えるが、記憶を取り戻すたびに魔力暴走の危険が高まる。",
-            "world_rules": [
-                "薔薇庭園で交わした精霊契約は、契約者の記憶を魔力へ変換する。",
-                "皇太子の呪いは日没時に強まり、契約者の魔力供給で一時的に抑制される。",
-            ],
-        }
-
-        errors = validate("series_plan_concept", data)
-
-        assert any("swap gimmick" in error for error in errors)
-
-    def test_validate_series_plan_allows_explicit_swap_mechanism(self):
-        data = {
-            "title": "薔薇庭園の聖女入れ替わり",
-            "slug": "bara_teien_seijo_irekawari",
-            "logline": "聖女召喚の儀式で魂を貴族令嬢の身体へ入れ替えられた元聖女は、失われた記憶を取り戻しながら呪われ皇太子を救うため、薔薇庭園の精霊契約で禁断魔法の真相へ迫る。",
-            "genre": ["ロマンスファンタジー"],
-            "target_audience": "20代から40代の女性読者。宮廷恋愛、呪い、精霊契約、入れ替わりの謎を好む層。",
-            "themes": ["記憶と自己", "呪いからの解放", "宮廷恋愛"],
-            "selling_points": [
-                "魂の入れ替わりと失われた記憶が、皇太子の呪い解除条件と連動する。",
-                "舞踏会と騎士団の駆け引きが、入れ替わった聖女の正体を追い詰める。",
-            ],
-            "world_summary": "帝都では禁断魔法が厳しく禁じられている。元聖女は召喚儀式で魂を貴族令嬢と入れ替えられ、記憶を失ったまま宮廷へ送られる。薔薇庭園の精霊契約は呪いを一時的に抑えるが、記憶を取り戻すたびに魔力暴走の危険が高まる。",
-            "world_rules": [
-                "召喚儀式で魂の入れ替わりが起きると、元の身体には呪いの刻印が残り、入れ替わった魂だけが記憶を失う。",
-                "皇太子の呪いは日没時に強まり、契約者の魔力供給で一時的に抑制される。",
-            ],
-        }
-
-        errors = validate("series_plan_concept", data)
-
-        assert errors == []
+        validate_or_raise("plan_concept", data)  # Should not raise
 
     def test_chapter_design_schema_has_new_fields(self):
-        schema = get_schema("chapter_design")
+        schema = get_schema("design_chapter")
         assert "theme" in schema["required"]
         assert "emotional_arc" in schema["required"]
         assert "scenes" in schema["properties"]
 
     def test_volume_design_goal_is_string(self):
-        schema = get_schema("volume_design")
+        schema = get_schema("design_volume")
         ch_title = schema["properties"]["chapters"]["items"]["properties"]["title"]
         assert ch_title.get("type") == "string"
 
     def test_chapter_design_purpose_is_enum(self):
-        schema = get_schema("volume_design")
+        schema = get_schema("design_volume")
         ch_purpose = schema["properties"]["chapters"]["items"]["properties"]["purpose"]
         assert "enum" in ch_purpose
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+from importlib import resources
+from pathlib import Path
 from typing import Any, cast
 
 from novel_forge.logging_config import get_logger
@@ -307,7 +309,11 @@ def _check_type(data: Any, expected_type: str, path: str) -> list[str]:
     return errors
 
 
-_SCHEMA_DIR = __import__("pathlib").Path(__file__).parent.parent.parent / "schemas"
+_SCHEMA_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "schemas"
+    if (Path(__file__).resolve().parent.parent.parent / "schemas").exists()
+    else Path(str(resources.files("novel_forge") / "resources" / "schemas"))
+)
 
 
 def _load_schema(name: str) -> dict:

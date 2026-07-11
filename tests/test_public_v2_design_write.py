@@ -35,13 +35,13 @@ class RecordingLLM:
     ) -> dict[str, Any]:
         del system_prompt, schema, seed_offset
         self.calls.append((kind, user_prompt))
-        if kind == "volume_design":
+        if kind == "design.volume.generate":
             return {
                 "title": "第一巻",
                 "premise": "導入",
                 "chapters": [{"title": "第一章", "purpose": "導入"}],
             }
-        if kind == "chapter_design":
+        if kind == "design.chapter.generate":
             return {
                 "title": "第一章",
                 "purpose": "導入",
@@ -59,7 +59,7 @@ class RecordingLLM:
                     "setting": "市立図書館",
                 }],
             }
-        if kind == "scene_design":
+        if kind == "design.scene.generate":
             return {
                 "number": 1,
                 "chapter_number": 1,
@@ -68,17 +68,40 @@ class RecordingLLM:
                 "conflict": "閉館時刻が迫る",
                 "outcome": "封筒を持ち帰る",
             }
-        if kind == "scene_draft":
+        if kind == "write.draft.generate":
             return {"title": "封筒", "content": "澪は返却台の封筒をそっと手に取った。"}
-        if kind == "review":
-            return {"issues": []}
+        if kind == "write.draft.review":
+            return {"ready_for_publication": True, "overall_assessment": "問題なし",
+                    "strengths": [], "issues": [], "revision_guidance": None}
+        if kind == "write.draft.revise":
+            return {"title": "封筒", "content": "澪は返却台の封筒をそっと手に取った。"}
+        if kind.endswith(".review"):
+            return {"ready_for_publication": True, "overall_assessment": "問題なし",
+                    "strengths": [], "issues": [], "revision_guidance": None}
+        if kind.endswith(".revise"):
+            # Mirror the corresponding generate payload shape is unnecessary;
+            # revision is applied on top of the prior artifact.
+            return {"title": "第一巻", "premise": "導入",
+                    "chapters": [{"title": "第一章", "purpose": "導入"}]}
         raise AssertionError(f"unexpected LLM kind: {kind}")
 
 
 def _seeded_engine(tmp_path: Path) -> tuple[NovelEngine, RecordingLLM]:
+    from tests.conftest import make_test_repository
+
     llm = RecordingLLM()
-    engine = NovelEngine(workdir=tmp_path)
-    engine._llm = llm  # type: ignore[assignment]
+    repo, manager, run, lock = make_test_repository(tmp_path)
+    engine = NovelEngine(
+        workdir=tmp_path,
+        model="test-model",
+        llm_client=llm,
+        config={"llm": {"model": "test-model", "timeout_seconds": 10, "max_retries": 3},
+                "quality": {"max_generation_count": 3, "max_review_count": 3}},
+        run=run,
+        repository=repo,
+        manager=manager,
+        workspace_lock=lock,
+    )
     engine._slug = "v2_series"
     engine._move_to_final_dir()
     plan = {
@@ -109,14 +132,15 @@ def test_public_design_and_write_persist_v2_artifacts_and_keep_writer_boundary(t
 
     engine.write(1)
 
-    draft_prompts = [prompt for kind, prompt in llm.calls if kind == "scene_draft"]
+    draft_prompts = [prompt for kind, prompt in llm.calls if kind == "write.draft.generate"]
     assert len(draft_prompts) == 1
     prompt = draft_prompts[0]
     assert "ULTRA_SECRET_PROPOSITION" not in prompt
     assert "canon_events.jsonl" not in prompt
     assert "bible_seed.json" not in prompt
     assert "直前シーン要約" in prompt
-    assert (engine._series_dir / "vol01" / "scene_summaries.json").exists()
+    summ = engine._repository.latest_ready_artifact(engine._slug, "scene_summary", "vol01_summaries")
+    assert summ is not None, "scene summaries must be committed to the runtime"
 
 
 def test_scene_artifact_resolves_declared_pov_before_character_list(tmp_path: Path) -> None:
@@ -204,7 +228,7 @@ def test_write_checkpoints_each_summary_before_a_later_scene_failure(tmp_path: P
 
     def fail_on_second_draft(*args: Any, **kwargs: Any) -> dict[str, Any]:
         nonlocal draft_count
-        if args[0] == "scene_draft":
+        if args[0] == "write.draft.generate":
             draft_count += 1
             if draft_count == 2:
                 raise RuntimeError("simulated interruption")
@@ -214,12 +238,14 @@ def test_write_checkpoints_each_summary_before_a_later_scene_failure(tmp_path: P
     with pytest.raises(RuntimeError, match="simulated interruption"):
         engine.write(1)
 
-    summaries = json.loads((engine._series_dir / "vol01" / "scene_summaries.json").read_text(encoding="utf-8"))
+    summ = engine._repository.latest_ready_artifact(engine._slug, "scene_summary", "vol01_summaries")
+    assert summ is not None
+    summaries = engine._repository.read_payload(summ)
     assert summaries["vol01_ch01_sc001"] == "澪は返却台の封筒をそっと手に取った。"
 
     llm.complete_json = complete_json  # type: ignore[method-assign]
     engine.write(1)
-    resumed_drafts = [prompt for kind, prompt in llm.calls if kind == "scene_draft"]
+    resumed_drafts = [prompt for kind, prompt in llm.calls if kind == "write.draft.generate"]
     assert "澪は返却台の封筒をそっと手に取った。" in resumed_drafts[-1]
 
 

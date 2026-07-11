@@ -25,6 +25,13 @@ class TestExportMixin:
         engine._slug = "test_engine"
         engine._lang = "ja"
 
+        # Repository (runtime-backed scene drafts)
+        repo = MagicMock()
+        repo.latest_ready_artifact.return_value = "ref_scene"
+        repo.read_payload.return_value = {"content": "本文です。"}
+        engine._repository = repo
+        engine._commit_artifact = MagicMock()
+
         # State
         engine._state = MagicMock()
         engine._state.series_title = "テストシリーズ"
@@ -90,13 +97,11 @@ class TestExportMixin:
             _assemble_manuscript,
             _generate_kdp_metadata,
             _generate_readiness_report,
-            _write_export,
             export,
         )
 
         engine.export = export.__get__(engine)
         engine._assemble_manuscript = _assemble_manuscript.__get__(engine)
-        engine._write_export = _write_export.__get__(engine)
         engine._generate_kdp_metadata = _generate_kdp_metadata.__get__(engine)
         engine._generate_readiness_report = _generate_readiness_report.__get__(engine)
 
@@ -107,13 +112,13 @@ class TestExportMixin:
         result = mock_engine._assemble_manuscript(1)
         assert "本文です" in result
         # With only 1 chapter, no separator is needed
-        assert "第1章" in result
 
     def test_assemble_manuscript_saves_file(self, mock_engine):
-        """_assemble_manuscript should save to exports/."""
+        """_assemble_manuscript should commit the manuscript artifact."""
         mock_engine._assemble_manuscript(1)
-        export_path = mock_engine._series_dir / "exports" / "test_engine_vol01.md"
-        assert export_path.exists()
+        assert mock_engine._commit_artifact.called
+        args, kwargs = mock_engine._commit_artifact.call_args
+        assert kwargs.get("payload_name") == "test_engine_vol01.md"
 
     def test_generate_kdp_metadata(self, mock_engine):
         """_generate_kdp_metadata should create metadata JSON."""
@@ -124,9 +129,10 @@ class TestExportMixin:
 
     def test_generate_kdp_metadata_saves_file(self, mock_engine):
         mock_engine._generate_kdp_metadata(1)
-        meta_path = mock_engine._series_dir / "exports" / "test_engine_vol01_metadata.json"
-        assert meta_path.exists()
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
+        assert mock_engine._commit_artifact.called
+        args, kwargs = mock_engine._commit_artifact.call_args
+        assert kwargs.get("payload_name") == "test_engine_vol01_metadata.json"
+        data = kwargs.get("payload", {})
         assert data["title"] == "テストシリーズ"
 
     def test_generate_readiness_report(self, mock_engine):

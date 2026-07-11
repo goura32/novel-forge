@@ -2,31 +2,20 @@
 
 from __future__ import annotations
 
-import contextlib
-import json
 import os
 import re
 import signal
-import sys
-import time
-from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
 
+from novel_forge.config import RuntimeConfig
 from novel_forge.engine import NovelEngine
 from novel_forge.llm_client import load_config
+from novel_forge.runtime import RunHandle, RunLock, RunManager, RunRepository
 
 console = Console()
-
-DEFAULT_MODEL = "qwen3.6:35b-a3b-mtp-q4_K_M"
-_LOCK_FILE_NAME = ".lock"
-_STATE_FILE_NAME = ".novel_forge_state"
-_LOCK_TIMEOUT_SECONDS = 300
-
-
 def _load_config_for_workdir(workdir: Path) -> dict:
     """Load config with runtime precedence: env path > workdir config > cwd search."""
     env_path = os.environ.get("NOVEL_FORGE_CONFIG")
@@ -54,7 +43,7 @@ def _resolve_doctor_defaults(
     """Resolve doctor options with CLI > config > built-in/env precedence."""
     cfg = _load_config_for_workdir(workdir)
     llm_cfg = cfg.get("llm", {})
-    resolved_model = model if model is not None else llm_cfg.get("model") or DEFAULT_MODEL
+    resolved_model = model if model is not None else llm_cfg.get("model") or RuntimeConfig().llm.model
     resolved_host = (
         ollama_host
         if ollama_host is not None
@@ -64,6 +53,7 @@ def _resolve_doctor_defaults(
 
 
 def _is_process_alive(pid: int) -> bool:
+    """Alive check used by PID-identity lock helpers."""
     try:
         os.kill(pid, 0)
         return True
@@ -71,70 +61,6 @@ def _is_process_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
-
-
-def _acquire_lock(series_dir: Path, timeout: float = _LOCK_TIMEOUT_SECONDS) -> Path:
-    """Acquire exclusive lock. Overwrites stale locks immediately."""
-    lock_path = series_dir / _LOCK_FILE_NAME
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Check stale lock
-    if lock_path.exists():
-        try:
-            lock_pid = int(lock_path.read_text().strip())
-        except (ValueError, OSError):
-            lock_pid = 0
-        if lock_pid <= 0 or not _is_process_alive(lock_pid):
-            console.print(f"[yellow]⚠ Stale lock (PID={lock_pid}) detected, removing.[/yellow]")
-            lock_path.unlink(missing_ok=True)
-
-    deadline = time.monotonic() + timeout
-    last_msg = time.monotonic()
-    while True:
-        try:
-            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            try:
-                os.write(fd, str(os.getpid()).encode())
-            finally:
-                os.close(fd)
-            return lock_path
-        except FileExistsError:
-            try:
-                lock_pid = int(lock_path.read_text().strip())
-            except (ValueError, OSError):
-                lock_pid = 0
-            if lock_pid > 0 and _is_process_alive(lock_pid):
-                if time.monotonic() >= deadline:
-                    console.print(
-                        f"[red]✗ Lock held by PID={lock_pid} (waited {timeout:.0f}s). "
-                        f"Another process is running on this series.[/red]"
-                    )
-                    sys.exit(1)
-                now = time.monotonic()
-                if now - last_msg >= 5.0:
-                    waited = now - (deadline - timeout)
-                    console.print(
-                        f"[dim]⏳ Waiting for lock (PID={lock_pid}, waited {waited:.0f}s)...[/dim]"
-                    )
-                    last_msg = now
-                time.sleep(0.5)
-            else:
-                lock_path.unlink(missing_ok=True)
-
-
-def _release_lock(lock_path: Path) -> None:
-    with contextlib.suppress(OSError):
-        lock_path.unlink(missing_ok=True)
-
-
-@contextmanager
-def _series_lock(series_dir: Path) -> Generator[None]:
-    lock_path = _acquire_lock(series_dir)
-    try:
-        yield
-    finally:
-        _release_lock(lock_path)
-
 
 def _find_existing_series(workdir: Path, slug: str | None = None) -> Path:
     """Find existing series directory."""
@@ -165,6 +91,10 @@ def make_engine(
     verbose: bool | None = None,
     phase: str = "",
     series: str = "",
+    run: RunHandle | None = None,
+    repository: RunRepository | None = None,
+    manager: RunManager | None = None,
+    workspace_lock: RunLock | None = None,
 ) -> NovelEngine:
     """Create NovelEngine with signal handlers registered."""
     if series:
@@ -177,6 +107,10 @@ def make_engine(
         max_generation_count=max_generation_count,
         verbose=verbose,
         phase=phase,
+        run=run,
+        repository=repository,
+        manager=manager,
+        workspace_lock=workspace_lock,
     )
 
     _shutdown_requested = False
@@ -189,27 +123,17 @@ def make_engine(
         console.print(
             f"\n[yellow]⚠ Received {sig_name} — shutting down after current step...[/yellow]"
         )
-        state_path = engine._series_dir / _STATE_FILE_NAME
-        state = {
-            "step": "interrupted",
-            "status": f"interrupted_by_{sig_name}",
-            "model": model,
-            "lang": lang,
-            "pid": os.getpid(),
-            "updated_at": time.time(),
-        }
-        with contextlib.suppress(Exception):
-            state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+        if run is not None and repository is not None:
+            repository._append_run_event(
+                run.path,
+                "run.interrupted",
+                {"signal": sig_name, "pid": os.getpid()},
+            )
 
     original_sigterm = signal.signal(signal.SIGTERM, _signal_handler)
     original_sigint = signal.signal(signal.SIGINT, _signal_handler)
     engine._signal_cleanup = (original_sigterm, original_sigint)
     return engine
-
-
-def make_series_lock(series_dir: Path):
-    """Return context manager for series lock."""
-    return _series_lock(series_dir)
 
 
 def cmd_status(engine: NovelEngine) -> None:
@@ -220,22 +144,11 @@ def cmd_status(engine: NovelEngine) -> None:
     table.add_column("Value")
     for k, v in s.items():
         table.add_row(k, str(v))
-    lock_path = engine._series_dir / _LOCK_FILE_NAME
-    if lock_path.exists():
-        try:
-            lock_pid = int(lock_path.read_text().strip())
-            age = time.time() - lock_path.stat().st_mtime
-            if _is_process_alive(lock_pid):
-                table.add_row(f"[bold]🔒 lock: PID={lock_pid} (active, {age:.0f}s ago)[/bold]", "")
-            else:
-                table.add_row(f"[dim]🔒 lock: PID={lock_pid} (stale, {age:.0f}s ago)[/dim]", "")
-        except (ValueError, OSError):
-            table.add_row("[dim]🔒 lock: corrupted[/dim]", "")
     console.print(table)
 
 
 def cmd_doctor(
-    model: str = DEFAULT_MODEL,
+    model: str = RuntimeConfig().llm.model,
     ollama_host: str = "ws1.local:11434",
 ) -> None:
     """Diagnose Ollama connectivity and model readiness."""

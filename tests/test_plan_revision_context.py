@@ -40,7 +40,7 @@ def test_plan_characters_revision_receives_series_concept_context(monkeypatch) -
 
     plan._generate_plan_characters(_engine(prompts), concept, "system", set())
 
-    revision_values = [values for name, values in prompts.calls if name == "series_plan_characters_revision.md"][-1]
+    revision_values = [values for name, values in prompts.calls if name == "plan_characters_revise.md"][-1]
     assert "深淵法廷" in revision_values["concept_text"]
     assert "海底都市の法廷ミステリ" in revision_values["concept_text"]
 
@@ -58,7 +58,7 @@ def test_plan_volumes_revision_receives_series_concept_context(monkeypatch) -> N
 
     plan._generate_plan_volumes(_engine(prompts), concept, characters, "system")
 
-    revision_values = [values for name, values in prompts.calls if name == "series_plan_volumes_revision.md"][-1]
+    revision_values = [values for name, values in prompts.calls if name == "plan_volumes_revise.md"][-1]
     assert "深淵法廷" in revision_values["concept_text"]
     assert "海底都市の法廷ミステリ" in revision_values["concept_text"]
     assert "深海都市" in revision_values["concept_text"]

@@ -15,7 +15,7 @@ from novel_forge.canon.design import ChapterDesign as V2ChapterDesign
 from novel_forge.canon.design import VolumeDesign as V2VolumeDesign
 from novel_forge.canon.public_runtime import V2ProjectRuntime
 from novel_forge.engine.review import format_review_text, generate_and_review
-from novel_forge.schemas import get_schema
+from novel_forge.runtime import get_schema_resource
 
 if TYPE_CHECKING:
     from novel_forge.engine.base import NovelEngineBase
@@ -124,21 +124,17 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     if not slug:
         raise ValueError("Design: slug is empty — run 'plan' first or specify --series")
 
-    plan_path = engine._series_dir / "series_plan.json"
     plan: dict[str, Any] = {}
     total_vol = "?"
     planned_volume_title = ""
-    if plan_path.exists():
-        try:
-            plan = json.loads(plan_path.read_text(encoding="utf-8"))
-            planned_volumes = plan.get("planned_volumes", [])
-            total_vol = str(len(planned_volumes))
-            if isinstance(planned_volumes, list) and 1 <= vol_num <= len(planned_volumes):
-                planned_volume = planned_volumes[vol_num - 1]
-                if isinstance(planned_volume, dict):
-                    planned_volume_title = str(planned_volume.get("title", "") or "")
-        except Exception as exc:
-            engine._log.warning("Failed to read series plan while preparing design: %s", plan_path, exc_info=exc)
+    plan = engine._load_series_plan()
+    if plan:
+        planned_volumes = plan.get("planned_volumes", [])
+        total_vol = str(len(planned_volumes))
+        if isinstance(planned_volumes, list) and 1 <= vol_num <= len(planned_volumes):
+            planned_volume = planned_volumes[vol_num - 1]
+            if isinstance(planned_volume, dict):
+                planned_volume_title = str(planned_volume.get("title", "") or "")
 
     engine._log.info(f"▶ Design: slug='{slug}' vol={vol_num}/{total_vol} PID={os.getpid()}")
     system = engine._prompts.render("system.md", {"lang": engine._lang})
@@ -147,8 +143,8 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
     runtime = V2ProjectRuntime(engine._series_dir)
     canon = runtime.canon()
     default_scope = runtime.default_scope(canon)
-    genre = ", ".join(plan.get("genre", [])) if plan_path.exists() else ""
-    series_plan = json.dumps(plan, ensure_ascii=False, indent=2) if plan_path.exists() else "{}"
+    genre = ", ".join(plan.get("genre", []))
+    series_plan = json.dumps(plan, ensure_ascii=False, indent=2) if plan else "{}"
 
     # Phase 1: Volume design (chapters only - title/purpose)
     engine._log.info(f"  ▶ volume_design — vol={vol_num}/{total_vol}")
@@ -160,7 +156,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 prev_design = prev_vol_path.read_text(encoding="utf-8")
             except Exception as exc:
                 engine._log.warning("Failed to read previous volume design: %s", prev_vol_path, exc_info=exc)
-    volume_schema = get_schema("volume_design")
+    volume_schema = get_schema_resource("design.volume.generate")
     volume_generation_schema = _relax_nested_chapter_purpose_enum(volume_schema)
 
     def _normalize_volume_design(data: dict) -> dict:
@@ -173,12 +169,12 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
     def _generate_volume_design(prompt: str, seed_offset: int) -> dict:
         data = engine._llm.complete_json(
-            "volume_design", system, prompt, volume_generation_schema, seed_offset=seed_offset)
+            "design.volume.generate", system, prompt, volume_generation_schema, seed_offset=seed_offset)
         return _normalize_volume_design(data)
 
     def _revise_volume_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
         revised = engine._llm.complete_json(
-            "volume_design", sys, engine._prompts.render("volume_design_revision.md",
+            "design.volume.revise", sys, engine._prompts.render("design_volume_revise.md",
                 {"concept_text": series_plan, "current_volume": json.dumps(data, ensure_ascii=False, indent=2),
                  "review": format_review_text(review), "previous_design": prev_design,
                  "series_plan": series_plan}),
@@ -192,13 +188,14 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
         review_fn=lambda r, sys: _review_volume_design(engine, r, sys),
         revise_fn=_revise_volume_design,
         system=system,
-        user_prompt=engine._prompts.render("volume_design.md",
+        user_prompt=engine._prompts.render("design_volume_generate.md",
             {"series_plan": series_plan, "volume_number": str(vol_num),
              "volume_title": planned_volume_title or f"第{vol_num}巻", "genre": genre,
              "previous_design": prev_design, "lang": engine._lang,
              "bible": runtime.author_context_text("volume", default_scope, canon)}),
-        kind="volume_design",
+        kind="design.volume",
         llm=engine._llm,
+        engine=engine,
         quality=engine._quality,
     )
     if isinstance(vol_design_data, dict):
@@ -229,7 +226,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 prev_volume_summary = prev_vol.get("summary", "") or prev_vol.get("premise", "")
             except Exception as exc:
                 engine._log.warning("Failed to read previous volume summary: %s", prev_vol_path, exc_info=exc)
-    chapter_schema = get_schema("chapter_design")
+    chapter_schema = get_schema_resource("design.chapter.generate")
     chapter_generation_schema = copy.deepcopy(chapter_schema)
     chapter_generation_schema.get("properties", {}).get("purpose", {}).pop("enum", None)
     purpose_enum = set(chapter_schema.get("properties", {}).get("purpose", {}).get("enum", []))
@@ -248,19 +245,19 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
         def _generate_chapter_design(prompt: str, seed_offset: int) -> dict:
             data = engine._llm.complete_json(
-                "chapter_design", system, prompt, chapter_generation_schema, seed_offset=seed_offset)
+                "design.chapter.generate", system, prompt, chapter_generation_schema, seed_offset=seed_offset)
             return _normalize_invalid_chapter_purpose(data)
 
         def _revise_chapter_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
             revised = engine._llm.complete_json(
-                "chapter_design", sys, engine._prompts.render("chapter_design_revision.md",
+                "design.chapter.revise", sys, engine._prompts.render("design_chapter_revise.md",
                     {"current_chapter": json.dumps(data, ensure_ascii=False, indent=2), "series_plan": series_plan,
                      "review": format_review_text(review)}),
                 chapter_generation_schema, seed_offset=seed_offset)
             # 機械的な before→after 置換は行わない（指摘箇所以外との不整合防止）
             return _normalize_invalid_chapter_purpose(revised)
 
-        ch_prompt = engine._prompts.render("chapter_design.md",
+        ch_prompt = engine._prompts.render("design_chapter_generate.md",
             {"series_plan": series_plan, "volume_number": str(vol_num),
              "volume_title": vol_title, "volume_premise": vol_premise,
              "chapter_number": str(ch_idx), "chapter_title": ch_data.get("title", ""),
@@ -276,7 +273,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                   revise_fn=_revise_chapter_design,
                   system=system,
                   user_prompt=ch_prompt,
-                  kind="chapter_design",
+                  kind="design.chapter",
                   llm=engine._llm,
                   quality=engine._quality,
               )
@@ -304,7 +301,7 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                 [str(name) for name in seed_names if isinstance(name, str)],
                 str(sc_data.get("setting", "")) if isinstance(sc_data, dict) else "",
             )
-            sc_prompt = engine._prompts.render("scene_design.md",
+            sc_prompt = engine._prompts.render("design_scene_generate.md",
                 {"series_plan": series_plan, "volume_number": str(vol_num),
                  "volume_title": vol_title, "volume_premise": vol_premise,
                  "chapter_number": str(ch_num), "scene_number": str(scene_counter),
@@ -324,23 +321,23 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
                  "bible": runtime.author_context_text("scene", scene_scope, canon)})
             def _revise_scene_design(data: dict, review: dict, sys: str, seed_offset: int = 0) -> dict:
                 revised = engine._llm.complete_json(
-                    "scene_design", sys, engine._prompts.render("scene_design_revision.md",
+                    "design.scene.revise", sys, engine._prompts.render("design_scene_revise.md",
                         {"current_scene": json.dumps(data, ensure_ascii=False, indent=2), "series_plan": series_plan,
                          "review": format_review_text(review)}),
-                    get_schema("scene_design"), seed_offset=seed_offset)
+                    get_schema_resource("design.scene.generate"), seed_offset=seed_offset)
                 # 機械的な before→after 置換は行わない（指摘箇所以外との不整合防止）
                 return cast(dict, revised)
 
             scene_obj, _sc_review = generate_and_review(
                           generate_fn=lambda p, s: engine._llm.complete_json(
-                              "scene_design", system, p, get_schema("scene_design"),
+                              "design.scene.generate", system, p, get_schema_resource("design.scene.generate"),
                               seed_offset=s),
                           validate_fn=_validate_scene_design,
                           review_fn=lambda r, sys: _review_scene_design(engine, r, sys),
                           revise_fn=_revise_scene_design,
                           system=system,
                           user_prompt=sc_prompt,
-                          kind="scene_design",
+                          kind="design.scene",
                           llm=engine._llm,
                           quality=engine._quality,
                       )
@@ -437,31 +434,31 @@ def design(engine: NovelEngineBase, volume_number: int | None = None) -> dict[st
 
 def _review_volume_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = json.dumps(data, ensure_ascii=False, indent=2)
-    user = engine._prompts.render("volume_design_review.md",
+    user = engine._prompts.render("design_volume_review.md",
         {"design": text, "concept_text": _series_plan_text(engine), "lang": engine._lang})
-    return engine._llm.complete_json("review", system, user, get_schema("review"))
+    return engine._llm.complete_json("design.volume.review", system, user)
 
 
 def _review_chapter_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = json.dumps(data, ensure_ascii=False, indent=2)
-    user = engine._prompts.render("chapter_design_review.md",
+    user = engine._prompts.render("design_chapter_review.md",
         {"design": text, "series_plan": _series_plan_text(engine), "lang": engine._lang})
-    return engine._llm.complete_json("review", system, user, get_schema("review"))
+    return engine._llm.complete_json("design.chapter.review", system, user)
 
 
 def _review_scene_design(engine: NovelEngineBase, data: dict, system: str) -> dict:
     text = json.dumps(data, ensure_ascii=False, indent=2)
-    user = engine._prompts.render("scene_design_review.md",
+    user = engine._prompts.render("design_scene_review.md",
         {"design": text, "series_plan": _series_plan_text(engine), "lang": engine._lang})
-    return engine._llm.complete_json("review", system, user, get_schema("review"))
+    return engine._llm.complete_json("design.scene.review", system, user)
 
 
 def _series_plan_text(engine: NovelEngineBase) -> str:
-    path = engine._series_dir / "series_plan.json"
-    if not path.exists():
+    plan = engine._load_series_plan()
+    if not plan:
         return "{}"
     try:
-        return json.dumps(json.loads(path.read_text(encoding="utf-8")), ensure_ascii=False, indent=2)
+        return json.dumps(plan, ensure_ascii=False, indent=2)
     except (OSError, json.JSONDecodeError):
         return "{}"
 

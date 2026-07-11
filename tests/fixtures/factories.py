@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-def series_plan_concept_data(**overrides: Any) -> dict[str, Any]:
+def plan_concept_data(**overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "title": "Test Series Title That Is Definitely Long Enough To Pass Validation",
         "slug": "test_series",
@@ -27,7 +27,7 @@ def series_plan_concept_data(**overrides: Any) -> dict[str, Any]:
     return data
 
 
-def volume_design_data(**overrides: Any) -> dict[str, Any]:
+def design_volume_data(**overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {
         "title": "第一巻 旅立ちの朝",
         "premise": "主人公が故郷を出て、仲間との出会いと最初の試練を通じて自分の使命を知る巻。物語全体の導入として世界観、対立軸、主要人物の関係性を提示し、終盤で次巻へ続く新たな危機を示す。",
@@ -42,7 +42,7 @@ def volume_design_data(**overrides: Any) -> dict[str, Any]:
     return data
 
 
-def review_data(**overrides: Any) -> dict[str, Any]:
+def review_issues_data(**overrides: Any) -> dict[str, Any]:
     data: dict[str, Any] = {"issues": []}
     data.update(overrides)
     return data

@@ -157,17 +157,17 @@ class TestParseJsonResponse:
 class TestValidate:
     def test_valid_data_passes(self):
         data = {"title": "Test", "slug": "test_series", "logline": "A story", "genre": ["fantasy"], "themes": ["love"], "selling_points": ["unique"], "world_summary": "World", "world_rules": ["rule1"], "target_audience": "adults"}
-        errors = validate("series_plan_concept", data)
+        errors = validate("plan_concept", data)
         assert errors == []
 
     def test_missing_required_field(self):
         data = {"title": "Test"}
-        errors = validate("series_plan_concept", data)
+        errors = validate("plan_concept", data)
         assert any("required field missing" in e for e in errors)
 
     def test_wrong_type(self):
         data = {"title": "Test", "slug": "test", "logline": "A", "genre": "not-array", "themes": [], "selling_points": [], "world_summary": "W", "world_rules": [], "target_audience": "A"}
-        errors = validate("series_plan_concept", data)
+        errors = validate("plan_concept", data)
         assert any("expected array" in e for e in errors)
 
     def test_review_schema_limits_issue_count(self):
@@ -181,21 +181,21 @@ class TestValidate:
         }
         data = {"issues": [issue for _ in range(9)]}
 
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
 
         assert any("issues: array length 9 > maxItems 8" in e for e in errors)
         assert not any("maxLength" in e for e in errors)
 
     def test_enum_validation(self):
         data = {"chapters": [{"title": "Ch1", "purpose": "invalid"}]}
-        errors = validate("volume_design", data)
+        errors = validate("design_volume", data)
         assert any("not in enum" in e for e in errors)
 
     def test_min_items(self):
         # After schema relaxation: minItems constraints moved to description.
         # This test now verifies that validation passes without minItems enforcement.
         data = {"chapters": [{"title": "Ch1", "purpose": "導入"}]}
-        errors = validate("volume_design", data)
+        errors = validate("design_volume", data)
         # Should not have minItems errors (constraint removed from schema)
         assert not any("minItems" in e for e in errors)
 
@@ -205,12 +205,12 @@ class TestValidate:
 
     def test_validate_or_raise_valid(self):
         data = {"title": "Test", "slug": "test", "logline": "A", "genre": ["f"], "themes": ["t"], "selling_points": ["s"], "world_summary": "W", "world_rules": ["r"], "target_audience": "A"}
-        validate_or_raise("series_plan_concept", data)  # Should not raise
+        validate_or_raise("plan_concept", data)  # Should not raise
 
     def test_validate_or_raise_invalid(self):
         data = {"title": "Test"}
         with pytest.raises(ValidationError):
-            validate_or_raise("series_plan_concept", data)
+            validate_or_raise("plan_concept", data)
 
 
 # ── JsonParseError ─────────────────────────────────────────────────────

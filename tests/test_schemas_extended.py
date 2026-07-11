@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 import pytest
-from fixtures.factories import series_plan_concept_data, volume_design_data
+from fixtures.factories import design_volume_data, plan_concept_data
 
 from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_raise
 
@@ -20,14 +20,14 @@ class TestListSchemas:
     def test_contains_core_schemas(self):
         schemas = list_schemas()
         expected = [
-            "series_plan_concept",
-            "series_plan_characters",
-            "series_plan_volumes",
-            "volume_design",
-            "chapter_design",
-            "scene_design",
-            "scene_draft",
-            "review",
+            "plan_concept",
+            "plan_characters",
+            "plan_volumes",
+            "design_volume",
+            "design_chapter",
+            "design_scene",
+            "write_draft",
+            "review_issues",
         ]
         for name in expected:
             assert name in schemas, f"Missing schema: {name}"
@@ -46,7 +46,7 @@ class TestListSchemas:
 
 class TestGetSchema:
     def test_returns_valid_schema(self):
-        schema = get_schema("series_plan_concept")
+        schema = get_schema("plan_concept")
         assert "properties" in schema
         assert "title" in schema["properties"]
 
@@ -60,17 +60,17 @@ class TestGetSchema:
 
 class TestValidate:
     def test_valid_series_plan(self):
-        data = series_plan_concept_data()
-        errors = validate("series_plan_concept", data)
+        data = plan_concept_data()
+        errors = validate("plan_concept", data)
         assert len(errors) == 0
 
     def test_missing_required_field(self):
         data = {"title": "Test"}
-        errors = validate("series_plan_concept", data)
+        errors = validate("plan_concept", data)
         assert len(errors) > 0
 
     def test_empty_data(self):
-        errors = validate("series_plan_concept", {})
+        errors = validate("plan_concept", {})
         assert len(errors) > 0
 
     def test_unknown_schema_name_returns_error(self):
@@ -79,16 +79,16 @@ class TestValidate:
 
     def test_extra_fields_allowed(self):
         """Schemas should tolerate harmless unknown LLM fields."""
-        data = series_plan_concept_data(extra_field="should be ignored by consumers")
-        errors = validate("series_plan_concept", data)
+        data = plan_concept_data(extra_field="should be ignored by consumers")
+        errors = validate("plan_concept", data)
         assert errors == []
 
     def test_object_for_array_field_logs_warning(self, caplog):
-        data = series_plan_concept_data()
+        data = plan_concept_data()
         data["themes"] = {"unexpected": "object"}
 
         with caplog.at_level(logging.WARNING, logger="novel_forge.schemas"):
-            validate("series_plan_concept", data)
+            validate("plan_concept", data)
 
         assert "Coerced schema array field 'themes' from object to []" in caplog.text
 
@@ -103,7 +103,7 @@ class TestValidate:
             "selling_points": ["Unique"],
             "world": {"summary": "World", "rules": []},
         }
-        errors = validate("series_plan_concept", data)
+        errors = validate("plan_concept", data)
         assert len(errors) > 0
 
     def test_valid_scene_draft(self):
@@ -111,7 +111,7 @@ class TestValidate:
             "title": "シーン1",
             "content": "これはテストシーンの本文です。" * 200,
         }
-        errors = validate("scene_draft", data)
+        errors = validate("write_draft", data)
         assert len(errors) == 0
 
     def test_valid_scene_draft_revision(self):
@@ -120,12 +120,12 @@ class TestValidate:
             "title": "シーン1改訂",
             "content": "改訂された本文です。" * 400,
         }
-        errors = validate("scene_draft", data)
+        errors = validate("write_draft", data)
         assert len(errors) == 0
 
     def test_valid_review(self):
         data = {"issues": []}
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert len(errors) == 0
 
     def test_scene_review_with_issues(self):
@@ -141,7 +141,7 @@ class TestValidate:
                 }
             ],
         }
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert len(errors) == 0
 
     def test_review_allows_empty_before_for_missing_field_issue(self):
@@ -157,7 +157,7 @@ class TestValidate:
                 }
             ],
         }
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert errors == []
 
     def test_review_allows_empty_after_at_schema_level(self):
@@ -173,7 +173,7 @@ class TestValidate:
                 }
             ],
         }
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert errors == []
 
     def test_review_tolerates_legacy_readiness_fields_at_schema_level(self):
@@ -183,7 +183,7 @@ class TestValidate:
             "strengths": ["葛藤は明確"],
             "issues": [],
         }
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert errors == []
 
     def test_review_tolerates_legacy_publication_blocking_issue_field_at_schema_level(self):
@@ -200,7 +200,7 @@ class TestValidate:
                 }
             ],
         }
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert errors == []
 
     def test_review_allows_single_actionable_minor_issue(self):
@@ -216,12 +216,12 @@ class TestValidate:
                 }
             ],
         }
-        errors = validate("review", data)
+        errors = validate("review_issues", data)
         assert errors == []
 
     def test_valid_volume_design(self):
-        data = volume_design_data()
-        errors = validate("volume_design", data)
+        data = design_volume_data()
+        errors = validate("design_volume", data)
         assert len(errors) == 0
 
     def test_valid_chapter_design(self):
@@ -268,7 +268,7 @@ class TestValidate:
                 }
             ]
         }
-        errors = validate("chapter_design", data)
+        errors = validate("design_chapter", data)
         assert len(errors) == 0
 
     def test_chapter_design_coerces_enum_prefix_purpose(self):
@@ -296,7 +296,7 @@ class TestValidate:
             ],
         }
 
-        errors = validate("chapter_design", data)
+        errors = validate("design_chapter", data)
 
         assert len(errors) == 0
         assert data["purpose"] == "導入"
@@ -316,7 +316,7 @@ class TestValidate:
             "emotional_arc": "不安から決意へ",
             "ending_hook": "門の外で地図と同じ印が光る。"
         }
-        errors = validate("scene_design", data)
+        errors = validate("design_scene", data)
         assert len(errors) == 0
 
     def test_unknown_schema_returns_error(self):
@@ -342,12 +342,12 @@ class TestValidateOrRaise:
             "world_rules": ["magic requires sacrifice of something precious", "ancient laws govern all spellcasting and violations are punished severely"],
         }
         # Should not raise
-        validate_or_raise("series_plan_concept", data)
+        validate_or_raise("plan_concept", data)
 
     def test_invalid_data_raises(self):
         data = {"title": "Test"}
         with pytest.raises(Exception, match="Schema validation failed"):
-            validate_or_raise("series_plan_concept", data)
+            validate_or_raise("plan_concept", data)
 
 
 # ── Schema field coverage ──────────────────────────────────────────────
@@ -357,39 +357,39 @@ class TestSchemaFieldCoverage:
     """Verify that all expected schemas have the right fields."""
 
     def test_series_plan_concept_has_world(self):
-        schema = get_schema("series_plan_concept")
+        schema = get_schema("plan_concept")
         assert "world_summary" in schema["properties"]
         assert "world_rules" in schema["properties"]
 
     def test_series_plan_concept_has_slug(self):
-        schema = get_schema("series_plan_concept")
+        schema = get_schema("plan_concept")
         assert "slug" in schema["properties"]
 
     def test_series_plan_concept_has_title(self):
-        schema = get_schema("series_plan_concept")
+        schema = get_schema("plan_concept")
         assert "title" in schema["properties"]
 
     def test_volume_design_has_chapters(self):
-        schema = get_schema("volume_design")
+        schema = get_schema("design_volume")
         assert "chapters" in schema["properties"]
 
     def test_chapter_design_has_theme(self):
-        schema = get_schema("chapter_design")
+        schema = get_schema("design_chapter")
         assert "theme" in schema["properties"]
 
     def test_chapter_design_has_emotional_arc(self):
-        schema = get_schema("chapter_design")
+        schema = get_schema("design_chapter")
         assert "emotional_arc" in schema["properties"]
 
     def test_scene_design_has_pov(self):
-        schema = get_schema("scene_design")
+        schema = get_schema("design_scene")
         assert "pov" in schema["properties"]
 
     def test_scene_design_has_characters(self):
-        schema = get_schema("scene_design")
+        schema = get_schema("design_scene")
         assert "characters" in schema["properties"]
 
     def test_scene_review_has_issues(self):
-        schema = get_schema("review")
+        schema = get_schema("review_issues")
         props = schema["properties"]
         assert "issues" in props

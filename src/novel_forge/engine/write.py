@@ -13,7 +13,7 @@ from typing import Any
 from novel_forge.canon.design import SceneDesign
 from novel_forge.canon.public_runtime import V2ProjectRuntime
 from novel_forge.llm_client import LLMError
-from novel_forge.schemas import get_schema
+from novel_forge.runtime import get_schema_resource
 
 
 def _scene_brief(scene: SceneDesign) -> dict[str, Any]:
@@ -33,6 +33,22 @@ def _summary_path(engine, volume: int):
 
 
 def _load_summaries(engine, volume: int) -> dict[str, str]:
+    """Load persisted scene summaries, preferring the runtime artifact.
+
+    Summaries are committed to the immutable runtime; fall back to the legacy
+    flat ``scene_summaries.json`` only for non-runtime callers.
+    """
+    repo = getattr(engine, "_repository", None)
+    slug = getattr(engine, "_slug", None)
+    if repo is not None and slug:
+        try:
+            ref = repo.latest_ready_artifact(slug, "scene_summary", f"vol{volume:02d}_summaries")
+            if ref is not None:
+                payload = repo.read_payload(ref)
+                if isinstance(payload, dict):
+                    return {str(k): str(v) for k, v in payload.items()}
+        except Exception:  # pragma: no cover - defensive
+            pass
     path = _summary_path(engine, volume)
     if not path.exists():
         return {}
@@ -42,21 +58,6 @@ def _load_summaries(engine, volume: int) -> dict[str, str]:
     except (OSError, json.JSONDecodeError):
         return {}
 
-
-def _save_summaries(engine, volume: int, summaries: dict[str, str]) -> None:
-    path = _summary_path(engine, volume)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
-
-
-def _write_draft(engine, volume: int, scene: SceneDesign, content: str, version: int = 1) -> str:
-    ch_dir = engine._series_dir / f"vol{volume:02d}" / f"vol{volume:02d}_ch{scene.chapter_number:02d}"
-    ch_dir.mkdir(parents=True, exist_ok=True)
-    path = ch_dir / f"vol{volume:02d}_ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}_v{version}.md"
-    path.write_text(content, encoding="utf-8")
-    return str(path)
 
 
 def _revise_scene_draft(engine, scene: SceneDesign, writer_context: str, brief: str,
@@ -69,10 +70,9 @@ def _revise_scene_draft(engine, scene: SceneDesign, writer_context: str, brief: 
             "scene_brief": brief,
             "scene": content,
             "review": json.dumps(review, ensure_ascii=False, indent=2),
-            "schema": json.dumps(get_schema("scene_draft"), ensure_ascii=False),
         },
     )
-    revised = engine._llm.complete_json("scene_draft", system, prompt, get_schema("scene_draft"), seed_offset=seed_offset)
+    revised = engine._llm.complete_json("write.draft.revise", system, prompt)
     return str(revised.get("content", content))
 
 
@@ -111,35 +111,45 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
                 "writer_context": writer_context,
                 "scene_brief": brief,
                 "previous_scene_summary": previous_summary,
-                "schema": json.dumps(get_schema("scene_draft"), ensure_ascii=False),
+                "schema": json.dumps(get_schema_resource("write.draft.generate"), ensure_ascii=False),
             },
         )
-        generated = engine._llm.complete_json("scene_draft", system, prompt, get_schema("scene_draft"))
+        engine._begin_attempt(f"write.draft.generate.ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}", "scene draft")
+        generated = engine._llm.complete_json("write.draft.generate", system, prompt)
         content = str(generated.get("content", ""))
+        draft_ak = f"vol{vol_num:02d}_ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}"
+        draft_name = f"{draft_ak}.md"
+        draft_artifact = engine._commit_artifact(
+            artifact_type="scene_draft",
+            logical_key=draft_ak,
+            payload={"content": content},
+            payload_name=draft_name,
+        )
 
+        engine._begin_attempt(f"write.draft.review.ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}", "scene review")
         review_prompt = engine._prompts.render(
             "scene_review_v2.md",
             {
                 "writer_context": writer_context,
                 "scene_brief": brief,
                 "scene": content,
-                "schema": json.dumps(get_schema("review"), ensure_ascii=False),
+                "schema": json.dumps(get_schema_resource("write.draft.review"), ensure_ascii=False),
             },
         )
         try:
-            review = engine._llm.complete_json("review", system, review_prompt, get_schema("review"))
+            review = engine._llm.complete_json("write.draft.review", system, review_prompt)
         except LLMError as e:
             engine._log.warning("  [REVIEW ERROR] scene_draft: %s — 本文を維持して強制出力します", str(e)[:120])
             review = {"issues": []}
             qg_result = engine._quality.check_scene(review)
             record.status = "強制出力済"
             record.draft_version = 1
-            record.draft_path = _write_draft(engine, vol_num, scene, content, version=1)
+            record.draft_path = str(draft_artifact)
             record.quality_retries = 1
             record.quality_gate = qg_result
             summary = content[:500].strip() or "（本文なし）"
             summaries[scene.scene_id] = summary
-            _save_summaries(engine, vol_num, summaries)
+            engine._commit_artifact(artifact_type="scene_summary", logical_key=f"vol{vol_num:02d}_summaries", payload=dict(summaries), payload_name="scene_summaries.json")
             previous_summary = summary
             results.append({"scene_id": scene.scene_id, "scene_number": scene.scene_number, "status": record.status})
             engine._save()
@@ -156,8 +166,15 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
         max_revisions = engine._quality.review_max_count
         while not passed and revision_cycle < max_revisions:
             try:
+                engine._begin_attempt(f"write.draft.revise.ch{scene.chapter_number:02d}_sc{scene.scene_number:02d}", "scene revise")
                 content = _revise_scene_draft(
                     engine, scene, writer_context, brief, content, review, system, seed_offset=revision_cycle + 1
+                )
+                draft_artifact = engine._commit_artifact(
+                    artifact_type="scene_draft",
+                    logical_key=draft_ak,
+                    payload={"content": content},
+                    payload_name=draft_name,
                 )
             except LLMError as e:
                 engine._log.warning("  [REVISE ERROR] scene_draft: %s — 改訂を断念します", str(e)[:120])
@@ -169,10 +186,10 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
                         "writer_context": writer_context,
                         "scene_brief": brief,
                         "scene": content,
-                        "schema": json.dumps(get_schema("review"), ensure_ascii=False),
+                        "schema": json.dumps(get_schema_resource("write.draft.review"), ensure_ascii=False),
                     },
                 )
-                review = engine._llm.complete_json("review", system, review_prompt, get_schema("review"))
+                review = engine._llm.complete_json("write.draft.review", system, review_prompt)
             except LLMError as e:
                 engine._log.warning("  [REVIEW ERROR] scene_draft: %s — 改訂結果を維持して強制出力します", str(e)[:120])
                 review = {"issues": []}
@@ -192,7 +209,7 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
 
         record.status = "修正済" if passed else "強制出力済"
         record.draft_version = 1 + revision_cycle
-        record.draft_path = _write_draft(engine, vol_num, scene, content, version=record.draft_version)
+        record.draft_path = str(draft_artifact)
         record.quality_retries = 1 + revision_cycle
         record.quality_gate = qg_result
 
@@ -200,12 +217,11 @@ def write(engine, volume_number: int | None = None) -> list[dict[str, Any]]:
         # Canon data and is intentionally derived without reopening the draft.
         summary = content[:500].strip() or "（本文なし）"
         summaries[scene.scene_id] = summary
-        _save_summaries(engine, vol_num, summaries)
+        engine._commit_artifact(artifact_type="scene_summary", logical_key=f"vol{vol_num:02d}_summaries", payload=dict(summaries), payload_name="scene_summaries.json")
         previous_summary = summary
         results.append({"scene_id": scene.scene_id, "scene_number": scene.scene_number, "status": record.status})
         engine._save()
 
-    _save_summaries(engine, vol_num, summaries)
     vol.status = "初稿済"
     engine._state.status = "初稿済"
     engine._save()

@@ -12,17 +12,24 @@ class TestWriteResumeCheckpoint:
 
     def test_save_called_more_than_once_per_volume(self, tmp_path):
         """write() should checkpoint each completed scene before final volume save."""
-        from novel_forge.engine.base import NovelEngineBase
+        from novel_forge.engine import NovelEngine
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
-        from novel_forge.storage import StateStorage
+        from tests.conftest import make_test_repository
 
         (tmp_path / "series_plan.json").write_text(
             '{"title":"Test","genre":["fantasy"]}', encoding="utf-8"
         )
-        engine = NovelEngineBase(
+        repo, manager, run, lock = make_test_repository(tmp_path)
+        engine = NovelEngine(
             workdir=tmp_path,
-            phase="write",
-            storage=StateStorage(tmp_path),
+            model="test-model",
+            llm_client=MagicMock(),
+            config={"llm": {"model": "test-model", "timeout_seconds": 10, "max_retries": 3},
+                    "quality": {"max_generation_count": 3, "max_review_count": 3}},
+            run=run,
+            repository=repo,
+            manager=manager,
+            workspace_lock=lock,
         )
         engine._state = ProjectState(series_title="Test", status="計画中", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="計画中")
@@ -84,9 +91,9 @@ class TestWriteResumeCheckpoint:
             nonlocal call_count
             call_count += 1
             kind = args[0] if args else kwargs.get("kind", "")
-            if kind == "scene_draft":
+            if kind == "write.draft.generate":
                 return {"title": f"シーン{call_count}", "content": "*" * 3000}
-            if kind == "review":
+            if kind == "write.draft.review":
                 return {
                     "ready_for_publication": True,
                     "overall_assessment": "問題なし",
@@ -176,23 +183,23 @@ class TestExportPreflight:
             export_fn(engine, volume_number=1)
 
     def test_export_rejects_empty_scene_draft(self, tmp_path):
-        """If a designed scene draft file is empty, export should stop."""
+        """If a designed scene draft is empty, export should stop."""
         from novel_forge.engine.base import NovelEngineBase
         from novel_forge.models import ProjectState, SceneRecord, VolumeProgress
         from novel_forge.storage import StateStorage
+        from tests.conftest import make_test_repository
 
-        (tmp_path / "series_plan.json").write_text(
-            '{"title":"T","genre":["fantasy"]}', encoding="utf-8"
-        )
-        ch_dir = tmp_path / "vol01" / "vol01_ch01"
-        ch_dir.mkdir(parents=True)
-        (ch_dir / "vol01_ch01_sc01_v1.md").write_text("   \n", encoding="utf-8")
-
+        repo, manager, run, lock = make_test_repository(tmp_path)
         engine = NovelEngineBase(
             workdir=tmp_path,
             phase="export",
             storage=StateStorage(tmp_path),
+            run=run,
+            repository=repo,
+            manager=manager,
+            workspace_lock=lock,
         )
+        engine._slug = "test_series"
         engine._state = ProjectState(series_title="Test", status="初稿済", current_volume=1)
         vol = VolumeProgress(volume_number=1, status="初稿済")
         vol.scenes.append(SceneRecord(scene_number=1, status="修正済"))
@@ -206,6 +213,14 @@ class TestExportPreflight:
                 "chapters": [{"number": 1, "scenes": [{"chapter_number": 1, "scene_number": 1}]}],
                 "scenes": [{"number": 1, "chapter_number": 1, "title": "シーン1"}],
             },
+        )
+        # Seed an EMPTY scene draft in the runtime so preflight sees it but rejects.
+        engine._begin_attempt("write.draft.generate", "seed-empty")
+        engine._commit_artifact(
+            artifact_type="scene_draft",
+            logical_key="vol01_ch01_sc01",
+            payload={"content": "   \n"},
+            payload_name="vol01_ch01_sc01.md",
         )
 
         from novel_forge.engine.export import export as export_fn

@@ -49,30 +49,29 @@ class PromptManager:
 
 
 def _infer_schema_name(prompt_stem: str) -> str:
-    """Infer output schema name from a prompt template stem."""
-    # v2 prompt templates intentionally retain the externally compatible draft
-    # and review response schemas while changing only the input boundary.
+    """Infer output schema name from a prompt template stem.
+
+    task_registry convention: prompt filename = "{resource_stem}_{operation}.md"
+      - operation in (generate, revise) -> schema stem = resource_stem
+      - operation == review            -> schema = review_issues
+    v2 continuity-handoff files keep their externally compatible schemas:
+      - scene_draft_v2    -> write_draft
+      - scene_review_v2   -> review_issues
+      - scene_revision_v2 -> write_draft
+    """
     v2_map = {
-        "scene_draft_v2": "scene_draft",
-        "scene_review_v2": "review",
+        "scene_draft_v2": "write_draft",
+        "scene_review_v2": "review_issues",
+        "scene_revision_v2": "write_draft",
     }
     if prompt_stem in v2_map:
         return v2_map[prompt_stem]
     if prompt_stem.endswith("_review"):
-        return "review"
-    revision_map = {
-        "chapter_design_revision": "chapter_design",
-        "scene_design_revision": "scene_design",
-        "volume_design_revision": "volume_design",
-        "series_plan_concept_revision": "series_plan_concept",
-        "series_plan_characters_revision": "series_plan_characters",
-        "series_plan_volumes_revision": "series_plan_volumes",
-        "scene_revision": "scene_draft",
-    }
-    if prompt_stem in revision_map:
-        return revision_map[prompt_stem]
-    if prompt_stem.endswith("_revision"):
-        return prompt_stem[: -len("_revision")]
+        return "review_issues"
+    if prompt_stem.endswith("_revise"):
+        return prompt_stem[: -len("_revise")]
+    if prompt_stem.endswith("_generate"):
+        return prompt_stem[: -len("_generate")]
     return prompt_stem
 
 

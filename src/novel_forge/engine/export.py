@@ -6,8 +6,7 @@ No mixin classes.
 
 from __future__ import annotations
 
-import json
-from typing import Any, cast
+from typing import Any
 
 from novel_forge.canon.store import CanonEventStore
 from novel_forge.semantic_validators import validate_volume_design_semantics
@@ -15,48 +14,10 @@ from novel_forge.semantic_validators import validate_volume_design_semantics
 _SLUG_DEFAULT = "vol"
 
 
-def export(engine, volume_number: int | None = None) -> dict[str, Any]:
-    """Export manuscript for KDP."""
-    vol_num = volume_number or engine.state.current_volume
-    engine.state.current_volume = vol_num
-    slug = getattr(engine, "_slug", "?")
-    engine._log.info(f"Export started: volume={vol_num} slug='{slug}'")
-    vol = engine._current_volume()
-
-    # NOTE: Bible は design 段階で更新済。export は bible を参照・更新しない
-    # （runtime discovery 禁止の原則）。未回収伏線・未完サブプロットは
-    # v2 Canon（canon/ 配下の event-sourced store）から回収して読む。
-
-    _export_preflight(engine, vol_num)
-    _assemble_manuscript(engine, vol_num)
-    _generate_kdp_metadata(engine, vol_num)
-    _generate_readiness_report(engine, vol_num)
-
-    vol.status = "出力済"
-    engine._state.status = vol.status
-    engine._save()
-
-    exports_dir = engine._series_dir / "exports"
-    exports_dir.mkdir(parents=True, exist_ok=True)
-    engine._log.info(f"✓ Export: series='{vol_num}")
-    return {
-        "manuscript_path": str(exports_dir / f"{slug}_vol{vol_num:02d}.md"),
-        "metadata_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_metadata.json"),
-        "report_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md"),
-    }
-
-
-def _write_export(engine, filename: str, content: str) -> None:
-    exports_dir = engine._series_dir / "exports"
-    exports_dir.mkdir(parents=True, exist_ok=True)
-    (exports_dir / filename).write_text(content, encoding="utf-8")
-
-
 def _export_preflight(engine, vol_num: int) -> None:
-    """Validate volume artifacts before writing KDP export files."""
+    """Verify the volume is complete before assembling the manuscript."""
     errors: list[str] = []
     vol = engine._current_volume()
-
     incomplete = [
         s.scene_number
         for s in vol.scenes
@@ -94,18 +55,36 @@ def _export_preflight(engine, vol_num: int) -> None:
         raise ValueError("Export preflight failed: " + "; ".join(errors))
 
 
-def resume(engine) -> dict[str, Any]:
-    """Resume from the last interrupted phase."""
+def export(engine, volume_number: int | None = None) -> dict[str, Any]:
+    """Export manuscript for KDP."""
+    vol_num = volume_number or engine.state.current_volume
+    engine.state.current_volume = vol_num
+    slug = getattr(engine, "_slug", "?")
+    engine._log.info(f"Export started: volume={vol_num} slug='{slug}'")
     vol = engine._current_volume()
-    if vol.status in ("執筆中", "初稿済"):
-        return {"action": "write", "status": vol.status}
-    if engine._state.status == "計画中":
-        return {"action": "plan", "status": engine._state.status}
-    if engine._state.status in ("企画済", "デザイン済"):
-        return {"action": "design", "status": engine._state.status}
-    if engine._state.status in ("出力済", "強制出力済"):
-        return {"action": "export", "status": engine._state.status}
-    return {"action": "plan", "status": engine._state.status}
+
+    # NOTE: Bible は design 段階で更新済。export は bible を参照・更新しない
+    # （runtime discovery 禁止の原則）。未回収伏線・未完サブプロットは
+    # v2 Canon（canon/ 配下の event-sourced store）から回収して読む。
+
+    _export_preflight(engine, vol_num)
+    _assemble_manuscript(engine, vol_num)
+    _generate_kdp_metadata(engine, vol_num)
+    _generate_readiness_report(engine, vol_num)
+
+    vol.status = "出力済"
+    engine._state.status = vol.status
+    engine._save()
+
+    exports_dir = engine._series_dir / "exports"
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    engine._log.info(f"✓ Export: series='{vol_num}")
+    return {
+        "manuscript_path": str(exports_dir / f"{slug}_vol{vol_num:02d}.md"),
+        "metadata_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_metadata.json"),
+        "report_path": str(exports_dir / f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md"),
+    }
+
 
 
 def status(engine) -> dict[str, Any]:
@@ -137,7 +116,7 @@ def _assemble_manuscript(engine, vol_num: int) -> str:
         chapters.append("\n\n".join(scenes_by_chapter[chapter_number]))
     manuscript = "\n\n---\n\n".join(chapters)
     slug = getattr(engine, "_slug", _SLUG_DEFAULT)
-    _write_export(engine, f"{slug}_vol{vol_num:02d}.md", manuscript)
+    engine._commit_artifact(artifact_type="manuscript", logical_key=f"vol{vol_num:02d}", payload={"content": manuscript}, payload_name=f"{slug}_vol{vol_num:02d}.md")
     return manuscript
 
 
@@ -171,35 +150,28 @@ def _expected_scene_refs(design_data: dict[str, Any]) -> list[tuple[int, int]]:
 def _read_scene_draft(
     engine, vol_num: int, chapter_number: int, scene_number: int
 ) -> str | None:
-    ch_dir = engine._series_dir / f"vol{vol_num:02d}" / f"vol{vol_num:02d}_ch{chapter_number:02d}"
-    candidates = sorted(
-        ch_dir.glob(f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}_v*.md")
-    )
-    if candidates:
-        return cast(str, candidates[-1].read_text(encoding="utf-8"))
-    plain = ch_dir / f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}.md"
-    if plain.exists():
-        return cast(str, plain.read_text(encoding="utf-8"))
-    return None
+    if engine._repository is None:
+        return None
+    ak = f"vol{vol_num:02d}_ch{chapter_number:02d}_sc{scene_number:02d}"
+    ref = engine._repository.latest_ready_artifact(engine._slug, "scene_draft", ak)
+    if ref is None:
+        return None
+    payload = engine._repository.read_payload(ref)
+    return str(payload.get("content", "")) if isinstance(payload, dict) else str(payload)
 
 
 def _generate_kdp_metadata(engine, vol_num: int) -> dict[str, Any]:
-    plan_path = engine._series_dir / "series_plan.json"
     title = engine._state.series_title
-    if plan_path.exists():
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
-        title = plan.get("title", title)
+    plan = engine._load_series_plan()
+    if isinstance(plan, dict) and plan.get("title"):
+        title = plan["title"]
     metadata = {
         "title": title,
         "volume": vol_num,
         "language": engine._lang,
     }
     slug = getattr(engine, "_slug", _SLUG_DEFAULT)
-    _write_export(
-        engine,
-        f"{slug}_vol{vol_num:02d}_metadata.json",
-        json.dumps(metadata, ensure_ascii=False, indent=2),
-    )
+    engine._commit_artifact(artifact_type="export_metadata", logical_key=f"vol{vol_num:02d}", payload=metadata, payload_name=f"{slug}_vol{vol_num:02d}_metadata.json")
     return metadata
 
 
@@ -219,13 +191,9 @@ def _final_review_issues(scene: Any) -> list[dict[str, Any]]:
 def _report_series_title(engine) -> str:
     """Use the planned title when state has not been populated yet."""
     title = str(engine._state.series_title or "")
-    plan_path = engine._series_dir / "series_plan.json"
-    if plan_path.exists():
-        try:
-            plan = json.loads(plan_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            plan = {}
-        planned_title = plan.get("title") if isinstance(plan, dict) else None
+    plan = engine._load_series_plan()
+    if isinstance(plan, dict):
+        planned_title = plan.get("title")
         if isinstance(planned_title, str) and planned_title.strip():
             title = planned_title
     return title or "（シリーズ名未設定）"
@@ -294,5 +262,20 @@ def _generate_readiness_report(engine, vol_num: int) -> str:
     lines.append("- [ ] キーワード・カテゴリの確認")
 
     report = "\n".join(lines)
-    _write_export(engine, f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md", report)
+    engine._commit_artifact(artifact_type="kdp_report", logical_key=f"vol{vol_num:02d}", payload={"content": report}, payload_name=f"{slug}_vol{vol_num:02d}_kdp_readiness_report.md")
     return report
+
+def resume(engine) -> dict[str, Any]:
+    """Resume from the last interrupted phase."""
+    vol = engine._current_volume()
+    if vol.status in ("執筆中", "初稿済"):
+        return {"action": "write", "status": vol.status}
+    if engine._state.status == "計画中":
+        return {"action": "plan", "status": engine._state.status}
+    if engine._state.status in ("企画済", "デザイン済"):
+        return {"action": "design", "status": engine._state.status}
+    if engine._state.status in ("出力済", "強制出力済"):
+        return {"action": "export", "status": engine._state.status}
+    return {"action": "plan", "status": engine._state.status}
+
+

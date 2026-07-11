@@ -22,5 +22,5 @@ def test_default_prompt_manager_loads_packaged_system_prompt() -> None:
 
 def test_default_schema_loader_finds_packaged_schemas() -> None:
     assert validate_schemas() == []
-    assert "review" in list_schemas()
-    assert "scene_draft" in list_schemas()
+    assert "review_issues" in list_schemas()
+    assert "write_draft" in list_schemas()

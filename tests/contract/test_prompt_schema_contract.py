@@ -12,7 +12,7 @@ from pathlib import Path
 from novel_forge.prompts import PromptManager
 
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "src" / "novel_forge" / "resources" / "prompts"
-SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
+SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "src" / "novel_forge" / "resources" / "schemas"
 
 
 def _schema_description_issues(node: object, path: tuple[str, ...] = ()) -> list[str]:
@@ -140,7 +140,7 @@ def test_input_info_sections_use_subsections_with_line_start_placeholders() -> N
 def test_unified_review_schema_exists_without_specific_review_schemas() -> None:
     schema_names = {p.stem for p in SCHEMAS_DIR.glob("*.json")}
 
-    assert "review" in schema_names
+    assert "review_issues" in schema_names
     assert "scene_review" not in schema_names
     assert all(not name.endswith("_review") for name in schema_names)
 
@@ -163,13 +163,13 @@ def test_revision_prompts_inject_target_schema_not_review_schema() -> None:
         "lang": "ja",
     }
     cases = {
-        "chapter_design_revision.md": ["title", "purpose", "theme"],
-        "scene_design_revision.md": ["title", "goal", "conflict", "outcome"],
-        "volume_design_revision.md": ["title", "premise", "chapters"],
-        "series_plan_concept_revision.md": ["title", "slug", "logline"],
-        "series_plan_characters_revision.md": ["main_characters"],
-        "series_plan_volumes_revision.md": ["planned_volumes"],
-        "scene_revision.md": ["title", "content"],
+        "design_chapter_revise.md": ["title", "purpose", "theme"],
+        "design_scene_revise.md": ["title", "goal", "conflict", "outcome"],
+        "design_volume_revise.md": ["title", "premise", "chapters"],
+        "plan_concept_revise.md": ["title", "slug", "logline"],
+        "plan_characters_revise.md": ["main_characters"],
+        "plan_volumes_revise.md": ["planned_volumes"],
+        "scene_revision_v2.md": ["title", "content"],
     }
 
     for prompt_name, expected_fields in cases.items():
@@ -181,9 +181,9 @@ def test_revision_prompts_inject_target_schema_not_review_schema() -> None:
 
 
 def test_quality_schema_fields_exist_for_generation_pipeline() -> None:
-    review = json.loads((SCHEMAS_DIR / "review.json").read_text(encoding="utf-8"))
-    scene = json.loads((SCHEMAS_DIR / "scene_design.json").read_text(encoding="utf-8"))
-    chapter = json.loads((SCHEMAS_DIR / "chapter_design.json").read_text(encoding="utf-8"))
+    review = json.loads((SCHEMAS_DIR / "review_issues.json").read_text(encoding="utf-8"))
+    scene = json.loads((SCHEMAS_DIR / "design_scene.json").read_text(encoding="utf-8"))
+    chapter = json.loads((SCHEMAS_DIR / "design_chapter.json").read_text(encoding="utf-8"))
 
     assert set(review["properties"]) == {"issues"}
     issue_properties = review["properties"]["issues"]["items"]["properties"]
@@ -248,22 +248,17 @@ def test_schemas_avoid_strict_unknown_field_rejection() -> None:
 
 
 EMPTY_STRING_ALLOWED_PATHS = {
-    ("review.json", "issues.[].before"),
+    ("review_issues.json", "issues.[].before"),
 }
 
 
 EMPTY_ARRAY_ALLOWED_PATHS = {
-    ("bible.json", "characters"),
-    ("bible.json", "glossary"),
-    ("bible.json", "foreshadowing"),
-    ("bible.json", "world_rules"),
-    ("bible.json", "relationships"),
-    ("bible.json", "subplots"),
-    ("chapter_design.json", "foreshadowing_notes"),
-    ("chapter_design.json", "subplot_notes"),
-    ("review.json", "issues"),
-    ("scene_summary.json", "characters"),
-    ("scene_summary.json", "facts"),
+    ("plan_characters.json", "main_characters"),
+    ("design_chapter.json", "foreshadowing_notes"),
+    ("design_chapter.json", "subplot_notes"),
+    ("review_issues.json", "issues"),
+    ("write_summary.json", "characters"),
+    ("write_summary.json", "facts"),
 }
 
 

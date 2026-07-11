@@ -8,7 +8,7 @@ PROMPTS_DIR = Path(__file__).resolve().parents[2] / "src" / "novel_forge" / "res
 
 
 def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
-    prompt = (PROMPTS_DIR / "scene_draft.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "scene_draft_v2.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "完成した小説本文のみ",
@@ -46,7 +46,7 @@ def test_prompts_do_not_use_ok_ng_examples() -> None:
 
 
 def test_revision_prompts_preserve_unmentioned_fields() -> None:
-    revision_prompts = sorted(PROMPTS_DIR.glob("*_revision.md"))
+    revision_prompts = sorted(PROMPTS_DIR.glob("*_revise.md"))
 
     assert revision_prompts, "expected revision prompts"
     required_fragments = [
@@ -65,7 +65,7 @@ def test_revision_prompts_preserve_unmentioned_fields() -> None:
 
 
 def test_volume_design_preserves_given_title_exactly() -> None:
-    prompt = (PROMPTS_DIR / "volume_design.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "design_volume_generate.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "入力の「既定巻タイトル」と完全一致",
@@ -118,7 +118,7 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
 
 
 def test_concept_review_does_not_over_specify_design_details() -> None:
-    text = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+    text = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "人物の詳細設定、逃走・追跡ギミックの運用細部はimportant 指摘にしない",
@@ -130,7 +130,7 @@ def test_concept_review_does_not_over_specify_design_details() -> None:
 
 
 def test_concept_review_does_not_create_clarity_rewrite_loops() -> None:
-    text = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+    text = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "明確化・文体改善・もっと精密そうな別案という理由だけで指摘しない",
@@ -144,7 +144,7 @@ def test_concept_review_does_not_create_clarity_rewrite_loops() -> None:
 
 
 def test_series_plan_volumes_requires_non_empty_final_volume_hook() -> None:
-    prompt = (PROMPTS_DIR / "series_plan_volumes.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "plan_volumes_generate.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "最終巻",
@@ -158,8 +158,8 @@ def test_series_plan_volumes_requires_non_empty_final_volume_hook() -> None:
 
 
 def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
-    generation = (PROMPTS_DIR / "series_plan_volumes.md").read_text(encoding="utf-8")
-    review = (PROMPTS_DIR / "series_plan_volumes_review.md").read_text(encoding="utf-8")
+    generation = (PROMPTS_DIR / "plan_volumes_generate.md").read_text(encoding="utf-8")
+    review = (PROMPTS_DIR / "plan_volumes_review.md").read_text(encoding="utf-8")
 
     generation_fragments = [
         "自然な日本語だけで書く",
@@ -186,16 +186,13 @@ def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
 
 def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
     expectations = {
-        "chapter_design.md": ["chapter_turning_point", "chapter_hook", "scenes[]", "foreshadowing_notes"],
-        "scene_design.md": ["hook", "turning_point", "ending_hook", "key_events"],
-        "series_plan_concept.md": ["world_rules", "selling_points", "target_audience"],
-        "series_plan_characters.md": ["main_characters[]", "motivation", "flaw", "arc"],
-        "series_plan_characters_review.md": ["役割ラベル・分類名・固有識別子", "結末や報復方法の好み", "成長弧や動機は、文字列がほぼ同一"],
-        "series_plan_volumes.md": ["planned_volumes[]", "emotional_arc", "cliffhanger"],
-        "volume_design.md": ["chapters[]", "title", "purpose"],
-        "scene_summary.md": ["summary"],
-        "kdp_metadata.md": ["title", "description", "keywords", "categories"],
-        "cover_prompt.md": ["negative_prompt", "prompt", "画像生成ツール"],
+        "design_chapter_generate.md": ["chapter_turning_point", "chapter_hook", "scenes[]", "foreshadowing_notes"],
+        "design_scene_generate.md": ["hook", "turning_point", "ending_hook", "key_events"],
+        "plan_concept_generate.md": ["world_rules", "selling_points", "target_audience"],
+        "plan_characters_generate.md": ["main_characters[]", "motivation", "flaw", "arc"],
+        "plan_characters_review.md": ["役割ラベル・分類名・固有識別子", "結末や報復方法の好み", "成長弧や動機は、文字列がほぼ同一"],
+        "plan_volumes_generate.md": ["planned_volumes[]", "emotional_arc", "cliffhanger"],
+        "design_volume_generate.md": ["chapters[]", "title", "purpose"],
     }
 
     issues = {}
@@ -209,7 +206,7 @@ def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
 
 
 def test_series_plan_characters_revision_preserves_real_character_array() -> None:
-    prompt = (PROMPTS_DIR / "series_plan_characters_revision.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "plan_characters_revise.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "main_characters は必ず配列",
@@ -228,9 +225,9 @@ def test_series_plan_characters_revision_preserves_real_character_array() -> Non
 
 def test_series_plan_characters_keeps_field_responsibilities_separate() -> None:
     prompts = [
-        PROMPTS_DIR / "series_plan_characters.md",
-        PROMPTS_DIR / "series_plan_characters_revision.md",
-        PROMPTS_DIR / "series_plan_characters_review.md",
+        PROMPTS_DIR / "plan_characters_generate.md",
+        PROMPTS_DIR / "plan_characters_revise.md",
+        PROMPTS_DIR / "plan_characters_review.md",
     ]
 
     required_fragments = [
@@ -254,8 +251,8 @@ def test_series_plan_characters_keeps_field_responsibilities_separate() -> None:
 
 def test_series_plan_concept_prompts_require_japanese_punctuation() -> None:
     prompts = [
-        PROMPTS_DIR / "series_plan_concept.md",
-        PROMPTS_DIR / "series_plan_concept_revision.md",
+        PROMPTS_DIR / "plan_concept_generate.md",
+        PROMPTS_DIR / "plan_concept_revise.md",
     ]
 
     required_fragments = [
@@ -275,8 +272,8 @@ def test_series_plan_concept_prompts_require_japanese_punctuation() -> None:
 
 def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> None:
     prompts = [
-        PROMPTS_DIR / "series_plan_concept.md",
-        PROMPTS_DIR / "series_plan_concept_revision.md",
+        PROMPTS_DIR / "plan_concept_generate.md",
+        PROMPTS_DIR / "plan_concept_revise.md",
     ]
 
     required_fragments = [
@@ -303,8 +300,8 @@ def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> Non
 
 def test_series_plan_concept_prompts_guard_raw_run_failures() -> None:
     prompts = [
-        PROMPTS_DIR / "series_plan_concept.md",
-        PROMPTS_DIR / "series_plan_concept_revision.md",
+        PROMPTS_DIR / "plan_concept_generate.md",
+        PROMPTS_DIR / "plan_concept_revise.md",
     ]
 
     required_fragments = [
@@ -329,7 +326,7 @@ def test_series_plan_concept_prompts_guard_raw_run_failures() -> None:
 
 
 def test_series_plan_concept_review_must_flag_non_japanese_contamination() -> None:
-    prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "日本語文脈で不自然な簡体字、中国語構文、英語混在、ハングル混在を指摘する",
@@ -362,7 +359,7 @@ def test_all_review_prompts_must_flag_non_japanese_contamination() -> None:
 
 
 def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
-    prompt = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
 
     required_fragments = [
         "入力キーワードまたはタイトルに中核ギミックが含まれる場合",
@@ -376,8 +373,8 @@ def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
 
 
 def test_series_plan_concept_guards_against_meta_explanations() -> None:
-    generation = (PROMPTS_DIR / "series_plan_concept.md").read_text(encoding="utf-8")
-    review = (PROMPTS_DIR / "series_plan_concept_review.md").read_text(encoding="utf-8")
+    generation = (PROMPTS_DIR / "plan_concept_generate.md").read_text(encoding="utf-8")
+    review = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
 
     for fragment in ["〜を描く", "読者は", "追体験する"]:
         assert fragment in generation
@@ -385,8 +382,8 @@ def test_series_plan_concept_guards_against_meta_explanations() -> None:
 
 
 def test_series_plan_characters_requires_cast_not_solo_lead() -> None:
-    generation = (PROMPTS_DIR / "series_plan_characters.md").read_text(encoding="utf-8")
-    review = (PROMPTS_DIR / "series_plan_characters_review.md").read_text(encoding="utf-8")
+    generation = (PROMPTS_DIR / "plan_characters_generate.md").read_text(encoding="utf-8")
+    review = (PROMPTS_DIR / "plan_characters_review.md").read_text(encoding="utf-8")
 
     assert "3〜5人" in generation
     assert "2人以下" in review
