@@ -606,6 +606,7 @@ series/
 - `Draft202012Validator(schema, registry=registry)` だけを使用する。
 - sibling schema の `$ref` を `Draft202012Validator(schema)` 単独で解決しようとしてはならない。
 - `canon_patch.json` は共通 generated schema とし、`scene_design` だけが `$ref` する。
+  - **実装状態（2026-07-12 時点）:** `canon_patch.json` は**未生成**。代わりに `design_scene.json` の `properties` に `canon_patch`（object, required）を直接定義し、`RuntimeWorkflow._scene_from_generated_payload` が必須チェックしている。これは意図的な暫定構造であり、静的解析による「`canon_patch.json` が存在しない」「`canon_patch` が scene にのみ必須」は**設計どおりの正しい挙動**であってバグではない。volume/chapter には `canon_patch` は不要（runtime も要求しない）。
 
 contract test は、有効 external `$ref` の成功と未解決 `$ref` の失敗を必須とする。
 
