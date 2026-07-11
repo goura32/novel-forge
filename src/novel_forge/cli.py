@@ -174,6 +174,11 @@ def _make_workflow(
     )
 
 
+def _resolve_verbose(config: RuntimeConfig, cli_verbose: bool | None) -> bool:
+    """Resolve verbose with explicit CLI input taking priority over canonical config."""
+    return cli_verbose if cli_verbose is not None else config.verbose
+
+
 app = typer.Typer(help="NovelForge — Local-LLM novel production pipeline")
 _log = get_logger("novel_forge.cli")
 
@@ -192,7 +197,7 @@ def plan(
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
-    run = repo.create_run(command="plan", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    run = repo.create_run(command="plan", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=None)
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="plan")
     series_lock = None
     try:
@@ -200,16 +205,17 @@ def plan(
             repo, run, None, config, model, max_review_count, max_summary_review_count, verbose
         )
         existing = _existing_series_slugs(resolved_workdir)
-        plan = workflow.task_runner(
+        plan_attempt, plan = workflow._run_task(
             "plan.series.generate",
             {"keywords": keywords, "existing_slugs": existing},
+            reason="generate series plan",
         )
         slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
         series_lock = manager.promote_plan_to_series(
             workspace_lock=workspace_lock, run=run, slug=slug
         )
         canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
-        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed)
+        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed, plan_attempt=plan_attempt)
         console.print(f"[green]✓[/green] Series plan generated: {plan.get('title', 'N/A')} (slug: {slug})")
         console.print(f"  [dim]Run: {run.manifest.run_id}[/dim]")
     finally:
@@ -238,7 +244,7 @@ def design(
     run = repo.create_run(
         command="design",
         model=model or config.llm.model,
-        verbose=bool(verbose),
+        verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design"):
@@ -273,7 +279,7 @@ def write(
     run = repo.create_run(
         command="write",
         model=model or config.llm.model,
-        verbose=bool(verbose),
+        verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write"):
@@ -302,7 +308,7 @@ def export(
     run = repo.create_run(
         command="export",
         model=model or config.llm.model,
-        verbose=bool(verbose),
+        verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export"):
@@ -354,7 +360,7 @@ def resume(
     run = repo.create_run(
         command="resume",
         model=model or config.llm.model,
-        verbose=bool(verbose),
+        verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume"):
@@ -383,23 +389,24 @@ def complete(
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
-    run = repo.create_run(command="plan", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    run = repo.create_run(command="plan", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=None)
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete")
     series_lock = None
     try:
         workflow = _make_workflow(repo, run, None, config, model, max_review_count, max_summary_review_count, verbose)
         console.print("[bold]Step 1/4: Plan[/bold]")
         existing = _existing_series_slugs(resolved_workdir)
-        plan = workflow.task_runner(
+        plan_attempt, plan = workflow._run_task(
             "plan.series.generate",
             {"keywords": keywords, "existing_slugs": existing},
+            reason="generate series plan",
         )
         slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
         series_lock = manager.promote_plan_to_series(
             workspace_lock=workspace_lock, run=run, slug=slug
         )
         canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
-        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed)
+        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed, plan_attempt=plan_attempt)
         console.print(f"[green]✓[/green] Plan: {plan.get('title', 'N/A')} (slug: {slug})")
 
         console.print(f"[bold]Step 2/4: Design (vol {volume})[/bold]")

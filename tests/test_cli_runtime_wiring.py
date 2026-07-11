@@ -8,6 +8,7 @@ from typing import Any, cast
 from typer.testing import CliRunner
 
 from novel_forge import cli
+from novel_forge.config import RuntimeConfig
 from novel_forge.runtime import RunRepository
 from novel_forge.workflow_runtime import RuntimeWorkflow
 from novel_forge.workflow_task_runner import make_task_runner
@@ -22,6 +23,7 @@ class _LLMConfig:
 class _Config:
     workdir: Path
     llm: _LLMConfig = field(default_factory=_LLMConfig)
+    verbose: bool = False
 
     def resolve_workdir(self, requested: Path) -> Path:
         assert requested == self.workdir
@@ -36,6 +38,14 @@ def _bootstrap(repo: RunRepository, slug: str) -> str:
         plan={"title": "テスト", "slug": slug, "planned_volumes": [{"number": 1, "title": "第1巻"}]},
         canon_seed={"schema_version": 2, "series": {"id": "series", "title": "テスト", "logline": ""}},
     ).selection_snapshot_id
+
+
+
+def test_verbose_resolution_prefers_explicit_cli_over_config() -> None:
+    config = RuntimeConfig(verbose=True)
+    assert cli._resolve_verbose(config, None) is True
+    assert cli._resolve_verbose(config, False) is False
+    assert cli._resolve_verbose(RuntimeConfig(verbose=False), True) is True
 
 
 def test_find_existing_series_uses_runtime_ledger_without_legacy_plan(tmp_path: Path) -> None:
@@ -102,19 +112,26 @@ def test_complete_uses_public_design_boundary_and_series_lock(tmp_path: Path, mo
 
     class FakeWorkflow:
         def __init__(self, _run: Any) -> None:
-            self.task_runner = self._task_runner
+            pass
 
         @staticmethod
-        def _task_runner(task_id: str, _values: dict[str, Any]) -> dict[str, Any]:
+        def _run_task(task_id: str, values: dict[str, Any], *, reason: str) -> tuple[Any, dict[str, Any]]:
             calls.append(task_id)
             assert task_id == "plan.series.generate"
-            return {"slug": "series_new", "title": "新作", "planned_volumes": [{"title": "第1巻"}]}
+            assert values == {"keywords": "k", "existing_slugs": []}
+            assert reason == "generate series plan"
+            return SimpleNamespace(manifest=SimpleNamespace(attempt_id="att_plan")), {
+                "slug": "series_new", "title": "新作", "planned_volumes": [{"title": "第1巻"}]
+            }
 
         @staticmethod
-        def bootstrap_plan(*, slug: str, plan: dict[str, Any], canon_seed: dict[str, Any]) -> None:
+        def bootstrap_plan(
+            *, slug: str, plan: dict[str, Any], canon_seed: dict[str, Any], plan_attempt: Any
+        ) -> None:
             calls.append("bootstrap")
             assert slug == plan["slug"]
             assert canon_seed["schema_version"] == 2
+            assert plan_attempt.manifest.attempt_id == "att_plan"
 
         @staticmethod
         def generate_volume_design(*, volume: int, plan: dict[str, Any]) -> None:

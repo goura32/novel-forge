@@ -366,18 +366,29 @@ class RuntimeWorkflow:
         slug: str,
         plan: dict[str, Any],
         canon_seed: dict[str, Any],
+        plan_attempt: AttemptHandle | None = None,
     ) -> SelectionSnapshot:
         """Commit plan + immutable Canon roots, then atomically establish snapshot 1."""
         if self.run.manifest.input_snapshot_id is not None:
             raise RuntimeContractError("bootstrap_plan requires a bootstrap run")
         self.slug = slug
-        plan_ref = self._artifact(
-            task_id="plan.series.generate",
-            reason="assemble selected plan",
-            artifact_type="plan.series",
-            logical_key="plan.series",
-            payload=plan,
-            payload_name="plan-series.json",
+        plan_ref = (
+            self._commit_task_result(
+                plan_attempt,
+                artifact_type="plan.series",
+                logical_key="plan.series",
+                payload=plan,
+                payload_name="plan-series.json",
+            )
+            if plan_attempt is not None
+            else self._artifact(
+                task_id="plan.series.generate",
+                reason="assemble selected plan",
+                artifact_type="plan.series",
+                logical_key="plan.series",
+                payload=plan,
+                payload_name="plan-series.json",
+            )
         )
         seed_ref = self._artifact(
             task_id="plan.canon_seed.generate",
