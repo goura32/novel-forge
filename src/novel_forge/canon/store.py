@@ -22,6 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, cast
 
+from novel_forge.canon.design import SceneDesign
 from novel_forge.canon.idgen import StableIdGenerator
 from novel_forge.canon.models import (
     Canon,
@@ -240,6 +241,7 @@ class CanonEventStore:
         self.workdir = Path(workdir)
         self.seed_path = self.workdir / "bible_seed.json"
         self.events_path = self.workdir / "canon_events.jsonl"
+        self.designs_path = self.workdir / "scene_designs.jsonl"
         self.bible_path = self.workdir / "bible.json"
 
     # ----- seed (immutable once events exist, §7.4) ----------------------
@@ -281,6 +283,65 @@ class CanonEventStore:
             sid = ev.source.scene_id
             if sid not in latest or ev.source.revision > latest[sid].source.revision:
                 latest[sid] = ev
+        return list(latest.values())
+
+    # ----- scene designs (§4.2 stable scene id transaction) --------------
+    def save_design(self, design: SceneDesign) -> None:
+        """Persist a SceneDesign artifact keyed by its stable scene_id (JSONL).
+
+        Kept alongside the Canon Event in the same workflow transaction so a
+        later scene edit / deletion can rely on the existing design when
+        replaying or replacing (§4.2 / §7.2).
+        """
+        # Load, replace by scene_id, rewrite atomically.  Designs are small and
+        # far fewer than events, so a full rewrite per save is acceptable and
+        # keeps the file strictly consistent with the event transaction.
+        existing = self.load_active_designs()
+        by_id = {d.scene_id: d for d in existing}
+        by_id[design.scene_id] = design
+        designs = list(by_id.values())
+        designs.sort(
+            key=lambda d: (
+                d.source_location.volume if d.source_location else 0,
+                d.source_location.chapter if d.source_location else 0,
+                d.source_location.ordinal if d.source_location else 0,
+                d.scene_id,
+            )
+        )
+        lines = [d.model_dump_json() for d in designs]
+        self.designs_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(self.workdir), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                for ln in lines:
+                    fh.write(ln)
+                    fh.write("\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, self.designs_path)
+        finally:
+            if os.path.exists(tmp):
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+        _log.info("saved design %s", design.scene_id)
+
+    def load_active_designs(self) -> list[SceneDesign]:
+        """Load the active design set: latest revision per stable scene_id."""
+        if not self.designs_path.exists():
+            return []
+        latest: dict[str, SceneDesign] = {}
+        for line in self.designs_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = SceneDesign.model_validate_json(line)
+            except json.JSONDecodeError as exc:
+                raise CorruptedCanonError(f"design JSON corrupt: {exc}") from exc
+            except Exception as exc:  # pydantic validation -> schema violation
+                raise SchemaViolationError(f"design schema violation: {exc}") from exc
+            sid = d.scene_id
+            latest[sid] = d
         return list(latest.values())
 
     def save_events(self, events: list[CanonEvent]) -> None:

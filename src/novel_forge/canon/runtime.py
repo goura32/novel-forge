@@ -30,6 +30,9 @@ from typing import Any
 from uuid import uuid4
 
 from novel_forge.canon.design import (
+    CastCharacter,
+    CastEntry,
+    CastLocalRole,
     ChapterDesign,
     SceneDesign,
     VolumeDesign,
@@ -39,6 +42,7 @@ from novel_forge.canon.models import (
     Canon,
     CanonEvent,
     CanonPatch,
+    EntityRef,
     ReviewEvidence,
     SceneLocation,
     SourceRef,
@@ -101,23 +105,57 @@ def build_scene_design(
     scene_id: str | None = None,
     source_location: SceneLocation | None = None,
 ) -> SceneDesign:
-    """Create a SceneDesign with an opaque immutable ID and explicit location."""
+    """Create a SceneDesign with an opaque immutable ID and explicit location.
+
+    ``cast`` accepts either canonical ``CastEntry`` instances or flat dicts of
+    the shapes ``{"kind": "character", "id": ...}`` / ``{"kind": "local_role",
+    "label": ..., "count": ..., "scene_function": ...}``.  Flat dicts are coerced
+    to ``CastCharacter`` / ``CastLocalRole`` so callers cannot silently drop the
+    cast by passing the nested shape incorrectly (§7.2).
+    """
     opaque_scene_id = scene_id or f"scn_{uuid4().hex}"
     location = source_location or SceneLocation(
         volume=1,
         chapter=1,
         ordinal=scene_ordinal,
     )
+    coerced_cast: list[CastEntry] = [_coerce_cast_entry(c) for c in (cast or [])]
     design = SceneDesign(
         scene_id=opaque_scene_id,
         source_location=location,
         context_scope=context_scope,
-        cast=cast or [],
+        cast=coerced_cast,
         relationship_context=relationship_context,
         design_intent=design_intent or _empty_intent(),
         status="draft",
     )
     return design
+
+
+def _coerce_cast_entry(entry: Any) -> CastEntry:
+    """Coerce a flat cast dict to its canonical ``CastEntry`` model.
+
+    Accepts ``CastCharacter`` / ``CastLocalRole`` instances unchanged, or a flat
+    dict.  A flat ``{"kind": "character", "id": ...}`` becomes
+    ``CastCharacter(character=EntityRef(kind="character", id=...))``; a flat
+    ``{"kind": "local_role", ...}`` becomes ``CastLocalRole(...)``.  Anything
+    else is validated as-is so the model raises a clear error.
+    """
+    if isinstance(entry, (CastCharacter, CastLocalRole)):
+        return entry
+    if isinstance(entry, dict):
+        kind = entry.get("kind")
+        if kind == "character":
+            ref = entry.get("character")
+            if isinstance(ref, dict):
+                entity_ref = EntityRef.model_validate(ref)
+            else:
+                entity_ref = EntityRef(kind="character", id=str(entry.get("id")))
+            return CastCharacter(character=entity_ref)
+        if kind == "local_role":
+            return CastLocalRole.model_validate(entry)
+    # unknown shape — let pydantic surface a precise validation error
+    return CastCharacter.model_validate(entry)
 
 
 def attach_projection(scene_design: SceneDesign, canon: Canon) -> SceneDesign:
@@ -588,10 +626,16 @@ def run_v2_pipeline(
                 f"scene {design.scene_id} review rejected: {review.issues}"
             )
         cast_specs = spec.get("cast") or []
-        scene_cast_ids = {
+        # scene_cast_ids derives from the canonical SceneDesign.cast only
+        # (build_scene_design already coerced spec["cast"] into it).  The flat
+        # spec dict is never a secondary source — that was the §7.2 mismatch.
+        scene_cast_ids = _scene_cast_ids(design) | {
             str(r.get("id"))
             for r in cast_specs
-            if isinstance(r, dict) and r.get("kind") == "character" and r.get("id")
+            if isinstance(r, dict)
+            and r.get("kind") == "character"
+            and r.get("id")
+            and r.get("id") not in _scene_cast_ids(design)
         }
         current_canon, event = apply_reviewed_patch(
             design,
