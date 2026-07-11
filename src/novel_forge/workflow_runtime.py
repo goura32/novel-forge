@@ -406,6 +406,34 @@ class RuntimeWorkflow:
         return self._publish({slot: ref.artifact_id}, f"design volume {volume} accepted")
 
     @staticmethod
+    def _writer_handoff(summary: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Expose only the six §summary fields safe for the next draft prompt."""
+        if summary is None:
+            return None
+        handoff: dict[str, Any] = {
+            key: summary.get(key)
+            for key in (
+                "summary",
+                "end_state",
+                "character_changes",
+                "world_or_item_changes",
+                "unresolved_threads",
+                "next_scene_handoff",
+            )
+            if key in summary
+        }
+        for key in ("character_changes", "world_or_item_changes", "unresolved_threads"):
+            value = handoff.get(key)
+            if isinstance(value, list):
+                handoff[key] = [
+                    {field: item[field] for field in item if field != "evidence"}
+                    if isinstance(item, dict)
+                    else item
+                    for item in value
+                ]
+        return handoff
+
+    @staticmethod
     def _design_author_context(canon: Canon) -> dict[str, Any]:
         """Return the deterministic, ID-free Canon projection for design LLMs.
 
@@ -789,7 +817,7 @@ class RuntimeWorkflow:
                 },
                 f"write scene {volume}/{chapter}/{scene} accepted",
             )
-            previous_summary = self.repository.read_payload(summary_ref)
+            previous_summary = self._writer_handoff(self.repository.read_payload(summary_ref))
         return WorkflowResult(snapshot.selection_snapshot_id)
 
     def _make_summary(
@@ -877,18 +905,40 @@ class RuntimeWorkflow:
         if not isinstance(scenes, list):
             raise RuntimeContractError("selected design has no scenes")
         contents: list[str] = []
-        input_ids: list[str] = []
+        input_ids: set[str] = {
+            self._selected("plan.series").artifact_id,
+            self._selected(f"design.vol{volume:02d}").artifact_id,
+            self._selected("canon.seed").artifact_id,
+            self._selected("canon.frontier").artifact_id,
+        }
+        review_report: list[dict[str, Any]] = []
         for raw_scene in scenes:
             chapter = int(raw_scene["chapter_number"])
             scene = int(raw_scene["scene_number"])
             stem = f"write.vol{volume:02d}.ch{chapter:02d}.sc{scene:02d}"
             draft_ref = self._selected(f"{stem}.draft")
-            self._selected(f"{stem}.summary")
-            self._selected(f"{stem}.final_review")
+            summary_ref = self._selected(f"{stem}.summary")
+            final_review_ref = self._selected(f"{stem}.final_review")
             draft = self.repository.read_payload(draft_ref)
             contents.append(str(draft.get("content", "")))
-            input_ids.append(draft_ref.artifact_id)
-        manuscript = {"content": "\n\n---\n\n".join(contents), "volume": volume}
+            input_ids.update((draft_ref.artifact_id, summary_ref.artifact_id, final_review_ref.artifact_id))
+            summary_review_id = summary_ref.manifest.metadata.get("summary_review_artifact_id")
+            if isinstance(summary_review_id, str):
+                input_ids.add(summary_review_id)
+            review_report.append(
+                {
+                    "scene": f"{chapter}/{scene}",
+                    "draft_review": self.repository.read_payload(final_review_ref),
+                    "summary_quality_status": summary_ref.manifest.quality_status,
+                    "summary_review_artifact_id": summary_review_id,
+                }
+            )
+        manuscript = {
+            "content": "\n\n---\n\n".join(contents),
+            "volume": volume,
+            "canon": self.load_canon().model_dump(mode="json"),
+            "review_report": review_report,
+        }
         ref = self._artifact(
             task_id="write.export.generate",
             reason="assemble pinned manuscript",

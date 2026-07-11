@@ -37,13 +37,13 @@ _log = get_logger("novel_forge.cli")
 
 
 def _resolve_doctor_defaults(
-    workdir: Path,
+    workdir: Path | None,
     model: str | None,
     ollama_host: str | None,
 ) -> tuple[str, str]:
-    """Resolve doctor options with CLI > config > built-in/env precedence."""
-    config = RuntimeConfig.load(path=_workdir_config_path(workdir))
-    llm_cfg = config.llm
+    """Resolve doctor options from canonical config; workdir is intentionally ignored."""
+    del workdir
+    llm_cfg = RuntimeConfig.load().llm
     resolved_model = model if model is not None else llm_cfg.model
     resolved_host = (
         ollama_host
@@ -180,7 +180,7 @@ _log = get_logger("novel_forge.cli")
 @app.command()
 def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
@@ -220,7 +220,7 @@ def plan(
 @app.command()
 def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number (0=all)"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
@@ -255,7 +255,7 @@ def design(
 @app.command()
 def write(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
@@ -286,7 +286,7 @@ def write(
 @app.command()
 def export(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
@@ -312,7 +312,7 @@ def export(
 
 @app.command()
 def status(
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
 ):
     """Show current project status."""
@@ -335,7 +335,7 @@ def status(
 
 @app.command()
 def resume(
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
@@ -370,7 +370,7 @@ def resume(
 @app.command()
 def complete(
     keywords: str = typer.Argument(..., help="Series keywords"),
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
@@ -418,7 +418,7 @@ def complete(
         workspace_lock.release()
 @app.command()
 def doctor(
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="Model override to test"),
     ollama_host: str | None = typer.Option(None, "--ollama-host", help="Ollama host override"),
 ):
@@ -429,7 +429,7 @@ def doctor(
 
 @app.command()
 def list(
-    workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
+    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
 ):
     """List all series in the working directory."""
 

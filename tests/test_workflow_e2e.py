@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from novel_forge.canon.store import BibleFactory
 from novel_forge.runtime import RunRepository
 from novel_forge.workflow_runtime import RuntimeWorkflow
 
@@ -83,14 +84,15 @@ def _fake_task(task: str, values: dict[str, object]) -> dict[str, object]:
 def _bootstrap(repo: RunRepository, task_runner) -> tuple[str, str, str]:
     run = repo.create_run(command="plan", model="fake", verbose=False)
     workflow = RuntimeWorkflow(repo, run, task_runner=task_runner)
+    plan = {
+        "title": "テストシリーズ",
+        "slug": "test_series",
+        "planned_volumes": [{"number": 1, "title": "第1巻"}],
+    }
     snapshot = workflow.bootstrap_plan(
         slug="test_series",
-        plan={
-            "title": "テストシリーズ",
-            "slug": "test_series",
-            "planned_volumes": [{"number": 1, "title": "第1巻"}],
-        },
-        canon_seed={"facts": []},
+        plan=plan,
+        canon_seed=BibleFactory.create_seed(plan).model_dump(mode="json"),
     )
     return run.manifest.run_id, snapshot.selection_snapshot_id, "test_series"
 

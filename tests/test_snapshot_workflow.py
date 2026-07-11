@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from novel_forge.canon.store import BibleFactory
 from novel_forge.runtime import RunRepository, RuntimeContractError
 from novel_forge.workflow_runtime import RuntimeWorkflow
 
@@ -29,10 +30,11 @@ def _task_result(task: str, values: dict[str, object]) -> dict[str, object]:
 def _bootstrap(repo: RunRepository) -> tuple[str, str]:
     run = repo.create_run(command="plan", model="fake", verbose=False)
     workflow = RuntimeWorkflow(repo, run, task_runner=lambda task, values: values["result"])
+    plan = {"title": "Series", "planned_volumes": [{"number": 1, "title": "Vol"}]}
     snapshot = workflow.bootstrap_plan(
         slug="series",
-        plan={"title": "Series", "planned_volumes": [{"number": 1, "title": "Vol"}]},
-        canon_seed={"facts": []},
+        plan=plan,
+        canon_seed=BibleFactory.create_seed(plan).model_dump(mode="json"),
     )
     return run.manifest.run_id, snapshot.selection_snapshot_id
 
@@ -73,6 +75,25 @@ def test_design_and_write_publish_new_snapshot_without_mutating_input(tmp_path: 
     assert final_snapshot.slots["write.vol01.ch01.sc01.summary"]
     assert final_snapshot.slots["write.vol01.ch01.sc01.final_review"]
 
+
+
+def test_writer_handoff_excludes_review_evidence_and_facts() -> None:
+    summary = {
+        "summary": "扉が開いた",
+        "end_state": {"pov": "リィナは扉の前", "setting": "覚醒室の夜"},
+        "character_changes": [{"character": "リィナ", "change": "決意した", "evidence": "扉へ歩いた"}],
+        "world_or_item_changes": [{"subject": "扉", "change": "開いた", "evidence": "光が漏れた"}],
+        "unresolved_threads": [{"thread": "外の正体", "why_it_matters": "次に調べる", "evidence": "声がした"}],
+        "next_scene_handoff": ["扉の外へ進む"],
+        "facts": [{"subject": "リィナ", "predicate": "開けた", "object": "扉", "evidence": "本文"}],
+    }
+
+    handoff = RuntimeWorkflow._writer_handoff(summary)
+
+    assert handoff is not None
+    assert set(handoff) == {"summary", "end_state", "character_changes", "world_or_item_changes", "unresolved_threads", "next_scene_handoff"}
+    assert "facts" not in repr(handoff)
+    assert "evidence" not in repr(handoff)
 
 
 def test_writer_tasks_receive_only_validated_writer_context(tmp_path: Path) -> None:
