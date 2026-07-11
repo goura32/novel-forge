@@ -73,8 +73,8 @@ def _fake_task(task: str, values: dict[str, object]) -> dict[str, object]:
                 }
             ],
             "scenes": [
-                {"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち"},
-                {"chapter_number": 1, "scene_number": 2, "title": "出会い", "goal": "仲間と出会う"},
+                {"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち", "writer_context": {}},
+                {"chapter_number": 1, "scene_number": 2, "title": "出会い", "goal": "仲間と出会う", "writer_context": {}},
             ],
         }
     raise AssertionError(f"unexpected task: {task}")
@@ -109,8 +109,8 @@ def test_complete_pipeline_publishes_snapshot_chain(tmp_path: Path) -> None:
         {
             "title": "第1巻",
             "scenes": [
-                {"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち"},
-                {"chapter_number": 1, "scene_number": 2, "title": "出会い", "goal": "仲間と出会う"},
+                {"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち", "writer_context": {}},
+                {"chapter_number": 1, "scene_number": 2, "title": "出会い", "goal": "仲間と出会う", "writer_context": {}},
             ],
         },
     )
@@ -149,7 +149,7 @@ def test_export_ignores_newer_unselected_candidate(tmp_path: Path) -> None:
         1,
         {
             "title": "第1巻",
-            "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち"}],
+            "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち", "writer_context": {}}],
         },
     )
     write_run = repo.create_run(command="write", model="fake", verbose=False, input_snapshot_id=design_snapshot.selection_snapshot_id)
@@ -183,7 +183,7 @@ def test_pipeline_writes_no_legacy_fixed_files(tmp_path: Path) -> None:
         1,
         {
             "title": "第1巻",
-            "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち"}],
+            "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち", "writer_context": {}}],
         },
     )
     write_run = repo.create_run(command="write", model="fake", verbose=False, input_snapshot_id=design_snapshot.selection_snapshot_id)
@@ -205,8 +205,8 @@ def test_summary_handoff_carries_only_writer_safe_fields(tmp_path: Path) -> None
         {
             "title": "第1巻",
             "scenes": [
-                {"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち"},
-                {"chapter_number": 1, "scene_number": 2, "title": "出会い", "goal": "仲間と出会う"},
+                {"chapter_number": 1, "scene_number": 1, "title": "出発", "goal": "旅立ち", "writer_context": {}},
+                {"chapter_number": 1, "scene_number": 2, "title": "出会い", "goal": "仲間と出会う", "writer_context": {}},
             ],
         },
     )

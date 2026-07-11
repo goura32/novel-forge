@@ -12,13 +12,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from pydantic import ValidationError
+
 from novel_forge.canon.frontier import (
     FrontierPayloadError,
     SeedPayloadError,
     replay_frontier,
     validate_frontier_payload,
 )
-from novel_forge.canon.models import Canon
+from novel_forge.canon.models import Canon, WriterContext
 from novel_forge.runtime import (
     ArtifactReference,
     AttemptHandle,
@@ -335,6 +337,17 @@ class RuntimeWorkflow:
         )
         return self._publish({slot: ref.artifact_id}, f"design volume {volume} accepted")
 
+    @staticmethod
+    def _writer_context(raw_scene: dict[str, Any]) -> dict[str, Any]:
+        """Return the only design-derived payload allowed to cross the writer boundary."""
+        try:
+            writer_context = WriterContext.model_validate(raw_scene["writer_context"])
+        except KeyError as exc:
+            raise RuntimeContractError("design scene is missing required writer_context") from exc
+        except ValidationError as exc:
+            raise RuntimeContractError("design scene has invalid writer_context") from exc
+        return writer_context.model_dump(mode="json")
+
     def write_volume(self, volume: int) -> WorkflowResult:
         design_slot = f"design.vol{volume:02d}"
         design_ref = self._selected(design_slot)
@@ -346,12 +359,13 @@ class RuntimeWorkflow:
         for raw_scene in scenes:
             if not isinstance(raw_scene, dict):
                 raise RuntimeContractError("design scene must be an object")
+            writer_context = self._writer_context(raw_scene)
             chapter = int(raw_scene["chapter_number"])
             scene = int(raw_scene["scene_number"])
             stem = f"write.vol{volume:02d}.ch{chapter:02d}.sc{scene:02d}"
             draft_attempt, draft = self._run_task(
                 "write.draft.generate",
-                {"scene_design": raw_scene, "previous_summary": previous_summary},
+                {"writer_context": writer_context, "previous_summary": previous_summary},
                 reason="draft generation",
             )
             draft_ref = self._commit_task_result(
@@ -368,7 +382,7 @@ class RuntimeWorkflow:
             for cycle in range(self.max_review_count):
                 review_attempt, review = self._run_task(
                     "write.draft.review",
-                    {"scene_design": raw_scene, "draft": self.repository.read_payload(final_draft)},
+                    {"writer_context": writer_context, "draft": self.repository.read_payload(final_draft)},
                     reason=f"draft review {cycle + 1}",
                 )
                 issues = review.get("issues", [])
@@ -385,7 +399,11 @@ class RuntimeWorkflow:
                     break
                 revise_attempt, revised = self._run_task(
                     "write.draft.revise",
-                    {"scene_design": raw_scene, "draft": self.repository.read_payload(final_draft), "review": review},
+                    {
+                        "writer_context": writer_context,
+                        "draft": self.repository.read_payload(final_draft),
+                        "review": review,
+                    },
                     reason=f"draft revise {cycle + 1}",
                 )
                 final_draft = self._commit_task_result(
@@ -414,7 +432,7 @@ class RuntimeWorkflow:
                     quality_status="review_limit_reached" if review.get("issues") else "passed",
                 )
             summary_ref, summary_review = self._make_summary(
-                raw_scene, final_draft, previous_summary, stem
+                writer_context, final_draft, previous_summary, stem
             )
             snapshot = self._publish(
                 {
@@ -429,7 +447,7 @@ class RuntimeWorkflow:
 
     def _make_summary(
         self,
-        scene: dict[str, Any],
+        writer_context: dict[str, Any],
         draft_ref: ArtifactReference,
         previous_summary: dict[str, Any] | None,
         stem: str,
@@ -437,7 +455,11 @@ class RuntimeWorkflow:
         draft = self.repository.read_payload(draft_ref)
         generate_attempt, candidate = self._run_task(
             "write.summary.generate",
-            {"scene_design": scene, "draft": draft, "previous_summary": previous_summary},
+            {
+                "writer_context": writer_context,
+                "draft": draft,
+                "previous_summary": previous_summary,
+            },
             reason="summary generation",
         )
         candidate_ref = self._commit_task_result(

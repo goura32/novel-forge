@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from novel_forge.runtime import RunRepository
+import pytest
+
+from novel_forge.runtime import RunRepository, RuntimeContractError
 from novel_forge.workflow_runtime import RuntimeWorkflow
 
 
@@ -53,7 +55,7 @@ def test_design_and_write_publish_new_snapshot_without_mutating_input(tmp_path: 
     workflow = RuntimeWorkflow(repo, run, slug="series", task_runner=lambda task, values: values["result"])
     design_snapshot = workflow.publish_design(
         1,
-        {"title": "Vol", "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "S"}]},
+        {"title": "Vol", "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "S", "writer_context": {}}]},
     )
     assert repo.load_snapshot("series", input_snapshot).slots.keys() == {
         "plan.series", "canon.seed", "canon.frontier"
@@ -72,13 +74,78 @@ def test_design_and_write_publish_new_snapshot_without_mutating_input(tmp_path: 
     assert final_snapshot.slots["write.vol01.ch01.sc01.final_review"]
 
 
+
+def test_writer_tasks_receive_only_validated_writer_context(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    _, input_snapshot = _bootstrap(repo)
+    design_run = repo.create_run(
+        command="design", model="fake", verbose=False, input_snapshot_id=input_snapshot
+    )
+    design = RuntimeWorkflow(repo, design_run, slug="series", task_runner=lambda task, values: values["result"])
+    snapshot = design.publish_design(
+        1,
+        {
+            "title": "Vol",
+            "scenes": [
+                {
+                    "chapter_number": 1,
+                    "scene_number": 1,
+                    "title": "public title",
+                    "author_only_secret": "never pass this to a writer task",
+                    "writer_context": {"required_story_beats": ["door opens"]},
+                }
+            ],
+        },
+    )
+    captured: list[tuple[str, dict[str, object]]] = []
+
+    def runner(task: str, values: dict[str, object]) -> dict[str, object]:
+        captured.append((task, values))
+        return _task_result(task, values)
+
+    write_run = repo.create_run(
+        command="write", model="fake", verbose=False, input_snapshot_id=snapshot.selection_snapshot_id
+    )
+    RuntimeWorkflow(repo, write_run, slug="series", task_runner=runner).write_volume(1)
+
+    writer_calls = [call for call in captured if call[0].startswith("write.")]
+    assert writer_calls
+    assert all("scene_design" not in values for _, values in writer_calls)
+    assert all("author_only_secret" not in repr(values) for _, values in writer_calls)
+    assert any(
+        task == "write.draft.generate"
+        and set(values) == {"writer_context", "previous_summary"}
+        for task, values in writer_calls
+    )
+    assert any(
+        task == "write.summary.generate"
+        and set(values) == {"writer_context", "draft", "previous_summary"}
+        for task, values in writer_calls
+    )
+
+
+def test_write_rejects_scene_without_writer_context(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    _, input_snapshot = _bootstrap(repo)
+    design_run = repo.create_run(
+        command="design", model="fake", verbose=False, input_snapshot_id=input_snapshot
+    )
+    design = RuntimeWorkflow(repo, design_run, slug="series", task_runner=lambda task, values: values["result"])
+    snapshot = design.publish_design(
+        1, {"title": "Vol", "scenes": [{"chapter_number": 1, "scene_number": 1}]}
+    )
+    write_run = repo.create_run(
+        command="write", model="fake", verbose=False, input_snapshot_id=snapshot.selection_snapshot_id
+    )
+    with pytest.raises(RuntimeContractError, match="missing required writer_context"):
+        RuntimeWorkflow(repo, write_run, slug="series", task_runner=_task_result).write_volume(1)
 def test_export_uses_the_pinned_snapshot_not_newer_unselected_candidate(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     _, input_snapshot = _bootstrap(repo)
     design_run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id=input_snapshot)
     design = RuntimeWorkflow(repo, design_run, slug="series", task_runner=lambda task, values: values["result"])
     design_snapshot = design.publish_design(
-        1, {"title": "Vol", "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "S"}]}
+        1, {"title": "Vol", "scenes": [{"chapter_number": 1, "scene_number": 1, "title": "S", "writer_context": {}}]}
     )
     write_run = repo.create_run(command="write", model="fake", verbose=False, input_snapshot_id=design_snapshot.selection_snapshot_id)
     writer = RuntimeWorkflow(

@@ -149,7 +149,7 @@ def test_revision_tasks_render_explicit_target_schema() -> None:
     """TaskRegistry, not a filename heuristic, owns prompt/schema pairing."""
     manager = PromptManager(PROMPTS_DIR)
     variables = {
-        "scene_design": "{}", "draft": "本文", "summary": "{}", "review": "{}",
+        "writer_context": "{}", "draft": "本文", "summary": "{}", "review": "{}",
         "previous_summary": "{}",
     }
     cases = {

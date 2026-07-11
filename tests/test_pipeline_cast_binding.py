@@ -107,6 +107,31 @@ def test_flat_cast_dict_is_not_silently_dropped_by_pipeline():
         tmp.cleanup()
 
 
+def test_apply_rejects_scene_cast_ids_that_diverge_from_scene_design():
+    """Callers cannot widen patch authorization beyond SceneDesign.cast."""
+    tmp, store = _store()
+    try:
+        seed = store.load_seed()
+        design = _design(
+            seed,
+            cast=[CastCharacter(character=EntityRef(kind="character", id="char_001"))],
+        )
+        patch = _make_patch()
+        review = review_scene_patch(design, patch, seed)
+        assert review.passed, review.issues
+        with pytest.raises(ValueError, match="scene_cast_ids diverge"):
+            apply_reviewed_patch(
+                design,
+                patch,
+                seed,
+                store,
+                review,
+                scene_cast_ids={"char_001", "char_002"},
+            )
+    finally:
+        tmp.cleanup()
+
+
 def test_character_cast_rejects_conflicting_flat_and_nested_ids():
     """A cast payload must not smuggle a second ID outside SceneDesign.cast."""
     tmp, store = _store()

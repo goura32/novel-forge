@@ -26,10 +26,10 @@ from novel_forge.prompts import PromptManager
 #   plan.series.generate    -> {keywords, existing_slugs}
 #   design.volume.generate  -> {series_plan, volume_number, volume_title, genre,
 #                               previous_design, bible}
-#   write.draft.generate   -> {scene_design, previous_summary}
-#   write.draft.review      -> {scene_design, draft}
-#   write.draft.revise      -> {scene_design, draft, review}
-#   write.summary.generate  -> {scene_design, draft, previous_summary}
+#   write.draft.generate   -> {writer_context, previous_summary}
+#   write.draft.review      -> {writer_context, draft}
+#   write.draft.revise      -> {writer_context, draft, review}
+#   write.summary.generate  -> {writer_context, draft, previous_summary}
 #   write.summary.review     -> {draft, summary}
 #   write.summary.revise     -> {draft, summary, review}
 _TASK_VARIABLES: dict[str, tuple[str, ...]] = {
@@ -42,10 +42,10 @@ _TASK_VARIABLES: dict[str, tuple[str, ...]] = {
         "previous_design",
         "bible",
     ),
-    "write.draft.generate": ("scene_design", "previous_summary"),
-    "write.draft.review": ("scene_design", "draft"),
-    "write.draft.revise": ("scene_design", "draft", "review"),
-    "write.summary.generate": ("scene_design", "draft", "previous_summary"),
+    "write.draft.generate": ("writer_context", "previous_summary"),
+    "write.draft.review": ("writer_context", "draft"),
+    "write.draft.revise": ("writer_context", "draft", "review"),
+    "write.summary.generate": ("writer_context", "draft", "previous_summary"),
     "write.summary.review": ("draft", "summary"),
     "write.summary.revise": ("draft", "summary", "review"),
 }

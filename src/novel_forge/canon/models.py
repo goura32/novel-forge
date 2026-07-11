@@ -285,6 +285,12 @@ class ContinuityCard(BaseModel):
     distinguishing_traits: str = ""
     known_constraints: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _current_location_kind(self) -> ContinuityCard:
+        if self.current_location is not None and self.current_location.kind != "location":
+            raise ValueError("current_location must have kind='location'")
+        return self
+
 
 class Affiliation(BaseModel):
     model_config = _forbid()
@@ -292,6 +298,12 @@ class Affiliation(BaseModel):
     collective: EntityRef
     role: str
     status: Literal["active", "inactive"] = "active"
+
+    @model_validator(mode="after")
+    def _collective_kind(self) -> Affiliation:
+        if self.collective.kind != "collective":
+            raise ValueError("affiliation.collective must have kind='collective'")
+        return self
 
 
 class Stance(BaseModel):
@@ -302,6 +314,12 @@ class Stance(BaseModel):
     character: EntityRef
     stance: Literal["ally", "suspicious", "hostile", "neutral"]
     reason: str = ""
+
+    @model_validator(mode="after")
+    def _character_kind(self) -> Stance:
+        if self.character.kind != "character":
+            raise ValueError("stance.character must have kind='character'")
+        return self
 
 
 class Marker(BaseModel):
@@ -837,7 +855,7 @@ class LocStateUpdate(BaseModel):
     model_config = _forbid()
 
     id: str
-    current_state: str | None = None
+    current_state: str
     immutable_constraints: list[str] = Field(default_factory=list)
 
 

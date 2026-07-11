@@ -8,6 +8,7 @@ small seed ``Canon`` and a ``CanonPatch``, applies it through
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from novel_forge.canon.idgen import StableIdGenerator
 from novel_forge.canon.models import (
@@ -171,6 +172,17 @@ def _apply(canon, patch, scene_cast_ids=None, **kw):
         scene_cast_ids=scene_cast_ids, **kw,
     )
     return new_canon, event
+
+
+# --------------------------------------------------------------------------
+# 0. Patch payload integrity
+# --------------------------------------------------------------------------
+
+
+def test_location_state_update_requires_an_actual_state_change():
+    """An empty update must not coerce Location.current_state to None."""
+    with pytest.raises(ValidationError, match="current_state"):
+        CanonPatch.model_validate({"locations": {"state_updates": [{"id": "loc_stone_city"}]}})
 
 
 # --------------------------------------------------------------------------
@@ -557,6 +569,7 @@ def test_location_immutable_constraint_update_rejected():
         locations={
             "state_updates": [{
                 "id": "loc_stone_city",
+                "current_state": "normal",
                 "immutable_constraints": ["changed"],  # correction-only
             }]
         }

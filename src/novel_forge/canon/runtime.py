@@ -472,6 +472,9 @@ def apply_reviewed_patch(
 
     source = _source_from_design(scene_design, revision)
     resolved_patch = CanonPatch.model_validate(patch)
+    authoritative_scene_cast_ids = _scene_cast_ids(scene_design)
+    if scene_cast_ids is not None and scene_cast_ids != authoritative_scene_cast_ids:
+        raise ValueError("scene_cast_ids diverge from SceneDesign.cast")
     applier = CanonPatchApplier()
     new_canon, event = applier.apply(
         canon=canon,
@@ -484,7 +487,7 @@ def apply_reviewed_patch(
             review_contract_version=1,
         ),
         id_gen=StableIdGenerator(),
-        scene_cast_ids=scene_cast_ids,
+        scene_cast_ids=authoritative_scene_cast_ids,
         existing_events=store.load_active(),
         artifact_digest=review.artifact_digest,
     )
@@ -495,7 +498,7 @@ def apply_reviewed_patch(
     # post-apply Canon state.
     # Persist replay-critical scope context with the event.  Replay must never
     # consult a transient SceneDesign object to validate relationship changes.
-    event.scene_cast_ids = sorted(scene_cast_ids or set())
+    event.scene_cast_ids = sorted(authoritative_scene_cast_ids)
     # The scene artifact may be promoted only after the patch was resolved
     # successfully.  ``SceneDesign`` validates the draft → review_passed
     # transition atomically, so an applied design cannot lose its patch.

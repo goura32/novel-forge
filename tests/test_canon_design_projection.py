@@ -12,11 +12,14 @@ from novel_forge.canon.design import (
     VolumeDesign,
 )
 from novel_forge.canon.models import (
+    Affiliation,
     CastCharacter,
     CastLocalRole,
     ContextScope,
+    ContinuityCard,
     DesignIntent,
     EntityRef,
+    Stance,
     WriterContext,
 )
 from novel_forge.canon.projection import (
@@ -145,6 +148,24 @@ def test_context_scope_and_character_cast_enforce_reference_kind() -> None:
         ContextScope(setting=EntityRef(kind="character", id="char_001"))
     with pytest.raises(ValidationError, match="character"):
         CastCharacter(character=EntityRef(kind="location", id="loc_001"))
+
+
+def test_canon_homogeneous_references_enforce_expected_kinds() -> None:
+    with pytest.raises(ValidationError, match="current_location"):
+        ContinuityCard(
+            current_state="waiting",
+            current_location=EntityRef(kind="character", id="char_002"),
+        )
+    with pytest.raises(ValidationError, match="collective"):
+        Affiliation(
+            collective=EntityRef(kind="character", id="char_002"),
+            role="member",
+        )
+    with pytest.raises(ValidationError, match="character"):
+        Stance(
+            character=EntityRef(kind="location", id="loc_001"),
+            stance="neutral",
+        )
 
 
 def test_draft_scene_design_rejects_canon_patch() -> None:
