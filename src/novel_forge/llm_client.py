@@ -105,8 +105,6 @@ class LLMClient:
         api_url: str | None = None,
         model: str = "qwen3.6:35b-a3b-mtp-q4_K_M",
         timeout_seconds: int = 3600,
-        max_retries: int | None = None,
-        transport_retries: int | None = None,
         raw_log_dir: Path | None = None,
         capture: AttemptCapture | None = None,
         phase: str = "",
@@ -122,9 +120,8 @@ class LLMClient:
         self.api_url = api_url
         self.model = model
         self.timeout_seconds = timeout_seconds
-        resolved_transport_retries = transport_retries if transport_retries is not None else max_retries
-        self.transport_retries = 2 if resolved_transport_retries is None else resolved_transport_retries
-        self.max_retries = self.transport_retries  # Backward-compatible alias.
+        # Transport retries are owned by RuntimeWorkflow so each attempt is a
+        # distinct immutable record.  This client issues a single call.
         self._series_slug = series_slug
         self._volume = volume
         # ``raw_log_dir`` is intentionally ignored by the destructive runtime
@@ -226,85 +223,72 @@ class LLMClient:
         schema: dict[str, Any] | None,
         seed_offset: int,
     ) -> dict[str, Any]:
-        """Call the API with retries for transport and invalid model outputs."""
-        # payload["messages"][1]["content"] already has {schema} replaced by _build_payload
+        """Execute a single LLM call.
+
+        Transport and generation retries are owned by ``RuntimeWorkflow`` so
+        each attempt is a distinct immutable record.  This method issues one
+        request and surfaces any failure as a typed ``LLMError``.
+        """
         current_prompt = payload["messages"][1]["content"]
         self._current_kind = kind
         self._call_sequence += 1
-        attempt_limit = max(self.transport_retries, 1)
-        last_error: LLMError | None = None
+        payload["messages"][1]["content"] = current_prompt
+        base_seed = payload["options"]["seed"]
+        payload["options"]["seed"] = base_seed + seed_offset
+        if self._capture is not None:
+            self._capture.request(payload)
 
-        for attempt in range(attempt_limit):
-            payload["messages"][1]["content"] = current_prompt
-            base_seed = payload["options"]["seed"]
-            payload["options"]["seed"] = base_seed + attempt + seed_offset
-            if self._capture is not None:
-                self._capture.request(payload)
+        meta = self._build_meta()
+        self._log.debug(
+            "  [LLM CALL] kind=%s model=%s seed=%d%s",
+            kind, self.model, payload["options"]["seed"], meta,
+        )
 
-            meta = self._build_meta()
+        raw_text = ""
+        try:
+            call_start = time.time()
+            raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
+            call_elapsed = time.time() - call_start
+
             self._log.debug(
-                "  [LLM CALL] kind=%s attempt=%d/%d model=%s seed=%d%s",
-                kind, attempt + 1, attempt_limit, self.model, base_seed + attempt + seed_offset, meta,
+                "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
+                kind, chunk_count, total_bytes, call_elapsed, meta, done_reason,
             )
+            self._capture_response(raw_text, raw)
 
-            raw_text = ""
-            try:
-                call_start = time.time()
-                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
-                call_elapsed = time.time() - call_start
+            parsed = parse_json_response(raw)
 
-                self._log.debug(
-                    "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
-                    kind, chunk_count, total_bytes, call_elapsed, meta, done_reason,
-                )
-                self._capture_response(raw_text, raw)
+            if self._is_schema_echo(parsed):
+                raise LLMError("LLM returned schema structure instead of data")
 
-                parsed = parse_json_response(raw)
+            if schema:
+                if kind == "review" and isinstance(parsed, dict):
+                    self._normalize_review_output(parsed)
+                if isinstance(parsed, dict) and "slug" in parsed:
+                    parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
+                from novel_forge.schemas import validate_data_or_raise
+                validate_data_or_raise(kind, schema, parsed)
+            if self._capture is not None:
+                self._capture.parsed(cast(dict[str, Any], parsed))
+                self._capture.validation({"outcome": "passed"})
+            return cast(dict[str, Any], parsed)
 
-                if self._is_schema_echo(parsed):
-                    raise LLMError("LLM returned schema structure instead of data")
-
-                if schema:
-                    if kind == "review" and isinstance(parsed, dict):
-                        self._normalize_review_output(parsed)
-                    # Normalize slug before validation (LLM may output hyphens which
-                    # the schema regex ^[a-z0-9_]+$ rejects — normalize to underscores first).
-                    if isinstance(parsed, dict) and "slug" in parsed:
-                        parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
-                    from novel_forge.schemas import validate_data_or_raise
-                    validate_data_or_raise(kind, schema, parsed)
-                if self._capture is not None:
-                    self._capture.parsed(cast(dict[str, Any], parsed))
-                    self._capture.validation({"outcome": "passed"})
-                return cast(dict[str, Any], parsed)
-
-            except RuntimeError:
-                raise
-            except JsonParseError as e:
-                if self._capture is not None:
-                    self._capture.validation({"outcome": "failed", "error_code": "JSON_PARSE_ERROR"})
-                raise LLMError(f"JSON parse error: {str(e)[:200]}") from e
-            except (SchemaValidationError, JsonSchemaValidationError) as e:
-                if self._capture is not None:
-                    self._capture.validation({"outcome": "failed", "error_code": "SCHEMA_VALIDATION_ERROR"})
-                raise LLMError(f"schema validation error: {str(e)[:200]}") from e
-            except LLMTransportError as e:
-                last_error = e
-            except LLMError:
-                raise
-            except Exception:
-                raise
-
-            if attempt < attempt_limit - 1:
-                self._log.warning(
-                    "  [LLM RETRY] kind=%s attempt=%d/%d reason=%s%s",
-                    kind, attempt + 1, attempt_limit, last_error, meta,
-                )
-                continue
-            if last_error is not None:
-                raise last_error
-
-        raise LLMError("LLM request failed") from None
+        except RuntimeError:
+            raise
+        except JsonParseError as e:
+            if self._capture is not None:
+                self._capture.validation({"outcome": "failed", "error_code": "JSON_PARSE_ERROR"})
+            raise LLMError(f"JSON parse error: {str(e)[:200]}") from e
+        except (SchemaValidationError, JsonSchemaValidationError) as e:
+            if self._capture is not None:
+                self._capture.validation({"outcome": "failed", "error_code": "SCHEMA_VALIDATION_ERROR"})
+            raise LLMError(f"schema validation error: {str(e)[:200]}") from e
+        except LLMTransportError:
+            raise
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMTransportError(f"LLM request transport failure: {exc}") from exc
 
     def _build_meta(self) -> str:
         """ログ用のメタ文字列を構築する。"""

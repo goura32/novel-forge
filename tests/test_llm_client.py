@@ -7,7 +7,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from novel_forge.llm_client import LLMClient, LLMError, SchemaValidationError, load_config
+from novel_forge.llm_client import (
+    LLMClient,
+    LLMError,
+    LLMTransportError,
+    SchemaValidationError,
+    load_config,
+)
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -54,8 +60,6 @@ class TestLLMClientInit:
         client = LLMClient(api_url="http://localhost:11434/api/chat")
         assert client.model == "qwen3.6:35b-a3b-mtp-q4_K_M"
         assert client.timeout_seconds == 3600
-        assert client.transport_retries == 2
-        assert client.max_retries == 2
         assert client.num_ctx == 262144
         assert client.num_predict == -1
 
@@ -64,14 +68,11 @@ class TestLLMClientInit:
             api_url="http://custom:11434/api/chat",
             model="custom-model",
             timeout_seconds=120,
-            max_retries=5,
             num_ctx=131072,
             num_predict=2048,
         )
         assert client.model == "custom-model"
         assert client.timeout_seconds == 120
-        assert client.transport_retries == 5
-        assert client.max_retries == 5
         assert client.num_ctx == 131072
         assert client.num_predict == 2048
 
@@ -138,122 +139,46 @@ class TestCompleteJson:
                 client.complete_json("test_kind", "sys", "usr")
 
 
-# ── complete_json — retry ──────────────────────────────────────────────
+# ── complete_json — transport failure propagation ──────────────────────
 
 
-class TestCompleteJsonRetry:
-    def test_retry_on_failure(self):
-        """Should retry on httpx errors and succeed."""
-        full_json = json.dumps({"ok": True})
-        chunks = _ndjson_response(full_json)
-        mock_resp = _make_streaming_response(chunks)
-
+class TestCompleteJsonTransport:
+    def test_transport_timeout_surfaces_as_transport_error(self):
+        """A transport failure must be raised as LLMTransportError, not retried internally."""
         import httpx
-
-        call_count = 0
-
-        def mock_stream(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise httpx.TimeoutException("timeout")
-            return mock_resp
-
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=mock_stream):
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=2,
-            )
-            result = client.complete_json("test_kind", "sys", "usr")
-        assert result == {"ok": True}
-        assert call_count == 2
-
-    def test_retry_on_connect_error(self):
-        """Transient DNS/connect failures should use transport retries."""
-        import httpx
-
-        full_json = json.dumps({"ok": True})
-        mock_resp = _make_streaming_response(_ndjson_response(full_json))
-        request = httpx.Request("POST", "http://localhost:11434/api/chat")
 
         with patch(
             "novel_forge.llm_client.httpx.stream",
-            side_effect=[httpx.ConnectError("temporary DNS failure", request=request), mock_resp],
-        ) as mock_stream:
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=2,
-            )
-            result = client.complete_json("test_kind", "sys", "usr")
+            side_effect=httpx.TimeoutException("timeout"),
+        ):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            with pytest.raises(LLMTransportError):
+                client.complete_json("test_kind", "sys", "usr")
 
-        assert result == {"ok": True}
-        assert mock_stream.call_count == 2
-
-    def test_retry_exhausted_raises(self):
-        """Should raise LLMError after all transport retries are exhausted."""
+    def test_transport_connect_error_surfaces_as_transport_error(self):
         import httpx
 
+        request = httpx.Request("POST", "http://localhost:11434/api/chat")
         with patch(
-            "novel_forge.llm_client.httpx.stream", side_effect=httpx.TimeoutException("timeout")
+            "novel_forge.llm_client.httpx.stream",
+            side_effect=httpx.ConnectError("temporary DNS failure", request=request),
         ):
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=2,
-            )
-            with pytest.raises(LLMError):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            with pytest.raises(LLMTransportError):
                 client.complete_json("test_kind", "sys", "usr")
 
-    def test_does_not_retry_json_parse_failure_in_transport_layer(self):
-        """Malformed model output should surface to the generation counter without transport-layer retry."""
-        bad_resp = _make_streaming_response(_ndjson_response("not json"))
-        good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
+    def test_non_transport_http_error_surfaces_as_transport_error(self):
+        import httpx
 
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]) as mock_stream:
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=2,
-            )
-            with pytest.raises(LLMError, match="JSON parse error"):
+        request = httpx.Request("POST", "http://localhost:11434/api/chat")
+        response = httpx.Response(503, request=request)
+        with patch(
+            "novel_forge.llm_client.httpx.stream",
+            side_effect=httpx.HTTPStatusError("unavailable", request=request, response=response),
+        ):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            with pytest.raises(LLMTransportError):
                 client.complete_json("test_kind", "sys", "usr")
-
-        assert mock_stream.call_count == 1
-
-    def test_does_not_retry_schema_echo_failure_in_transport_layer(self):
-        """Schema echo should surface to the generation counter without transport-layer retry."""
-        schema_echo = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
-        bad_resp = _make_streaming_response(_ndjson_response(json.dumps(schema_echo)))
-        good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
-
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]) as mock_stream:
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=2,
-            )
-            with pytest.raises(LLMError, match="schema structure"):
-                client.complete_json("test_kind", "sys", "usr")
-
-        assert mock_stream.call_count == 1
-
-    def test_does_not_retry_schema_validation_failure_in_transport_layer(self):
-        """Schema validation failures surface to the generation retry loop."""
-        schema = {
-            "type": "object",
-            "properties": {"ok": {"type": "boolean"}},
-            "required": ["ok"],
-            "additionalProperties": False,
-        }
-        bad_resp = _make_streaming_response(_ndjson_response(json.dumps({"bad": True})))
-        good_resp = _make_streaming_response(_ndjson_response(json.dumps({"ok": True})))
-
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=[bad_resp, good_resp]) as mock_stream:
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=2,
-            )
-            with pytest.raises(LLMError, match="schema validation error"):
-                client.complete_json("test_kind", "sys", "usr", schema)
-
-        assert mock_stream.call_count == 1
 
     def test_normalizes_review_output_drops_legacy_bookkeeping_fields(self):
         """Review normalization should keep only actionable issue data."""
@@ -345,26 +270,6 @@ class TestCompleteJsonRetry:
             "important",
             "minor",
         ]
-
-    def test_no_retry_when_zero(self):
-        """max_retries=0 should not retry."""
-        import httpx
-
-        call_count = 0
-
-        def mock_stream(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            raise httpx.TimeoutException("timeout")
-
-        with patch("novel_forge.llm_client.httpx.stream", side_effect=mock_stream):
-            client = LLMClient(
-                api_url="http://localhost:11434/api/chat",
-                max_retries=0,
-            )
-            with pytest.raises(LLMError):
-                client.complete_json("test_kind", "sys", "usr")
-        assert call_count == 1
 
 
 # ── complete_json — payload structure ──────────────────────────────────

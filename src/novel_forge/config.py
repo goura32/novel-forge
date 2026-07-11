@@ -26,7 +26,6 @@ class LLMConfig(BaseModel):
     model: str = "qwen3.6:35b-a3b-mtp-q4_K_M"
     ollama_host: str = "ws1.local:11434"
     timeout_seconds: int = Field(default=3600, ge=1)
-    transport_retries: int = Field(default=2, ge=0)
     ollama_options: dict[str, Any] = Field(default_factory=lambda: {"think": False})
 
 

@@ -158,7 +158,6 @@ def _make_workflow(
     client = LLMClient(
         model=model or config.llm.model,
         timeout_seconds=config.llm.timeout_seconds,
-        transport_retries=config.llm.transport_retries,
         ollama_options=config.llm.ollama_options,
         series_slug=slug or "",
     )

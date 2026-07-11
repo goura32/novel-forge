@@ -27,10 +27,8 @@ class TestLLMClient:
             model="test-model",
             raw_log_dir=tmp_path,
             timeout_seconds=60,
-            max_retries=3,
         )
         assert client.timeout_seconds == 60
-        assert client.max_retries == 3
 
 
 # ── Models ─────────────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ from novel_forge.canon.runtime import (
     attach_projection,
     review_scene_patch,
 )
+from novel_forge.llm_client import LLMTransportError
 from novel_forge.runtime import (
     ArtifactReference,
     AttemptCapture,
@@ -290,6 +291,18 @@ class RuntimeWorkflow:
                 set_capture(AttemptCapture(self.repository, attempt, self.run.manifest.verbose))
             try:
                 result = self.task_runner(task_id, values)
+            except LLMTransportError as exc:
+                retryable = retry_number < self.max_generation_count
+                self.repository.fail_attempt(
+                    attempt,
+                    error_code="TRANSPORT_ERROR",
+                    retryable=retryable,
+                    detail=str(exc),
+                )
+                last_error = exc
+                if retryable:
+                    continue
+                raise
             except Exception as exc:
                 retryable = retry_number < self.max_generation_count
                 self.repository.fail_attempt(
