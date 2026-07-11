@@ -185,6 +185,22 @@ def test_location_state_update_requires_an_actual_state_change():
         CanonPatch.model_validate({"locations": {"state_updates": [{"id": "loc_stone_city"}]}})
 
 
+def test_character_state_update_requires_a_location_ref() -> None:
+    with pytest.raises(ValidationError, match="current_location"):
+        CanonPatch.model_validate(
+            {
+                "characters": {
+                    "state_updates": [
+                        {
+                            "character": {"kind": "character", "id": "char_001"},
+                            "current_location": {"kind": "character", "id": "char_002"},
+                        }
+                    ]
+                }
+            }
+        )
+
+
 # --------------------------------------------------------------------------
 # 1. Minor create
 # --------------------------------------------------------------------------

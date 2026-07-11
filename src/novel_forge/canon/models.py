@@ -573,6 +573,20 @@ class Canon(BaseModel):
     knowledge: list[Knowledge] = Field(default_factory=list)
     chronology: Chronology | None = None
 
+    @model_validator(mode="after")
+    def _unique_entity_ids(self) -> Canon:
+        """Reject duplicate stable IDs before any replay or patch application."""
+        ids = [self.series.id]
+        for kind in PREFIX_BY_KIND:
+            if kind in ("series", "deadline"):
+                continue
+            ids.extend(entity.id for entity in self._kind_list(kind))
+        if self.chronology is not None:
+            ids.extend(deadline.id for deadline in self.chronology.active_deadlines)
+        if len(ids) != len(set(ids)):
+            raise ValueError("duplicate Canon entity IDs")
+        return self
+
     # -- lookup helpers (used by idgen / store / slice) -------------------
     def _kind_list(self, kind: str):
         name = {
@@ -784,6 +798,12 @@ class CharStateUpdate(BaseModel):
     character: ChangeRef
     current_state: str | None = None
     current_location: EntityRef | None = None
+
+    @model_validator(mode="after")
+    def _current_location_kind(self) -> CharStateUpdate:
+        if self.current_location is not None and self.current_location.kind != "location":
+            raise ValueError("current_location must have kind='location'")
+        return self
 
 
 class CharPromote(BaseModel):

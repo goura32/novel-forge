@@ -13,6 +13,7 @@ from novel_forge.canon.design import (
 )
 from novel_forge.canon.models import (
     Affiliation,
+    Canon,
     CastCharacter,
     CastLocalRole,
     ContextScope,
@@ -30,7 +31,7 @@ from novel_forge.canon.projection import (
 from novel_forge.canon.store import BibleFactory
 
 
-def _make_canon() -> object:
+def _make_canon() -> Canon:
     plan = {
         "series": {
             "id": "series",
@@ -166,6 +167,14 @@ def test_canon_homogeneous_references_enforce_expected_kinds() -> None:
             character=EntityRef(kind="location", id="loc_001"),
             stance="neutral",
         )
+
+
+def test_canon_rejects_duplicate_stable_ids() -> None:
+    payload = _make_canon().model_dump(mode="json")
+    payload["characters"].append(payload["characters"][0])
+
+    with pytest.raises(ValidationError, match="duplicate Canon entity IDs"):
+        Canon.model_validate(payload)
 
 
 def test_draft_scene_design_rejects_canon_patch() -> None:
