@@ -190,6 +190,7 @@ def plan(
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Generate a series plan from keywords and bootstrap the immutable series root."""
     config = RuntimeConfig.load()
@@ -197,7 +198,7 @@ def plan(
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     run = repo.create_run(command="plan", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=None)
-    workspace_lock = manager.acquire(scope="workspace", run=run, phase="plan")
+    workspace_lock = manager.acquire(scope="workspace", run=run, phase="plan", wait=wait_lock)
     series_lock = None
     try:
         workflow = _make_workflow(
@@ -232,6 +233,7 @@ def design(
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Generate a volume design (chapter/scene structure) and publish it."""
     config = RuntimeConfig.load()
@@ -246,7 +248,7 @@ def design(
         verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
-    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design"):
+    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design", wait=wait_lock):
         workflow = _make_workflow(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
@@ -267,6 +269,7 @@ def write(
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Write scene drafts for a volume."""
     config = RuntimeConfig.load()
@@ -281,7 +284,7 @@ def write(
         verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
-    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write"):
+    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write", wait=wait_lock):
         workflow = _make_workflow(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
@@ -296,6 +299,7 @@ def export(
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Export manuscript for KDP."""
     config = RuntimeConfig.load()
@@ -310,7 +314,7 @@ def export(
         verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
-    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export"):
+    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export", wait=wait_lock):
         workflow = _make_workflow(repo, run, series_dir.name, config, model, None, None, verbose)
         result = workflow.export_volume(volume)
         console.print(f"[green]✓[/green] Exported to {result.get('artifact_id', 'N/A')}")
@@ -348,6 +352,7 @@ def resume(
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Resume from the last completed phase for a series."""
     config = RuntimeConfig.load()
@@ -362,7 +367,7 @@ def resume(
         verbose=_resolve_verbose(config, verbose),
         input_snapshot_id=snapshot_id,
     )
-    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume"):
+    with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume", wait=wait_lock):
         workflow = _make_workflow(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
@@ -382,6 +387,7 @@ def complete(
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
+    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Run the full pipeline: plan → design → write → export."""
     config = RuntimeConfig.load()
@@ -389,7 +395,7 @@ def complete(
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     run = repo.create_run(command="plan", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=None)
-    workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete")
+    workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete", wait=wait_lock)
     series_lock = None
     try:
         workflow = _make_workflow(repo, run, None, config, model, max_review_count, max_summary_review_count, verbose)

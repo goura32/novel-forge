@@ -167,6 +167,39 @@ def test_complete_uses_public_design_boundary_and_series_lock(tmp_path: Path, mo
     assert not list((tmp_path / ".novel-forge" / "runtime" / "locks").glob("series-series_new.lock.json"))
 
 
+def test_task_runner_passes_registry_schema_to_llm_client() -> None:
+    """Schema validation must not be bypassed: the runner must hand the resolved
+    task schema to ``LLMClient.complete_json``."""
+    from novel_forge.task_registry import DEFAULT_TASK_REGISTRY
+
+    captured: dict[str, Any] = {}
+
+    class FakeClient:
+        def complete_json(self, **kwargs: Any) -> dict[str, Any]:
+            captured.update(kwargs)
+            return {"title": "第1巻", "premise": "開始", "chapters": []}
+
+    class FakePromptManager:
+        def render_task(self, task_id: str, variables: dict[str, str]) -> str:
+            return "prompt"
+
+    make_task_runner(cast(Any, FakeClient()), cast(Any, FakePromptManager()))(
+        "design.volume.generate",
+        {
+            "series_plan": {"title": "テスト"},
+            "volume_number": 1,
+            "volume_title": "第1巻",
+            "genre": ["fantasy"],
+            "previous_design": None,
+            "canon_context": {"schema_version": 2},
+        },
+    )
+
+    assert "schema" in captured, "complete_json was called without a schema"
+    expected = DEFAULT_TASK_REGISTRY.load_schema("design.volume.generate")
+    assert captured["schema"] == expected
+
+
 def test_task_runner_dispatches_design_volume_with_registry_variables() -> None:
     captured: dict[str, Any] = {}
 

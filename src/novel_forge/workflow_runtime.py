@@ -28,6 +28,7 @@ from novel_forge.canon.runtime import (
     review_scene_patch,
 )
 from novel_forge.llm_client import LLMTransportError
+from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
     ArtifactReference,
     AttemptCapture,
@@ -36,6 +37,7 @@ from novel_forge.runtime import (
     RunRepository,
     RuntimeContractError,
     SelectionSnapshot,
+    digest_json,
 )
 
 TaskRunner = Callable[[str, dict[str, Any]], dict[str, Any]]
@@ -340,6 +342,7 @@ class RuntimeWorkflow:
         self,
         attempt: AttemptHandle,
         *,
+        task_id: str,
         artifact_type: str,
         logical_key: str,
         payload: dict[str, Any],
@@ -348,6 +351,12 @@ class RuntimeWorkflow:
         input_artifact_ids: tuple[str, ...] = (),
         quality_status: str | None = None,
     ) -> ArtifactReference:
+        from novel_forge.task_registry import DEFAULT_TASK_REGISTRY
+
+        prompt = PromptManager().render_task(task_id, {})
+        schema = DEFAULT_TASK_REGISTRY.load_schema(task_id)
+        prompt_digest = digest_json(prompt)
+        schema_digest = digest_json(schema)
         return self.repository.commit_artifact(
             attempt,
             artifact_type=artifact_type,
@@ -357,6 +366,8 @@ class RuntimeWorkflow:
             metadata=metadata,
             input_artifact_ids=input_artifact_ids,
             quality_status=quality_status,  # type: ignore[arg-type]
+            prompt_digest=prompt_digest,
+            schema_digest=schema_digest,
         )
 
     def _publish(self, updates: dict[str, str], reason: str) -> SelectionSnapshot:
@@ -388,6 +399,7 @@ class RuntimeWorkflow:
         plan_ref = (
             self._commit_task_result(
                 plan_attempt,
+                task_id="plan.series.generate",
                 artifact_type="plan.series",
                 logical_key="plan.series",
                 payload=plan,
@@ -664,6 +676,7 @@ class RuntimeWorkflow:
         plan_ref = self._selected("plan.series")
         self._commit_task_result(
             volume_attempt,
+            task_id="design.volume.generate",
             artifact_type="design.volume.candidate",
             logical_key=f"design.vol{volume:02d}.skeleton",
             payload=volume_design,
@@ -699,6 +712,7 @@ class RuntimeWorkflow:
                 raise RuntimeContractError(f"chapter {chapter_number} must contain at least one scene")
             self._commit_task_result(
                 chapter_attempt,
+                task_id="design.chapter.generate",
                 artifact_type="design.chapter.candidate",
                 logical_key=f"design.vol{volume:02d}.ch{chapter_number:02d}.candidate",
                 payload=chapter_design,
@@ -746,6 +760,7 @@ class RuntimeWorkflow:
                 )
                 self._commit_task_result(
                     scene_attempt,
+                    task_id="design.scene.generate",
                     artifact_type="design.scene.candidate",
                     logical_key=f"design.vol{volume:02d}.ch{chapter_number:02d}.sc{chapter_scene_number:02d}.candidate",
                     payload=raw_scene,
@@ -799,6 +814,7 @@ class RuntimeWorkflow:
             )
             draft_ref = self._commit_task_result(
                 draft_attempt,
+                task_id="write.draft.generate",
                 artifact_type="write.draft",
                 logical_key=f"{stem}.draft",
                 payload=draft,
@@ -818,6 +834,7 @@ class RuntimeWorkflow:
                 review_key = f"{stem}.final_review" if not issues or cycle + 1 == self.max_review_count else f"{stem}.draft_review.{cycle + 1}"
                 final_review = self._commit_task_result(
                     review_attempt,
+                    task_id="write.draft.review",
                     artifact_type="review.issues",
                     logical_key=review_key,
                     payload=review,
@@ -837,6 +854,7 @@ class RuntimeWorkflow:
                 )
                 final_draft = self._commit_task_result(
                     revise_attempt,
+                    task_id="write.draft.revise",
                     artifact_type="write.draft",
                     logical_key=f"{stem}.draft_candidate.{cycle + 1}",
                     payload=revised,
@@ -893,6 +911,7 @@ class RuntimeWorkflow:
         )
         candidate_ref = self._commit_task_result(
             generate_attempt,
+            task_id="write.summary.generate",
             artifact_type="write.summary",
             logical_key=f"{stem}.summary_candidate.1",
             payload=candidate,
@@ -910,6 +929,7 @@ class RuntimeWorkflow:
             )
             final_review = self._commit_task_result(
                 review_attempt,
+                task_id="write.summary.review",
                 artifact_type="review.issues",
                 logical_key=f"{stem}.summary_review.{cycle + 1}",
                 payload=review,
@@ -925,6 +945,7 @@ class RuntimeWorkflow:
             )
             final = self._commit_task_result(
                 revise_attempt,
+                task_id="write.summary.revise",
                 artifact_type="write.summary",
                 logical_key=f"{stem}.summary_candidate.{cycle + 2}",
                 payload=revised,

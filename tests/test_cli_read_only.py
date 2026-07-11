@@ -17,3 +17,11 @@ def test_status_is_read_only_and_inspection_commands_are_registered(tmp_path):
     assert help_result.exit_code == 0
     for command in ("runs", "run", "attempt", "llm", "artifact"):
         assert command in help_result.output
+
+
+def test_side_effect_commands_expose_wait_lock_option(tmp_path):
+    runner = CliRunner()
+    for command in ("plan", "design", "write", "export", "resume", "complete"):
+        result = runner.invoke(app, [command, "--help"])
+        assert result.exit_code == 0, result.output
+        assert "--wait-lock" in result.output, f"{command} must expose --wait-lock"

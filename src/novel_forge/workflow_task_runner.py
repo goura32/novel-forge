@@ -93,6 +93,7 @@ def make_task_runner(client: LLMClient, manager: PromptManager | None = None) ->
     """
 
     pm = manager or PromptManager()
+    from novel_forge.task_registry import DEFAULT_TASK_REGISTRY
 
     def task_runner(task_id: str, values: dict[str, Any]) -> dict[str, Any]:
         expected = _TASK_VARIABLES.get(task_id)
@@ -104,10 +105,12 @@ def make_task_runner(client: LLMClient, manager: PromptManager | None = None) ->
         variables = {key: json.dumps(values[key], ensure_ascii=False) for key in expected}
         user_prompt = pm.render_task(task_id, variables)
         operation = task_id.rsplit(".", 1)[-1]
+        schema = DEFAULT_TASK_REGISTRY.load_schema(task_id)
         return client.complete_json(
             kind=operation,
             system_prompt="あなたは小説執筆支援AIです。与えられた指示と入力に従い、要求されたJSONのみを出力してください。",
             user_prompt=user_prompt,
+            schema=schema,
         )
 
     def set_attempt_capture(capture: Any | None) -> None:
