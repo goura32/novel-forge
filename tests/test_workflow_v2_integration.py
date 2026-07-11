@@ -141,9 +141,11 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
         canon_seed=seed.model_dump(mode="json"),
     )
     calls: list[str] = []
+    inputs: list[dict[str, Any]] = []
 
-    def task_runner(task_id: str, _values: dict[str, Any]) -> dict[str, Any]:
+    def task_runner(task_id: str, values: dict[str, Any]) -> dict[str, Any]:
         calls.append(task_id)
+        inputs.append(values)
         if task_id == "design.volume.generate":
             return {"title": "第1巻", "premise": "覚醒", "chapters": [{"title": "覚醒", "purpose": "導入"}]}
         if task_id == "design.chapter.generate":
@@ -165,6 +167,10 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
     published = workflow.generate_volume_design(volume=1, plan={"planned_volumes": [{"title": "第1巻"}]})
 
     assert calls == ["design.volume.generate", "design.chapter.generate", "design.scene.generate"]
+    for task_input in inputs:
+        assert "canon_context" in task_input
+        assert "bible" not in task_input
+        assert "char_001" not in str(task_input["canon_context"])
     assert published.slots["canon.frontier"] != snapshot.slots["canon.frontier"]
     generated = repo.read_payload(repo.verify_artifact(published.slots["design.vol01"]))
     assert generated["scenes"][0]["status"] == "applied"

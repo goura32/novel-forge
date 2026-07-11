@@ -54,7 +54,7 @@ def validate_frontier_payload(payload: Mapping[str, Any]) -> tuple[CanonEvent, .
         raise FrontierPayloadError("Canon frontier payload 'events' must be a list")
 
     events: list[CanonEvent] = []
-    seen_sources: set[tuple[str, int]] = set()
+    seen_scenes: set[str] = set()
     for index, raw_event in enumerate(raw_events):
         if not isinstance(raw_event, Mapping):
             raise FrontierPayloadError(f"frontier event payload at index {index} must be an object")
@@ -65,14 +65,15 @@ def validate_frontier_payload(payload: Mapping[str, Any]) -> tuple[CanonEvent, .
                 f"invalid frontier event payload at index {index}: {exc}"
             ) from exc
         _validate_event_integrity(event)
-        # P0-2: at most one active event per (scene_id, revision)
-        source_key = (event.source.scene_id, event.source.revision)
-        if source_key in seen_sources:
+        # §7.1: an active frontier holds exactly one event per scene source.
+        # A later revision replaces this event before artifact publication;
+        # replaying both would apply historical and replacement patches together.
+        scene_id = event.source.scene_id
+        if scene_id in seen_scenes:
             raise FrontierPayloadError(
-                f"frontier has duplicate active source "
-                f"{event.source.scene_id} revision {event.source.revision}"
+                f"frontier has duplicate active source scene {scene_id}"
             )
-        seen_sources.add(source_key)
+        seen_scenes.add(scene_id)
         events.append(event)
     return tuple(events)
 

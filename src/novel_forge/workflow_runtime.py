@@ -406,6 +406,64 @@ class RuntimeWorkflow:
         return self._publish({slot: ref.artifact_id}, f"design volume {volume} accepted")
 
     @staticmethod
+    def _design_author_context(canon: Canon) -> dict[str, Any]:
+        """Return the deterministic, ID-free Canon projection for design LLMs.
+
+        Design may use author context, but never the raw Canon / event payload.
+        Stable IDs are retained only inside typed runtime artifacts and are
+        resolved once after generation.  This deliberately exposes narrative
+        labels and state rather than serializing domain records wholesale.
+        """
+        names = {character.id: character.identity.display_name for character in canon.characters}
+        collective_names = {collective.id: collective.name for collective in canon.collectives}
+        return {
+            "series_constraints": [constraint.statement for constraint in canon.series.constraints],
+            "world_rules": [rule.statement for rule in canon.world_rules],
+            "characters": [
+                {
+                    "name": character.identity.display_name,
+                    "current_state": character.continuity_card.current_state,
+                    "affiliations": [
+                        collective_names.get(affiliation.collective.id, "")
+                        for affiliation in character.affiliations
+                    ],
+                }
+                for character in canon.characters
+            ],
+            "locations": [
+                {
+                    "name": location.name,
+                    "immutable_constraints": location.immutable_constraints,
+                    "current_state": location.current_state,
+                }
+                for location in canon.locations
+            ],
+            "relationships": [
+                {
+                    "participants": [names.get(participant_id, "") for participant_id in relationship.participant_ids],
+                    "shared_state": relationship.shared_state,
+                    "arc_summary": relationship.arc_summary,
+                }
+                for relationship in canon.relationships
+                if relationship.lifecycle == "active"
+            ],
+            "active_subplots": [
+                {"name": subplot.name, "current_state": subplot.current_state, "stakes": subplot.stakes}
+                for subplot in canon.subplots
+                if subplot.status == "active"
+            ],
+            "unresolved_foreshadowing": [
+                {"description": item.description, "intended_payoff": item.intended_payoff}
+                for item in canon.foreshadowing
+                if item.status == "planted"
+            ],
+            "active_deadlines": [
+                {"statement": deadline.statement, "due": deadline.due_marker.label}
+                for deadline in (canon.chronology.active_deadlines if canon.chronology else [])
+            ],
+        }
+
+    @staticmethod
     def _resolve_character_id(canon: Canon, label: object) -> str:
         if not isinstance(label, str) or not label.strip():
             raise RuntimeContractError("scene character label must be a non-empty string")
@@ -514,7 +572,7 @@ class RuntimeWorkflow:
                 "volume_title": volume_title,
                 "genre": plan.get("genre", []),
                 "previous_design": previous_design,
-                "bible": self.load_canon().model_dump(mode="json"),
+                "canon_context": self._design_author_context(self.load_canon()),
             },
             reason="generate volume skeleton",
         )
@@ -551,7 +609,7 @@ class RuntimeWorkflow:
                     "chapter_purpose": chapter_seed.get("purpose", ""),
                     "previous_chapter_outcome": previous_chapter_outcome,
                     "previous_volume_summary": previous_design,
-                    "bible": self.load_canon().model_dump(mode="json"),
+                    "canon_context": self._design_author_context(self.load_canon()),
                 },
                 reason=f"generate chapter {chapter_number}",
             )
@@ -592,7 +650,7 @@ class RuntimeWorkflow:
                         "scene_seed": scene_seed,
                         "previous_outcome": previous_scene_outcome,
                         "previous_volume_summary": previous_design,
-                        "bible": self.load_canon().model_dump(mode="json"),
+                        "canon_context": self._design_author_context(self.load_canon()),
                     },
                     reason=f"generate scene {chapter_number}/{chapter_scene_number}",
                 )

@@ -193,6 +193,7 @@ def plan(
     manager = RunManager(repo)
     run = repo.create_run(command="plan", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="plan")
+    series_lock = None
     try:
         workflow = _make_workflow(
             repo, run, None, config, model, max_review_count, max_summary_review_count, verbose
@@ -203,11 +204,16 @@ def plan(
             {"keywords": keywords, "existing_slugs": existing},
         )
         slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
+        series_lock = manager.promote_plan_to_series(
+            workspace_lock=workspace_lock, run=run, slug=slug
+        )
         canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
         workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed)
         console.print(f"[green]✓[/green] Series plan generated: {plan.get('title', 'N/A')} (slug: {slug})")
         console.print(f"  [dim]Run: {run.manifest.run_id}[/dim]")
     finally:
+        if series_lock is not None:
+            series_lock.release()
         workspace_lock.release()
 
 
@@ -378,6 +384,7 @@ def complete(
     manager = RunManager(repo)
     run = repo.create_run(command="plan", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete")
+    series_lock = None
     try:
         workflow = _make_workflow(repo, run, None, config, model, max_review_count, max_summary_review_count, verbose)
         console.print("[bold]Step 1/4: Plan[/bold]")
@@ -387,23 +394,15 @@ def complete(
             {"keywords": keywords, "existing_slugs": existing},
         )
         slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
+        series_lock = manager.promote_plan_to_series(
+            workspace_lock=workspace_lock, run=run, slug=slug
+        )
         canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
         workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed)
         console.print(f"[green]✓[/green] Plan: {plan.get('title', 'N/A')} (slug: {slug})")
 
         console.print(f"[bold]Step 2/4: Design (vol {volume})[/bold]")
-        design_payload = workflow.task_runner(
-            "design.volume.generate",
-            {
-                "series_plan": plan,
-                "volume_number": volume,
-                "volume_title": plan.get("planned_volumes", [{}])[volume - 1].get("title", f"第{volume}巻") if plan.get("planned_volumes") else f"第{volume}巻",
-                "genre": plan.get("genre", []),
-                "previous_design": None,
-                "bible": canon_seed,
-            },
-        )
-        workflow.publish_design(volume, design_payload)
+        workflow.generate_volume_design(volume=volume, plan=plan)
         console.print(f"[green]✓[/green] Design vol {volume}")
 
         console.print(f"[bold]Step 3/4: Write (vol {volume})[/bold]")
@@ -414,6 +413,8 @@ def complete(
         export_result = workflow.export_volume(volume)
         console.print(f"[green]✓[/green] Export vol {volume}: {export_result.get('artifact_id', 'N/A')}")
     finally:
+        if series_lock is not None:
+            series_lock.release()
         workspace_lock.release()
 @app.command()
 def doctor(

@@ -70,9 +70,9 @@
 
 {previous_volume_summary}
 
-### シリーズ聖典（Series Bible）
+### Canon author context（ID 非公開の設計用コンテキスト）
 
-{bible}
+{canon_context}
 
 ## 出力仕様
 

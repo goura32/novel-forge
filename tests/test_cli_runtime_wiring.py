@@ -96,6 +96,60 @@ def test_design_command_starts_from_current_selection_snapshot(tmp_path: Path, m
     assert captured["input_snapshot_id"] == expected_snapshot_id
 
 
+
+def test_complete_uses_public_design_boundary_and_series_lock(tmp_path: Path, monkeypatch) -> None:
+    calls: list[str] = []
+
+    class FakeWorkflow:
+        def __init__(self, _run: Any) -> None:
+            self.task_runner = self._task_runner
+
+        @staticmethod
+        def _task_runner(task_id: str, _values: dict[str, Any]) -> dict[str, Any]:
+            calls.append(task_id)
+            assert task_id == "plan.series.generate"
+            return {"slug": "series_new", "title": "新作", "planned_volumes": [{"title": "第1巻"}]}
+
+        @staticmethod
+        def bootstrap_plan(*, slug: str, plan: dict[str, Any], canon_seed: dict[str, Any]) -> None:
+            calls.append("bootstrap")
+            assert slug == plan["slug"]
+            assert canon_seed["schema_version"] == 2
+
+        @staticmethod
+        def generate_volume_design(*, volume: int, plan: dict[str, Any]) -> None:
+            calls.append("generate_volume_design")
+            assert volume == 1
+            assert plan["slug"] == "series_new"
+
+        @staticmethod
+        def publish_design(*_args: Any, **_kwargs: Any) -> None:  # pragma: no cover
+            raise AssertionError("complete must not bypass generate_volume_design")
+
+        @staticmethod
+        def write_volume(volume: int) -> Any:
+            calls.append("write_volume")
+            assert volume == 1
+            return SimpleNamespace(selection_snapshot_id="snap-write")
+
+        @staticmethod
+        def export_volume(volume: int) -> dict[str, str]:
+            calls.append("export_volume")
+            assert volume == 1
+            return {"artifact_id": "artifact-export"}
+
+    monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
+    monkeypatch.setattr(cli, "_make_workflow", lambda _repo, run, *_args: FakeWorkflow(run))
+
+    result = CliRunner().invoke(cli.app, ["complete", "k", "--workdir", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [
+        "plan.series.generate", "bootstrap", "generate_volume_design", "write_volume", "export_volume"
+    ]
+    assert not list((tmp_path / ".novel-forge" / "runtime" / "locks").glob("series-series_new.lock.json"))
+
+
 def test_task_runner_dispatches_design_volume_with_registry_variables() -> None:
     captured: dict[str, Any] = {}
 
@@ -118,13 +172,52 @@ def test_task_runner_dispatches_design_volume_with_registry_variables() -> None:
             "volume_title": "第1巻",
             "genre": ["fantasy"],
             "previous_design": None,
-            "bible": {"schema_version": 2},
+            "canon_context": {"schema_version": 2},
         },
     )
 
     assert result["title"] == "第1巻"
     assert captured["task_id"] == "design.volume.generate"
     assert captured["variables"]["volume_number"] == "1"
+
+
+def test_task_runner_dispatches_design_chapter_and_scene_with_complete_prompt_contracts() -> None:
+    calls: list[tuple[str, set[str]]] = []
+
+    class FakeClient:
+        def complete_json(self, **_kwargs: Any) -> dict[str, Any]:
+            return {}
+
+    class FakePromptManager:
+        def render_task(self, task_id: str, variables: dict[str, str]) -> str:
+            calls.append((task_id, set(variables)))
+            return "prompt"
+
+    runner = make_task_runner(cast(Any, FakeClient()), cast(Any, FakePromptManager()))
+    runner(
+        "design.chapter.generate",
+        {
+            "series_plan": {}, "volume_number": 1, "volume_title": "第1巻", "volume_premise": "p",
+            "chapter_number": 1, "chapter_title": "第1章", "chapter_purpose": "導入",
+            "previous_chapter_outcome": "", "previous_volume_summary": None, "canon_context": {},
+        },
+    )
+    runner(
+        "design.scene.generate",
+        {
+            "series_plan": {}, "volume_number": 1, "volume_title": "第1巻", "volume_premise": "p",
+            "chapter_number": 1, "chapter_title": "第1章", "chapter_purpose": "導入",
+            "chapter_theme": "t", "chapter_emotional_arc": "a", "chapter_foreshadowing_notes": [],
+            "chapter_subplot_notes": [], "scene_number": 1, "scene_count": 1,
+            "chapter_scene_number": 1, "chapter_scene_count": 1, "scene_seed": {},
+            "previous_outcome": "", "previous_volume_summary": None, "canon_context": {},
+        },
+    )
+
+    assert calls == [
+        ("design.chapter.generate", {"series_plan", "volume_number", "volume_title", "volume_premise", "chapter_number", "chapter_title", "chapter_purpose", "previous_chapter_outcome", "previous_volume_summary", "canon_context"}),
+        ("design.scene.generate", {"series_plan", "volume_number", "volume_title", "volume_premise", "chapter_number", "chapter_title", "chapter_purpose", "chapter_theme", "chapter_emotional_arc", "chapter_foreshadowing_notes", "chapter_subplot_notes", "scene_number", "scene_count", "chapter_scene_number", "chapter_scene_count", "scene_seed", "previous_outcome", "previous_volume_summary", "canon_context"}),
+    ]
 
 
 def test_list_reads_selected_plan_artifact_without_legacy_plan(tmp_path: Path, monkeypatch) -> None:

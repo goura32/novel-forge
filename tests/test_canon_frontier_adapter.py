@@ -157,11 +157,16 @@ def test_frontier_rejects_created_entity_id_collision_with_seed() -> None:
         replay_frontier(_seed_payload(), {"events": [event]})
 
 
-def test_frontier_rejects_duplicate_active_source_revision() -> None:
-    """Two events for the same (scene_id, revision) must be rejected."""
+def test_frontier_rejects_multiple_active_revisions_for_one_scene() -> None:
+    """An active frontier contains exactly one event per scene source (§7.1).
+
+    A later revision replaces the prior event; it is not an additional replay
+    operation.  Accepting both would make the selected event set diverge from
+    deterministic source replacement.
+    """
     r1 = _event_payload(scene_id="scene-one", volume=1, chapter=1, ordinal=1, revision=1, state="first")
-    r2 = _event_payload(scene_id="scene-one", volume=1, chapter=1, ordinal=1, revision=1, state="second")
-    with pytest.raises(FrontierPayloadError, match="duplicate|same source|revision"):
+    r2 = _event_payload(scene_id="scene-one", volume=1, chapter=1, ordinal=1, revision=2, state="second")
+    with pytest.raises(FrontierPayloadError, match="duplicate|active source|scene-one"):
         replay_frontier(_seed_payload(), {"events": [r1, r2]})
 
 
