@@ -281,8 +281,12 @@ class LLMClient:
             except RuntimeError:
                 raise
             except JsonParseError as e:
+                if self._capture is not None:
+                    self._capture.validation({"outcome": "failed", "error_code": "JSON_PARSE_ERROR"})
                 raise LLMError(f"JSON parse error: {str(e)[:200]}") from e
             except (SchemaValidationError, JsonSchemaValidationError) as e:
+                if self._capture is not None:
+                    self._capture.validation({"outcome": "failed", "error_code": "SCHEMA_VALIDATION_ERROR"})
                 raise LLMError(f"schema validation error: {str(e)[:200]}") from e
             except LLMTransportError as e:
                 last_error = e
