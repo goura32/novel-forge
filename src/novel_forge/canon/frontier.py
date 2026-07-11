@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from novel_forge.canon.models import Canon, CanonEvent, find_refs
+from novel_forge.canon.models import Canon, CanonEvent, PatchValidationError, find_refs
 from novel_forge.canon.store import apply_patch
 
 __all__ = [
@@ -54,6 +54,7 @@ def validate_frontier_payload(payload: Mapping[str, Any]) -> tuple[CanonEvent, .
         raise FrontierPayloadError("Canon frontier payload 'events' must be a list")
 
     events: list[CanonEvent] = []
+    seen_sources: set[tuple[str, int]] = set()
     for index, raw_event in enumerate(raw_events):
         if not isinstance(raw_event, Mapping):
             raise FrontierPayloadError(f"frontier event payload at index {index} must be an object")
@@ -64,6 +65,14 @@ def validate_frontier_payload(payload: Mapping[str, Any]) -> tuple[CanonEvent, .
                 f"invalid frontier event payload at index {index}: {exc}"
             ) from exc
         _validate_event_integrity(event)
+        # P0-2: at most one active event per (scene_id, revision)
+        source_key = (event.source.scene_id, event.source.revision)
+        if source_key in seen_sources:
+            raise FrontierPayloadError(
+                f"frontier has duplicate active source "
+                f"{event.source.scene_id} revision {event.source.revision}"
+            )
+        seen_sources.add(source_key)
         events.append(event)
     return tuple(events)
 
@@ -91,10 +100,37 @@ def replay_frontier(
     )
 
     canon = seed.model_copy(deep=True)
+    created_ids: set[str] = set(canon.all_ids())
     for event in ordered:
-        canon = apply_patch(canon, event.patch, event)
+        try:
+            canon = apply_patch(canon, event.patch, event)
+        except (PatchValidationError, ValidationError, ValueError) as exc:
+            raise FrontierPayloadError(
+                f"event {event.event_id} patch rejected during replay: {exc}"
+            ) from exc
+        # P0-1: created_entity_ids must not collide with any prior entity
+        for eid in event.created_entity_ids.values():
+            if eid in created_ids:
+                raise FrontierPayloadError(
+                    f"event {event.event_id} created_entity_ids collision: "
+                    f"id '{eid}' already exists in canon"
+                )
+            created_ids.add(eid)
+        # P0-3: references must resolve against the canon built so far
+        _validate_event_references_resolve(canon, event)
     _validate_typed_references(canon, ordered)
     return canon
+
+
+def _validate_event_references_resolve(canon: Canon, event: CanonEvent) -> None:
+    """Reject a reference whose entity is not present in the canon built up to
+    and including this event (P0-3: no forward/dangling references)."""
+    for ref in find_refs(event.patch.model_dump(mode="json", exclude_none=True)):
+        if canon.get_entity(ref.kind, ref.id) is None:
+            raise FrontierPayloadError(
+                f"event {event.event_id} references missing entity "
+                f"{ref.kind}:{ref.id} at its own replay point"
+            )
 
 
 def _validate_typed_references(canon: Canon, events: list[CanonEvent]) -> None:

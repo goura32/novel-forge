@@ -102,7 +102,7 @@ def test_typed_reference_kind_must_match_the_referenced_entity() -> None:
         }
     }
 
-    with pytest.raises(FrontierPayloadError, match="typed reference"):
+    with pytest.raises(FrontierPayloadError, match="typed reference|missing entity|replay point"):
         replay_frontier(_seed_payload(), {"events": [event]})
 
 
@@ -127,3 +127,79 @@ def test_replay_orders_by_volume_chapter_and_ordinal_not_ordinal_alone() -> None
     character = canon.get_entity("character", "char_001")
     assert character is not None
     assert character.continuity_card.current_state == "chapter two"
+
+
+# --------------------------------------------------------------------------
+# Integrity guards: P0 findings on the public frontier replay path
+# --------------------------------------------------------------------------
+
+
+def test_frontier_rejects_created_entity_id_collision_with_seed() -> None:
+    """A schema-valid event that assigns an existing seed id to a create must
+    be rejected (created_entity_ids must be unique unused ids)."""
+    event = _event_payload(scene_id="scene-dup", volume=1, chapter=1, ordinal=1, state="x")
+    event["patch"] = {
+        "characters": {
+            "create": [
+                {
+                    "creation_key": "dup",
+                    "identity": {"kind": "named", "display_name": "Dup"},
+                    "importance": "minor",
+                    "tracking_level": "continuity",
+                    "narrative_function": "x",
+                    "continuity_card": {"current_state": "x"},
+                }
+            ]
+        }
+    }
+    event["created_entity_ids"] = {"character:dup": "char_001"}  # collides with seed
+    with pytest.raises(FrontierPayloadError, match="created_entity_ids|collision|char_001"):
+        replay_frontier(_seed_payload(), {"events": [event]})
+
+
+def test_frontier_rejects_duplicate_active_source_revision() -> None:
+    """Two events for the same (scene_id, revision) must be rejected."""
+    r1 = _event_payload(scene_id="scene-one", volume=1, chapter=1, ordinal=1, revision=1, state="first")
+    r2 = _event_payload(scene_id="scene-one", volume=1, chapter=1, ordinal=1, revision=1, state="second")
+    with pytest.raises(FrontierPayloadError, match="duplicate|same source|revision"):
+        replay_frontier(_seed_payload(), {"events": [r1, r2]})
+
+
+def test_frontier_rejects_forward_reference_at_originating_event() -> None:
+    """An event that references an entity created by a *later* event must be
+    rejected: references must resolve against the canon built so far
+    (covers refs apply_patch's targeted checks miss, e.g. knowledge holders)."""
+    # scene A creates knowledge referencing loc_room which scene B creates later
+    a = _event_payload(scene_id="scene-a", volume=1, chapter=1, ordinal=1, state="x")
+    a["created_entity_ids"] = {"knowledge:k1": "know_001"}
+    a["patch"] = {
+        "knowledge": {
+            "create": [
+                {
+                    "creation_key": "k1",
+                    "id": "know_001",
+                    "proposition": "部屋の謎",
+                    "holders": [],
+                    "related_entity_refs": [{"kind": "location", "id": "loc_room"}],
+                }
+            ]
+        }
+    }
+    b = _event_payload(scene_id="scene-b", volume=1, chapter=1, ordinal=2, state="y")
+    b["created_entity_ids"] = {"location:room": "loc_room"}
+    b["patch"] = {
+        "locations": {
+            "create": [
+                {
+                    "creation_key": "room",
+                    "id": "loc_room",
+                    "name": "Room",
+                    "kind": "room",
+                    "current_state": "ok",
+                }
+            ]
+        }
+    }
+    # loc_room is created by the *later* event -> forward reference rejected
+    with pytest.raises(FrontierPayloadError, match="missing entity|references|replay point"):
+        replay_frontier(_seed_payload(), {"events": [a, b]})
