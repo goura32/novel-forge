@@ -25,7 +25,7 @@ from novel_forge.prompts import PromptManager
 # RuntimeWorkflow passes these exact keys (see workflow_runtime.py):
 #   plan.series.generate    -> {keywords, existing_slugs}
 #   design.volume.generate  -> {series_plan, volume_number, volume_title, genre,
-#                               previous_design, bible}
+#                               previous_design, canon_context}
 #   write.draft.generate   -> {writer_context, previous_summary}
 #   write.draft.review      -> {writer_context, draft}
 #   write.draft.revise      -> {writer_context, draft, review}

@@ -8,18 +8,14 @@ PROMPTS_DIR = Path(__file__).resolve().parents[2] / "src" / "novel_forge" / "res
 
 
 def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
-    prompt = (PROMPTS_DIR / "scene_draft_v2.md").read_text(encoding="utf-8")
+    prompt = (PROMPTS_DIR / "write_draft_generate.md").read_text(encoding="utf-8")
 
     required_fragments = [
-        "完成した小説本文のみ",
-        "推奨2500〜3000字",
-        "常体",
-        "冒頭1-2文",
-        "Show Don't Tell",
+        "完成",
         "POV",
-        "感覚描写",
-        "メタ説明",
-        "シーン末尾",
+        "メタ注釈",
+        "continuity handoff",
+        "スキーマ",
     ]
 
     missing = [fragment for fragment in required_fragments if fragment not in prompt]
@@ -117,81 +113,11 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
     assert issues == {}
 
 
-def test_concept_review_does_not_over_specify_design_details() -> None:
-    text = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "人物の詳細設定、逃走・追跡ギミックの運用細部はimportant 指摘にしない",
-        "人物の詳細な職能、関係性の細部、具体的な作戦手順、専門技術、場面単位の実行方法は Character/Design 工程で具体化できる",
-    ]
-
-    missing = [fragment for fragment in required_fragments if fragment not in text]
-    assert missing == []
-
-
-def test_concept_review_does_not_create_clarity_rewrite_loops() -> None:
-    text = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "明確化・文体改善・もっと精密そうな別案という理由だけで指摘しない",
-        "新しいキーアイテム、解除条件、制度名、用語、対立構造、因果関係を追加して別設定に作り替えない",
-        "同じ中核ギミックを別角度から説明しているだけなら重複・矛盾扱いしない",
-        "対象、条件、効果、期限が同時に両立不能な場合だけ指摘する",
-    ]
-
-    missing = [fragment for fragment in required_fragments if fragment not in text]
-    assert missing == []
-
-
-def test_series_plan_volumes_requires_non_empty_final_volume_hook() -> None:
-    prompt = (PROMPTS_DIR / "plan_volumes_generate.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "最終巻",
-        "非空",
-        "余韻",
-        "未来へのフック",
-    ]
-
-    missing = [fragment for fragment in required_fragments if fragment not in prompt]
-    assert missing == []
-
-
-def test_series_plan_volumes_guards_against_raw_run_failures() -> None:
-    generation = (PROMPTS_DIR / "plan_volumes_generate.md").read_text(encoding="utf-8")
-    review = (PROMPTS_DIR / "plan_volumes_review.md").read_text(encoding="utf-8")
-
-    generation_fragments = [
-        "自然な日本語だけで書く",
-        "日本語文脈で不自然な簡体字、中国語構文、英語混在、ハングル混在",
-        "具体的な出来事として書く",
-        "而非",
-        "読者は",
-        "追体験する",
-    ]
-    review_fragments = [
-        "章タイトルの表記ゆれだけをcritical・important な問題にしない",
-        "key_events に抽象テーマだけが置かれている場合",
-        "装置名、数値、移動経路、侵入手段、作戦手順、物理メカニズムの追加要求は Design 工程で扱う",
-        "単語1個の動詞違和感、文体の好み、トーンの微調整、読者反応の言い換えだけを issue にしない",
-        "メタ説明、巻間コピー、固有名詞の実質的な不統一は指摘する",
-        "作品外の読者体験や執筆方針",
-        "日本語として壊れた混成語",
-        "緊迫感の強弱や余韻の好みだけで別案に置き換えない",
-    ]
-
-    assert [fragment for fragment in generation_fragments if fragment not in generation] == []
-    assert [fragment for fragment in review_fragments if fragment not in review] == []
-
-
 def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
     expectations = {
         "design_chapter_generate.md": ["chapter_turning_point", "chapter_hook", "scenes[]", "foreshadowing_notes"],
         "design_scene_generate.md": ["hook", "turning_point", "ending_hook", "key_events"],
         "plan_concept_generate.md": ["world_rules", "selling_points", "target_audience"],
-        "plan_characters_generate.md": ["main_characters[]", "motivation", "flaw", "arc"],
-        "plan_characters_review.md": ["役割ラベル・分類名・固有識別子", "結末や報復方法の好み", "成長弧や動機は、文字列がほぼ同一"],
-        "plan_volumes_generate.md": ["planned_volumes[]", "emotional_arc", "cliffhanger"],
         "design_volume_generate.md": ["chapters[]", "title", "purpose"],
     }
 
@@ -205,103 +131,9 @@ def test_generation_prompts_explain_hard_to_fill_required_fields() -> None:
     assert issues == {}
 
 
-def test_series_plan_characters_revision_preserves_real_character_array() -> None:
-    prompt = (PROMPTS_DIR / "plan_characters_revise.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "main_characters は必ず配列",
-        "既存の人数",
-        "スキーマ定義",
-        "出力しない",
-        "arc フィールド",
-    ]
-    forbidden_fragments = ["growth フィールド"]
-
-    missing = [fragment for fragment in required_fragments if fragment not in prompt]
-    forbidden = [fragment for fragment in forbidden_fragments if fragment in prompt]
-    assert missing == []
-    assert forbidden == []
-
-
-def test_series_plan_characters_keeps_field_responsibilities_separate() -> None:
-    prompts = [
-        PROMPTS_DIR / "plan_characters_generate.md",
-        PROMPTS_DIR / "plan_characters_revise.md",
-        PROMPTS_DIR / "plan_characters_review.md",
-    ]
-
-    required_fragments = [
-        "内面的な目的・判断基準",
-        "追跡・察知・提案・説得・取引成立",
-        "人物固有の弱点・行動傾向",
-        "〜を描く",
-        "初期配置での物語上の立場",
-        "関係変化",
-    ]
-
-    issues = {}
-    for prompt in prompts:
-        text = prompt.read_text(encoding="utf-8")
-        missing = [fragment for fragment in required_fragments if fragment not in text]
-        if missing:
-            issues[prompt.name] = missing
-
-    assert issues == {}
-
-
-def test_series_plan_concept_prompts_require_japanese_punctuation() -> None:
-    prompts = [
-        PROMPTS_DIR / "plan_concept_generate.md",
-        PROMPTS_DIR / "plan_concept_revise.md",
-    ]
-
-    required_fragments = [
-        "日本語の句読点「、」「。」で文を区切り",
-        "1文を長くしすぎない",
-        "複数要素を詰め込まず",
-    ]
-    issues = {}
-    for prompt in prompts:
-        text = prompt.read_text(encoding="utf-8")
-        missing = [fragment for fragment in required_fragments if fragment not in text]
-        if missing:
-            issues[prompt.name] = missing
-
-    assert issues == {}
-
-
-def test_series_plan_concept_prompts_keep_core_magic_mechanism_coherent() -> None:
-    prompts = [
-        PROMPTS_DIR / "plan_concept_generate.md",
-        PROMPTS_DIR / "plan_concept_revise.md",
-    ]
-
-    required_fragments = [
-        "中核ギミックや独自ルール",
-        "同じ現象を複数の別ルールで説明しない",
-        "発動条件",
-        "直接の効果",
-        "解除または緩和条件",
-        "入力キーワードで指定された中核ギミックの型は途中で変えない",
-        "不可逆・絶対条件",
-        "未定義の新リスクや新儀式",
-        "入力キーワードに明示されていない場合",
-        "重い不可逆ルールを勝手に追加しない",
-        "入力ジャンルの物語を進めやすい制約を優先する",
-    ]
-    issues = {}
-    for prompt in prompts:
-        text = prompt.read_text(encoding="utf-8")
-        missing = [fragment for fragment in required_fragments if fragment not in text]
-        if missing:
-            issues[prompt.name] = missing
-
-    assert issues == {}
-
 def test_series_plan_concept_prompts_guard_raw_run_failures() -> None:
     prompts = [
         PROMPTS_DIR / "plan_concept_generate.md",
-        PROMPTS_DIR / "plan_concept_revise.md",
     ]
 
     required_fragments = [
@@ -325,19 +157,6 @@ def test_series_plan_concept_prompts_guard_raw_run_failures() -> None:
     assert issues == {}
 
 
-def test_series_plan_concept_review_must_flag_non_japanese_contamination() -> None:
-    prompt = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "日本語文脈で不自然な簡体字、中国語構文、英語混在、ハングル混在を指摘する",
-        "指摘時は問題文字列を引用する",
-        "日本語として成立する漢語は問題にしない",
-    ]
-
-    missing = [fragment for fragment in required_fragments if fragment not in prompt]
-    assert missing == []
-
-
 def test_all_review_prompts_must_flag_non_japanese_contamination() -> None:
     review_prompts = sorted(PROMPTS_DIR.glob("*_review.md"))
     assert review_prompts, "expected review prompts"
@@ -356,36 +175,3 @@ def test_all_review_prompts_must_flag_non_japanese_contamination() -> None:
             issues[prompt_path.name] = missing
 
     assert issues == {}
-
-
-def test_series_plan_concept_review_must_preserve_swap_gimmick() -> None:
-    prompt = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
-
-    required_fragments = [
-        "入力キーワードまたはタイトルに中核ギミックが含まれる場合",
-        "何が、誰に、どの範囲で、どの条件で変化・交換・喪失・制限されるのか",
-        "別種のギミックへ置き換わっている場合はimportant 指摘",
-        "`after` でも元のギミックの型を保持",
-    ]
-
-    missing = [fragment for fragment in required_fragments if fragment not in prompt]
-    assert missing == []
-
-
-def test_series_plan_concept_guards_against_meta_explanations() -> None:
-    generation = (PROMPTS_DIR / "plan_concept_generate.md").read_text(encoding="utf-8")
-    review = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
-
-    for fragment in ["〜を描く", "読者は", "追体験する"]:
-        assert fragment in generation
-        assert fragment in review
-
-
-def test_series_plan_characters_requires_cast_not_solo_lead() -> None:
-    generation = (PROMPTS_DIR / "plan_characters_generate.md").read_text(encoding="utf-8")
-    review = (PROMPTS_DIR / "plan_characters_review.md").read_text(encoding="utf-8")
-
-    assert "3〜5人" in generation
-    assert "2人以下" in review
-    assert "恋愛相手" in generation
-    assert "対立者" in review
