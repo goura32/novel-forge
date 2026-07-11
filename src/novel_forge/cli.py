@@ -2,27 +2,148 @@
 
 from __future__ import annotations
 
+import builtins
 import json
+import re
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
+import httpx as _httpx
 import typer
+from rich.console import Console
+from rich.table import Table
 
+from novel_forge.canon.store import BibleFactory
 from novel_forge.config import RuntimeConfig
-from novel_forge.engine.infra import (
-    _find_existing_series,
-    _resolve_doctor_defaults,
-    cmd_doctor,
-    cmd_status,
-    console,
-    make_engine,
-)
 from novel_forge.logging_config import get_logger
+from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
+    RunHandle,
     RunManager,
     RunRepository,
-    SeriesSlugExistsError,
+    RuntimeContractError,
+    sanitize_for_storage,
 )
+from novel_forge.workflow_runtime import RuntimeWorkflow
+from novel_forge.workflow_task_runner import make_task_runner
+
+console = Console()
+_log = get_logger("novel_forge.cli")
+
+
+# ---------------------------------------------------------------------------
+# Doctor helpers (migrated from deleted engine.infra)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_doctor_defaults(
+    workdir: Path,
+    model: str | None,
+    ollama_host: str | None,
+) -> tuple[str, str]:
+    """Resolve doctor options with CLI > config > built-in/env precedence."""
+    config = RuntimeConfig.load(path=_workdir_config_path(workdir))
+    llm_cfg = config.llm
+    resolved_model = model if model is not None else llm_cfg.model
+    resolved_host = (
+        ollama_host
+        if ollama_host is not None
+        else llm_cfg.ollama_host
+    )
+    return resolved_model, resolved_host
+
+
+def _workdir_config_path(workdir: Path) -> Path | None:
+    candidate = workdir / "config.yaml"
+    return candidate if candidate.exists() else None
+
+
+def cmd_doctor(
+    model: str = RuntimeConfig().llm.model,
+    ollama_host: str = "ws1.local:11434",
+) -> None:
+    """Diagnose Ollama connectivity and model readiness."""
+    console.print("[bold]NovelForge Doctor[/bold]\n")
+
+    console.print("1. Ollama connectivity")
+    try:
+        resp = _httpx.get(f"http://{ollama_host}/", timeout=5)
+        console.print(
+            "   [green]✓ Ollama is running[/green]"
+            if resp.status_code == 200
+            else f"   [red]✗ Status {resp.status_code}[/red]"
+        )
+    except Exception as e:
+        console.print(f"   [red]✗ Cannot reach Ollama: {e}[/red]\n")
+        return
+
+    console.print(f"\n2. Model: {model}")
+    try:
+        resp = _httpx.post(f"http://{ollama_host}/api/show", json={"name": model}, timeout=15)
+        if resp.status_code == 200:
+            details = resp.json().get("details", {})
+            console.print("   [green]✓ Model loaded[/green]")
+            console.print(f"   context_length: {details.get('context_length', '?')}")
+            console.print(f"   format: {details.get('format', '?')}")
+        else:
+            console.print(f"   [yellow]⚠ Status {resp.status_code}[/yellow]")
+            console.print(f"   Run: ollama pull {model}")
+    except Exception as e:
+        console.print(f"   [red]✗ Check failed: {e}[/red]")
+
+    console.print("\n[bold]Done.[/bold]")
+
+
+def _find_existing_series(workdir: Path, slug: str | None = None) -> Path:
+    """Find existing series directory under the runtime root."""
+    import re
+
+    if slug:
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", slug):
+            raise ValueError(f"Unsafe series slug: {slug}")
+        root = workdir.resolve()
+        series_dir = (workdir / slug).resolve()
+        if series_dir != root and root not in series_dir.parents:
+            raise ValueError(f"Unsafe series slug: {slug}")
+        if not series_dir.exists():
+            raise FileNotFoundError(f"Series '{slug}' not found in {workdir}")
+        return series_dir
+    for d in sorted(workdir.iterdir(), reverse=True):
+        if d.is_dir() and not d.name.startswith(".") and (d / "series_plan.json").exists():
+            return d
+    return workdir
+
+
+def _make_workflow(
+    repo: RunRepository,
+    run: RunHandle,
+    slug: str | None,
+    config: RuntimeConfig,
+    model: str | None,
+    max_review_count: int | None,
+    max_summary_review_count: int | None,
+    verbose: bool | None,
+) -> RuntimeWorkflow:
+    """Build a RuntimeWorkflow wired to the real LLM task runner."""
+    from novel_forge.llm_client import LLMClient
+
+    client = LLMClient(
+        model=model or config.llm.model,
+        timeout_seconds=config.llm.timeout_seconds,
+        transport_retries=config.llm.transport_retries,
+        ollama_options=config.llm.ollama_options,
+        series_slug=slug or "",
+    )
+    task_runner = make_task_runner(client, PromptManager())
+    return RuntimeWorkflow(
+        repository=repo,
+        run=run,
+        slug=slug,
+        task_runner=task_runner,
+        max_review_count=max_review_count or config.quality.max_review_count,
+        max_summary_review_count=max_summary_review_count or config.quality.max_summary_review_count,
+    )
+
 
 app = typer.Typer(help="NovelForge — Local-LLM novel production pipeline")
 _log = get_logger("novel_forge.cli")
@@ -33,11 +154,11 @@ def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
+    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
 ):
-    """Generate a series plan from keywords."""
+    """Generate a series plan from keywords and bootstrap the immutable series root."""
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -45,17 +166,21 @@ def plan(
     run = repo.create_run(command="plan", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="plan")
     try:
-        engine = make_engine(
-            resolved_workdir, model, "ja", verbose=verbose, phase="plan",
-            max_generation_count=max_generation_count,
-            max_review_count=max_review_count,
-            run=run,
-            repository=repo,
-            manager=manager,
-            workspace_lock=workspace_lock,
+        workflow = _make_workflow(
+            repo, run, None, config, model, max_review_count, max_summary_review_count, verbose
         )
-        result = engine.plan(keywords)
-        console.print(f"[green]✓[/green] Series plan generated: {result.get('title', 'N/A')}")
+        existing = [
+            d.name for d in sorted(resolved_workdir.iterdir())
+            if d.is_dir() and not d.name.startswith(".") and (d / "series_plan.json").exists()
+        ]
+        plan = workflow.task_runner(
+            "plan.series.generate",
+            {"keywords": keywords, "existing_slugs": json.dumps(existing, ensure_ascii=False)},
+        )
+        slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
+        canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
+        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed)
+        console.print(f"[green]✓[/green] Series plan generated: {plan.get('title', 'N/A')} (slug: {slug})")
         console.print(f"  [dim]Run: {run.manifest.run_id}[/dim]")
     finally:
         workspace_lock.release()
@@ -67,11 +192,11 @@ def design(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
+    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
 ):
-    """Generate a volume design (chapter/scene structure)."""
+    """Generate a volume design (chapter/scene structure) and publish it."""
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -79,26 +204,27 @@ def design(
     series_dir = _find_existing_series(resolved_workdir, series)
     run = repo.create_run(command="design", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design"):
-        engine = make_engine(
-            series_dir, model, "ja", verbose=verbose, phase="design",
-            max_generation_count=max_generation_count,
-            max_review_count=max_review_count,
-            run=run, repository=repo, manager=manager,
+        workflow = _make_workflow(
+            repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
-        if volume == 0:
-            # Generate all volumes
-            plan_path = series_dir / "series_plan.json"
-            if plan_path.exists():
-                plan = json.loads(plan_path.read_text(encoding="utf-8"))
-                total_vol = len(plan.get("planned_volumes", []))
-            else:
-                total_vol = 2
-            for v in range(1, total_vol + 1):
-                engine.design(v)
-                console.print(f"[green]✓[/green] Volume {v}/{total_vol} design generated")
-        else:
-            engine.design(volume)
-            console.print(f"[green]✓[/green] Volume {volume} design generated")
+        plan_path = series_dir / "series_plan.json"
+        plan = json.loads(plan_path.read_text(encoding="utf-8")) if plan_path.exists() else {}
+        total_vol = len(plan.get("planned_volumes", [])) or 2
+        volumes = range(1, total_vol + 1) if volume == 0 else range(volume, volume + 1)
+        for v in volumes:
+            design_payload = workflow.task_runner(
+                "design.volume.generate",
+                {
+                    "series_plan": json.dumps(plan, ensure_ascii=False),
+                    "volume_number": str(v),
+                    "volume_title": plan.get("planned_volumes", [{}])[v - 1].get("title", f"第{v}巻") if plan.get("planned_volumes") else f"第{v}巻",
+                    "genre": json.dumps(plan.get("genre", []), ensure_ascii=False),
+                    "previous_design": "null",
+                    "bible": "null",
+                },
+            )
+            workflow.publish_design(v, design_payload)
+            console.print(f"[green]✓[/green] Volume {v} design generated")
 
 
 @app.command()
@@ -107,11 +233,11 @@ def write(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
+    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
 ):
-    """Write scene drafts."""
+    """Write scene drafts for a volume."""
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -119,18 +245,11 @@ def write(
     series_dir = _find_existing_series(resolved_workdir, series)
     run = repo.create_run(command="write", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write"):
-        engine = make_engine(
-            series_dir,
-            model,
-            "ja",
-            max_generation_count=max_generation_count,
-            max_review_count=max_review_count,
-            verbose=verbose,
-            phase="write",
-            run=run, repository=repo, manager=manager,
+        workflow = _make_workflow(
+            repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
-        results = engine.write(volume)
-        console.print(f"[green]✓[/green] {len(results)} scenes processed")
+        result = workflow.write_volume(volume)
+        console.print(f"[green]✓[/green] Volume {volume} written (snapshot: {result.selection_snapshot_id})")
 
 
 @app.command()
@@ -149,12 +268,9 @@ def export(
     series_dir = _find_existing_series(resolved_workdir, series)
     run = repo.create_run(command="export", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export"):
-        engine = make_engine(
-            series_dir, model, "ja", verbose=verbose, phase="export",
-            run=run, repository=repo, manager=manager,
-        )
-        result = engine.export(volume)
-        console.print(f"[green]✓[/green] Exported to {result['manuscript_path']}")
+        workflow = _make_workflow(repo, run, series_dir.name, config, model, None, None, verbose)
+        result = workflow.export_volume(volume)
+        console.print(f"[green]✓[/green] Exported to {result.get('artifact_id', 'N/A')}")
 
 
 @app.command()
@@ -165,10 +281,19 @@ def status(
     """Show current project status."""
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
-    repo = RunRepository(resolved_workdir)
-    series_dir = _find_existing_series(resolved_workdir, series) if series else resolved_workdir
-    engine = make_engine(series_dir, phase="status", run=repo.create_run(command="status", model=config.llm.model, verbose=False, input_snapshot_id=None), repository=repo, manager=RunManager(repo))
-    cmd_status(engine)
+    repo = RunRepository(resolved_workdir, read_only=True)
+    slugs = [series] if series else [path.name for path in resolved_workdir.iterdir() if path.is_dir() and (repo.series_runtime_root(path.name) / "ledger").exists()]
+    report: builtins.list[dict[str, Any]] = []
+    for slug in slugs:
+        if slug is None:
+            continue
+        try:
+            snapshot_id = repo.current_snapshot_id(slug)
+            snapshot = repo.load_snapshot(slug, snapshot_id)
+            report.append({"slug": slug, "selection_snapshot_id": snapshot_id, "slots": snapshot.slots})
+        except (FileNotFoundError, RuntimeContractError) as exc:
+            report.append({"slug": slug, "status": str(sanitize_for_storage(str(exc)))})
+    console.print_json(json.dumps(report, ensure_ascii=False))
 
 
 @app.command()
@@ -177,11 +302,11 @@ def resume(
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per phase"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
+    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
 ):
-    """Resume from the last interrupted phase."""
+    """Resume from the last completed phase for a series."""
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -189,23 +314,14 @@ def resume(
     series_dir = _find_existing_series(resolved_workdir, series)
     run = repo.create_run(command="resume", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume"):
-        engine = make_engine(
-            series_dir, model, "ja", verbose=verbose, phase="resume",
-            max_generation_count=max_generation_count,
-            max_review_count=max_review_count,
-            run=run, repository=repo, manager=manager,
+        workflow = _make_workflow(
+            repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
-        result = engine.resume()
-        action = result["action"]
-        console.print(f"[yellow]▶[/yellow] Resume: {action} (status: {result['status']})")
-        if action == "write":
-            engine.write(volume)
-        elif action == "design":
-            engine.design(volume)
-        elif action == "export":
-            engine.export(volume)
-        elif action == "plan":
-            console.print("[red]Cannot resume plan — re-run with `plan` command.[/red]")
+        # Resume by running write/export for the requested volume (plan/design already exist).
+        console.print(f"[yellow]▶[/yellow] Resuming volume {volume} (write + export)")
+        workflow.write_volume(volume)
+        result = workflow.export_volume(volume)
+        console.print(f"[green]✓[/green] Resumed: {result.get('artifact_id', 'N/A')}")
 
 
 @app.command()
@@ -214,8 +330,8 @@ def complete(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    max_generation_count: int | None = typer.Option(None, "--max-generation-count", help="Max generation (API+validation) retries per scene"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
+    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
 ):
     """Run the full pipeline: plan → design → write → export."""
@@ -223,48 +339,48 @@ def complete(
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
-    run = repo.create_run(command="complete", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    run = repo.create_run(command="plan", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete")
     try:
-        engine = make_engine(
-            resolved_workdir,
-            model,
-            "ja",
-            max_generation_count=max_generation_count,
-            max_review_count=max_review_count,
-            verbose=verbose,
-            phase="complete",
-            run=run, repository=repo, manager=manager, workspace_lock=workspace_lock,
-        )
-        slug: str | None = None
-        steps = [
-            ("Plan", lambda: engine.plan(keywords)),
-            ("Design", lambda: engine.design(volume)),
-            ("Write", lambda: engine.write(volume)),
-            ("Export", lambda: engine.export(volume)),
+        workflow = _make_workflow(repo, run, None, config, model, max_review_count, max_summary_review_count, verbose)
+        console.print("[bold]Step 1/4: Plan[/bold]")
+        existing = [
+            d.name for d in sorted(resolved_workdir.iterdir())
+            if d.is_dir() and not d.name.startswith(".") and (d / "series_plan.json").exists()
         ]
-        result: dict[str, Any] | None = None
-        for i, (name, fn) in enumerate(steps, 1):
-            console.print(f"[bold]Step {i}/{len(steps)}: {name}[/bold]")
-            try:
-                result = cast(dict[str, Any], fn())
-                if name == "Plan" and isinstance(result, dict):
-                    slug = result.get("slug")
-            except SeriesSlugExistsError:
-                workspace_lock.release()
-                raise
-            except Exception as e:
-                workspace_lock.release()
-                console.print(f"[red]✗ {name} failed: {e}[/red]")
-                raise SystemExit(1) from e
-        if slug and (repo.series_runtime_root(slug) / "ledger").exists():
-            manager.promote_plan_to_series(workspace_lock=workspace_lock, run=run, slug=slug)
+        plan = workflow.task_runner(
+            "plan.series.generate",
+            {"keywords": keywords, "existing_slugs": json.dumps(existing, ensure_ascii=False)},
+        )
+        slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
+        canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
+        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed)
+        console.print(f"[green]✓[/green] Plan: {plan.get('title', 'N/A')} (slug: {slug})")
+
+        console.print(f"[bold]Step 2/4: Design (vol {volume})[/bold]")
+        design_payload = workflow.task_runner(
+            "design.volume.generate",
+            {
+                "series_plan": json.dumps(plan, ensure_ascii=False),
+                "volume_number": str(volume),
+                "volume_title": plan.get("planned_volumes", [{}])[volume - 1].get("title", f"第{volume}巻") if plan.get("planned_volumes") else f"第{volume}巻",
+                "genre": json.dumps(plan.get("genre", []), ensure_ascii=False),
+                "previous_design": "null",
+                "bible": "null",
+            },
+        )
+        workflow.publish_design(volume, design_payload)
+        console.print(f"[green]✓[/green] Design vol {volume}")
+
+        console.print(f"[bold]Step 3/4: Write (vol {volume})[/bold]")
+        write_result = workflow.write_volume(volume)
+        console.print(f"[green]✓[/green] Write vol {volume} (snapshot: {write_result.selection_snapshot_id})")
+
+        console.print(f"[bold]Step 4/4: Export (vol {volume})[/bold]")
+        export_result = workflow.export_volume(volume)
+        console.print(f"[green]✓[/green] Export vol {volume}: {export_result.get('artifact_id', 'N/A')}")
     finally:
         workspace_lock.release()
-    console.print(
-        f"[green]✓[/green] Complete! Manuscript: "
-        f"{(result or {}).get('manuscript_path', (result or {}).get('manuscript', 'N/A'))}"
-    )
 @app.command()
 def doctor(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
@@ -281,7 +397,6 @@ def list(
     workdir: Path = typer.Option(Path("."), "--workdir", "-w", help="Working directory"),
 ):
     """List all series in the working directory."""
-    from rich.table import Table
 
     table = Table(title="NovelForge Series")
     table.add_column("Slug", style="bold")
@@ -315,6 +430,61 @@ def list(
             _log.warning("Failed to read series plan while listing: %s", plan_path, exc_info=exc)
 
     console.print(table)
+
+
+runs_app = typer.Typer(help="Read-only run inspection")
+run_app = typer.Typer(help="Read-only run inspection")
+attempt_app = typer.Typer(help="Read-only attempt inspection")
+llm_app = typer.Typer(help="Read-only LLM comparisons")
+artifact_app = typer.Typer(help="Read-only artifact comparisons")
+app.add_typer(runs_app, name="runs")
+app.add_typer(run_app, name="run")
+app.add_typer(attempt_app, name="attempt")
+app.add_typer(llm_app, name="llm")
+app.add_typer(artifact_app, name="artifact")
+
+
+def _readonly_repo(workdir: Path | None) -> RunRepository:
+    return RunRepository(RuntimeConfig.load().resolve_workdir(workdir), read_only=True)
+
+
+@runs_app.command("active")
+def runs_active(workdir: Path | None = typer.Option(None, "--workdir", "-w")) -> None:
+    """List active locks without creating a run or changing repository state."""
+    repo = _readonly_repo(workdir)
+    locks = repo.runtime_root / "locks"
+    active = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(locks.glob("*.lock.json"))] if locks.exists() else []
+    console.print_json(json.dumps(active, ensure_ascii=False))
+
+
+@run_app.command("show")
+def run_show(run_id: str, workdir: Path | None = typer.Option(None, "--workdir", "-w")) -> None:
+    """Show one immutable run manifest and append-only event stream."""
+    repo = _readonly_repo(workdir)
+    run = repo.read_run(run_id)
+    events = (run.path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    console.print_json(json.dumps({"run": run.manifest.model_dump(), "events": [json.loads(line) for line in events if line]}, ensure_ascii=False))
+
+
+@attempt_app.command("show")
+def attempt_show(attempt_id: str, workdir: Path | None = typer.Option(None, "--workdir", "-w")) -> None:
+    """Show immutable attempt metadata and its files."""
+    repo = _readonly_repo(workdir)
+    attempt = repo.read_attempt(attempt_id)
+    payload = {"attempt": attempt.manifest.model_dump(), "files": sorted(str(path.relative_to(attempt.path)) for path in attempt.path.rglob("*") if path.is_file())}
+    console.print_json(json.dumps(payload, ensure_ascii=False))
+
+
+@llm_app.command("diff")
+def llm_diff(attempt_a: str, attempt_b: str, metadata_only: bool = typer.Option(False, "--metadata-only"), workdir: Path | None = typer.Option(None, "--workdir", "-w")) -> None:
+    """Diff two attempts; full diff requires complete verbose capture."""
+    console.print(_readonly_repo(workdir).llm_diff(attempt_a, attempt_b, metadata_only=metadata_only))
+
+
+@artifact_app.command("diff")
+def artifact_diff(artifact_a: str, artifact_b: str, workdir: Path | None = typer.Option(None, "--workdir", "-w")) -> None:
+    """Diff two verified immutable artifact payloads."""
+    console.print(_readonly_repo(workdir).artifact_diff(artifact_a, artifact_b))
 
 
 if __name__ == "__main__":

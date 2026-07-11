@@ -28,51 +28,22 @@ class PromptManager:
         self._cache: dict[str, str] = {}
 
     def render(self, name: str, variables: dict[str, str]) -> str:
+        """Render an explicitly named non-task template (for example system.md)."""
         if name not in self._cache:
             path = self._dir / name
             if not path.is_file():
                 raise FileNotFoundError(f"Prompt not found: {path}")
             self._cache[name] = path.read_text(encoding="utf-8")
-        # {schema} が含まれている場合、スキーマを自動的に取得して置換
-        result = self._cache[name]
-        if "{schema}" in result:
-            from novel_forge.schemas import get_schema
-            # プロンプト名からスキーマ名を推定
-            schema_name = name
-            if schema_name.endswith(".md"):
-                schema_name = schema_name[:-3]
-            schema_dict = get_schema(_infer_schema_name(schema_name))
-            # schema構造そのものを返さないよう、descriptionを中心とした構造化テキストを生成
-            schema_json = _build_simplified_schema(schema_dict) if schema_dict else "{}"
-            result = result.replace("{schema}", schema_json)
-        return render_prompt(result, variables)
+        return render_prompt(self._cache[name], variables)
 
+    def render_task(self, task_id: str, variables: dict[str, str]) -> str:
+        """Render a task via TaskRegistry; schema resolution is never inferred."""
+        from novel_forge.task_registry import DEFAULT_TASK_REGISTRY
 
-def _infer_schema_name(prompt_stem: str) -> str:
-    """Infer output schema name from a prompt template stem.
-
-    task_registry convention: prompt filename = "{resource_stem}_{operation}.md"
-      - operation in (generate, revise) -> schema stem = resource_stem
-      - operation == review            -> schema = review_issues
-    v2 continuity-handoff files keep their externally compatible schemas:
-      - scene_draft_v2    -> write_draft
-      - scene_review_v2   -> review_issues
-      - scene_revision_v2 -> write_draft
-    """
-    v2_map = {
-        "scene_draft_v2": "write_draft",
-        "scene_review_v2": "review_issues",
-        "scene_revision_v2": "write_draft",
-    }
-    if prompt_stem in v2_map:
-        return v2_map[prompt_stem]
-    if prompt_stem.endswith("_review"):
-        return "review_issues"
-    if prompt_stem.endswith("_revise"):
-        return prompt_stem[: -len("_revise")]
-    if prompt_stem.endswith("_generate"):
-        return prompt_stem[: -len("_generate")]
-    return prompt_stem
+        spec = DEFAULT_TASK_REGISTRY.get(task_id)
+        values = dict(variables)
+        values.setdefault("schema", _build_simplified_schema(DEFAULT_TASK_REGISTRY.load_schema(task_id)))
+        return self.render(spec.prompt, values)
 
 
 def _build_simplified_schema(schema: dict[str, Any]) -> str:

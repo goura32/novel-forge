@@ -1,59 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SceneSummary",
+  "title": "WriterContinuityHandoff",
+  "description": "次の writer が、本文に明示された事実だけを安全に引き継ぐための scene summary。",
   "type": "object",
-  "required": [
-    "summary",
-    "characters",
-    "facts"
-  ],
+  "required": ["summary", "end_state", "character_changes", "world_or_item_changes", "unresolved_threads", "next_scene_handoff", "evidence"],
   "properties": {
-    "summary": {
-      "description": "要約。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。",
-      "type": "string"
-    },
-    "characters": {
-      "description": "登場人物の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      }
-    },
-    "facts": {
-      "description": "事実記録の一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "subject",
-          "predicate",
-          "object"
-        ],
-        "properties": {
-          "subject": {
-            "description": "主語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
-          },
-          "predicate": {
-            "description": "述語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
-          },
-          "object": {
-            "description": "目的語。事実記録の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-            "type": "string"
-          }
-        },
-        "description": "事実記録を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
-      }
-    },
-    "continuity_notes": {
-      "description": "連続性メモの一覧。後続工程で矛盾確認や生成に使える具体的な値を要素として入れる。",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "連続性メモ。何が起きたか、後続工程で確認すべき点を具体的な日本語で書く。"
-      }
-    }
+    "summary": {"type": "string", "description": "本文で起きた出来事を、推測を加えず簡潔に記述する。"},
+    "end_state": {"type": "object", "description": "シーン終了時点で次 writer が守る人物・場所・物品・関係の状態。", "properties": {"location": {"type": "string", "description": "終了時点の主要POV人物の場所。"}, "time": {"type": "string", "description": "終了時点の時刻または時間経過。"}, "situation": {"type": "string", "description": "終了時点で継続する具体的状況。"}}},
+    "character_changes": {"type": "array", "description": "本文で変化が明示された人物の状態または関係。", "minItems": 1, "items": {"type": "object", "description": "人物ごとの明示された変化。", "properties": {"character": {"type": "string", "description": "変化した人物の本文上の名前。"}, "change": {"type": "string", "description": "本文に根拠のある状態または関係の変化。"}}}},
+    "world_or_item_changes": {"type": "array", "description": "本文で明示された場所、物品、制度、環境の変化。", "minItems": 1, "items": {"type": "object", "description": "本文で明示された世界または物品の具体的な変化。", "properties": {"subject": {"type": "string", "description": "変化した場所、物品、制度の名前。"}, "change": {"type": "string", "description": "本文の根拠に基づく具体的な変化内容。"}}}},
+    "unresolved_threads": {"type": "array", "description": "本文で未解決として残された問い、約束、危機、制約。", "minItems": 1, "items": {"type": "object", "description": "次 scene へ持ち越す未解決要素。", "properties": {"thread": {"type": "string", "description": "未解決の問いまたは制約。"}, "status": {"type": "string", "description": "終了時点での具体的な未解決状態。"}}}},
+    "next_scene_handoff": {"type": "string", "description": "次 writer が冒頭から守るべき具体的な状態、制約、直近の行動。"},
+    "evidence": {"type": "array", "description": "summary の重要な記述を裏づける本文中の引用または出来事。", "minItems": 1, "items": {"type": "string", "description": "本文に直接根拠を持つ短い引用または出来事。"}}
   }
 }

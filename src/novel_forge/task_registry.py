@@ -15,6 +15,7 @@ class TaskSpec:
 
 
 _TASK_ROWS = (
+    ("plan.series", "plan_concept"),
     ("plan.concept", "plan_concept"),
     ("plan.characters", "plan_characters"),
     ("plan.volumes", "plan_volumes"),
@@ -22,20 +23,20 @@ _TASK_ROWS = (
     ("design.chapter", "design_chapter"),
     ("design.scene", "design_scene"),
     ("write.draft", "write_draft"),
+    ("write.summary", "write_summary"),
 )
-# write.draft uses the v2 continuity-handoff prompt files; review uses review_issues.
-_PROMPT_OVERRIDES = {
-    "write.draft.generate": "scene_draft_v2.md",
-    "write.draft.review": "scene_review_v2.md",
-    "write.draft.revise": "scene_revision_v2.md",
-}
+# Names are canonical task resources; no legacy/v2 prompt alias is accepted.
+_PROMPT_OVERRIDES: dict[str, str] = {}
+# Tasks that only have a single generation step (no review/revise chain).
+_SINGLE_STEP_TASKS = frozenset({"plan.series"})
 _OPERATIONS = ("generate", "review", "revise")
 
 
 def _build_tasks() -> dict[str, TaskSpec]:
     tasks: dict[str, TaskSpec] = {}
     for stem, resource_stem in _TASK_ROWS:
-        for operation in _OPERATIONS:
+        operations = ("generate",) if stem in _SINGLE_STEP_TASKS else _OPERATIONS
+        for operation in operations:
             task_id = f"{stem}.{operation}"
             prompt = _PROMPT_OVERRIDES.get(task_id, f"{resource_stem}_{operation}.md")
             tasks[task_id] = TaskSpec(

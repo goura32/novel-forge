@@ -145,37 +145,27 @@ def test_unified_review_schema_exists_without_specific_review_schemas() -> None:
     assert all(not name.endswith("_review") for name in schema_names)
 
 
-def test_revision_prompts_inject_target_schema_not_review_schema() -> None:
+def test_revision_tasks_render_explicit_target_schema() -> None:
+    """TaskRegistry, not a filename heuristic, owns prompt/schema pairing."""
     manager = PromptManager(PROMPTS_DIR)
     variables = {
-        "current_chapter": "{}",
-        "current_scene": "{}",
-        "current_volume": "{}",
-        "current_plan": "{}",
-        "current_characters": "{}",
-        "current_volumes": "{}",
-        "review": "レビュー",
-        "series_plan": "{}",
-        "previous_design": "{}",
-        "scene": "本文",
-        "concept_text": "企画",
-        "keywords": "keyword",
-        "lang": "ja",
+        "scene_design": "{}", "draft": "本文", "summary": "{}", "review": "{}",
+        "previous_summary": "{}",
     }
     cases = {
-        "design_chapter_revise.md": ["title", "purpose", "theme"],
-        "design_scene_revise.md": ["title", "goal", "conflict", "outcome"],
-        "design_volume_revise.md": ["title", "premise", "chapters"],
-        "plan_concept_revise.md": ["title", "slug", "logline"],
-        "plan_characters_revise.md": ["main_characters"],
-        "plan_volumes_revise.md": ["planned_volumes"],
-        "scene_revision_v2.md": ["title", "content"],
+        "design.chapter.revise": ["title", "purpose", "theme"],
+        "design.scene.revise": ["title", "goal", "conflict", "outcome"],
+        "design.volume.revise": ["title", "premise", "chapters"],
+        "plan.concept.revise": ["title", "slug", "logline"],
+        "plan.characters.revise": ["main_characters"],
+        "plan.volumes.revise": ["planned_volumes"],
+        "write.draft.revise": ["content"],
+        "write.summary.revise": ["summary", "end_state"],
     }
-
-    for prompt_name, expected_fields in cases.items():
-        rendered = manager.render(prompt_name, variables)
+    for task_id, expected_fields in cases.items():
+        rendered = manager.render_task(task_id, variables)
         for field in expected_fields:
-            assert field in rendered, f"{prompt_name} should include target schema field {field}"
+            assert field in rendered, f"{task_id} should include target schema field {field}"
         assert "ready_for_publication" not in rendered
         assert "overall_assessment" not in rendered
 

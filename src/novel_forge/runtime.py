@@ -24,13 +24,21 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 FORMAT_VERSION = 1
 _DIR_MODE = 0o700
 _FILE_MODE = 0o600
 _SECRET_KEY = re.compile(
     r"(?:authorization|proxy-authorization|api[_-]?key|token|password|secret|connection[_-]?string)",
+    re.IGNORECASE,
+)
+_INLINE_AUTHORIZATION = re.compile(
+    r"\b(?:proxy-)?authorization\s*[:=]\s*(?:bearer|basic)\s+[^\s,;]+",
+    re.IGNORECASE,
+)
+_INLINE_SECRET = re.compile(
+    r"\b(?:api[_-]?key|token|password|secret|connection[_-]?string)\s*[:=]\s*[^\s,;]+",
     re.IGNORECASE,
 )
 
@@ -114,8 +122,9 @@ def sanitize_for_storage(value: Any) -> Any:
                 (key, "[REDACTED]" if _SECRET_KEY.search(key) else item)
                 for key, item in parse_qsl(parts.query, keep_blank_values=True)
             ]
-            return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
-        return value
+            value = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+        value = _INLINE_AUTHORIZATION.sub("Authorization: [REDACTED]", value)
+        return _INLINE_SECRET.sub("[REDACTED]", value)
     return value
 
 
@@ -123,6 +132,13 @@ class VersionedRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
     format_version: int = FORMAT_VERSION
     record_type: str
+
+    @field_validator("format_version")
+    @classmethod
+    def _known_format_version(cls, value: int) -> int:
+        if value != FORMAT_VERSION:
+            raise ValueError(f"unsupported format_version: {value}")
+        return value
 
 
 class RunManifest(VersionedRecord):
@@ -140,6 +156,8 @@ class RunManifest(VersionedRecord):
     def _bootstrap_rule(self) -> RunManifest:
         if (self.input_kind == "bootstrap") != (self.input_snapshot_id is None):
             raise ValueError("bootstrap is the only run type that may have a null input snapshot")
+        if self.input_kind == "bootstrap" and self.command != "plan":
+            raise ValueError("only plan may start a bootstrap run")
         return self
 
 
@@ -241,6 +259,13 @@ class ImmutableWriter:
     def mkdir(self, path: Path) -> None:
         _mkdir_private(path)
 
+    def mkdir_exclusive(self, path: Path) -> None:
+        """Create a new immutable directory; collisions are ID-generation errors."""
+        _mkdir_private(path.parent)
+        os.mkdir(path, _DIR_MODE)
+        os.chmod(path, _DIR_MODE)
+        _fsync_directory(path.parent)
+
     def write_bytes(self, path: Path, content: bytes) -> str:
         _mkdir_private(path.parent)
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, _FILE_MODE)
@@ -296,12 +321,14 @@ class ArtifactReference:
 class RunRepository:
     """Append-only run, artifact, ledger and snapshot repository."""
 
-    def __init__(self, workspace: Path) -> None:
+    def __init__(self, workspace: Path, *, read_only: bool = False) -> None:
         self.workspace = workspace.resolve()
+        self.read_only = read_only
         self.writer = ImmutableWriter()
-        self.writer.mkdir(self.workspace)
-        self.writer.mkdir(self.runtime_root)
-        self.writer.mkdir(self.runs_root)
+        if not read_only:
+            self.writer.mkdir(self.workspace)
+            self.writer.mkdir(self.runtime_root)
+            self.writer.mkdir(self.runs_root)
 
     @property
     def runtime_root(self) -> Path:
@@ -330,11 +357,13 @@ class RunRepository:
         verbose: bool,
         input_snapshot_id: str | None = None,
     ) -> RunHandle:
+        if input_snapshot_id is None and command != "plan":
+            raise RuntimeContractError("only plan may start a bootstrap run")
         run_id = f"run_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:6]}"
         path = self.runs_root / run_id
-        self.writer.mkdir(path)
-        self.writer.mkdir(path / "attempts")
-        self.writer.mkdir(path / "logs")
+        self.writer.mkdir_exclusive(path)
+        self.writer.mkdir_exclusive(path / "attempts")
+        self.writer.mkdir_exclusive(path / "logs")
         manifest = RunManifest(
             run_id=run_id,
             command=command,
@@ -366,8 +395,8 @@ class RunRepository:
             f"{task_id.replace('.', '_')}_{uuid.uuid4().hex[:6]}"
         )
         path = run.path / "attempts" / attempt_id
-        self.writer.mkdir(path)
-        self.writer.mkdir(path / "artifacts")
+        self.writer.mkdir_exclusive(path)
+        self.writer.mkdir_exclusive(path / "artifacts")
         manifest = AttemptManifest(
             attempt_id=attempt_id,
             run_id=run.manifest.run_id,
@@ -404,6 +433,8 @@ class RunRepository:
         quality_status: Literal["passed", "review_limit_reached", "review_error"] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> ArtifactReference:
+        if any(attempt.path.glob("artifact-ready.*.json")) or (attempt.path / "error.json").exists():
+            raise RuntimeContractError("attempt already reached a terminal state")
         if quality_status == "review_error":
             raise RuntimeContractError("review_error candidates must not be committed as ready artifacts")
         payload_rel = _safe_relative(f"artifacts/{payload_name}")
@@ -475,6 +506,8 @@ class RunRepository:
         http_status: int | None = None,
         detail: str | None = None,
     ) -> None:
+        if any(attempt.path.glob("artifact-ready.*.json")) or (attempt.path / "error.json").exists():
+            raise RuntimeContractError("attempt already reached a terminal state")
         run = attempt.path.parent.parent
         verbose = self._read_run(run).verbose
         payload: dict[str, Any] = {
@@ -512,8 +545,23 @@ class RunRepository:
     ) -> SelectionSnapshot:
         if not slots:
             raise RuntimeContractError("selection snapshot requires slots")
-        for artifact_id in slots.values():
-            self.verify_artifact(artifact_id)
+        for slot, artifact_id in slots.items():
+            ref = self.verify_artifact(artifact_id)
+            if slot == "canon.frontier":
+                # Frontier artifacts keep a stable selection slot while their
+                # artifact logical key encodes lineage (e.g. canon.frontier.root).
+                if not ref.manifest.logical_key.startswith("canon.frontier"):
+                    raise RuntimeContractError(
+                        f"selection slot {slot!r} requires a canon.frontier* logical key, "
+                        f"got {ref.manifest.logical_key!r}"
+                    )
+            elif ref.manifest.logical_key != slot:
+                raise RuntimeContractError(
+                    f"selection slot {slot!r} does not match referenced artifact logical key "
+                    f"{ref.manifest.logical_key!r}"
+                )
+        if base_snapshot_id is not None:
+            self.load_snapshot(slug, base_snapshot_id)
         self.verify_canon_snapshot(slots)
         ledger = self.ledger_root(slug)
         self.writer.mkdir(ledger)
@@ -545,6 +593,17 @@ class RunRepository:
         )
         _fsync_directory(ledger)
         return snapshot
+
+    def current_snapshot_id(self, slug: str) -> str:
+        """Return the latest *ledger-selected* snapshot, never a latest artifact."""
+        selected = [
+            event.payload.get("selection_snapshot_id")
+            for event in self._ledger_events(slug)
+            if event.event_type == "selection.snapshot.created"
+        ]
+        if not selected or not isinstance(selected[-1], str):
+            raise FileNotFoundError(f"no selection snapshot found for series: {slug}")
+        return selected[-1]
 
     def load_snapshot(self, slug: str, snapshot_id: str) -> SelectionSnapshot:
         event = next(
@@ -618,8 +677,9 @@ class RunRepository:
         return best
 
     def read_payload(self, ref: ArtifactReference) -> Any:
-        """Load and parse the payload JSON of a resolved artifact reference."""
-        payload_path = ref.path / _safe_relative(ref.manifest.payload_path)
+        """Load a verified artifact payload; never trust a previously resolved path."""
+        verified = self.verify_artifact(ref.artifact_id)
+        payload_path = verified.path / _safe_relative(verified.manifest.payload_path)
         raw = payload_path.read_bytes()
         try:
             return json.loads(raw)
@@ -690,6 +750,13 @@ class RunRepository:
             if current.parent_frontier_digest != parent.content_digest:
                 raise CorruptArtifactError("Canon frontier parent digest mismatch")
             current = parent
+
+    def read_run(self, run_id: str) -> RunHandle:
+        path = self.runs_root / run_id
+        manifest_path = path / "run.json"
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"run not found: {run_id}")
+        return RunHandle(RunManifest.model_validate_json(manifest_path.read_bytes()), path)
 
     def read_attempt(self, attempt_id: str) -> AttemptHandle:
         candidates = list(self.runs_root.glob(f"*/attempts/{attempt_id}/attempt.json"))

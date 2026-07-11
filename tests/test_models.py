@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from novel_forge.engine import NovelEngine
 from novel_forge.llm_client import LLMClient
 from novel_forge.models import (
     ChapterDesign,
@@ -200,42 +199,3 @@ class TestSchemas:
         schema = get_schema("design_volume")
         ch_purpose = schema["properties"]["chapters"]["items"]["properties"]["purpose"]
         assert "enum" in ch_purpose
-
-
-# ── Engine ─────────────────────────────────────────────────────────────
-
-
-class TestEngine:
-    def test_engine_creates_state(self, tmp_path):
-        engine = NovelEngine(workdir=tmp_path, model="test")
-        assert engine.state.workdir.startswith("/tmp/novel-forge-")
-
-    def test_engine_status(self, tmp_path):
-        engine = NovelEngine(workdir=tmp_path, model="test")
-        s = engine.status()
-        assert s["status"] == "計画中"
-        assert s["current_volume"] == 1
-
-    def test_engine_resume_planned(self, tmp_path):
-        engine = NovelEngine(workdir=tmp_path, model="test")
-        result = engine.resume()
-        assert result["action"] == "plan"
-
-    def test_engine_resume_outlined(self, tmp_path):
-        engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "デザイン済"
-        result = engine.resume()
-        assert result["action"] == "design"
-
-    def test_engine_resume_drafting(self, tmp_path):
-        engine = NovelEngine(workdir=tmp_path, model="test")
-        vol = VolumeProgress(volume_number=1, status="執筆中", current_chapter=0)
-        engine._state.volumes.append(vol)
-        result = engine.resume()
-        assert result["action"] == "write"
-
-    def test_engine_resume_exported(self, tmp_path):
-        engine = NovelEngine(workdir=tmp_path, model="test")
-        engine._state.status = "出力済"
-        result = engine.resume()
-        assert result["action"] == "export"

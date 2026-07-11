@@ -40,7 +40,7 @@ def _artifact(repo: RunRepository, run, *, artifact_type: str, logical_key: str,
 
 
 def test_registry_has_only_explicit_and_complete_resource_ownership() -> None:
-    assert len(DEFAULT_TASK_REGISTRY.all()) == 21
+    assert len(DEFAULT_TASK_REGISTRY.all()) == 25
     assert DEFAULT_TASK_REGISTRY.validate_resources() == []
     assert DEFAULT_TASK_REGISTRY.get("write.draft.revise").schema == "write_draft"
     assert DEFAULT_TASK_REGISTRY.get("write.draft.review").schema == "review_issues"
