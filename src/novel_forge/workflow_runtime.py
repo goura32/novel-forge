@@ -12,6 +12,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from novel_forge.canon.frontier import (
+    FrontierPayloadError,
+    SeedPayloadError,
+    replay_frontier,
+    validate_frontier_payload,
+)
+from novel_forge.canon.models import Canon
 from novel_forge.runtime import (
     ArtifactReference,
     AttemptHandle,
@@ -72,6 +79,92 @@ class RuntimeWorkflow:
         if not isinstance(payload, dict):
             raise RuntimeContractError(f"artifact payload must be an object: {slot}")
         return payload
+
+    def load_canon(self) -> Canon:
+        """Replay the Canon selected by this workflow's immutable snapshot.
+
+        ``canon.seed`` and ``canon.frontier`` are both verified artifacts.  No
+        mutable Canon store or fixed project file participates in this read.
+        """
+        try:
+            return replay_frontier(
+                self._payload("canon.seed"),
+                self._payload("canon.frontier"),
+            )
+        except (SeedPayloadError, FrontierPayloadError) as exc:
+            raise RuntimeContractError(f"selected Canon artifacts are invalid: {exc}") from exc
+
+    def publish_canon_event(self, event_payload: dict[str, Any]) -> SelectionSnapshot:
+        """Replace one active scene event and publish a descendant frontier.
+
+        The selected frontier is the full active event set.  Revisions replace
+        only their source scene and are replayed before persistence; a failed
+        replay cannot advance the selection snapshot.
+        """
+        try:
+            incoming = validate_frontier_payload({"events": [event_payload]})[0]
+            active = {
+                event.source.scene_id: event
+                for event in validate_frontier_payload(self._payload("canon.frontier"))
+            }
+        except FrontierPayloadError as exc:
+            raise RuntimeContractError(f"Canon event payload is invalid: {exc}") from exc
+
+        previous = active.get(incoming.source.scene_id)
+        if previous is not None and incoming.source.revision <= previous.source.revision:
+            if incoming.model_dump(mode="json") == previous.model_dump(mode="json"):
+                return self.snapshot
+            raise RuntimeContractError(
+                "Canon event revision must exceed the selected event for its scene"
+            )
+        active[incoming.source.scene_id] = incoming
+        frontier_payload = {
+            "events": [
+                event.model_dump(mode="json")
+                for event in active.values()
+            ]
+        }
+        try:
+            replay_frontier(self._payload("canon.seed"), frontier_payload)
+        except (SeedPayloadError, FrontierPayloadError, ValueError) as exc:
+            raise RuntimeContractError(f"candidate Canon frontier cannot be replayed: {exc}") from exc
+
+        parent = self._selected("canon.frontier")
+        seed = self._selected("canon.seed")
+        patch_key = f"canon.patch.{incoming.source.scene_id}.r{incoming.source.revision}"
+        patch_ref = self._artifact(
+            task_id="canon.patch.review",
+            reason="record reviewed Canon patch evidence",
+            artifact_type="canon.patch",
+            logical_key=patch_key,
+            payload=event_payload,
+            payload_name=f"{patch_key}.json",
+            input_artifact_ids=(parent.artifact_id, seed.artifact_id),
+            quality_status="passed",
+        )
+        logical_key = (
+            f"canon.frontier.{incoming.source.scene_id}.r{incoming.source.revision}"
+        )
+        attempt = self._attempt("canon.event.apply", "accept reviewed Canon event")
+        ref = self.repository.commit_artifact(
+            attempt,
+            artifact_type="canon.event_set",
+            logical_key=logical_key,
+            payload=frontier_payload,
+            payload_name=f"{logical_key}.json",
+            input_artifact_ids=(parent.artifact_id, seed.artifact_id),
+            canon_lineage_root_digest=seed.manifest.content_digest,
+            input_canon_frontier_digest=parent.manifest.content_digest,
+            parent_frontier_artifact_id=parent.artifact_id,
+            parent_frontier_digest=parent.manifest.content_digest,
+            source_patch_artifact_ids=(patch_ref.artifact_id,),
+            metadata={
+                "replaced_scene_id": incoming.source.scene_id,
+                "revision": incoming.source.revision,
+                "event_id": incoming.event_id,
+            },
+        )
+        return self._publish({"canon.frontier": ref.artifact_id}, "Canon event accepted")
 
     def _attempt(self, task_id: str, reason: str) -> AttemptHandle:
         phase = task_id.split(".", 1)[0]

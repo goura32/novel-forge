@@ -125,6 +125,32 @@ def test_replay_order_deterministic_by_ordinal(tmp_path):
     assert canon.get_entity("character", "char_001").continuity_card.current_state == "second"
 
 
+def test_replay_orders_by_full_location_when_ordinals_repeat(tmp_path):
+    store = CanonEventStore(tmp_path)
+    seed = _write_seed(store)
+    chapter_one = CanonPatch(
+        characters={"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "chapter one"}]}
+    )
+    chapter_two = CanonPatch(
+        characters={"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "chapter two"}]}
+    )
+    ev_two = _approved_event(
+        SourceRef(scene_id="scn_a", location={"volume": 1, "chapter": 2, "ordinal": 1}, revision=1),
+        chapter_two,
+        "sha256:two",
+    )
+    ev_one = _approved_event(
+        SourceRef(scene_id="scn_z", location={"volume": 1, "chapter": 1, "ordinal": 99}, revision=1),
+        chapter_one,
+        "sha256:one",
+    )
+    store.save_events([ev_two, ev_one])
+
+    canon = store.replay(seed)
+
+    assert canon.get_entity("character", "char_001").continuity_card.current_state == "chapter two"
+
+
 def test_stable_id_created_across_replays(tmp_path):
     store = CanonEventStore(tmp_path)
     seed = _write_seed(store)

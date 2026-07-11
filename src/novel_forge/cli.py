@@ -95,23 +95,51 @@ def cmd_doctor(
 
 
 def _find_existing_series(workdir: Path, slug: str | None = None) -> Path:
-    """Find existing series directory under the runtime root."""
-    import re
-
+    """Find a series from its immutable runtime ledger, never legacy files."""
+    root = workdir.resolve()
+    repo = RunRepository(root, read_only=True)
     if slug:
-        if not re.fullmatch(r"[a-zA-Z0-9_-]+", slug):
+        if not re.fullmatch(r"[a-z0-9_]+", slug):
             raise ValueError(f"Unsafe series slug: {slug}")
-        root = workdir.resolve()
-        series_dir = (workdir / slug).resolve()
-        if series_dir != root and root not in series_dir.parents:
-            raise ValueError(f"Unsafe series slug: {slug}")
-        if not series_dir.exists():
+        series_dir = repo.series_root(slug)
+        if not repo.ledger_root(slug).is_dir():
             raise FileNotFoundError(f"Series '{slug}' not found in {workdir}")
         return series_dir
-    for d in sorted(workdir.iterdir(), reverse=True):
-        if d.is_dir() and not d.name.startswith(".") and (d / "series_plan.json").exists():
-            return d
-    return workdir
+
+    candidates = [
+        path
+        for path in sorted(root.iterdir(), reverse=True)
+        if path.is_dir() and not path.name.startswith(".") and repo.ledger_root(path.name).is_dir()
+    ]
+    if not candidates:
+        raise FileNotFoundError(f"No runtime-managed series found in {workdir}")
+    if len(candidates) > 1:
+        raise RuntimeContractError("Multiple series found; pass --series explicitly")
+    return candidates[0]
+
+
+def _existing_series_slugs(workdir: Path) -> builtins.list[str]:
+    """Return only runtime-managed series slugs for plan collision checks."""
+    root = workdir.resolve()
+    repo = RunRepository(root, read_only=True)
+    return [
+        path.name
+        for path in sorted(root.iterdir())
+        if path.is_dir() and not path.name.startswith(".") and repo.ledger_root(path.name).is_dir()
+    ]
+
+
+def _selected_payload(repo: RunRepository, slug: str, snapshot_id: str, slot: str) -> dict[str, Any]:
+    """Read a verified selected artifact from an immutable snapshot."""
+    snapshot = repo.load_snapshot(slug, snapshot_id)
+    try:
+        artifact_id = snapshot.slots[slot]
+    except KeyError as exc:
+        raise RuntimeContractError(f"selected snapshot is missing required slot: {slot}") from exc
+    payload = repo.read_payload(repo.verify_artifact(artifact_id))
+    if not isinstance(payload, dict):
+        raise RuntimeContractError(f"selected artifact payload must be an object: {slot}")
+    return payload
 
 
 def _make_workflow(
@@ -169,13 +197,10 @@ def plan(
         workflow = _make_workflow(
             repo, run, None, config, model, max_review_count, max_summary_review_count, verbose
         )
-        existing = [
-            d.name for d in sorted(resolved_workdir.iterdir())
-            if d.is_dir() and not d.name.startswith(".") and (d / "series_plan.json").exists()
-        ]
+        existing = _existing_series_slugs(resolved_workdir)
         plan = workflow.task_runner(
             "plan.series.generate",
-            {"keywords": keywords, "existing_slugs": json.dumps(existing, ensure_ascii=False)},
+            {"keywords": keywords, "existing_slugs": existing},
         )
         slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
         canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
@@ -202,25 +227,36 @@ def design(
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     series_dir = _find_existing_series(resolved_workdir, series)
-    run = repo.create_run(command="design", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    snapshot_id = repo.current_snapshot_id(series_dir.name)
+    run = repo.create_run(
+        command="design",
+        model=model or config.llm.model,
+        verbose=bool(verbose),
+        input_snapshot_id=snapshot_id,
+    )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design"):
         workflow = _make_workflow(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
-        plan_path = series_dir / "series_plan.json"
-        plan = json.loads(plan_path.read_text(encoding="utf-8")) if plan_path.exists() else {}
+        plan = _selected_payload(repo, series_dir.name, snapshot_id, "plan.series")
+        canon = workflow.load_canon().model_dump(mode="json")
         total_vol = len(plan.get("planned_volumes", [])) or 2
         volumes = range(1, total_vol + 1) if volume == 0 else range(volume, volume + 1)
         for v in volumes:
+            previous_design = (
+                _selected_payload(repo, series_dir.name, workflow.snapshot.selection_snapshot_id, f"design.vol{v - 1:02d}")
+                if v > 1 and f"design.vol{v - 1:02d}" in workflow.snapshot.slots
+                else None
+            )
             design_payload = workflow.task_runner(
                 "design.volume.generate",
                 {
-                    "series_plan": json.dumps(plan, ensure_ascii=False),
-                    "volume_number": str(v),
+                    "series_plan": plan,
+                    "volume_number": v,
                     "volume_title": plan.get("planned_volumes", [{}])[v - 1].get("title", f"第{v}巻") if plan.get("planned_volumes") else f"第{v}巻",
-                    "genre": json.dumps(plan.get("genre", []), ensure_ascii=False),
-                    "previous_design": "null",
-                    "bible": "null",
+                    "genre": plan.get("genre", []),
+                    "previous_design": previous_design,
+                    "bible": canon,
                 },
             )
             workflow.publish_design(v, design_payload)
@@ -243,7 +279,13 @@ def write(
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     series_dir = _find_existing_series(resolved_workdir, series)
-    run = repo.create_run(command="write", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    snapshot_id = repo.current_snapshot_id(series_dir.name)
+    run = repo.create_run(
+        command="write",
+        model=model or config.llm.model,
+        verbose=bool(verbose),
+        input_snapshot_id=snapshot_id,
+    )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write"):
         workflow = _make_workflow(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
@@ -266,7 +308,13 @@ def export(
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     series_dir = _find_existing_series(resolved_workdir, series)
-    run = repo.create_run(command="export", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    snapshot_id = repo.current_snapshot_id(series_dir.name)
+    run = repo.create_run(
+        command="export",
+        model=model or config.llm.model,
+        verbose=bool(verbose),
+        input_snapshot_id=snapshot_id,
+    )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export"):
         workflow = _make_workflow(repo, run, series_dir.name, config, model, None, None, verbose)
         result = workflow.export_volume(volume)
@@ -312,7 +360,13 @@ def resume(
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     series_dir = _find_existing_series(resolved_workdir, series)
-    run = repo.create_run(command="resume", model=model or config.llm.model, verbose=bool(verbose), input_snapshot_id=None)
+    snapshot_id = repo.current_snapshot_id(series_dir.name)
+    run = repo.create_run(
+        command="resume",
+        model=model or config.llm.model,
+        verbose=bool(verbose),
+        input_snapshot_id=snapshot_id,
+    )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume"):
         workflow = _make_workflow(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
@@ -344,13 +398,10 @@ def complete(
     try:
         workflow = _make_workflow(repo, run, None, config, model, max_review_count, max_summary_review_count, verbose)
         console.print("[bold]Step 1/4: Plan[/bold]")
-        existing = [
-            d.name for d in sorted(resolved_workdir.iterdir())
-            if d.is_dir() and not d.name.startswith(".") and (d / "series_plan.json").exists()
-        ]
+        existing = _existing_series_slugs(resolved_workdir)
         plan = workflow.task_runner(
             "plan.series.generate",
-            {"keywords": keywords, "existing_slugs": json.dumps(existing, ensure_ascii=False)},
+            {"keywords": keywords, "existing_slugs": existing},
         )
         slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
         canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
@@ -361,12 +412,12 @@ def complete(
         design_payload = workflow.task_runner(
             "design.volume.generate",
             {
-                "series_plan": json.dumps(plan, ensure_ascii=False),
-                "volume_number": str(volume),
+                "series_plan": plan,
+                "volume_number": volume,
                 "volume_title": plan.get("planned_volumes", [{}])[volume - 1].get("title", f"第{volume}巻") if plan.get("planned_volumes") else f"第{volume}巻",
-                "genre": json.dumps(plan.get("genre", []), ensure_ascii=False),
-                "previous_design": "null",
-                "bible": "null",
+                "genre": plan.get("genre", []),
+                "previous_design": None,
+                "bible": canon_seed,
             },
         )
         workflow.publish_design(volume, design_payload)
@@ -406,28 +457,19 @@ def list(
 
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
-    repo = RunRepository(resolved_workdir)
+    repo = RunRepository(resolved_workdir, read_only=True)
     for d in sorted(resolved_workdir.iterdir()):
-        if not d.is_dir() or d.name.startswith("."):
-            continue
-        ledger = repo.series_runtime_root(d.name) / "ledger"
-        if not ledger.exists():
-            continue
-        plan_path = d / "series_plan.json"
-        if not plan_path.exists():
-            table.add_row(d.name, "?", "?", "no-plan")
+        if not d.is_dir() or d.name.startswith(".") or not repo.ledger_root(d.name).is_dir():
             continue
         try:
-            import json as _json
-
-            plan = _json.loads(plan_path.read_text(encoding="utf-8"))
-            slug = plan.get("slug", d.name)
-            title = plan.get("title", "?")
+            snapshot_id = repo.current_snapshot_id(d.name)
+            plan = _selected_payload(repo, d.name, snapshot_id, "plan.series")
+            slug = str(plan.get("slug", d.name))
+            title = str(plan.get("title", "?"))
             volumes = len(plan.get("planned_volumes", []))
-            st = "exists"
-            table.add_row(slug, title, str(volumes), st)
-        except Exception as exc:
-            _log.warning("Failed to read series plan while listing: %s", plan_path, exc_info=exc)
+            table.add_row(slug, title, str(volumes), "snapshot-managed")
+        except (FileNotFoundError, RuntimeContractError) as exc:
+            _log.warning("Failed to read selected plan while listing %s: %s", d.name, exc)
 
     console.print(table)
 

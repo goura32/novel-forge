@@ -24,6 +24,8 @@ from novel_forge.prompts import PromptManager
 # Maps each RuntimeWorkflow task_id to the prompt variable keys it expects.
 # RuntimeWorkflow passes these exact keys (see workflow_runtime.py):
 #   plan.series.generate    -> {keywords, existing_slugs}
+#   design.volume.generate  -> {series_plan, volume_number, volume_title, genre,
+#                               previous_design, bible}
 #   write.draft.generate   -> {scene_design, previous_summary}
 #   write.draft.review      -> {scene_design, draft}
 #   write.draft.revise      -> {scene_design, draft, review}
@@ -32,6 +34,14 @@ from novel_forge.prompts import PromptManager
 #   write.summary.revise     -> {draft, summary, review}
 _TASK_VARIABLES: dict[str, tuple[str, ...]] = {
     "plan.series.generate": ("keywords", "existing_slugs"),
+    "design.volume.generate": (
+        "series_plan",
+        "volume_number",
+        "volume_title",
+        "genre",
+        "previous_design",
+        "bible",
+    ),
     "write.draft.generate": ("scene_design", "previous_summary"),
     "write.draft.review": ("scene_design", "draft"),
     "write.draft.revise": ("scene_design", "draft", "review"),

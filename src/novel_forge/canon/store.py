@@ -335,7 +335,15 @@ class CanonEventStore:
 
         kept = [ev for ev in current if ev.source.scene_id not in removed]
         candidate = [*kept, *replacement_events]
-        candidate.sort(key=lambda ev: (ev.source.ordinal, ev.source.scene_id, ev.source.revision))
+        candidate.sort(
+            key=lambda ev: (
+                ev.source.location.volume,
+                ev.source.location.chapter,
+                ev.source.location.ordinal,
+                ev.source.scene_id,
+                ev.source.revision,
+            )
+        )
 
         # Same active source content is a true no-op: do not rewrite timestamps
         # or the event file merely because a caller retried the same request.
@@ -365,11 +373,13 @@ class CanonEventStore:
             seed = self.load_seed()
         if events is None:
             events = self.load_active()
-        # deterministic order: location ordinal, then scene_id, then revision
+        # deterministic order: full source location, then scene_id and revision
         ordered = sorted(
             events,
             key=lambda e: (
-                e.source.ordinal,
+                e.source.location.volume,
+                e.source.location.chapter,
+                e.source.location.ordinal,
                 e.source.scene_id,
                 e.source.revision,
             ),
@@ -436,6 +446,11 @@ class CanonEventStore:
                 if r.id not in valid:
                     raise ReferenceInconsistencyError(
                         f"event {ev.event_id} references missing entity {r.id}"
+                    )
+                if canon.get_entity(r.kind, r.id) is None:
+                    raise ReferenceInconsistencyError(
+                        f"event {ev.event_id} has typed reference kind mismatch: "
+                        f"{r.kind}:{r.id}"
                     )
 
     @staticmethod
