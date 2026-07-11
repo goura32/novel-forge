@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .models import (
     CastCharacter,
@@ -62,7 +62,7 @@ class SceneDesign(BaseModel):
     it never reads the Bible / Canon Event log / author truth.
     """
 
-    model_config = _forbid()
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
     scene_id: str
     source_location: SceneLocation | None = None
@@ -86,6 +86,27 @@ class SceneDesign(BaseModel):
     writer_context: WriterContext | None = None  # §6.2 projection for the writer
     projection_manifest: ProjectionManifest | None = None
     status: Literal["draft", "review_passed", "applied"] = "draft"
+
+    @model_validator(mode="after")
+    def _patch_requires_reviewed_status(self) -> SceneDesign:
+        if self.status == "draft" and self.canon_patch is not None:
+            raise ValueError("only review-passed scene designs may carry canon_patch")
+        if self.status in {"review_passed", "applied"} and self.canon_patch is None:
+            raise ValueError(f"{self.status} scene design requires canon_patch")
+        return self
+
+    def accept_reviewed_patch(self, patch: dict[str, Any]) -> None:
+        """Atomically attach the approved patch after a passing review."""
+        self._replace_validated(status="review_passed", canon_patch=patch)
+
+    def mark_patch_applied(self) -> None:
+        """Mark a reviewed patch applied only after its Canon event is persisted."""
+        self._replace_validated(status="applied")
+
+    def _replace_validated(self, **updates: Any) -> None:
+        validated = type(self).model_validate({**self.model_dump(mode="python"), **updates})
+        for field_name, value in validated.__dict__.items():
+            object.__setattr__(self, field_name, value)
 
 
 class ChapterDesign(BaseModel):

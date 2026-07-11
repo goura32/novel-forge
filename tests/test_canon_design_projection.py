@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from novel_forge.canon.design import (
     CastCharacter,
     CastLocalRole,
@@ -78,6 +81,16 @@ def test_scene_design_model_builds():
     assert sd.cast[0].character.id == "char_001"
     assert sd.cast[1].label == "港の検問兵"
     assert sd.status == "draft"
+
+
+def test_draft_scene_design_rejects_canon_patch() -> None:
+    with pytest.raises(ValidationError, match="review-passed"):
+        SceneDesign(scene_id="scn_001", canon_patch={"characters": {}})
+
+
+def test_review_passed_scene_design_requires_canon_patch() -> None:
+    with pytest.raises(ValidationError, match="canon_patch"):
+        SceneDesign(scene_id="scn_001", status="review_passed")
 
 
 def test_chapter_volume_design_build():

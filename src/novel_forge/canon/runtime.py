@@ -405,11 +405,15 @@ def apply_reviewed_patch(
     # Persist replay-critical scope context with the event.  Replay must never
     # consult a transient SceneDesign object to validate relationship changes.
     event.scene_cast_ids = sorted(scene_cast_ids or set())
+    # The scene artifact may be promoted only after the patch was resolved
+    # successfully.  ``SceneDesign`` validates the draft → review_passed
+    # transition atomically, so an applied design cannot lose its patch.
+    scene_design.accept_reviewed_patch(patch)
     # The store transaction validates dependencies, replays the *active* event
     # set from immutable seed, and materializes only that replay result.
     replayed = store.replace_design_segment([source.scene_id], [event])
 
-    scene_design.status = "applied"
+    scene_design.mark_patch_applied()
     return replayed, event
 
 
