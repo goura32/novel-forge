@@ -433,6 +433,11 @@ class CanonEventStore:
             raise ReviewEvidenceMismatchError(
                 f"event {ev.event_id}: Canon Events require approved review evidence"
             )
+        if not ev.artifact_digest or not ev.review_evidence.reviewed_artifact_digest:
+            raise ReviewEvidenceMismatchError(
+                f"event {ev.event_id}: artifact_digest and reviewed_artifact_digest "
+                f"must be set (the reviewed SceneDesign artifact digest, §6.3 / §7.1)"
+            )
         if ev.review_evidence.reviewed_artifact_digest != ev.artifact_digest:
             raise ReviewEvidenceMismatchError(
                 f"event {ev.event_id}: reviewed_artifact_digest != artifact_digest"

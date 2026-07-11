@@ -141,6 +141,13 @@ def _empty_intent():
 class ReviewResult:
     passed: bool
     issues: list[str] = field(default_factory=list)
+    # Digest of the *reviewed SceneDesign artifact*: the scene design content
+    # plus the exact patch payload that was reviewed (§6.3 / §7.1).  This is the
+    # value bound into ``CanonEvent.artifact_digest`` and
+    # ``ReviewEvidence.reviewed_artifact_digest``.  It is deliberately NOT the
+    # post-apply Canon digest — the event must identify the reviewed input, not
+    # the resulting state.
+    artifact_digest: str = ""
     # Digest of the exact patch payload reviewed by this result.
     review_digest: str = ""
     # Canon digest used to build the writer projection and review context.
@@ -229,9 +236,15 @@ def review_scene_patch(
         issues.append("[review_evidence] reviewed patch changed; re-review is required")
 
     design_digest = _design_digest(scene_design)
+    # The reviewed artifact digest binds the *reviewed input* (scene design
+    # content + the exact patch reviewed), not the resulting Canon state (§6.3 /
+    # §7.1).  It is what ``apply_reviewed_patch`` must echo into the event and
+    # review evidence, and what forces a re-review if either changes.
+    artifact_digest = _reviewed_artifact_digest(scene_design, patch)
     review = ReviewResult(
         passed=not issues,
         issues=issues,
+        artifact_digest=artifact_digest,
         review_digest=prior_review_digest or patch_digest,
         design_digest=design_digest,
         patch_digest=patch_digest,
@@ -345,6 +358,29 @@ def _stable_hash(obj: Any) -> str:
     ).hexdigest()
 
 
+# SceneDesign fields that are bookkeeping rather than reviewable artifact
+# content.  They are excluded from the reviewed artifact digest so that a
+# projection rebuild (``projection_manifest``) or status transition after a
+# review does not, by itself, invalidate an otherwise-unchanged design (§6.3 /
+# §7.1).  ``canon_patch`` is excluded because the reviewed patch is supplied
+# separately to :func:`review_scene_patch` / :func:`apply_reviewed_patch` and is
+# already bound via ``ReviewResult.patch_digest``.
+_SCENE_ARTIFACT_EXCLUDE = {"projection_manifest", "status", "canon_patch"}
+
+
+def _reviewed_artifact_digest(scene_design: SceneDesign, patch: dict[str, Any]) -> str:
+    """Digest of the reviewed SceneDesign artifact (design content + patch).
+
+    This is the value bound into ``CanonEvent.artifact_digest`` and
+    ``ReviewEvidence.reviewed_artifact_digest`` (§6.3 / §7.1).  It identifies the
+    exact reviewed input (scene design text + patch), NOT the resulting Canon
+    state, so a later edit to either forces a re-review at apply time.
+    """
+    design_dump = scene_design.model_dump(mode="json", exclude=_SCENE_ARTIFACT_EXCLUDE)
+    payload = {"design": design_dump, "patch": patch}
+    return _stable_hash(payload)
+
+
 # ---------------------------------------------------------------------------
 # Apply reviewed patch → CanonEvent (§6.3 / §7)
 # ---------------------------------------------------------------------------
@@ -374,10 +410,20 @@ def apply_reviewed_patch(
     if review.patch_digest and review.patch_digest != _stable_hash(patch):
         raise ValueError("reviewed patch changed; re-review is required")
 
+    # §6.3 / §7.1: the event must bind the *reviewed SceneDesign artifact
+    # digest* (scene design content + the exact patch that was reviewed), and
+    # the review evidence must echo it.  If the scene design text or the patch
+    # changed after the review, the reviewed artifact digest no longer matches
+    # the current input — reject the apply and force a re-review.
+    expected_artifact = _reviewed_artifact_digest(scene_design, patch)
+    if not review.artifact_digest:
+        raise ValueError("review result carries no reviewed artifact digest")
+    if review.artifact_digest != expected_artifact:
+        raise ValueError(
+            "reviewed SceneDesign artifact changed after review; re-review is required"
+        )
+
     source = _source_from_design(scene_design, revision)
-    # The reviewed artifact digest MUST equal the post-apply Canon digest
-    # (store._validate_event_integrity hard-stops on mismatch). Bind it after
-    # apply() computes it, so it is never a stale/independent hash.
     resolved_patch = CanonPatch.model_validate(patch)
     applier = CanonPatchApplier()
     new_canon, event = applier.apply(
@@ -385,23 +431,21 @@ def apply_reviewed_patch(
         patch=resolved_patch,
         source=source,
         review_evidence=ReviewEvidence(
-            status="rejected",
-            reviewed_artifact_digest="",
+            status="approved",
+            reviewed_artifact_digest=review.artifact_digest,
             review_digest=review.review_digest,
             review_contract_version=1,
         ),
         id_gen=StableIdGenerator(),
         scene_cast_ids=scene_cast_ids,
         existing_events=store.load_active(),
+        artifact_digest=review.artifact_digest,
     )
-    # Now that the artifact digest is known, bind review evidence correctly
-    # and re-attach it to the event (models are not frozen).
-    event.review_evidence = ReviewEvidence(
-        status="approved",
-        reviewed_artifact_digest=event.artifact_digest,
-        review_digest=review.review_digest,
-        review_contract_version=1,
-    )
+    # The event artifact_digest is now the reviewed SceneDesign artifact digest
+    # (set by the applier), and review_evidence.reviewed_artifact_digest echoes
+    # it.  The store integrity check (reviewed_artifact_digest ==
+    # artifact_digest) therefore holds for the reviewed input, not for the
+    # post-apply Canon state.
     # Persist replay-critical scope context with the event.  Replay must never
     # consult a transient SceneDesign object to validate relationship changes.
     event.scene_cast_ids = sorted(scene_cast_ids or set())

@@ -126,10 +126,18 @@ class CanonPatchApplier:
         id_gen: StableIdGenerator,
         scene_cast_ids: set[str] | None = None,
         existing_events: list[CanonEvent] | None = None,
+        artifact_digest: str | None = None,
     ) -> tuple[Canon, CanonEvent]:
         """Pure apply. ``scene_cast_ids`` is the set of character ids appearing
         in the scene cast (used to validate Knowledge holder updates and
-        Relationship updates, §6.1)."""
+        Relationship updates, §6.1).
+
+        When ``artifact_digest`` is provided it is bound verbatim into the
+        resulting :class:`CanonEvent` instead of the post-apply Canon digest.
+        This is used by :func:`apply_reviewed_patch` to record the *reviewed
+        SceneDesign artifact digest* (design content + reviewed patch) per
+        §6.3 / §7.1 — not the resulting Canon state.
+        """
         scene_cast_ids = scene_cast_ids or set()
 
         # 1) Resolve creation_key → stable ID via StableIdGenerator.
@@ -170,10 +178,15 @@ class CanonPatchApplier:
         # 3) Build event + digest.
         digest = compute_canonical_digest(new_canon)
         created_entity_ids = dict(created_map)
+        # The event ``artifact_digest`` is the reviewed SceneDesign artifact
+        # digest when supplied (§6.3 / §7.1); otherwise it falls back to the
+        # post-apply Canon digest for non-reviewed call sites (e.g. the review
+        # semantic preflight in ``review_scene_patch``).
+        event_digest = artifact_digest if artifact_digest is not None else digest
         event = CanonEvent(
             event_id=f"cev_{source.scene_id}_r{source.revision}",
             source=source,
-            artifact_digest=digest,
+            artifact_digest=event_digest,
             review_evidence=review_evidence,
             patch=resolved_patch,
             created_entity_ids=created_entity_ids,
