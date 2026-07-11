@@ -29,6 +29,7 @@ from novel_forge.canon.runtime import (
 )
 from novel_forge.runtime import (
     ArtifactReference,
+    AttemptCapture,
     AttemptHandle,
     RunHandle,
     RunRepository,
@@ -56,6 +57,7 @@ class RuntimeWorkflow:
         task_runner: TaskRunner,
         max_review_count: int = 3,
         max_summary_review_count: int = 2,
+        max_generation_count: int = 4,
     ) -> None:
         self.repository = repository
         self.run = run
@@ -63,6 +65,7 @@ class RuntimeWorkflow:
         self.task_runner = task_runner
         self.max_review_count = max_review_count
         self.max_summary_review_count = max_summary_review_count
+        self.max_generation_count = max_generation_count
         self._snapshot: SelectionSnapshot | None = None
         if run.manifest.input_snapshot_id is not None:
             if not slug:
@@ -236,9 +239,15 @@ class RuntimeWorkflow:
         )
         return snapshot, projected
 
-    def _attempt(self, task_id: str, reason: str) -> AttemptHandle:
+    def _attempt(self, task_id: str, reason: str, *, retry_number: int = 1) -> AttemptHandle:
         phase = task_id.split(".", 1)[0]
-        return self.repository.start_attempt(self.run, task_id=task_id, phase=phase, reason=reason)
+        return self.repository.start_attempt(
+            self.run,
+            task_id=task_id,
+            phase=phase,
+            reason=reason,
+            retry_number=retry_number,
+        )
 
     def _artifact(
         self,
@@ -272,26 +281,47 @@ class RuntimeWorkflow:
         *,
         reason: str,
     ) -> tuple[AttemptHandle, dict[str, Any]]:
-        attempt = self._attempt(task_id, reason)
-        try:
-            result = self.task_runner(task_id, values)
-        except Exception as exc:
-            self.repository.fail_attempt(
-                attempt,
-                error_code="TASK_ERROR",
-                retryable=False,
-                detail=str(exc),
-            )
-            raise
-        if not isinstance(result, dict):
-            self.repository.fail_attempt(
-                attempt,
-                error_code="INVALID_TASK_RESULT",
-                retryable=False,
-                detail=repr(result),
-            )
-            raise RuntimeContractError(f"task runner returned non-object for {task_id}")
-        return attempt, result
+        """Run a generation, recording each retry as a distinct immutable attempt."""
+        last_error: Exception | None = None
+        for retry_number in range(1, self.max_generation_count + 1):
+            attempt = self._attempt(task_id, reason, retry_number=retry_number)
+            set_capture = getattr(self.task_runner, "set_attempt_capture", None)
+            if callable(set_capture):
+                set_capture(AttemptCapture(self.repository, attempt, self.run.manifest.verbose))
+            try:
+                result = self.task_runner(task_id, values)
+            except Exception as exc:
+                retryable = retry_number < self.max_generation_count
+                self.repository.fail_attempt(
+                    attempt,
+                    error_code="TASK_ERROR",
+                    retryable=retryable,
+                    detail=str(exc),
+                )
+                last_error = exc
+                if retryable:
+                    continue
+                raise
+            finally:
+                if callable(set_capture):
+                    set_capture(None)
+            if not isinstance(result, dict):
+                detail = repr(result)
+                error = RuntimeContractError(f"task runner returned non-object for {task_id}")
+                retryable = retry_number < self.max_generation_count
+                self.repository.fail_attempt(
+                    attempt,
+                    error_code="INVALID_TASK_RESULT",
+                    retryable=retryable,
+                    detail=detail,
+                )
+                last_error = error
+                if retryable:
+                    continue
+                raise error
+            return attempt, result
+        assert last_error is not None
+        raise last_error
 
     def _commit_task_result(
         self,

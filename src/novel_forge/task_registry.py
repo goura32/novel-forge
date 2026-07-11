@@ -16,9 +16,6 @@ class TaskSpec:
 
 _TASK_ROWS = (
     ("plan.series", "plan_concept"),
-    ("plan.concept", "plan_concept"),
-    ("plan.characters", "plan_characters"),
-    ("plan.volumes", "plan_volumes"),
     ("design.volume", "design_volume"),
     ("design.chapter", "design_chapter"),
     ("design.scene", "design_scene"),

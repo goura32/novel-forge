@@ -170,6 +170,7 @@ def _make_workflow(
         task_runner=task_runner,
         max_review_count=max_review_count or config.quality.max_review_count,
         max_summary_review_count=max_summary_review_count or config.quality.max_summary_review_count,
+        max_generation_count=config.quality.max_generation_count,
     )
 
 

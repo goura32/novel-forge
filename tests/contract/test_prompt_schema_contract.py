@@ -156,9 +156,6 @@ def test_revision_tasks_render_explicit_target_schema() -> None:
         "design.chapter.revise": ["title", "purpose", "theme"],
         "design.scene.revise": ["title", "goal", "conflict", "outcome"],
         "design.volume.revise": ["title", "premise", "chapters"],
-        "plan.concept.revise": ["title", "slug", "logline"],
-        "plan.characters.revise": ["main_characters"],
-        "plan.volumes.revise": ["planned_volumes"],
         "write.draft.revise": ["content"],
         "write.summary.revise": ["summary", "end_state"],
     }

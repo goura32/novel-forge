@@ -110,4 +110,9 @@ def make_task_runner(client: LLMClient, manager: PromptManager | None = None) ->
             user_prompt=user_prompt,
         )
 
+    def set_attempt_capture(capture: Any | None) -> None:
+        """Bind raw LLM capture to the immutable attempt currently being executed."""
+        client._capture = capture
+
+    task_runner.set_attempt_capture = set_attempt_capture  # type: ignore[attr-defined]
     return task_runner
