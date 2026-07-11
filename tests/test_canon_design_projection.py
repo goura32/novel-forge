@@ -6,17 +6,19 @@ import pytest
 from pydantic import ValidationError
 
 from novel_forge.canon.design import (
-    CastCharacter,
-    CastLocalRole,
     ChapterDesign,
-    ContextScope,
-    DesignIntent,
     RelationshipContext,
     SceneDesign,
     VolumeDesign,
+)
+from novel_forge.canon.models import (
+    CastCharacter,
+    CastLocalRole,
+    ContextScope,
+    DesignIntent,
+    EntityRef,
     WriterContext,
 )
-from novel_forge.canon.models import EntityRef
 from novel_forge.canon.projection import (
     attach_writer_context,
     build_scene_projection,
@@ -64,8 +66,26 @@ def test_scene_design_model_builds():
             required_refs=[EntityRef(kind="world_rule", id="rule_001")],
         ),
         design_intent=DesignIntent(
-            foreshadowing=[{"topic": "sister_voice", "desired_outcome": "plant"}],
-            cast=[{"topic": "港の検問兵", "desired_outcome": "疑念を示す"}],
+            foreshadowing=[
+                {
+                    "intent_key": "sister_voice",
+                    "action": "plant",
+                    "target_scene_id": "scn_001",
+                }
+            ],
+            cast=[
+                {
+                    "target_scene_id": "scn_001",
+                    "entries": [
+                        {
+                            "kind": "local_role",
+                            "label": "港の検問兵",
+                            "count": "one",
+                            "scene_function": "疑念を示す",
+                        }
+                    ],
+                }
+            ],
         ),
         cast=[
             CastCharacter(character=EntityRef(kind="character", id="char_001")),
@@ -81,6 +101,50 @@ def test_scene_design_model_builds():
     assert sd.cast[0].character.id == "char_001"
     assert sd.cast[1].label == "港の検問兵"
     assert sd.status == "draft"
+
+
+def test_design_intent_requires_typed_keys_actions_and_targets() -> None:
+    intent = DesignIntent(
+        relationship_arcs=[
+            {
+                "relationship": {"kind": "relationship", "id": "rel_001"},
+                "action": "shift",
+                "target_scene_id": "scn_001",
+                "expected_effect": "敵対を共同調査へ変える",
+            }
+        ]
+    )
+    assert intent.relationship_arcs[0].relationship.id == "rel_001"
+
+    with pytest.raises(ValidationError, match="relationship"):
+        DesignIntent(
+            relationship_arcs=[
+                {
+                    "relationship": {"kind": "character", "id": "char_001"},
+                    "action": "shift",
+                    "target_scene_id": "scn_001",
+                }
+            ]
+        )
+    with pytest.raises(ValidationError, match="action"):
+        DesignIntent(
+            relationship_arcs=[
+                {
+                    "relationship": {"kind": "relationship", "id": "rel_001"},
+                    "action": "guess",
+                    "target_scene_id": "scn_001",
+                }
+            ]
+        )
+
+
+def test_context_scope_and_character_cast_enforce_reference_kind() -> None:
+    with pytest.raises(ValidationError, match="pov_character"):
+        ContextScope(pov_character=EntityRef(kind="location", id="loc_001"))
+    with pytest.raises(ValidationError, match="setting"):
+        ContextScope(setting=EntityRef(kind="character", id="char_001"))
+    with pytest.raises(ValidationError, match="character"):
+        CastCharacter(character=EntityRef(kind="location", id="loc_001"))
 
 
 def test_draft_scene_design_rejects_canon_patch() -> None:

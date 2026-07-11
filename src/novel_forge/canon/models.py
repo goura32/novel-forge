@@ -611,6 +611,12 @@ class CastCharacter(BaseModel):
     kind: Literal["character"] = "character"
     character: EntityRef
 
+    @model_validator(mode="after")
+    def _character_ref_kind(self) -> CastCharacter:
+        if self.character.kind != "character":
+            raise ValueError("cast character must have kind='character'")
+        return self
+
 
 class CastLocalRole(BaseModel):
     model_config = _forbid()
@@ -626,7 +632,7 @@ CastEntry = CastCharacter | CastLocalRole
 
 
 class IntentItem(BaseModel):
-    """A typed, reviewable design commitment retained through all phases."""
+    """Parent intent retained by supporting-character create operations (§6.1)."""
 
     model_config = _forbid()
 
@@ -636,14 +642,62 @@ class IntentItem(BaseModel):
     target: EntityRef | CreationRef | None = None
 
 
+class ForeshadowingIntent(BaseModel):
+    """A planned plant / advance / resolve operation for one stable scene."""
+
+    model_config = _forbid()
+
+    intent_key: str
+    action: Literal["plant", "advance", "resolve"]
+    target_scene_id: SceneId
+
+
+class SubplotIntent(BaseModel):
+    """A planned subplot operation for one stable scene."""
+
+    model_config = _forbid()
+
+    intent_key: str
+    action: Literal["introduce", "advance", "resolve", "abandon"]
+    target_scene_id: SceneId
+
+
+class RelationshipArcIntent(BaseModel):
+    """A typed planned change to an existing Relationship Arc."""
+
+    model_config = _forbid()
+
+    relationship: EntityRef
+    action: Literal["introduce", "pressure", "reveal", "shift", "rupture", "repair", "commit", "resolve"]
+    target_scene_id: SceneId
+    expected_effect: str = ""
+
+    @model_validator(mode="after")
+    def _relationship_ref_kind(self) -> RelationshipArcIntent:
+        if self.relationship.kind != "relationship":
+            raise ValueError("relationship_arcs.relationship must have kind='relationship'")
+        return self
+
+
+class CastIntent(BaseModel):
+    """The planned Canon/local cast for a stable target scene."""
+
+    model_config = _forbid()
+
+    target_scene_id: SceneId
+    entries: list[CastEntry] = Field(default_factory=list)
+
+
 class DesignIntent(BaseModel):
+    """§5 structured, reviewable commitments — never Canon state."""
+
     model_config = _forbid()
 
     constraints: list[str] = Field(default_factory=list)
-    foreshadowing: list[IntentItem] = Field(default_factory=list)
-    subplots: list[IntentItem] = Field(default_factory=list)
-    relationship_arcs: list[IntentItem] = Field(default_factory=list)
-    cast: list[IntentItem] = Field(default_factory=list)
+    foreshadowing: list[ForeshadowingIntent] = Field(default_factory=list)
+    subplots: list[SubplotIntent] = Field(default_factory=list)
+    relationship_arcs: list[RelationshipArcIntent] = Field(default_factory=list)
+    cast: list[CastIntent] = Field(default_factory=list)
 
 
 class ContextScope(BaseModel):
@@ -654,6 +708,14 @@ class ContextScope(BaseModel):
     pov_character: EntityRef | None = None
     setting: EntityRef | None = None
     required_refs: list[EntityRef] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _scope_ref_kinds(self) -> ContextScope:
+        if self.pov_character is not None and self.pov_character.kind != "character":
+            raise ValueError("pov_character must have kind='character'")
+        if self.setting is not None and self.setting.kind != "location":
+            raise ValueError("setting must have kind='location'")
+        return self
 
 
 class WriterContext(BaseModel):

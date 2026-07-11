@@ -22,6 +22,8 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from novel_forge.canon.design import CastEntry, SceneDesign
 from novel_forge.canon.models import CastCharacter, EntityRef
 from novel_forge.canon.runtime import (
@@ -101,6 +103,24 @@ def test_flat_cast_dict_is_not_silently_dropped_by_pipeline():
             scene_cast_ids={c.character.id for c in design.cast if isinstance(c, CastCharacter)},
         )
         assert "char_001" in event.scene_cast_ids
+    finally:
+        tmp.cleanup()
+
+
+def test_character_cast_rejects_conflicting_flat_and_nested_ids():
+    """A cast payload must not smuggle a second ID outside SceneDesign.cast."""
+    tmp, store = _store()
+    try:
+        seed = store.load_seed()
+        conflicting_cast = [
+            {
+                "kind": "character",
+                "id": "char_out_of_scope",
+                "character": {"kind": "character", "id": "char_001"},
+            }
+        ]
+        with pytest.raises(ValueError, match="conflicting character IDs"):
+            _design(seed, cast=conflicting_cast)  # type: ignore[list-item]
     finally:
         tmp.cleanup()
 

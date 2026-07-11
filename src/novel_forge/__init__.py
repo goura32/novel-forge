@@ -1,5 +1,7 @@
-"""NovelForge — v2 Series Bible Canon pipeline.
+"""NovelForge Series Bible v2 Canon domain package.
 
-The v2 flow (plan → design → write → export) is the single source of truth
-and is driven through ``novel_forge.canon.public_runtime.V2ProjectRuntime``.
+The event-sourced Canon primitives and deterministic programmatic pipeline are
+exposed by :mod:`novel_forge.canon`.  Integration of the snapshot-authoritative
+CLI workflow is defined by the target specification and must not be implied by
+this package docstring.
 """

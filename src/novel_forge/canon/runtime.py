@@ -147,10 +147,19 @@ def _coerce_cast_entry(entry: Any) -> CastEntry:
         kind = entry.get("kind")
         if kind == "character":
             ref = entry.get("character")
+            flat_id = entry.get("id")
             if isinstance(ref, dict):
                 entity_ref = EntityRef.model_validate(ref)
+                if flat_id is not None and str(flat_id) != entity_ref.id:
+                    raise ValueError(
+                        "character cast has conflicting character IDs in 'id' and 'character.id'"
+                    )
+            elif flat_id is not None:
+                entity_ref = EntityRef(kind="character", id=str(flat_id))
             else:
-                entity_ref = EntityRef(kind="character", id=str(entry.get("id")))
+                raise ValueError("character cast requires 'id' or 'character'")
+            if entity_ref.kind != "character":
+                raise ValueError("character cast requires character.kind='character'")
             return CastCharacter(character=entity_ref)
         if kind == "local_role":
             return CastLocalRole.model_validate(entry)
@@ -625,18 +634,10 @@ def run_v2_pipeline(
             raise ValueError(
                 f"scene {design.scene_id} review rejected: {review.issues}"
             )
-        cast_specs = spec.get("cast") or []
-        # scene_cast_ids derives from the canonical SceneDesign.cast only
-        # (build_scene_design already coerced spec["cast"] into it).  The flat
-        # spec dict is never a secondary source — that was the §7.2 mismatch.
-        scene_cast_ids = _scene_cast_ids(design) | {
-            str(r.get("id"))
-            for r in cast_specs
-            if isinstance(r, dict)
-            and r.get("kind") == "character"
-            and r.get("id")
-            and r.get("id") not in _scene_cast_ids(design)
-        }
+        # SceneDesign.cast is the authoritative scene scope (§7.2).  ``cast``
+        # was validated/coerced at construction and must not be re-read from
+        # the caller payload as a second, potentially divergent source.
+        scene_cast_ids = _scene_cast_ids(design)
         current_canon, event = apply_reviewed_patch(
             design,
             patch,
