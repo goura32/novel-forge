@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 from novel_forge.canon.design import SceneDesign
 from novel_forge.canon.models import SceneLocation, compute_canonical_digest
 from novel_forge.canon.store import BibleFactory
@@ -175,6 +177,40 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
     generated = repo.read_payload(repo.verify_artifact(published.slots["design.vol01"]))
     assert generated["scenes"][0]["status"] == "applied"
     assert generated["scenes"][0]["writer_context"]
+
+
+def test_scene_payload_without_canon_patch_is_rejected(tmp_path: Path) -> None:
+    """Runtime must refuse a scene design that omits canon_patch (SERIES_BIBLE_SCHEMA_REDESIGN §6)."""
+    from novel_forge.runtime import RuntimeContractError
+
+    repo = RunRepository(tmp_path)
+    seed = BibleFactory.create_seed(PLAN)
+    bootstrap_run = repo.create_run(command="plan", model="fake", verbose=False)
+    bootstrap = RuntimeWorkflow(repo, bootstrap_run, task_runner=lambda _task, _values: {})
+    snapshot = bootstrap.bootstrap_plan(
+        slug="series_a",
+        plan={"slug": "series_a", "planned_volumes": [{"title": "第1巻"}], **PLAN},
+        canon_seed=seed.model_dump(mode="json"),
+    )
+    run = repo.create_run(
+        command="design", model="fake", verbose=False,
+        input_snapshot_id=snapshot.selection_snapshot_id,
+    )
+    workflow = RuntimeWorkflow(repo, run, slug="series_a", task_runner=lambda _t, _v: {})
+    canon = workflow.load_canon()
+
+    raw_scene = {
+        "title": "覚醒", "goal": "状況を把握する", "conflict": "記憶が曖昧",
+        "outcome": "案内人と話す", "pov": "リィナ", "characters": ["リィナ"],
+        "key_events": ["目を覚ます"], "setting": "覚醒室", "hook": "目を開ける",
+        "turning_point": "端末が光る", "emotional_arc": "不安から安堵",
+        "ending_hook": "扉が開く",
+        # canon_patch intentionally omitted
+    }
+    with pytest.raises(RuntimeContractError, match="canon_patch"):
+        workflow._scene_from_generated_payload(raw_scene, canon=canon, volume=1, chapter=1, ordinal=1)
+
+
 def test_workflow_publishes_replayed_event_set_as_new_selected_frontier(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     seed = BibleFactory.create_seed(PLAN)

@@ -176,6 +176,7 @@ def test_quality_schema_fields_exist_for_generation_pipeline() -> None:
     issue_properties = review["properties"]["issues"]["items"]["properties"]
     assert "publication_blocking" not in issue_properties
     assert {"hook", "turning_point", "emotional_arc", "ending_hook"} <= set(scene["properties"])
+    assert "canon_patch" in scene["required"], "scene design must require canon_patch (SERIES_BIBLE_SCHEMA_REDESIGN §6)"
     assert {"chapter_turning_point", "chapter_hook", "foreshadowing_notes", "subplot_notes"} <= set(chapter["properties"])
 
 

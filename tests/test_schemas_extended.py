@@ -314,7 +314,11 @@ class TestValidate:
             "hook": "台所に置かれた荷物の紐が震えている。",
             "turning_point": "父親が反対を解き、古い地図を手渡す。",
             "emotional_arc": "不安から決意へ",
-            "ending_hook": "門の外で地図と同じ印が光る。"
+            "ending_hook": "門の外で地図と同じ印が光る。",
+            "canon_patch": {
+                "characters": {"state_updates": [{"character": {"id": "char_001"}, "current_state": "旅立ちの決意を固める"}]},
+                "foreshadowing": {"plant": [{"description": "門の外の印", "intended_payoff": "地図と同じ印の意味が判明する"}]},
+            },
         }
         errors = validate("design_scene", data)
         assert len(errors) == 0
