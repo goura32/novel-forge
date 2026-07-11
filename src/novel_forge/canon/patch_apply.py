@@ -386,6 +386,13 @@ class CanonPatchApplier:
                     "normal patch (use canon_correction)"
                 )
                 continue
+            # no-op guard: identical current_state is an empty update (§6.1)
+            if u.current_state is not None and u.current_state == ent.current_state:
+                errors.append(
+                    f"location '{eid}' state update is a no-op (already "
+                    f"'{ent.current_state}'); empty updates are rejected"
+                )
+                continue
             ent.current_state = u.current_state
 
     # -- artifacts ----------------------------------------------------------

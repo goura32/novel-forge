@@ -239,28 +239,11 @@ def design(
             repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
         )
         plan = _selected_payload(repo, series_dir.name, snapshot_id, "plan.series")
-        canon = workflow.load_canon().model_dump(mode="json")
         total_vol = len(plan.get("planned_volumes", [])) or 2
         volumes = range(1, total_vol + 1) if volume == 0 else range(volume, volume + 1)
         for v in volumes:
-            previous_design = (
-                _selected_payload(repo, series_dir.name, workflow.snapshot.selection_snapshot_id, f"design.vol{v - 1:02d}")
-                if v > 1 and f"design.vol{v - 1:02d}" in workflow.snapshot.slots
-                else None
-            )
-            design_payload = workflow.task_runner(
-                "design.volume.generate",
-                {
-                    "series_plan": plan,
-                    "volume_number": v,
-                    "volume_title": plan.get("planned_volumes", [{}])[v - 1].get("title", f"第{v}巻") if plan.get("planned_volumes") else f"第{v}巻",
-                    "genre": plan.get("genre", []),
-                    "previous_design": previous_design,
-                    "bible": canon,
-                },
-            )
-            workflow.publish_design(v, design_payload)
-            console.print(f"[green]✓[/green] Volume {v} design generated")
+            snapshot = workflow.generate_volume_design(volume=v, plan=plan)
+            console.print(f"[green]✓[/green] Volume {v} design generated (snapshot: {snapshot.selection_snapshot_id})")
 
 
 @app.command()

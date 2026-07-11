@@ -631,3 +631,53 @@ def test_event_digest_and_review_recorded():
     assert event.artifact_digest.startswith("sha256:")
     assert event.review_evidence.status == "approved"
     assert new_canon.get_entity("character", "char_001").continuity_card.current_state == "decided"
+
+
+# --------------------------------------------------------------------------
+# 9. No-op / empty updates rejected (spec violation guard)
+# --------------------------------------------------------------------------
+
+
+def test_location_state_update_noop_rejected():
+    """A state update that repeats the current value must be rejected as a
+    no-op (empty update must not pass as a real change)."""
+    canon = _base_canon()
+    patch = CanonPatch(
+        locations={
+            "state_updates": [{"id": "loc_stone_city", "current_state": "normal"}]
+        }
+    )
+    with pytest.raises(PatchValidationError, match="no-op|unchanged|same"):
+        _apply(canon, patch)
+
+
+def test_relationship_lifecycle_resolved_accepts_valid_transition():
+    canon = _base_canon()
+    patch = CanonPatch(
+        relationships={
+            "updates": [
+                {
+                    "relationship": er("relationship", "rel_001"),
+                    "lifecycle": "resolved",
+                }
+            ]
+        }
+    )
+    new_canon, event = _apply(canon, patch, scene_cast_ids={"char_001"})
+    rel = new_canon.get_entity("relationship", "rel_001")
+    assert rel.lifecycle == "resolved"
+
+
+def test_relationship_lifecycle_invalid_transition_rejected():
+    with pytest.raises((PatchValidationError, ValidationError), match="lifecycle|resolved"):
+        CanonPatch(
+            relationships={
+                "updates": [
+                    {
+                        "relationship": er("relationship", "rel_001"),
+                        "lifecycle": "dormant",  # not in allowed set
+                    }
+                ]
+            }
+        )
+

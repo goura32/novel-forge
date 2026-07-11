@@ -437,17 +437,19 @@ def apply_reviewed_patch(
     scene_design: SceneDesign,
     patch: dict[str, Any],
     canon: Canon,
-    store: CanonEventStore,
+    store: CanonEventStore | None,
     review: ReviewResult,
     revision: int = 1,
     available_ids: set[str] | None = None,
     scene_cast_ids: set[str] | None = None,
+    active_events: list[CanonEvent] | None = None,
 ) -> tuple[Canon, CanonEvent]:
-    """Create a CanonEvent from a *review-passed* patch and persist it.
+    """Create a CanonEvent from a *review-passed* patch.
 
-    This is the only place a CanonEvent is minted.  It wires
-    ``CanonPatchApplier.apply`` with a :class:`ReviewEvidence` bound to the
-    reviewed artifact + review digests (§6.3).
+    ``store`` is the programmatic persistent-v2 path.  Public snapshot runtime
+    passes ``store=None`` plus its selected ``active_events`` and publishes the
+    resulting event through ``canon.frontier``; no fixed disk store becomes a
+    competing source of truth.
     """
     if not review.passed:
         raise ValueError("review rejected: Canon Event must not be created or persisted")
@@ -475,6 +477,9 @@ def apply_reviewed_patch(
     authoritative_scene_cast_ids = _scene_cast_ids(scene_design)
     if scene_cast_ids is not None and scene_cast_ids != authoritative_scene_cast_ids:
         raise ValueError("scene_cast_ids diverge from SceneDesign.cast")
+    if store is None and active_events is None:
+        raise ValueError("active_events is required when no CanonEventStore is supplied")
+    existing_events = store.load_active() if store is not None else active_events
     applier = CanonPatchApplier()
     new_canon, event = applier.apply(
         canon=canon,
@@ -488,7 +493,7 @@ def apply_reviewed_patch(
         ),
         id_gen=StableIdGenerator(),
         scene_cast_ids=authoritative_scene_cast_ids,
-        existing_events=store.load_active(),
+        existing_events=existing_events,
         artifact_digest=review.artifact_digest,
     )
     # The event artifact_digest is now the reviewed SceneDesign artifact digest
@@ -503,9 +508,12 @@ def apply_reviewed_patch(
     # successfully.  ``SceneDesign`` validates the draft → review_passed
     # transition atomically, so an applied design cannot lose its patch.
     scene_design.accept_reviewed_patch(patch)
-    # The store transaction validates dependencies, replays the *active* event
-    # set from immutable seed, and materializes only that replay result.
-    replayed = store.replace_design_segment([source.scene_id], [event])
+    if store is not None:
+        # The fixed-store implementation remains available for the low-level
+        # programmatic API, while public runtime owns its immutable frontier.
+        replayed = store.replace_design_segment([source.scene_id], [event])
+    else:
+        replayed = new_canon
 
     scene_design.mark_patch_applied()
     return replayed, event

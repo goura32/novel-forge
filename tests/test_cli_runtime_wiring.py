@@ -61,14 +61,31 @@ def test_design_command_starts_from_current_selection_snapshot(tmp_path: Path, m
 
         @staticmethod
         def _task_runner(task_id: str, values: dict[str, Any]) -> dict[str, Any]:
-            assert task_id == "design.volume.generate"
-            assert values["series_plan"]["slug"] == "series_a"
-            return {"title": "第1巻", "premise": "開始", "chapters": []}
+            if task_id == "design.volume.generate":
+                assert values["series_plan"]["slug"] == "series_a"
+                return {"title": "第1巻", "premise": "開始", "chapters": [{"title": "導入", "purpose": "導入"}]}
+            if task_id == "design.chapter.generate":
+                return {
+                    "title": "導入", "purpose": "導入", "theme": "始動", "emotional_arc": "quiet", "outcome": "覚醒",
+                    "scenes": [{"title": "覚醒", "pov": "リィナ", "goal": "状況把握", "conflict": "記憶喪失", "outcome": "案内人と対話", "characters": ["リィナ"], "key_events": ["目覚める"], "setting": "覚醒室"}],
+                    "chapter_turning_point": "目覚める", "chapter_hook": "案内人が現れる", "foreshadowing_notes": ["星図"], "subplot_notes": ["記憶喪失"],
+                }
+            if task_id == "design.scene.generate":
+                return {
+                    "title": "覚醒", "goal": "状況把握", "conflict": "記憶喪失", "outcome": "案内人と対話", "pov": "リィナ", "characters": ["リィナ"], "key_events": ["目覚める"], "setting": "覚醒室", "hook": "目を開ける", "turning_point": "端末が光る", "emotional_arc": "不安から安堵", "ending_hook": "扉が開く",
+                    "canon_patch": {"characters": {"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "案内人と対話"}]}},
+                }
+            raise AssertionError(task_id)
 
         @staticmethod
-        def publish_design(volume: int, design: dict[str, Any]) -> None:
+        def generate_volume_design(*, volume: int, plan: dict[str, Any]) -> Any:
             assert volume == 1
-            assert design["title"] == "第1巻"
+            assert plan["slug"] == "series_a"
+            return SimpleNamespace(selection_snapshot_id="snap-after-design")
+
+        @staticmethod
+        def publish_design(volume: int, design: dict[str, Any]) -> None:  # pragma: no cover - retained for API parity
+            raise AssertionError("publish_design must not be called directly")
 
     monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
     monkeypatch.setattr(cli, "_make_workflow", lambda repo, run, *_args: FakeWorkflow(run))
