@@ -8,7 +8,6 @@ from novel_forge.models import (
     ProjectState,
     SceneDesign,
     SceneRecord,
-    VolumeProgress,
 )
 from novel_forge.prompts import PromptManager, render_prompt
 from novel_forge.quality_gate import QualityGate
