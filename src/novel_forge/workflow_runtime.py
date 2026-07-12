@@ -604,6 +604,20 @@ class RuntimeWorkflow:
         }
 
     @staticmethod
+    def _valid_canon_ids(canon: Canon) -> str:
+        """Flat, unambiguous whitelist of every valid Canon ID.
+
+        Review/revise prompts receive the full nested ``canon_context`` which the
+        35B model sometimes misreads (e.g. flagging an ID that IS present as
+        "missing").  This single-line enumeration gives the model an authoritative
+        validity source it cannot confuse with the prose around it.
+        """
+        ids = [entity.id for entity in canon.characters]
+        ids += [entity.id for entity in canon.locations]
+        ids += [entity.id for entity in canon.artifacts]
+        return ", ".join(ids) if ids else "(none)"
+
+    @staticmethod
     def _require_canon_id(
         canon: Canon, entity_kind: Literal["character", "location"], value: object
     ) -> str:
@@ -765,12 +779,14 @@ class RuntimeWorkflow:
                 "series_plan": plan,
                 "design": candidate,
                 "canon_context": self._design_author_context(self.load_canon()),
+                "valid_canon_ids": self._valid_canon_ids(self.load_canon()),
             },
             revise_values=lambda candidate, review: {
                 "series_plan": plan,
                 "current_volume": candidate,
                 "review": review,
                 "canon_context": self._design_author_context(self.load_canon()),
+                "valid_canon_ids": self._valid_canon_ids(self.load_canon()),
             },
         )
         if not isinstance(volume_design.get("chapters"), list) or not volume_design["chapters"]:
@@ -819,12 +835,14 @@ class RuntimeWorkflow:
                     "series_plan": plan,
                     "design": candidate,
                     "canon_context": self._design_author_context(self.load_canon()),
+                    "valid_canon_ids": self._valid_canon_ids(self.load_canon()),
                 },
                 revise_values=lambda candidate, review: {
                     "series_plan": plan,
                     "current_chapter": candidate,
                     "review": review,
                     "canon_context": self._design_author_context(self.load_canon()),
+                    "valid_canon_ids": self._valid_canon_ids(self.load_canon()),
                 },
             )
             if not isinstance(chapter_design.get("scenes"), list) or not chapter_design["scenes"]:
@@ -904,6 +922,7 @@ class RuntimeWorkflow:
                         "design": candidate,
                         "scene_seed": _seed,
                         "canon_context": self._design_author_context(_canon),
+                        "valid_canon_ids": self._valid_canon_ids(_canon),
                     }
 
                 def scene_revise_values(
@@ -915,6 +934,7 @@ class RuntimeWorkflow:
                         "review": review,
                         "scene_seed": _seed,
                         "canon_context": self._design_author_context(_canon),
+                        "valid_canon_ids": self._valid_canon_ids(_canon),
                     }
 
                 scene_attempt, raw_scene = self._review_and_revise(

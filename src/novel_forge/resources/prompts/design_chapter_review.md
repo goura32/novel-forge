@@ -16,7 +16,12 @@
 ### Canon
 {canon_context}
 
+### 有効なCanon ID（完全白リスト）
+{valid_canon_ids}
+
 場面の因果、場面種、Canon制約を検査する。
+
+**「有効なCanon ID」リストに含まれるIDはすべて存在する。このリストにあるIDを「存在しない」「Canonに定義されていない」として issue にしてはならない。また、そのIDを新規作成・追加する suggestion も出してはならない。**
 
 ## 出力仕様
 下記のスキーマに適合する JSON のみ出力すること。

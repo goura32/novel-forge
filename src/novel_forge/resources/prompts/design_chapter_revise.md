@@ -19,6 +19,9 @@
 ### Canon
 {canon_context}
 
+### 有効なCanon ID（完全白リスト）
+{valid_canon_ids}
+
 **差分・JSON Patch・変更箇所だけの出力は禁止。完全なオブジェクトを返す。最上位キー `title`、`purpose`、`scenes` を必ず含める。`purpose` は説明文ではなく、`導入`、`展開`、`転換`、`クライマックス`、`収束` のいずれか1語だけにする。**
 
 ## 出力仕様

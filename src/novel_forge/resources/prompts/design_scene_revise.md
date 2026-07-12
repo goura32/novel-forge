@@ -23,7 +23,7 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 ### レビュー指摘
 {review}
 
-レビューの `after` に canon_context に存在しないIDが含まれていた場合、その指摘は適用せず元の有効な値を保持する（誤ったIDの混入を防ぐ）。canon_updates の target_id も canon_context に存在するIDのみを用い、新規エンティティの作成・追加は行わない。
+レビューの `after` に canon_context に存在しないIDが含まれていた場合、その指摘は適用せず元の有効な値を保持する（誤ったIDの混入を防ぐ）。canon_updates の target_id も canon_context に存在するIDのみを用い、新規エンティティの作成・追加は行わない。**「有効なCanon ID」リストにあるIDを新規作成・追加するような変更は絶対に行わない。**
 
 ### 企画
 {series_plan}
@@ -33,6 +33,9 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 
 ### Canon
 {canon_context}
+
+### 有効なCanon ID（完全白リスト）
+{valid_canon_ids}
 
 ## 出力仕様
 下記のスキーマに適合する JSON のみ出力すること。
