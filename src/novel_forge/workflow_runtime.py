@@ -8,6 +8,7 @@ all outputs are published by appending a descendant snapshot.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -200,7 +201,18 @@ class RuntimeWorkflow:
         except (FrontierPayloadError, ValueError) as exc:
             raise RuntimeContractError(f"scene design review failed: {exc}") from exc
         if not review.passed:
-            raise RuntimeContractError(f"scene design review rejected: {review.issues}")
+            # Self-heal harmless no-op / empty updates instead of aborting the run.
+            # A no-op (value identical to the entity's current state) changes
+            # nothing and is definitionally safe to drop. The 35B scene review is
+            # instructed to flag these, but when it misses one we must not kill a
+            # 100-attempt novel over a value-free update.
+            if self._is_only_noop_issues(review.issues):
+                stripped = self._strip_canon_patch_noops(patch, canon)
+                if stripped != patch:
+                    review = review_scene_patch(projected, stripped, canon)
+                    patch = stripped
+            if not review.passed:
+                raise RuntimeContractError(f"scene design review rejected: {review.issues}")
 
         prior = next(
             (event for event in active_events if event.source.scene_id == projected.scene_id),
@@ -238,6 +250,86 @@ class RuntimeWorkflow:
             f"scene {projected.scene_id} accepted through Canon frontier",
         )
         return snapshot, projected
+
+    @staticmethod
+    def _is_only_noop_issues(issues: list[str]) -> bool:
+        """True when every rejection issue is a harmless no-op / empty update."""
+        if not issues:
+            return False
+        return all(
+            ("no-op" in issue) or ("empty updates are rejected" in issue)
+            for issue in issues
+        )
+
+    @staticmethod
+    def _strip_canon_patch_noops(patch: dict[str, Any], canon: Canon) -> dict[str, Any]:
+        """Drop no-op updates (value equal to the entity's current state).
+
+        Mirrors the no-op detection in ``canon/patch_apply.py`` exactly. A no-op
+        is definitionally harmless, so removing it from the patch is safe and lets
+        an otherwise-valid scene through the semantic gate without losing any
+        real state change.
+        """
+        char_state = {
+            e.id: (e.continuity_card.current_state if e.continuity_card else None)
+            for e in canon.characters
+        }
+        loc_state = {e.id: e.current_state for e in canon.locations}
+        art_cond = {e.id: e.condition for e in canon.artifacts}
+        art_cust = {e.id: e.custody for e in canon.artifacts}
+
+        out = copy.deepcopy(patch)
+
+        chars = out.get("characters") or {}
+        su = chars.get("state_updates")
+        if isinstance(su, list):
+            kept = []
+            for u in su:
+                if isinstance(u, dict):
+                    uid = u.get("id")
+                    cur = u.get("current_state")
+                    if cur is not None and uid is not None and cur == char_state.get(uid):
+                        continue
+                kept.append(u)
+            chars["state_updates"] = kept
+
+        locs = out.get("locations") or {}
+        lsu = locs.get("state_updates")
+        if isinstance(lsu, list):
+            kept = []
+            for u in lsu:
+                if isinstance(u, dict):
+                    uid = u.get("id")
+                    cur = u.get("current_state")
+                    if cur is not None and uid is not None and cur == loc_state.get(uid):
+                        continue
+                kept.append(u)
+            locs["state_updates"] = kept
+
+        arts = out.get("artifacts") or {}
+        cu = arts.get("condition_updates")
+        if isinstance(cu, list):
+            kept = []
+            for u in cu:
+                if isinstance(u, dict):
+                    uid = u.get("id")
+                    cur = u.get("condition")
+                    if cur is not None and uid is not None and cur == art_cond.get(uid):
+                        continue
+                kept.append(u)
+            arts["condition_updates"] = kept
+        cdu = arts.get("custody_updates")
+        if isinstance(cdu, list):
+            kept = []
+            for u in cdu:
+                if isinstance(u, dict):
+                    uid = u.get("id")
+                    cur = u.get("custody")
+                    if cur is not None and uid is not None and cur == art_cust.get(uid):
+                        continue
+                kept.append(u)
+            arts["custody_updates"] = kept
+        return out
 
     def _attempt(self, task_id: str, reason: str, *, retry_number: int = 1) -> AttemptHandle:
         phase = task_id.split(".", 1)[0]
