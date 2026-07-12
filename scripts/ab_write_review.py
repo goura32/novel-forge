@@ -206,7 +206,7 @@ def _replay_one(
             {"error_class": type(exc).__name__, "detail": str(exc), "finished_at": _now()},
         )
         return {**metadata, "status": "error", "error_class": type(exc).__name__}
-    summary = actionability_summary(case.draft, review)
+    summary = actionability_summary(review)
     _write_json_exclusive(attempt_dir / "score.json", summary)
     return {**metadata, "status": "ok", **summary}
 
@@ -221,9 +221,7 @@ def _scorecard(records: list[dict[str, Any]]) -> dict[str, Any]:
                 "successes": 0,
                 "errors": 0,
                 "issues": 0,
-                "actionable_issues": 0,
-                "missing_before": 0,
-                "empty_after": 0,
+                "schema_violations": 0,
             },
         )
         summary["calls"] += 1
@@ -232,9 +230,7 @@ def _scorecard(records: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         summary["successes"] += 1
         summary["issues"] += int(record["issue_count"])
-        summary["actionable_issues"] += int(record["actionable_issue_count"])
-        summary["missing_before"] += int(record["missing_before_count"])
-        summary["empty_after"] += int(record["empty_after_count"])
+        summary["schema_violations"] += int(record["schema_violation_count"])
     return {"records": records, "by_variant": by_variant, "updated_at": _now()}
 
 

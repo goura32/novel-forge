@@ -48,10 +48,11 @@ def test_write_draft_revise_returns_both_title_and_content() -> None:
     assert "元の値" in prompt or "保持" in prompt
 
 
-def test_write_draft_review_requires_every_issue_field() -> None:
+def test_write_draft_review_requires_core_issue_fields() -> None:
     prompt = (PROMPTS_DIR / "write_draft_review.md").read_text(encoding="utf-8")
 
-    assert "各issueには必ず `severity`、`field`、`description`、`suggestion`、`before`、`after` をすべて含める" in prompt
+    assert "各issueには必ず `severity`、`field`、`description`、`suggestion` を含める" in prompt
+    assert "`before` / `after` は任意の補足" in prompt
 
 
 def test_prompts_do_not_use_ok_ng_examples() -> None:
@@ -117,14 +118,12 @@ def test_review_prompts_emit_only_actionable_issues() -> None:
         "出版可否、総評、長所、スコア",
         "`issues` が空配列なら改訂不要、1件以上なら改訂を継続",
         "問題がない場合は、無理に指摘を作らず `issues` を空配列にする。",
-        "`before` には入力JSON内の実際の値だけを書く",
         "入力キーワードまたは前工程JSONに明示された期間、職業、役割、性別、タイトル、ジャンル、固有名は正として扱い",
         "後続工程で具体化できる未定義要素",
         "自然なカタカナ語、英語表記、英字略語、一般的なジャンル語、固有名詞、日本語として成立する漢語は言語純度の問題にしない",
         "`issues` は最大8件に限定",
         "`description` と `suggestion` は短文にする",
         "二重引用符を書かない",
-        "`after` は1つの完成値だけを書く",
     ]
     forbidden_fragments = [
         "### 出版可否",

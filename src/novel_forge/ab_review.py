@@ -95,36 +95,27 @@ def replay_ollama_options(configured: dict[str, Any], *, seed: int) -> dict[str,
     return {**options, "seed": seed}
 
 
-def actionability_summary(draft: dict[str, Any], review: dict[str, Any]) -> dict[str, int]:
-    """Measure mechanical revision readiness without judging creative validity."""
+def actionability_summary(review: dict[str, Any]) -> dict[str, int]:
+    """Measure schema conformance of review issues without judging creative validity.
+
+    ``before`` / ``after`` are optional free-form notes for the revise step and
+    humans; they are intentionally NOT used for mechanical matching here.
+    """
 
     issues = review.get("issues", [])
     if not isinstance(issues, list):
         raise ValueError("review issues must be a list")
-    draft_text = json.dumps(draft, ensure_ascii=False)
-    actionable = 0
-    missing_before = 0
-    empty_after = 0
+    required = ("field", "severity", "description", "suggestion")
+    schema_violations = 0
     for issue in issues:
         if not isinstance(issue, dict):
-            missing_before += 1
-            empty_after += 1
+            schema_violations += 1
             continue
-        before = issue.get("before")
-        after = issue.get("after")
-        has_before = isinstance(before, str) and bool(before) and before in draft_text
-        has_after = isinstance(after, str) and bool(after)
-        if not has_before:
-            missing_before += 1
-        if not has_after:
-            empty_after += 1
-        if has_before and has_after:
-            actionable += 1
+        if any(not issue.get(key) for key in required):
+            schema_violations += 1
     return {
         "issue_count": len(issues),
-        "actionable_issue_count": actionable,
-        "missing_before_count": missing_before,
-        "empty_after_count": empty_after,
+        "schema_violation_count": schema_violations,
     }
 
 

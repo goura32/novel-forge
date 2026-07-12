@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Review",
-  "description": "レビュー結果。改訂工程がそのまま使える指摘事項だけを issues に格納する。issues が空なら改訂不要、1件以上なら機械的に改訂を継続する。",
+  "description": "レビュー結果。改訂工程がそのまま使える指摘事項だけを issues に格納する。issues が空なら改訂不要、1件以上なら機械的に改訂を継続する。before/after は任意の補足であり、コードによる機械置換は行われない。",
   "type": "object",
   "required": [
     "issues"
@@ -17,9 +17,7 @@
           "field",
           "severity",
           "description",
-          "suggestion",
-          "before",
-          "after"
+          "suggestion"
         ],
         "properties": {
           "severity": {
@@ -27,7 +25,7 @@
             "type": "string"
           },
           "field": {
-            "description": "修正対象のフィールド名。可能ならスキーマ上のフィールド名、配列要素の場合は対象が特定できるパスを書く。",
+            "description": "修正対象のフィールド名。スキーマ上のフィールド名、または対象が特定できるパスを書く。",
             "type": "string"
           },
           "description": {
@@ -39,15 +37,15 @@
             "type": "string"
           },
           "before": {
-            "description": "修正前のテキスト。当該フィールド内の該当箇所を引用する。欠落フィールドを追加する指摘では空文字列を許可する。",
+            "description": "任意。修正前のテキストの引用で、改訂工程・人間の参考用。修正箇所を特定しやすくするための補足であり、機械的な一致判定には使われない。",
             "type": "string"
           },
           "after": {
-            "description": "修正後のテキスト。beforeを置き換える完成形。プレースホルダー禁止、即採用可能な品質にする。",
+            "description": "任意。修正後のテキストの例示で、改訂工程・人間の参考用。before を置き換える完成形の一例を示す補足であり、そのまま機械適用されるものではない。",
             "type": "string"
           }
         },
-        "description": "問題点を構造化して表すオブジェクト。関連する下位フィールドを具体的に埋める。"
+        "description": "問題点を構造化して表すオブジェクト。field/severity/description/suggestion は必須、before/after は任意の補足。"
       }
     }
   }

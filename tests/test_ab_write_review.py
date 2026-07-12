@@ -76,9 +76,8 @@ def test_replay_options_leave_temperature_and_top_p_unspecified() -> None:
     assert options == {"think": False, "num_ctx": 262144, "seed": 101}
 
 
-def test_actionability_summary_rejects_missing_before_and_empty_after() -> None:
+def test_actionability_summary_counts_schema_violations_not_freeform_notes() -> None:
     summary = actionability_summary(
-        {"title": "夜明け", "content": "エリナは扉を開けた。"},
         {
             "issues": [
                 {
@@ -97,13 +96,16 @@ def test_actionability_summary_rejects_missing_before_and_empty_after() -> None:
                     "before": "本文にない語",
                     "after": "",
                 },
+                {
+                    "field": "content",
+                    "description": "必須欠落",
+                    "suggestion": "修正する",
+                },
             ]
         },
     )
 
     assert summary == {
-        "issue_count": 2,
-        "actionable_issue_count": 1,
-        "missing_before_count": 1,
-        "empty_after_count": 1,
+        "issue_count": 3,
+        "schema_violation_count": 1,
     }
