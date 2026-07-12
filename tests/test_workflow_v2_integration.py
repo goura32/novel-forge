@@ -199,6 +199,52 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
     assert generated["scenes"][0]["writer_context"]
 
 
+def test_review_cap_keeps_last_contract_valid_scene_candidate(tmp_path: Path) -> None:
+    """A later invalid revise must not replace an earlier Canon-valid scene."""
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    review_count = 0
+    revise_candidates = iter(
+        [
+            {"location_id": "loc_001", "title": "valid intermediate"},
+            {"location_id": "loc_003", "title": "invalid final"},
+        ]
+    )
+
+    def task_runner(task_id: str, _values: dict[str, Any]) -> dict[str, Any]:
+        nonlocal review_count
+        if task_id == "design.scene.review":
+            review_count += 1
+            return {"issues": [{"description": "continue revision"}] if review_count == 2 else []}
+        if task_id == "design.scene.revise":
+            return next(revise_candidates)
+        raise AssertionError(task_id)
+
+    workflow = RuntimeWorkflow(
+        repo,
+        run,
+        task_runner=task_runner,
+        max_review_count=3,
+    )
+    initial_attempt = workflow._attempt("design.scene.generate", "test invalid candidate")
+
+    attempt, candidate = workflow._review_and_revise(
+        "design.scene",
+        {"location_id": "loc_003", "title": "invalid initial"},
+        initial_attempt,
+        review_values=lambda current: {"candidate": current},
+        revise_values=lambda current, review: {"candidate": current, "review": review},
+        contract_issues=lambda current: (
+            []
+            if current["location_id"] == "loc_001"
+            else [{"severity": "error", "message": "unknown Canon location"}]
+        ),
+    )
+
+    assert attempt != initial_attempt
+    assert candidate == {"location_id": "loc_001", "title": "valid intermediate"}
+
+
 def test_scene_payload_without_canon_updates_is_rejected(tmp_path: Path) -> None:
     """Runtime must refuse a scene design that omits the small Canon update DSL."""
     from novel_forge.runtime import RuntimeContractError

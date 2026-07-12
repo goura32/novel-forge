@@ -445,21 +445,34 @@ class RuntimeWorkflow:
         revise_values: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
         contract_issues: Callable[[dict[str, Any]], list[dict[str, Any]]] | None = None,
     ) -> tuple[AttemptHandle, dict[str, Any]]:
-        """Run bounded cross-phase review/revision; the final revision advances downstream."""
+        """Run bounded cross-phase review/revision; only a contract-valid candidate advances."""
         attempt, current = candidate_attempt, candidate
+        last_contract_valid: tuple[AttemptHandle, dict[str, Any]] | None = None
         for cycle in range(1, self.max_review_count + 1):
             _, llm_review = self._run_task(
                 f"{stem}.review", review_values(current), reason=f"review {stem} candidate"
             )
             issues = list(llm_review.get("issues", []))
+            contract_failures: list[dict[str, Any]] = []
             if contract_issues is not None:
-                issues.extend(contract_issues(current))
+                contract_failures = contract_issues(current)
+                issues.extend(contract_failures)
+            if not contract_failures:
+                last_contract_valid = (attempt, current)
             if not issues:
                 return attempt, current
             review = {"issues": issues}
             if cycle == self.max_review_count:
+                if contract_failures and last_contract_valid is not None:
+                    warnings.warn(
+                        f"review cap for {stem} reached with contract-invalid candidate; "
+                        "kept the last contract-valid candidate",
+                        stacklevel=2,
+                    )
+                    return last_contract_valid
                 return attempt, current
             try:
+
                 attempt, current = self._run_task(
                     f"{stem}.revise",
                     revise_values(current, review),
