@@ -9,6 +9,7 @@ all outputs are published by appending a descendant snapshot.
 from __future__ import annotations
 
 import copy
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -458,11 +459,20 @@ class RuntimeWorkflow:
             review = {"issues": issues}
             if cycle == self.max_review_count:
                 return attempt, current
-            attempt, current = self._run_task(
-                f"{stem}.revise",
-                revise_values(current, review),
-                reason=f"revise {stem} after review",
-            )
+            try:
+                attempt, current = self._run_task(
+                    f"{stem}.revise",
+                    revise_values(current, review),
+                    reason=f"revise {stem} after review",
+                )
+            except (LLMError, RuntimeContractError) as exc:
+                # A flaky revise (e.g. 35B dropped a required field) must not
+                # abort the entire novel run. Keep the last good design and skip
+                # this revision cycle; downstream review/accept will re-validate.
+                warnings.warn(
+                    f"revise for {stem} failed (kept prior design): {exc}",
+                    stacklevel=2,
+                )
         raise AssertionError("unreachable review loop")
 
     def _commit_task_result(
