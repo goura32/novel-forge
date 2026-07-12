@@ -49,6 +49,10 @@
 ### Canon
 {canon_context}
 
+**CanonPatch JSON Schema:** 以下は runtime が実際に検証する完全な JSON Schema である。`canon_patch` はこの schema に厳密に従い、独自 field を追加しない。
+
+{canon_patch_schema}
+
 ## 出力仕様
 下記のスキーマに適合する JSON のみ出力すること。
 

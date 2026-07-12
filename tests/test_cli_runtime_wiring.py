@@ -289,12 +289,13 @@ def test_task_runner_dispatches_design_chapter_and_scene_with_complete_prompt_co
             "chapter_subplot_notes": [], "scene_number": 1, "scene_count": 1,
             "chapter_scene_number": 1, "chapter_scene_count": 1, "scene_seed": {},
             "previous_outcome": "", "previous_volume_summary": None, "canon_context": {},
+            "canon_patch_schema": {},
         },
     )
 
     assert calls == [
         ("design.chapter.generate", {"series_plan", "volume_number", "volume_title", "volume_premise", "chapter_number", "chapter_title", "chapter_purpose", "previous_chapter_outcome", "previous_volume_summary", "canon_context"}),
-        ("design.scene.generate", {"series_plan", "volume_number", "volume_title", "volume_premise", "chapter_number", "chapter_title", "chapter_purpose", "chapter_theme", "chapter_emotional_arc", "chapter_foreshadowing_notes", "chapter_subplot_notes", "scene_number", "scene_count", "chapter_scene_number", "chapter_scene_count", "scene_seed", "previous_outcome", "previous_volume_summary", "canon_context"}),
+        ("design.scene.generate", {"series_plan", "volume_number", "volume_title", "volume_premise", "chapter_number", "chapter_title", "chapter_purpose", "chapter_theme", "chapter_emotional_arc", "chapter_foreshadowing_notes", "chapter_subplot_notes", "scene_number", "scene_count", "chapter_scene_number", "chapter_scene_count", "scene_seed", "previous_outcome", "previous_volume_summary", "canon_context", "canon_patch_schema"}),
     ]
 
 

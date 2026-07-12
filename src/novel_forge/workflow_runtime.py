@@ -767,6 +767,11 @@ class RuntimeWorkflow:
         }
 
     @staticmethod
+    def _canon_patch_schema() -> dict[str, Any]:
+        """Return the exact compact CanonPatch validation grammar for LLM prompts."""
+        return CanonPatch.model_json_schema()
+
+    @staticmethod
     def _valid_canon_ids(canon: Canon) -> str:
         """Flat, unambiguous whitelist of every valid Canon ID.
 
@@ -1079,6 +1084,7 @@ class RuntimeWorkflow:
                         "previous_outcome": previous_scene_outcome,
                         "previous_volume_summary": previous_design,
                         "canon_context": self._design_author_context(self.load_canon()),
+                        "canon_patch_schema": self._canon_patch_schema(),
                     },
                     reason=f"generate scene {chapter_number}/{chapter_scene_number}",
                 )
@@ -1117,6 +1123,7 @@ class RuntimeWorkflow:
                         "scene_seed": _seed,
                         "canon_context": self._design_author_context(_canon),
                         "valid_canon_ids": self._valid_canon_ids(_canon),
+                        "canon_patch_schema": self._canon_patch_schema(),
                     }
 
                 def scene_revise_values(
@@ -1133,6 +1140,7 @@ class RuntimeWorkflow:
                         "scene_seed": _seed,
                         "canon_context": self._design_author_context(_canon),
                         "valid_canon_ids": self._valid_canon_ids(_canon),
+                        "canon_patch_schema": self._canon_patch_schema(),
                     }
 
                 scene_attempt, raw_scene = self._review_and_revise(

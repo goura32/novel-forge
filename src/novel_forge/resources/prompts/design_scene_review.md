@@ -33,6 +33,10 @@
 
 「有効な Canon ID」リストに含まれる ID はすべて存在する。このリストの ID を「存在しない」と指摘したり、新規作成させたりしてはならない。Canonにある関係、伏線、世界ルール、人物、場所が候補に登場しないことだけを issue にしない。起こり得る・不自然かもしれないという可能性だけで issue にしない。Canon の world_rules / series_constraints / immutable_constraints / current_state に反する key_events、outcome、patch は issue にする。新規 entity を作る場合も、既存の能力・年代・関係・物理法則を矛盾させない。
 
+**CanonPatch JSON Schema:** `canon_patch` はこの runtime validation schema に厳密に従う。schema にない field は issue にし、独自 format を推測しない。
+
+{canon_patch_schema}
+
 ## 出力仕様
 下記のスキーマに適合する JSON のみ出力すること。
 
