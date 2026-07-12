@@ -29,7 +29,6 @@ from novel_forge.canon.runtime import (
 )
 from novel_forge.llm_client import LLMError, LLMTransportError
 from novel_forge.prompts import PromptManager
-from novel_forge.review_contracts import validate_draft_review_actionability
 from novel_forge.runtime import (
     ArtifactReference,
     AttemptCapture,
@@ -339,21 +338,6 @@ class RuntimeWorkflow:
                 if retryable:
                     continue
                 raise error
-            if task_id == "write.draft.review":
-                semantic_errors = validate_draft_review_actionability(values["draft"], result)
-                if semantic_errors:
-                    error = LLMError("draft review semantic contract: " + "; ".join(semantic_errors))
-                    retryable = retry_number < self.max_retry_count
-                    self.repository.fail_attempt(
-                        attempt,
-                        error_code="CONTRACT_ERROR",
-                        retryable=retryable,
-                        detail=str(error),
-                    )
-                    last_error = error
-                    if retryable:
-                        continue
-                    raise error
             return attempt, result
         assert last_error is not None
         raise last_error
