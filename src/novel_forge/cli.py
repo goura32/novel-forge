@@ -160,6 +160,8 @@ def _make_workflow(
         model=model or config.llm.model,
         timeout_seconds=config.llm.timeout_seconds,
         ollama_options=config.llm.ollama_options,
+        num_predict=config.llm.num_predict,
+        num_ctx=config.llm.num_ctx,
         series_slug=slug or "",
     )
     task_runner = make_task_runner(client, PromptManager())

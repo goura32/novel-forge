@@ -27,6 +27,8 @@ class LLMConfig(BaseModel):
     ollama_host: str = "ws1.local:11434"
     timeout_seconds: int = Field(default=3600, ge=1)
     ollama_options: dict[str, Any] = Field(default_factory=lambda: {"think": False})
+    num_predict: int = Field(default=-1, description="-1 = unlimited output (risk of runaway generation)")
+    num_ctx: int = Field(default=262144, description="context window in tokens")
 
 
 class QualityConfig(BaseModel):
