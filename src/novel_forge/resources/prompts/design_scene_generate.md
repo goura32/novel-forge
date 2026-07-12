@@ -17,6 +17,13 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 
 "update_state" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。value は canon_context 内の現在の状態と明確に異なる値を書くこと。現在の状態と同じ値を書くと no-op（空更新）となり拒否されるため、変化がない場合はその update を canon_updates に含めないこと。
 
+### Canon 制約の厳守
+canon_context の world_rules / series_constraints / locations[].immutable_constraints に書かれた制約は、key_events / setting / outcome の生成時に絶対に守る。具体的には以下を破る描写を書かないこと：
+- 結界の範囲（例：店外では妖怪への直接干渉は不可能、店内のみ会話・干渉可）
+- 年代の統一（例：明治初期＝1870年代。別の時代表記と混在させない）
+- 物理法則の扱い（例：怪異の影響であっても急激な凍結・結露等の極端な環境変化は避ける）
+- Canon で定義されていない怪異名・術名・固有名詞を新規に導入しない（既存 entity の名前のみ使用）
+
 ### 入力情報
 ### シリーズ企画
 {series_plan}
