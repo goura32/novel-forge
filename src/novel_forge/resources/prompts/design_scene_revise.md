@@ -10,7 +10,7 @@
 - `canon_patch` は旧 `canon_updates` ではなく、section ごとの strict CanonPatch を返す。
 - 既存 entity は valid Canon ID を完全一致で参照し、型付き update を使う。表示名や推測 ID に置き換えない。
 - 新規 entity は該当 section の `create` に必須属性と `creation_key` を書く。final stable ID は書かない。
-- 同一 scene 内の新規 entity の参照は `@created:<creation_key>` に統一する。POV / cast / setting と patch 内参照にも使える。
+- 同一 scene 内の新規 entity の scene-level 参照（POV / cast / setting）は `@created:<creation_key>` に統一する。**ただし CanonPatch 内の型付き参照は ChangeRef: 既存 entity は `{"kind":"...","id":"..."}`、同一 patch の create は `{"creation_key":"..."}`。後者に `kind` / `id` / `@created:` を混ぜない。**
 - review が「未定義の場所・人物・物品・知識が物語上必要」と指摘した場合、既存 ID に無理に寄せず、適切な create payload を追加する。
 - review が create の過剰・必須属性不足・Canon 矛盾を指摘した場合だけ、その create を削除または修正する。
 - no-op update は削除する。変化がないなら update を捏造しない。

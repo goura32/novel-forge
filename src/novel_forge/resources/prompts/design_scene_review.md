@@ -9,7 +9,7 @@
 ## CanonPatch のレビュー規則
 - 既存 entity 参照は「有効な Canon ID」白リストの完全一致だけを許可する。表示名・alias・推測 ID は issue にする。
 - 新規 entity は `canon_patch.<section>.create` に `creation_key` を持つ payload として宣言する。final ID を推測して書かない。
-- 同一 candidate 内の新規 entity を参照する唯一の表記は `@created:<creation_key>`。その key が対応する create にない、kind が違う、曖昧なら issue にする。
+- 同一 candidate 内の新規 entity を scene-level（POV / cast / setting）で参照する表記は `@created:<creation_key>`。**CanonPatch 内の ChangeRef は既存 entity を `{"kind":"...","id":"..."}`、同一 patch の create を `{"creation_key":"..."}` だけで参照する。creation-key object に `kind` / `id` / `@created:` があれば issue にする。**
 - 新規場所・人物・物品・知識・関係・伏線・subplot・用語が物語上必要なら、既存 ID へ無理に置換させない。create payload が不十分・既存 Canon と矛盾・連続性管理不要な過剰作成の場合だけ issue にする。
 - `canon_patch` は section ごとの full CanonPatch である。旧 `canon_updates` DSL、`operation/target_id/value` の独自形式、未定義 operation を要求・提案してはならない。
 - create は entity の必須属性を満たすこと。update は対応 entity kind と型付き operation を一致させること。現在値と同一の update は no-op として issue にし、その update を削除するよう提案する。

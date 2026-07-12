@@ -9,7 +9,7 @@
 ## Canon mutation の原則
 - `pov_character_id`、`character_ids`、`location_id` には既存 Canon ID を完全一致で書く。
 - この scene で初登場・以後の連続性管理が必要な entity は、`canon_patch` の対応 section の `create` に追加する。作成 payload の `id` は書かず、意味的で source 内一意な `creation_key` を書く。
-- 同じ scene 内で新規 entity を POV / cast / setting / patch 内の他参照に使う場合は、final ID を推測せず `@created:<creation_key>` を書く。runtime が stable ID を発行する。
+- 同じ scene 内の新規 entity を scene の POV / cast / setting に使う場合は、final ID を推測せず `@created:<creation_key>` を書く。**ただし CanonPatch 内の型付き参照は schema の `ChangeRef` を使う。既存 entity は `{"kind":"...","id":"..."}`、同一 patch 内で create した entity は `{"creation_key":"..."}` と書き、後者に `kind` / `id` / `@created:` を混ぜない。** runtime が stable ID を発行する。
 - 単なる情景の細部・一回限りの通行地点を無駄に Canon entity 化しない。後続 scene が固有状態・制約・関係・知識を参照するなら create する。
 - 既存 entity の変化は create ではなく、対応する型付き update に書く。状態が変わらないなら update を捏造しない。
 - Canon にない ID、表示名、推測 ID は既存参照欄に書かない。新しい概念は create + creation_key で表現する。
