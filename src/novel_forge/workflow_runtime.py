@@ -35,6 +35,7 @@ from novel_forge.canon.models import (
     WriterContext,
 )
 from novel_forge.canon.patch_apply import CanonPatchApplier
+from novel_forge.canon.registry import get_schema
 from novel_forge.canon.registry import validate as validate_canon_schema
 from novel_forge.canon.runtime import (
     apply_reviewed_patch,
@@ -769,8 +770,8 @@ class RuntimeWorkflow:
 
     @staticmethod
     def _canon_patch_schema() -> dict[str, Any]:
-        """Return the exact compact CanonPatch validation grammar for LLM prompts."""
-        return CanonPatch.model_json_schema()
+        """Return the committed runtime CanonPatch grammar used for validation."""
+        return get_schema("canon_patch")
 
     @staticmethod
     def _valid_canon_ids(canon: Canon) -> str:
