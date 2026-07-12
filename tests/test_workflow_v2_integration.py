@@ -179,6 +179,20 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
         assert "canon_context" in task_input
         assert "bible" not in task_input
         assert "char_001" in str(task_input["canon_context"])
+    scene_review_inputs = [
+        values for task_id, values in zip(calls, inputs, strict=True) if task_id == "design.scene.review"
+    ]
+    assert len(scene_review_inputs) == 1
+    assert scene_review_inputs[0]["scene_seed"] == {
+        "title": "覚醒",
+        "pov": "リィナ",
+        "goal": "状況を把握する",
+        "conflict": "記憶が曖昧",
+        "outcome": "案内人と話す",
+        "characters": ["リィナ"],
+        "key_events": ["目を覚ます"],
+        "setting": "覚醒室",
+    }
     assert published.slots["canon.frontier"] != snapshot.slots["canon.frontier"]
     generated = repo.read_payload(repo.verify_artifact(published.slots["design.vol01"]))
     assert generated["scenes"][0]["status"] == "applied"

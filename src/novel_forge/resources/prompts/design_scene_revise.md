@@ -26,6 +26,9 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 ### 企画
 {series_plan}
 
+### シーン種
+{scene_seed}
+
 ### Canon
 {canon_context}
 

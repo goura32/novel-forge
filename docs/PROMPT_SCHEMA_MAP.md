@@ -8,26 +8,24 @@
 
 | 成果物 | generate | review | revise | 出力schema |
 |---|---|---|---|---|
-| Series plan | `plan.series.generate` | — | — | `plan_concept.json` |
-| Volume design | `design.volume.generate` | — | — | `design_volume.json` |
-| Chapter design | `design.chapter.generate` | — | — | `design_chapter.json` |
-| Scene design | `design.scene.generate` | — | — | `design_scene.json` |
+| Series plan | `plan.series.generate` | `plan.series.review` | `plan.series.revise` | `plan_concept.json` |
+| Volume design | `design.volume.generate` | `design.volume.review` | `design.volume.revise` | `design_volume.json` |
+| Chapter design | `design.chapter.generate` | `design.chapter.review` | `design.chapter.revise` | `design_chapter.json` |
+| Scene design | `design.scene.generate` | `design.scene.review` | `design.scene.revise` | `design_scene.json` |
 | Scene draft | `write.draft.generate` | `write.draft.review` | `write.draft.revise` | `write_draft.json` |
 | Scene summary | `write.summary.generate` | `write.summary.review` | `write.summary.revise` | `write_summary.json` |
 
 review taskは共通の `review_issues.json` を使い、revision taskは対応するgenerate taskと同じschemaを返します。
 
-`design.*.review` / `design.*.revise` はregistry上の予約resourceですが、public runtimeは呼び出しません。planもsingle-step taskです。
-
 ## 品質ゲート
 
-writeの各候補は `generate → review → revise` を通ります。review issuesが空になった候補だけが選択snapshotへ進みます。review上限に達しても未解決issueを持つ候補は選択されません。
+すべてのLLM候補は `generate → review → revise` のbounded cycleを通ります。review issuesが空ならその時点で候補を採用します。review上限に達した場合は、その時点の候補とfinal review evidenceを記録して後続へ進めます。上限は無限loopを防ぐ境界であり、未解決issueを自動拒否するquality gateではありません。
 
 JSON parseまたはSchema validationの失敗はreview上限とは別に、`quality.max_retry_count` の範囲でgeneration attemptを作り直します。
 
 ## Scene Canon契約
 
-scene designには空でない `canon_patch` が必要です。LLMへ渡すauthor contextはIDを露出しない決定論的なnarrative contextで、runtimeがscene designの名前参照をstable `EntityRef` に解決します。
+LLMはCanon IDと表示名を含むauthor contextからscene designを作ります。`pov_character_id`、`character_ids`、`location_id`、`canon_updates.*.target_id` は許可されたIDとの完全一致でなければなりません。runtimeがsmall ID-only DSLをstrict CanonPatchへコンパイルし、整合性を検証します。
 
 - 空patch、no-op更新、存在しない参照、前方参照は拒否する
 - review済みのscene patchだけがCanon eventとしてfrontierへ公開される

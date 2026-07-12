@@ -897,21 +897,23 @@ class RuntimeWorkflow:
                     return []
 
                 def scene_review_values(
-                    candidate: dict[str, Any], *, _canon: Canon = canon
+                    candidate: dict[str, Any], *, _canon: Canon = canon, _seed: dict[str, Any] = scene_seed
                 ) -> dict[str, Any]:
                     return {
                         "series_plan": plan,
                         "design": candidate,
+                        "scene_seed": _seed,
                         "canon_context": self._design_author_context(_canon),
                     }
 
                 def scene_revise_values(
-                    candidate: dict[str, Any], review: dict[str, Any], *, _canon: Canon = canon
+                    candidate: dict[str, Any], review: dict[str, Any], *, _canon: Canon = canon, _seed: dict[str, Any] = scene_seed
                 ) -> dict[str, Any]:
                     return {
                         "series_plan": plan,
                         "current_scene": candidate,
                         "review": review,
+                        "scene_seed": _seed,
                         "canon_context": self._design_author_context(_canon),
                     }
 

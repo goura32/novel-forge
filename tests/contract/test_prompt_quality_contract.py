@@ -22,6 +22,25 @@ def test_scene_draft_prompt_contains_core_prose_quality_requirements() -> None:
     assert missing == []
 
 
+def test_scene_design_review_is_grounded_in_the_assigned_scene_seed() -> None:
+    prompt = (PROMPTS_DIR / "design_scene_review.md").read_text(encoding="utf-8")
+
+    required_fragments = [
+        "### シーン種",
+        "{scene_seed}",
+        "Canonにある関係、伏線、世界ルール、人物、場所が候補に登場しないことだけを issue にしない",
+        "可能性だけで issue にしない",
+    ]
+    missing = [fragment for fragment in required_fragments if fragment not in prompt]
+    assert missing == []
+
+
+def test_plan_review_never_emits_an_unactionable_empty_replacement() -> None:
+    prompt = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
+
+    assert "空の `after`、`対象なし`、未定義の修正案を出さない" in prompt
+
+
 def test_prompts_do_not_use_ok_ng_examples() -> None:
     forbidden_fragments = [
         "OK例",
