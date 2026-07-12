@@ -19,7 +19,7 @@
 ### Canon
 {canon_context}
 
-IDはCanon内の完全一致だけを許可する。存在しないID、表示名、alias、推測ID、DSL不正は必ず issue にする。
+IDはCanon内の完全一致だけを許可する。存在しないID、表示名、alias、推測ID、DSL不正は必ず issue にする。存在しないIDを `after`/`before` に書かない。未定義のキャラクター・場所は `suggestion` に文章で指摘するのみとし、Canonに無いIDを新規作成・追加する指示は出さない（シーン設計フェーズは既存Canon IDの参照のみ。新規エンティティの作成は企画・種設計フェーズの責務）。`canon_updates.target_id` は canon_context に存在するIDのみを指定する。
 
 canon_updates の各要素について、value が canon_context 内の対象エンティの現在の状態と同じ場合、それは no-op（空更新）となり後続で拒否される。その場合は issue とし、suggestion で「その update を canon_updates から削除する」ことを指示する（before に該当 update の operation/target_id を、after に空文字列または削除を示す記述を書く）。
 
