@@ -266,8 +266,6 @@ class LLMClient:
                 raise LLMError("LLM returned schema structure instead of data")
 
             if schema:
-                if kind == "review" and isinstance(parsed, dict):
-                    self._normalize_review_output(parsed)
                 if isinstance(parsed, dict) and "slug" in parsed:
                     parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
                 from novel_forge.schemas import validate_data_or_raise
@@ -312,36 +310,6 @@ class LLMClient:
         keys = set(parsed.keys())
         schema_key_count = len(keys & schema_keys)
         return schema_key_count >= 2 and "properties" in keys
-
-    @staticmethod
-    def _normalize_review_output(parsed: dict[str, Any]) -> None:
-        """Drop legacy review bookkeeping fields before schema validation.
-
-        The review schema intentionally contains only actionable issues.  Older
-        prompts/models may still emit summary or publication-readiness fields;
-        remove them so the pipeline contract stays issue-count based.
-        """
-        issues = parsed.get("issues")
-        for key in (
-            "ready_for_publication",
-            "overall_assessment",
-            "strengths",
-            "recommendations",
-            "score",
-            "revision_needed",
-        ):
-            parsed.pop(key, None)
-        if not isinstance(issues, list):
-            return
-        parsed["issues"] = issues[:8]
-        for issue in parsed["issues"]:
-            if not isinstance(issue, dict):
-                continue
-            issue.pop("publication_blocking", None)
-            severity = issue.get("severity")
-            if isinstance(severity, str):
-                issue["severity"] = severity.strip()
-
 
     @staticmethod
     def _parse_ndjson(text: str) -> tuple[str, str]:

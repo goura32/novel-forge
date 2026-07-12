@@ -23,6 +23,7 @@
 | promptの役割・改善方針 | [PROMPTS](PROMPTS.md) |
 | prompt / schema / 実行経路 | [PROMPT_SCHEMA_MAP](PROMPT_SCHEMA_MAP.md) |
 | LLMのgeneration・review・revision境界 | [LLM_REVIEW_CONTRACT](dev/LLM_REVIEW_CONTRACT.md) |
+| LLM出力の機械処理を最小に保つ設計原則 | [DESIGN_PRINCIPLES](dev/DESIGN_PRINCIPLES.md) |
 | JSON Schemaの変更と検証 | [schema_maintenance](dev/schema_maintenance.md) |
 | attempt-scoped LLM evidence形式 | [raw_log_format](dev/raw_log_format.md) |
 | Ollama接続・payload・retry契約 | [OLLAMA_API](dev/OLLAMA_API.md) |
