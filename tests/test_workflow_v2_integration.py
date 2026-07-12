@@ -331,6 +331,31 @@ def test_scene_payload_full_canon_patch_creates_scope_location_and_updates_canon
     assert canon.get_entity("character", "char_001").continuity_card.current_state == "地下舞台の秘密を知った"
 
 
+def test_scene_payload_rejects_canon_patch_schema_extras(tmp_path: Path) -> None:
+    """Candidate selection must reject fields forbidden by the committed patch schema."""
+    from novel_forge.runtime import RuntimeContractError
+
+    repo = RunRepository(tmp_path)
+    seed = BibleFactory.create_seed(PLAN)
+    bootstrap_run = repo.create_run(command="plan", model="fake", verbose=False)
+    bootstrap = RuntimeWorkflow(repo, bootstrap_run, task_runner=lambda _task, _values: {})
+    snapshot = bootstrap.bootstrap_plan(
+        slug="series_a",
+        plan={"slug": "series_a", "planned_volumes": [{"title": "第1巻"}], **PLAN},
+        canon_seed=seed.model_dump(mode="json"),
+    )
+    run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id=snapshot.selection_snapshot_id)
+    workflow = RuntimeWorkflow(repo, run, slug="series_a", task_runner=lambda _task, _values: {})
+    raw_scene = {
+        "title": "覚醒", "goal": "状況を把握する", "conflict": "記憶が曖昧", "outcome": "案内人と話す",
+        "pov_character_id": "char_001", "character_ids": ["char_001"], "key_events": ["目を覚ます"],
+        "location_id": "loc_001", "hook": "目を開ける", "turning_point": "端末が光る",
+        "emotional_arc": "不安から安堵", "ending_hook": "扉が開く", "canon_patch": {"unexpected": True},
+    }
+    with pytest.raises(RuntimeContractError, match="unexpected"):
+        workflow._scene_from_generated_payload(raw_scene, canon=workflow.load_canon(), volume=1, chapter=1, ordinal=1)
+
+
 def test_scene_payload_without_canon_patch_is_rejected(tmp_path: Path) -> None:
     """Runtime must require the full CanonPatch scene mutation contract."""
     from novel_forge.runtime import RuntimeContractError

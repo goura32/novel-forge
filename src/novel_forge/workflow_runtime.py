@@ -35,6 +35,7 @@ from novel_forge.canon.models import (
     WriterContext,
 )
 from novel_forge.canon.patch_apply import CanonPatchApplier
+from novel_forge.canon.registry import validate as validate_canon_schema
 from novel_forge.canon.runtime import (
     apply_reviewed_patch,
     attach_projection,
@@ -867,6 +868,9 @@ class RuntimeWorkflow:
                 assigned_patch.model_dump(mode="json"), created_ids
             )
             CanonPatch.model_validate(resolved_patch)
+            schema_errors = validate_canon_schema("canon_patch", resolved_patch)
+            if schema_errors:
+                raise ValueError("; ".join(schema_errors))
         except ValueError as exc:
             raise RuntimeContractError(f"scene canon_patch is invalid: {exc}") from exc
         return resolved_patch, created_ids
