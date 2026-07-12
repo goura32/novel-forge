@@ -41,6 +41,13 @@ def test_plan_review_never_emits_an_unactionable_empty_replacement() -> None:
     assert "空の `after`、`対象なし`、未定義の修正案を出さない" in prompt
 
 
+def test_write_draft_revise_returns_both_title_and_content() -> None:
+    prompt = (PROMPTS_DIR / "write_draft_revise.md").read_text(encoding="utf-8")
+    assert "title" in prompt
+    assert "content" in prompt
+    assert "元の値" in prompt or "保持" in prompt
+
+
 def test_prompts_do_not_use_ok_ng_examples() -> None:
     forbidden_fragments = [
         "OK例",

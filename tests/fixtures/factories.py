@@ -22,6 +22,13 @@ def plan_concept_data(**overrides: Any) -> dict[str, Any]:
             "magic requires sacrifice of something precious",
             "ancient laws govern all spellcasting and violations are punished severely",
         ],
+        "main_characters": [
+            {"name": "リィナ", "role": "主人公", "stance": "味方", "motivation": "失われた記憶を取り戻す", "arc": "無力から自立へ"},
+            {"name": "ルーク", "role": "相棒", "stance": "味方", "motivation": "契約の真実を守る", "arc": "歪みから再生へ"},
+        ],
+        "locations": [
+            {"name": "覚醒室", "kind": "building", "current_state": "静寂に包まれた石室", "immutable_constraints": ["外部からの音が届かない"]},
+        ],
     }
     data.update(overrides)
     return data

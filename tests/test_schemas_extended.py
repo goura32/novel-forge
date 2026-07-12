@@ -106,7 +106,10 @@ class TestValidate:
         errors = validate("plan_concept", data)
         assert len(errors) > 0
 
-    def test_valid_scene_draft(self):
+    def test_plan_concept_requires_main_characters_and_locations(self):
+        schema = get_schema("plan_concept")
+        assert "main_characters" in schema["required"]
+        assert "locations" in schema["required"]
         data = {
             "title": "シーン1",
             "content": "これはテストシーンの本文です。" * 200,
@@ -341,6 +344,13 @@ class TestValidateOrRaise:
             "selling_points": ["Unique world building with an intricate magic system that affects every aspect of society", "Complex character relationships that evolve naturally throughout the series"],
             "world_summary": "A world where magic exists and is regulated by ancient laws. The story follows a young mage discovering their power and learning to navigate a society where magical ability determines social status.",
             "world_rules": ["magic requires sacrifice of something precious", "ancient laws govern all spellcasting and violations are punished severely"],
+            "main_characters": [
+                {"name": "リィナ", "role": "主人公", "stance": "味方", "motivation": "失われた記憶を取り戻す", "arc": "無力から自立へ"},
+                {"name": "ルーク", "role": "相棒", "stance": "味方", "motivation": "契約の真実を守る", "arc": "歪みから再生へ"},
+            ],
+            "locations": [
+                {"name": "覚醒室", "kind": "building", "current_state": "静寂に包まれた石室", "immutable_constraints": ["外部からの音が届かない"]},
+            ],
         }
         # Should not raise
         validate_or_raise("plan_concept", data)

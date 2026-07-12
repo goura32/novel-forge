@@ -156,7 +156,7 @@ class TestParseJsonResponse:
 
 class TestValidate:
     def test_valid_data_passes(self):
-        data = {"title": "Test", "slug": "test_series", "logline": "A story", "genre": ["fantasy"], "themes": ["love"], "selling_points": ["unique"], "world_summary": "World", "world_rules": ["rule1"], "target_audience": "adults"}
+        data = {"title": "Test", "slug": "test_series", "logline": "A story", "genre": ["fantasy"], "themes": ["love"], "selling_points": ["unique"], "world_summary": "World", "world_rules": ["rule1"], "target_audience": "adults", "main_characters": [{"name": "A", "role": "主人公"}], "locations": [{"name": "L", "kind": "building", "current_state": "S", "immutable_constraints": ["c"]}]}
         errors = validate("plan_concept", data)
         assert errors == []
 
@@ -204,7 +204,7 @@ class TestValidate:
         assert errors == ["Schema not found: nonexistent_schema"]
 
     def test_validate_or_raise_valid(self):
-        data = {"title": "Test", "slug": "test", "logline": "A", "genre": ["f"], "themes": ["t"], "selling_points": ["s"], "world_summary": "W", "world_rules": ["r"], "target_audience": "A"}
+        data = {"title": "Test", "slug": "test", "logline": "A", "genre": ["f"], "themes": ["t"], "selling_points": ["s"], "world_summary": "W", "world_rules": ["r"], "target_audience": "A", "main_characters": [{"name": "A", "role": "主人公"}], "locations": [{"name": "L", "kind": "building", "current_state": "S", "immutable_constraints": ["c"]}]}
         validate_or_raise("plan_concept", data)  # Should not raise
 
     def test_validate_or_raise_invalid(self):
