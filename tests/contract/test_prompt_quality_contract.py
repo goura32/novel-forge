@@ -48,6 +48,12 @@ def test_write_draft_revise_returns_both_title_and_content() -> None:
     assert "元の値" in prompt or "保持" in prompt
 
 
+def test_write_draft_review_requires_every_issue_field() -> None:
+    prompt = (PROMPTS_DIR / "write_draft_review.md").read_text(encoding="utf-8")
+
+    assert "各issueには必ず `severity`、`field`、`description`、`suggestion`、`before`、`after` をすべて含める" in prompt
+
+
 def test_prompts_do_not_use_ok_ng_examples() -> None:
     forbidden_fragments = [
         "OK例",
