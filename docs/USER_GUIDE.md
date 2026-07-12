@@ -36,8 +36,10 @@ uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 # 草稿を生成・レビュー・改稿
 uv run novel-forge write -w <workdir> -s <series-slug> -V 1
 
-# 原稿と準備完了レポートを出力
+# immutable JSON artifactを出力
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1
+# 人が読むためのMarkdown原稿を出力
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 ```
 
 全巻を設計する場合は `design -V 0` を使います。初回から一括実行したい場合は次のとおりです。
@@ -48,18 +50,14 @@ uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
 
 ## 4. 成果物を確認する
 
-主な成果物は `<workdir>/<series-slug>/` に作成されます。
+主な成果物は `<workdir>/.novel-forge/runs/<run>/attempts/<attempt>/artifacts/` にimmutable artifactとして作成されます。
 
-| パス | 内容 |
+| payload名 | 内容 |
 |---|---|
-| `series_plan.json` | シリーズ企画 |
-| `volNN/volNN.json` | 巻・章・シーン設計 |
-| `volNN/volNN_chNN/*_v*.md` | シーン草稿・改稿 |
-| `exports/<slug>_volNN.md` | 結合済み原稿 |
-| `exports/<slug>_volNN_metadata.json` | 最小メタデータ |
-| `exports/<slug>_volNN_kdp_readiness_report.md` | 提出前の確認レポート |
+| `export.volNN.manuscript.json` | Canon・review reportを含む監査用の結合原稿（既定） |
+| `export.volNN.manuscript.md` | 巻・章・scene見出しを持つ読者向け本文（`--format markdown`） |
 
-`export` は設計上の全シーンに空でない草稿があることを確認してから出力します。準備完了レポートの警告を確認してから提出してください。
+`export` は選択snapshotにpinされた設計・Canon・全sceneのdraft / summary / final reviewを検証してから出力します。DOCX / EPUBやKDP提出用メタデータは出力しないため、提出前の人による整形・確認は別途必要です。
 
 ## 5. 中断から再開する
 

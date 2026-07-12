@@ -6,7 +6,10 @@
 uv run novel-forge plan -w <workdir> "キーワード"
 uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 uv run novel-forge write -w <workdir> -s <series-slug> -V 1
+# immutable JSON artifact（既定）
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1
+# 人が読むためのMarkdown原稿
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 ```
 
 一括実行には `complete` を使えます。複数シリーズがある workdir では、plan 後の command に必ず `-s <series-slug>` を渡してください。
@@ -52,13 +55,9 @@ uv run novel-forge design -w <workdir> -s <series-slug> -V 1 -v
 
 ## export の preflight 失敗
 
-export は以下を満たさない場合に停止します。
+export は選択snapshotにpinされた対象巻の設計・Canon・全sceneのdraft / summary / final reviewを検証できない場合に停止します。
 
-- 対象巻の全シーンが `修正済` または `強制出力済`
-- 巻設計が存在し、scene 参照が意味的に整合している
-- 設計された全 scene draft が存在し、空でない
-
-不足のある scene を `write` で処理してから export を再実行してください。
+不足のあるsceneは `write` で処理してから export を再実行してください。`--format markdown` は同じ検証済み入力から読者向け本文を派生しますが、DOCX / EPUBを生成するものではありません。
 
 ## lock の問題
 

@@ -172,6 +172,29 @@ def test_complete_uses_public_design_boundary_and_series_lock(tmp_path: Path, mo
     assert not list((tmp_path / ".novel-forge" / "runtime" / "locks").glob("series-series_new.lock.json"))
 
 
+def test_export_command_passes_markdown_format_to_workflow(tmp_path: Path, monkeypatch) -> None:
+    repo = RunRepository(tmp_path)
+    _bootstrap(repo, "series_a")
+    captured: dict[str, Any] = {}
+
+    class FakeWorkflow:
+        @staticmethod
+        def export_volume(volume: int, *, format: str) -> dict[str, str]:
+            captured.update({"volume": volume, "format": format})
+            return {"artifact_id": "artifact-markdown"}
+
+    monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
+    monkeypatch.setattr(cli, "_make_workflow", lambda *_args: FakeWorkflow())
+
+    result = CliRunner().invoke(
+        cli.app,
+        ["export", "--workdir", str(tmp_path), "--series", "series_a", "--format", "markdown"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured == {"volume": 1, "format": "markdown"}
+
+
 def test_task_runner_passes_registry_schema_to_llm_client() -> None:
     """Schema validation must not be bypassed: the runner must hand the resolved
     task schema to ``LLMClient.complete_json``."""

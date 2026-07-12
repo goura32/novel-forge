@@ -6,7 +6,7 @@ import builtins
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import httpx as _httpx
 import typer
@@ -330,10 +330,14 @@ def export(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
+    format: str = typer.Option("json", "--format", help="Export format: json or markdown"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Export manuscript for KDP."""
+    if format not in {"json", "markdown"}:
+        raise typer.BadParameter("must be one of: json, markdown", param_hint="--format")
+    export_format = cast(Literal["json", "markdown"], format)
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -348,8 +352,8 @@ def export(
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export", wait=wait_lock):
         workflow = _make_workflow(repo, run, series_dir.name, config, model, None, None, verbose)
-        result = workflow.export_volume(volume)
-        console.print(f"[green]✓[/green] Exported to {result.get('artifact_id', 'N/A')}")
+        result = workflow.export_volume(volume, format=export_format)
+        console.print(f"[green]✓[/green] Exported {export_format} to {result.get('artifact_id', 'N/A')}")
 
 
 @app.command()

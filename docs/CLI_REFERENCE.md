@@ -55,14 +55,19 @@ uv run novel-forge write -w <workdir> -s <series-slug> -V 1
 ## `export`
 
 ```bash
+# immutable JSON artifact（既定）
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1
+# 人が読むためのMarkdown原稿
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 ```
 
-設計上の全シーンに空でない草稿があることを preflight で検査してから、次を出力します。
+選択snapshotにpinされた設計・Canon・全sceneのdraft / summary / final reviewを検証して、runtime run配下のimmutable artifactを出力します。
 
-- `exports/<slug>_volNN.md` — 結合済み原稿
-- `exports/<slug>_volNN_metadata.json` — タイトル・巻番号・言語のメタデータ
-- `exports/<slug>_volNN_kdp_readiness_report.md` — 草稿状態・未回収要素などの確認レポート
+| オプション | 既定値 | 内容 |
+|---|---:|---|
+| `--format TEXT` | `json` | `json` はCanonとreview reportを含む監査用artifact、`markdown` は巻・章・scene見出しを持つ読者向け本文artifact |
+
+出力は `*.novel-forge/runs/<run>/attempts/<attempt>/artifacts/` に保存されます。`markdown` のpayload名は `export.volNN.manuscript.md` です。DOCX / EPUBは出力しません。
 
 ## `complete`
 

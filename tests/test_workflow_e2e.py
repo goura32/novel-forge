@@ -141,6 +141,63 @@ def test_complete_pipeline_publishes_snapshot_chain(tmp_path: Path) -> None:
     assert manuscript["input_snapshot_id"] == written.selection_snapshot_id
 
 
+def test_export_markdown_writes_a_pinned_reader_facing_artifact(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    _, input_snapshot, slug = _bootstrap(repo, _fake_task)
+
+    design_run = repo.create_run(
+        command="design", model="fake", verbose=False, input_snapshot_id=input_snapshot
+    )
+    design_snapshot = RuntimeWorkflow(repo, design_run, slug=slug, task_runner=_fake_task).publish_design(
+        1,
+        {
+            "title": "第1巻：旅立ち",
+            "scenes": [
+                {
+                    "chapter_number": 1,
+                    "scene_number": 1,
+                    "title": "出発",
+                    "goal": "旅立ち",
+                    "writer_context": {},
+                },
+                {
+                    "chapter_number": 1,
+                    "scene_number": 2,
+                    "title": "出会い",
+                    "goal": "仲間と出会う",
+                    "writer_context": {},
+                },
+            ],
+        },
+    )
+    write_run = repo.create_run(
+        command="write", model="fake", verbose=False, input_snapshot_id=design_snapshot.selection_snapshot_id
+    )
+    written = RuntimeWorkflow(repo, write_run, slug=slug, task_runner=_fake_task).write_volume(1)
+
+    export_run = repo.create_run(
+        command="export", model="fake", verbose=False, input_snapshot_id=written.selection_snapshot_id
+    )
+    markdown = RuntimeWorkflow(repo, export_run, slug=slug, task_runner=_fake_task).export_volume(
+        1, format="markdown"
+    )
+
+    assert markdown["format"] == "markdown"
+    assert markdown["input_snapshot_id"] == written.selection_snapshot_id
+    assert markdown["content"].startswith("# 第1巻：旅立ち\n")
+    assert "## 第1章\n" in markdown["content"]
+    assert "### 出発\n" in markdown["content"]
+    assert "### 出会い\n" in markdown["content"]
+    assert markdown["content"].count("本文です。") == 100
+
+    ref = repo.verify_artifact(markdown["artifact_id"])
+    assert ref.manifest.artifact_type == "export.manuscript.markdown"
+    assert ref.manifest.logical_key == "export.vol01.manuscript.markdown"
+    assert ref.manifest.payload_path.endswith(".md")
+    assert ref.manifest.metadata["input_snapshot_id"] == written.selection_snapshot_id
+    assert repo.read_payload(ref) == markdown["content"]
+
+
 def test_export_ignores_newer_unselected_candidate(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     task_runner = _fake_task

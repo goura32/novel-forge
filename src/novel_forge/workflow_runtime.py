@@ -256,7 +256,7 @@ class RuntimeWorkflow:
         reason: str,
         artifact_type: str,
         logical_key: str,
-        payload: dict[str, Any],
+        payload: Any,
         payload_name: str,
         metadata: dict[str, Any] | None = None,
         input_artifact_ids: tuple[str, ...] = (),
@@ -1157,12 +1157,19 @@ class RuntimeWorkflow:
         )
         return selected, final_review
 
-    def export_volume(self, volume: int) -> dict[str, Any]:
+    def export_volume(
+        self, volume: int, *, format: Literal["json", "markdown"] = "json"
+    ) -> dict[str, Any]:
+        if format not in {"json", "markdown"}:
+            raise RuntimeContractError(f"unsupported export format: {format}")
         design = self._payload(f"design.vol{volume:02d}")
         scenes = design.get("scenes")
         if not isinstance(scenes, list):
             raise RuntimeContractError("selected design has no scenes")
         contents: list[str] = []
+        volume_title = str(design.get("title") or f"第{volume}巻")
+        markdown_parts = [f"# {volume_title}"]
+        current_chapter: int | None = None
         input_ids: set[str] = {
             self._selected("plan.series").artifact_id,
             self._selected(f"design.vol{volume:02d}").artifact_id,
@@ -1178,7 +1185,13 @@ class RuntimeWorkflow:
             summary_ref = self._selected(f"{stem}.summary")
             final_review_ref = self._selected(f"{stem}.final_review")
             draft = self.repository.read_payload(draft_ref)
-            contents.append(str(draft.get("content", "")))
+            draft_content = str(draft.get("content", ""))
+            contents.append(draft_content)
+            if chapter != current_chapter:
+                markdown_parts.append(f"## 第{chapter}章")
+                current_chapter = chapter
+            scene_title = str(raw_scene.get("title") or f"シーン {scene}")
+            markdown_parts.extend((f"### {scene_title}", draft_content))
             input_ids.update(
                 (draft_ref.artifact_id, summary_ref.artifact_id, final_review_ref.artifact_id)
             )
@@ -1199,6 +1212,26 @@ class RuntimeWorkflow:
             "canon": self.load_canon().model_dump(mode="json"),
             "review_report": review_report,
         }
+        if format == "markdown":
+            content = "\n\n".join(markdown_parts).strip() + "\n"
+            ref = self._artifact(
+                task_id="write.export.generate",
+                reason="render pinned markdown manuscript",
+                artifact_type="export.manuscript.markdown",
+                logical_key=f"export.vol{volume:02d}.manuscript.markdown",
+                payload=content,
+                payload_name=f"export.vol{volume:02d}.manuscript.md",
+                input_artifact_ids=tuple(input_ids),
+                metadata={"input_snapshot_id": self.snapshot.selection_snapshot_id, "format": format},
+            )
+            return {
+                "content": content,
+                "volume": volume,
+                "format": format,
+                "artifact_id": ref.artifact_id,
+                "input_snapshot_id": self.snapshot.selection_snapshot_id,
+            }
+
         ref = self._artifact(
             task_id="write.export.generate",
             reason="assemble pinned manuscript",
@@ -1207,10 +1240,11 @@ class RuntimeWorkflow:
             payload=manuscript,
             payload_name=f"export.vol{volume:02d}.manuscript.json",
             input_artifact_ids=tuple(input_ids),
-            metadata={"input_snapshot_id": self.snapshot.selection_snapshot_id},
+            metadata={"input_snapshot_id": self.snapshot.selection_snapshot_id, "format": format},
         )
         return {
             **manuscript,
+            "format": format,
             "artifact_id": ref.artifact_id,
             "input_snapshot_id": self.snapshot.selection_snapshot_id,
         }

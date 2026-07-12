@@ -26,7 +26,10 @@ uv run novel-forge doctor
 uv run novel-forge plan -w <workdir> "近未来東京 記憶探偵"
 uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 uv run novel-forge write -w <workdir> -s <series-slug> -V 1
+# immutable JSON artifact（既定）
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1
+# 人が読むためのMarkdown原稿
+uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 
 # 一括実行
 uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
@@ -41,7 +44,7 @@ uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
 | `plan` | キーワードからシリーズ企画を生成 |
 | `design` | 巻・章・シーンの設計を生成 |
 | `write` | シーン草稿を生成・レビュー・改稿 |
-| `export` | 原稿、最小メタデータ、KDP 準備完了レポートを出力 |
+| `export` | selection snapshotをpinしたJSON artifact、または読者向けMarkdown原稿を出力 |
 | `complete` | `plan → design → write → export` を実行 |
 | `resume` / `status` | 中断地点からの再開 / 現在状態の表示 |
 | `doctor` / `list` | Ollama 接続診断 / workdir 内シリーズ一覧 |
