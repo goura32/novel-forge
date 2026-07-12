@@ -156,6 +156,7 @@ def _make_workflow(
     from novel_forge.llm_client import LLMClient
 
     client = LLMClient(
+        api_url=f"http://{config.llm.ollama_host}/api/chat",
         model=model or config.llm.model,
         timeout_seconds=config.llm.timeout_seconds,
         ollama_options=config.llm.ollama_options,
@@ -169,7 +170,7 @@ def _make_workflow(
         task_runner=task_runner,
         max_review_count=max_review_count or config.quality.max_review_count,
         max_summary_review_count=max_summary_review_count or config.quality.max_summary_review_count,
-        max_generation_count=config.quality.max_generation_count,
+        max_retry_count=config.quality.max_retry_count,
     )
 
 
@@ -178,8 +179,28 @@ def _resolve_verbose(config: RuntimeConfig, cli_verbose: bool | None) -> bool:
     return cli_verbose if cli_verbose is not None else config.verbose
 
 
+def _setup_command_logging(config: RuntimeConfig) -> None:
+    """Initialize logging while accepting minimal config objects used by CLI callers."""
+    from novel_forge.logging_config import setup_logging
+
+    logging_config = getattr(config, "logging", None)
+    setup_logging(
+        log_file=None,
+        verbose=config.verbose,
+        log_level=getattr(logging_config, "level", "INFO"),
+    )
+
+
 app = typer.Typer(help="NovelForge — Local-LLM novel production pipeline")
 _log = get_logger("novel_forge.cli")
+
+
+@app.callback()
+def _main_callback() -> None:
+    """Initialize logging from config before any command runs."""
+    from novel_forge.config import RuntimeConfig
+
+    _setup_command_logging(RuntimeConfig.load())
 
 
 @app.command()
@@ -193,6 +214,8 @@ def plan(
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Generate a series plan from keywords and bootstrap the immutable series root."""
+    _cfg = RuntimeConfig.load()
+    _setup_command_logging(_cfg)
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -210,7 +233,16 @@ def plan(
             {"keywords": keywords, "existing_slugs": existing},
             reason="generate series plan",
         )
-        slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
+        plan_attempt, plan = workflow._review_and_revise(
+            "plan.series", plan, plan_attempt,
+            review_values=lambda candidate: {"plan": candidate},
+            revise_values=lambda candidate, review: {"current_plan": candidate, "review": review},
+            contract_issues=lambda candidate: (
+                [] if isinstance(candidate.get("slug"), str) and re.fullmatch(r"[a-z0-9_]{1,40}", candidate["slug"])
+                else [{"severity": "error", "category": "contract", "message": "slug must match [a-z0-9_]{1,40}; it is not normalized by runtime"}]
+            ),
+        )
+        slug = plan["slug"]
         series_lock = manager.promote_plan_to_series(
             workspace_lock=workspace_lock, run=run, slug=slug
         )
@@ -406,7 +438,16 @@ def complete(
             {"keywords": keywords, "existing_slugs": existing},
             reason="generate series plan",
         )
-        slug = plan.get("slug") or re.sub(r"[^a-z0-9_]", "_", keywords.lower())[:40]
+        plan_attempt, plan = workflow._review_and_revise(
+            "plan.series", plan, plan_attempt,
+            review_values=lambda candidate: {"plan": candidate},
+            revise_values=lambda candidate, review: {"current_plan": candidate, "review": review},
+            contract_issues=lambda candidate: (
+                [] if isinstance(candidate.get("slug"), str) and re.fullmatch(r"[a-z0-9_]{1,40}", candidate["slug"])
+                else [{"severity": "error", "category": "contract", "message": "slug must match [a-z0-9_]{1,40}; it is not normalized by runtime"}]
+            ),
+        )
+        slug = plan["slug"]
         series_lock = manager.promote_plan_to_series(
             workspace_lock=workspace_lock, run=run, slug=slug
         )

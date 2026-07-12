@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from novel_forge.llm_client import LLMError
 from novel_forge.runtime import RunRepository
 from novel_forge.workflow_runtime import RuntimeWorkflow
 
@@ -17,10 +18,10 @@ def test_generation_retry_uses_a_new_attempt_and_preserves_failure(tmp_path) -> 
         nonlocal calls
         calls += 1
         if calls == 1:
-            raise TimeoutError("transient provider timeout")
+            raise LLMError("schema validation error: missing required field")
         return {"title": "recovered"}
 
-    workflow = RuntimeWorkflow(repo, run, task_runner=runner, max_generation_count=2)
+    workflow = RuntimeWorkflow(repo, run, task_runner=runner, max_retry_count=2)
     attempt, result = workflow._run_task("plan.series.generate", {}, reason="retry contract")
 
     assert result == {"title": "recovered"}
@@ -35,9 +36,9 @@ def test_generation_retry_uses_a_new_attempt_and_preserves_failure(tmp_path) -> 
     assert second["retry_number"] == 2
 
 
-def test_verbose_task_binds_attempt_scoped_capture(tmp_path) -> None:
+def test_task_capture_writes_evidence_even_when_run_is_not_verbose(tmp_path) -> None:
     repo = RunRepository(tmp_path)
-    run = repo.create_run(command="plan", model="fake", verbose=True)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
     captured = []
 
     def runner(_task: str, _values: dict[str, object]) -> dict[str, object]:

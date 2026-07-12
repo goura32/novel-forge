@@ -69,12 +69,69 @@
         "type": "object",
         "description": "初期 location。名称、種別、開始時の状態と、その場所で守る制約を具体的に記述する。",
         "properties": {
-          "name": {"type": "string", "description": "作中で使う固有の場所名。"},
-          "kind": {"type": "string", "description": "city、village、building、region 等の場所種別。"},
-          "current_state": {"type": "string", "description": "物語開始時点の観測可能な状況。"},
-          "immutable_constraints": {"type": "array", "description": "この場所で常に成立する制約。", "minItems": 1, "items": {"type": "string", "description": "作中で検証可能な場所固有の制約。"}}
+          "name": {
+            "type": "string",
+            "description": "作中で使う固有の場所名。"
+          },
+          "kind": {
+            "type": "string",
+            "description": "city、village、building、region 等の場所種別。"
+          },
+          "current_state": {
+            "type": "string",
+            "description": "物語開始時点の観測可能な状況。"
+          },
+          "immutable_constraints": {
+            "type": "array",
+            "description": "この場所で常に成立する制約。",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "description": "作中で検証可能な場所固有の制約。"
+            }
+          }
         },
-        "required": ["name", "kind", "current_state", "immutable_constraints"]
+        "required": [
+          "name",
+          "kind",
+          "current_state",
+          "immutable_constraints"
+        ]
+      }
+    },
+    "main_characters": {
+      "description": "物語の主要キャラクター。後続の design.scene 工程が canon の正式名で照合するために必須。1名以上。",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "description": "主要キャラクター。name は canon の正式名として使われる。",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "キャラクターの正式名（例：ルナ）。後続工程がこの名前で照合するため、注釈・括弧書き・役割説明を付けない。"
+          },
+          "role": {
+            "type": "string",
+            "description": "役割（例：主人公、相棒、敵対者、契約者）。"
+          },
+          "stance": {
+            "type": "string",
+            "description": "主人公に対する立場・距離（例：味方、敵対、中立）。"
+          },
+          "motivation": {
+            "type": "string",
+            "description": "その人物が物語内で行動する具体的な動機と目的。"
+          },
+          "arc": {
+            "type": "string",
+            "description": "シリーズ全体を通じて本人が経験する明確な変化の弧。"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ]
       }
     }
   },

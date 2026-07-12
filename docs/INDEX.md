@@ -1,6 +1,6 @@
 # ドキュメント索引
 
-最終更新: 2026-07-10
+最終更新: 2026-07-12
 
 この索引にある文書だけを現行の案内・仕様として扱います。完了済みの改善計画、過去の監査レポート、廃止済み Bible 仕様は Git 履歴で参照してください。
 
@@ -22,6 +22,7 @@
 | 現在の runtime 構成、データフロー、v2 との境界 | [ARCHITECTURE](dev/ARCHITECTURE.md) |
 | prompt の役割・改善方針 | [PROMPTS](PROMPTS.md) |
 | prompt / schema / 実行経路 | [PROMPT_SCHEMA_MAP](PROMPT_SCHEMA_MAP.md) |
+| LLM全工程の generate/review/revise と Canon ID 契約 | [LLM_REVIEW_CONTRACT](dev/LLM_REVIEW_CONTRACT.md) |
 | JSON Schema の変更と検証 | [schema_maintenance](dev/schema_maintenance.md) |
 | raw LLM log の保存形式 | [RAW_LOG_FORMAT](dev/raw_log_format.md) |
 | 設定・命名・非上書き run 保全の未実装再設計仕様 | [RUNTIME_ARTIFACT_RETENTION_REDESIGN](dev/RUNTIME_ARTIFACT_RETENTION_REDESIGN.md) |

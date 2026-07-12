@@ -27,7 +27,7 @@ from novel_forge.canon.runtime import (
     attach_projection,
     review_scene_patch,
 )
-from novel_forge.llm_client import LLMTransportError
+from novel_forge.llm_client import LLMError, LLMTransportError
 from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
     ArtifactReference,
@@ -60,7 +60,7 @@ class RuntimeWorkflow:
         task_runner: TaskRunner,
         max_review_count: int = 3,
         max_summary_review_count: int = 2,
-        max_generation_count: int = 4,
+        max_retry_count: int = 7,
     ) -> None:
         self.repository = repository
         self.run = run
@@ -68,7 +68,7 @@ class RuntimeWorkflow:
         self.task_runner = task_runner
         self.max_review_count = max_review_count
         self.max_summary_review_count = max_summary_review_count
-        self.max_generation_count = max_generation_count
+        self.max_retry_count = max_retry_count
         self._snapshot: SelectionSnapshot | None = None
         if run.manifest.input_snapshot_id is not None:
             if not slug:
@@ -132,16 +132,13 @@ class RuntimeWorkflow:
                 "Canon event revision must exceed the selected event for its scene"
             )
         active[incoming.source.scene_id] = incoming
-        frontier_payload = {
-            "events": [
-                event.model_dump(mode="json")
-                for event in active.values()
-            ]
-        }
+        frontier_payload = {"events": [event.model_dump(mode="json") for event in active.values()]}
         try:
             replay_frontier(self._payload("canon.seed"), frontier_payload)
         except (SeedPayloadError, FrontierPayloadError, ValueError) as exc:
-            raise RuntimeContractError(f"candidate Canon frontier cannot be replayed: {exc}") from exc
+            raise RuntimeContractError(
+                f"candidate Canon frontier cannot be replayed: {exc}"
+            ) from exc
 
         parent = self._selected("canon.frontier")
         seed = self._selected("canon.seed")
@@ -156,9 +153,7 @@ class RuntimeWorkflow:
             input_artifact_ids=(parent.artifact_id, seed.artifact_id),
             quality_status="passed",
         )
-        logical_key = (
-            f"canon.frontier.{incoming.source.scene_id}.r{incoming.source.revision}"
-        )
+        logical_key = f"canon.frontier.{incoming.source.scene_id}.r{incoming.source.revision}"
         attempt = self._attempt("canon.event.apply", "accept reviewed Canon event")
         ref = self.repository.commit_artifact(
             attempt,
@@ -194,7 +189,9 @@ class RuntimeWorkflow:
         ``CanonEventStore`` or legacy design file.
         """
         if design.status != "draft" or design.canon_patch is not None:
-            raise RuntimeContractError("public scene acceptance requires a draft SceneDesign without canon_patch")
+            raise RuntimeContractError(
+                "public scene acceptance requires a draft SceneDesign without canon_patch"
+            )
         canon = self.load_canon()
         try:
             active_events = list(validate_frontier_payload(self._payload("canon.frontier")))
@@ -284,20 +281,31 @@ class RuntimeWorkflow:
         *,
         reason: str,
     ) -> tuple[AttemptHandle, dict[str, Any]]:
-        """Run a generation, recording each retry as a distinct immutable attempt."""
+        """Run a task; schema/contract retry attempts get a fresh Ollama seed."""
         last_error: Exception | None = None
-        for retry_number in range(1, self.max_generation_count + 1):
+        for retry_number in range(1, self.max_retry_count + 1):
             attempt = self._attempt(task_id, reason, retry_number=retry_number)
+            set_retry_seed = getattr(self.task_runner, "set_retry_seed", None)
+            if retry_number > 1 and callable(set_retry_seed):
+                set_retry_seed(retry_number)
             set_capture = getattr(self.task_runner, "set_attempt_capture", None)
             if callable(set_capture):
                 set_capture(AttemptCapture(self.repository, attempt, self.run.manifest.verbose))
             try:
                 result = self.task_runner(task_id, values)
             except LLMTransportError as exc:
-                retryable = retry_number < self.max_generation_count
                 self.repository.fail_attempt(
                     attempt,
                     error_code="TRANSPORT_ERROR",
+                    retryable=False,
+                    detail=str(exc),
+                )
+                raise
+            except LLMError as exc:
+                retryable = retry_number < self.max_retry_count
+                self.repository.fail_attempt(
+                    attempt,
+                    error_code="CONTRACT_ERROR",
                     retryable=retryable,
                     detail=str(exc),
                 )
@@ -306,16 +314,12 @@ class RuntimeWorkflow:
                     continue
                 raise
             except Exception as exc:
-                retryable = retry_number < self.max_generation_count
                 self.repository.fail_attempt(
                     attempt,
                     error_code="TASK_ERROR",
-                    retryable=retryable,
+                    retryable=False,
                     detail=str(exc),
                 )
-                last_error = exc
-                if retryable:
-                    continue
                 raise
             finally:
                 if callable(set_capture):
@@ -323,7 +327,7 @@ class RuntimeWorkflow:
             if not isinstance(result, dict):
                 detail = repr(result)
                 error = RuntimeContractError(f"task runner returned non-object for {task_id}")
-                retryable = retry_number < self.max_generation_count
+                retryable = retry_number < self.max_retry_count
                 self.repository.fail_attempt(
                     attempt,
                     error_code="INVALID_TASK_RESULT",
@@ -337,6 +341,37 @@ class RuntimeWorkflow:
             return attempt, result
         assert last_error is not None
         raise last_error
+
+    def _review_and_revise(
+        self,
+        stem: str,
+        candidate: dict[str, Any],
+        candidate_attempt: AttemptHandle,
+        *,
+        review_values: Callable[[dict[str, Any]], dict[str, Any]],
+        revise_values: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
+        contract_issues: Callable[[dict[str, Any]], list[dict[str, Any]]] | None = None,
+    ) -> tuple[AttemptHandle, dict[str, Any]]:
+        """Run bounded cross-phase review/revision; the final revision advances downstream."""
+        attempt, current = candidate_attempt, candidate
+        for cycle in range(1, self.max_review_count + 1):
+            _, llm_review = self._run_task(
+                f"{stem}.review", review_values(current), reason=f"review {stem} candidate"
+            )
+            issues = list(llm_review.get("issues", []))
+            if contract_issues is not None:
+                issues.extend(contract_issues(current))
+            if not issues:
+                return attempt, current
+            review = {"issues": issues}
+            if cycle == self.max_review_count:
+                return attempt, current
+            attempt, current = self._run_task(
+                f"{stem}.revise",
+                revise_values(current, review),
+                reason=f"revise {stem} after review",
+            )
+        raise AssertionError("unreachable review loop")
 
     def _commit_task_result(
         self,
@@ -438,7 +473,10 @@ class RuntimeWorkflow:
         )
         # The manifest is immutable, therefore the reference above cannot be edited.
         # Commit a correct root with its own attempt and use it instead.
-        if frontier_manifest.canon_lineage_root_digest != frontier_ref.manifest.canon_lineage_root_digest:
+        if (
+            frontier_manifest.canon_lineage_root_digest
+            != frontier_ref.manifest.canon_lineage_root_digest
+        ):
             attempt = self._attempt("plan.canon_frontier.generate", "bind Canon lineage root")
             frontier_ref = self.repository.commit_artifact(
                 attempt,
@@ -501,12 +539,11 @@ class RuntimeWorkflow:
 
     @staticmethod
     def _design_author_context(canon: Canon) -> dict[str, Any]:
-        """Return the deterministic, ID-free Canon projection for design LLMs.
+        """Return the author context and the exact Canon IDs permitted to design.
 
-        Design may use author context, but never the raw Canon / event payload.
-        Stable IDs are retained only inside typed runtime artifacts and are
-        resolved once after generation.  This deliberately exposes narrative
-        labels and state rather than serializing domain records wholesale.
+        IDs are intentionally supplied to the design/review/revise prompts.  An
+        LLM must select one of these opaque IDs; names are narrative labels only
+        and are never resolved by fuzzy matching at the runtime boundary.
         """
         names = {character.id: character.identity.display_name for character in canon.characters}
         collective_names = {collective.id: collective.name for collective in canon.collectives}
@@ -515,7 +552,8 @@ class RuntimeWorkflow:
             "world_rules": [rule.statement for rule in canon.world_rules],
             "characters": [
                 {
-                    "name": character.identity.display_name,
+                    "id": character.id,
+                    "display_name": character.identity.display_name,
                     "current_state": character.continuity_card.current_state,
                     "affiliations": [
                         collective_names.get(affiliation.collective.id, "")
@@ -526,6 +564,7 @@ class RuntimeWorkflow:
             ],
             "locations": [
                 {
+                    "id": location.id,
                     "name": location.name,
                     "immutable_constraints": location.immutable_constraints,
                     "current_state": location.current_state,
@@ -534,7 +573,10 @@ class RuntimeWorkflow:
             ],
             "relationships": [
                 {
-                    "participants": [names.get(participant_id, "") for participant_id in relationship.participant_ids],
+                    "participants": [
+                        names.get(participant_id, "")
+                        for participant_id in relationship.participant_ids
+                    ],
                     "shared_state": relationship.shared_state,
                     "arc_summary": relationship.arc_summary,
                 }
@@ -542,7 +584,11 @@ class RuntimeWorkflow:
                 if relationship.lifecycle == "active"
             ],
             "active_subplots": [
-                {"name": subplot.name, "current_state": subplot.current_state, "stakes": subplot.stakes}
+                {
+                    "name": subplot.name,
+                    "current_state": subplot.current_state,
+                    "stakes": subplot.stakes,
+                }
                 for subplot in canon.subplots
                 if subplot.status == "active"
             ],
@@ -558,36 +604,77 @@ class RuntimeWorkflow:
         }
 
     @staticmethod
-    def _resolve_character_id(canon: Canon, label: object) -> str:
-        if not isinstance(label, str) or not label.strip():
-            raise RuntimeContractError("scene character label must be a non-empty string")
-        matches = [
-            character.id
-            for character in canon.characters
-            if character.identity is not None
-            and label in {character.identity.display_name, *character.identity.aliases}
-        ]
-        if len(matches) != 1:
-            raise RuntimeContractError(
-                f"scene character label must resolve to exactly one Canon character: {label!r}"
-            )
-        return matches[0]
+    def _require_canon_id(
+        canon: Canon, entity_kind: Literal["character", "location"], value: object
+    ) -> str:
+        if not isinstance(value, str) or not value:
+            raise RuntimeContractError(f"scene {entity_kind}_id must be a non-empty Canon ID")
+        entities = canon.characters if entity_kind == "character" else canon.locations
+        if any(entity.id == value for entity in entities):
+            return value
+        raise RuntimeContractError(f"scene {entity_kind}_id does not exist in Canon: {value!r}")
 
     @staticmethod
-    def _resolve_location_id(canon: Canon, setting: object) -> str:
-        if not isinstance(setting, str) or not setting.strip():
-            raise RuntimeContractError("scene setting must be a non-empty string")
-        normalized = setting.strip()
-        matches = [
-            location.id
-            for location in canon.locations
-            if location.name == normalized or location.name in normalized
-        ]
-        if len(matches) != 1:
-            raise RuntimeContractError(
-                f"scene setting must resolve to exactly one Canon location: {setting!r}"
+    def _compile_scene_updates(canon: Canon, updates: object) -> dict[str, Any]:
+        """Compile the small, ID-only scene DSL to the strict CanonPatch shape."""
+        if not isinstance(updates, list):
+            raise RuntimeContractError("scene canon_updates must be an array")
+        character_ids = {entity.id for entity in canon.characters}
+        location_ids = {entity.id for entity in canon.locations}
+        artifact_ids = {entity.id for entity in canon.artifacts}
+        patch: dict[str, Any] = {
+            "characters": {"state_updates": []},
+            "locations": {"state_updates": []},
+            "artifacts": {"custody_updates": [], "condition_updates": []},
+        }
+        for index, update in enumerate(updates):
+            if not isinstance(update, dict):
+                raise RuntimeContractError(f"canon_updates[{index}] must be an object")
+            operation, target_id, value = (
+                update.get("operation"),
+                update.get("target_id"),
+                update.get("value"),
             )
-        return matches[0]
+            if not isinstance(value, str) or not value.strip():
+                raise RuntimeContractError(f"canon_updates[{index}].value must be non-empty")
+            if operation == "set_character_state":
+                if target_id not in character_ids:
+                    raise RuntimeContractError(
+                        f"canon_updates[{index}].target_id is not a Canon character: {target_id!r}"
+                    )
+                patch["characters"]["state_updates"].append(
+                    {"character": {"kind": "character", "id": target_id}, "current_state": value}
+                )
+            elif operation == "set_location_state":
+                if target_id not in location_ids:
+                    raise RuntimeContractError(
+                        f"canon_updates[{index}].target_id is not a Canon location: {target_id!r}"
+                    )
+                patch["locations"]["state_updates"].append(
+                    {"id": target_id, "current_state": value}
+                )
+            elif operation == "set_artifact_condition":
+                if target_id not in artifact_ids:
+                    raise RuntimeContractError(
+                        f"canon_updates[{index}].target_id is not a Canon artifact: {target_id!r}"
+                    )
+                patch["artifacts"]["condition_updates"].append(
+                    {"id": target_id, "condition": value}
+                )
+            elif operation == "transfer_artifact":
+                holder_id = update.get("holder_id")
+                if target_id not in artifact_ids or holder_id not in character_ids:
+                    raise RuntimeContractError(
+                        f"canon_updates[{index}] requires existing artifact target_id and character holder_id"
+                    )
+                patch["artifacts"]["custody_updates"].append(
+                    {"id": target_id, "custody": {"kind": "character", "id": holder_id}}
+                )
+            else:
+                raise RuntimeContractError(
+                    f"canon_updates[{index}].operation is not supported: {operation!r}"
+                )
+        return patch
 
     def _scene_from_generated_payload(
         self,
@@ -600,18 +687,18 @@ class RuntimeWorkflow:
     ) -> tuple[SceneDesign, dict[str, Any]]:
         """Resolve an LLM narrative scene into one typed, Canon-scoped design."""
         try:
-            pov_id = self._resolve_character_id(canon, raw_scene["pov"])
-            setting_id = self._resolve_location_id(canon, raw_scene["setting"])
-            labels = raw_scene["characters"]
-            if not isinstance(labels, list):
-                raise RuntimeContractError("scene characters must be an array")
-            cast_ids = {self._resolve_character_id(canon, label) for label in labels}
+            pov_id = self._require_canon_id(canon, "character", raw_scene["pov_character_id"])
+            setting_id = self._require_canon_id(canon, "location", raw_scene["location_id"])
+            raw_cast_ids = raw_scene["character_ids"]
+            if not isinstance(raw_cast_ids, list):
+                raise RuntimeContractError("scene character_ids must be an array")
+            cast_ids = {self._require_canon_id(canon, "character", value) for value in raw_cast_ids}
             cast_ids.add(pov_id)
-            patch = raw_scene["canon_patch"]
-            if not isinstance(patch, dict):
-                raise RuntimeContractError("scene canon_patch must be an object")
+            patch = self._compile_scene_updates(canon, raw_scene["canon_updates"])
         except KeyError as exc:
-            raise RuntimeContractError(f"scene generation is missing required field: {exc.args[0]}") from exc
+            raise RuntimeContractError(
+                f"scene generation is missing required field: {exc.args[0]}"
+            ) from exc
 
         scope = ContextScope(
             pov_character=EntityRef(kind="character", id=pov_id),
@@ -670,6 +757,22 @@ class RuntimeWorkflow:
             },
             reason="generate volume skeleton",
         )
+        volume_attempt, volume_design = self._review_and_revise(
+            "design.volume",
+            volume_design,
+            volume_attempt,
+            review_values=lambda candidate: {
+                "series_plan": plan,
+                "design": candidate,
+                "canon_context": self._design_author_context(self.load_canon()),
+            },
+            revise_values=lambda candidate, review: {
+                "series_plan": plan,
+                "current_volume": candidate,
+                "review": review,
+                "canon_context": self._design_author_context(self.load_canon()),
+            },
+        )
         if not isinstance(volume_design.get("chapters"), list) or not volume_design["chapters"]:
             raise RuntimeContractError("volume design must contain at least one chapter")
 
@@ -708,8 +811,26 @@ class RuntimeWorkflow:
                 },
                 reason=f"generate chapter {chapter_number}",
             )
+            chapter_attempt, chapter_design = self._review_and_revise(
+                "design.chapter",
+                chapter_design,
+                chapter_attempt,
+                review_values=lambda candidate: {
+                    "series_plan": plan,
+                    "design": candidate,
+                    "canon_context": self._design_author_context(self.load_canon()),
+                },
+                revise_values=lambda candidate, review: {
+                    "series_plan": plan,
+                    "current_chapter": candidate,
+                    "review": review,
+                    "canon_context": self._design_author_context(self.load_canon()),
+                },
+            )
             if not isinstance(chapter_design.get("scenes"), list) or not chapter_design["scenes"]:
-                raise RuntimeContractError(f"chapter {chapter_number} must contain at least one scene")
+                raise RuntimeContractError(
+                    f"chapter {chapter_number} must contain at least one scene"
+                )
             self._commit_task_result(
                 chapter_attempt,
                 task_id="design.chapter.generate",
@@ -737,7 +858,9 @@ class RuntimeWorkflow:
                         "chapter_purpose": chapter_design.get("purpose", ""),
                         "chapter_theme": chapter_design.get("theme", ""),
                         "chapter_emotional_arc": chapter_design.get("emotional_arc", ""),
-                        "chapter_foreshadowing_notes": chapter_design.get("foreshadowing_notes", []),
+                        "chapter_foreshadowing_notes": chapter_design.get(
+                            "foreshadowing_notes", []
+                        ),
                         "chapter_subplot_notes": chapter_design.get("subplot_notes", []),
                         "scene_number": ordinal,
                         "scene_count": ordinal,
@@ -751,6 +874,55 @@ class RuntimeWorkflow:
                     reason=f"generate scene {chapter_number}/{chapter_scene_number}",
                 )
                 canon = self.load_canon()
+
+                def scene_contract(
+                    candidate: dict[str, Any],
+                    *,
+                    _canon: Canon = canon,
+                    _chapter_number: int = chapter_number,
+                    _ordinal: int = ordinal,
+                ) -> list[dict[str, Any]]:
+                    try:
+                        self._scene_from_generated_payload(
+                            candidate,
+                            canon=_canon,
+                            volume=volume,
+                            chapter=_chapter_number,
+                            ordinal=_ordinal,
+                        )
+                    except RuntimeContractError as exc:
+                        return [
+                            {"severity": "error", "category": "canon_contract", "message": str(exc)}
+                        ]
+                    return []
+
+                def scene_review_values(
+                    candidate: dict[str, Any], *, _canon: Canon = canon
+                ) -> dict[str, Any]:
+                    return {
+                        "series_plan": plan,
+                        "design": candidate,
+                        "canon_context": self._design_author_context(_canon),
+                    }
+
+                def scene_revise_values(
+                    candidate: dict[str, Any], review: dict[str, Any], *, _canon: Canon = canon
+                ) -> dict[str, Any]:
+                    return {
+                        "series_plan": plan,
+                        "current_scene": candidate,
+                        "review": review,
+                        "canon_context": self._design_author_context(_canon),
+                    }
+
+                scene_attempt, raw_scene = self._review_and_revise(
+                    "design.scene",
+                    raw_scene,
+                    scene_attempt,
+                    review_values=scene_review_values,
+                    revise_values=scene_revise_values,
+                    contract_issues=scene_contract,
+                )
                 design, patch = self._scene_from_generated_payload(
                     raw_scene,
                     canon=canon,
@@ -827,11 +999,18 @@ class RuntimeWorkflow:
             for cycle in range(self.max_review_count):
                 review_attempt, review = self._run_task(
                     "write.draft.review",
-                    {"writer_context": writer_context, "draft": self.repository.read_payload(final_draft)},
+                    {
+                        "writer_context": writer_context,
+                        "draft": self.repository.read_payload(final_draft),
+                    },
                     reason=f"draft review {cycle + 1}",
                 )
                 issues = review.get("issues", [])
-                review_key = f"{stem}.final_review" if not issues or cycle + 1 == self.max_review_count else f"{stem}.draft_review.{cycle + 1}"
+                review_key = (
+                    f"{stem}.final_review"
+                    if not issues or cycle + 1 == self.max_review_count
+                    else f"{stem}.draft_review.{cycle + 1}"
+                )
                 final_review = self._commit_task_result(
                     review_attempt,
                     task_id="write.draft.review",
@@ -841,7 +1020,9 @@ class RuntimeWorkflow:
                     payload_name=f"{review_key}.json",
                     input_artifact_ids=(final_draft.artifact_id,),
                 )
-                if not issues or cycle + 1 == self.max_review_count:
+                if not issues:
+                    break
+                if cycle + 1 == self.max_review_count:
                     break
                 revise_attempt, revised = self._run_task(
                     "write.draft.revise",
@@ -868,7 +1049,9 @@ class RuntimeWorkflow:
                 raise RuntimeContractError("draft review was not recorded")
             # Ensure the selected final draft has the canonical slot key.
             if final_draft.manifest.logical_key != f"{stem}.draft":
-                selected_attempt = self._attempt("write.draft.revise", "commit final selected draft")
+                selected_attempt = self._attempt(
+                    "write.draft.revise", "commit final selected draft"
+                )
                 final_draft = self.repository.commit_artifact(
                     selected_attempt,
                     artifact_type="write.draft",
@@ -876,7 +1059,7 @@ class RuntimeWorkflow:
                     payload=self.repository.read_payload(final_draft),
                     payload_name=f"{stem}.draft.final.json",
                     input_artifact_ids=(final_draft.artifact_id,),
-                    quality_status="review_limit_reached" if review.get("issues") else "passed",
+                    quality_status="passed",
                 )
             summary_ref, summary_review = self._make_summary(
                 writer_context, final_draft, previous_summary, stem
@@ -936,7 +1119,9 @@ class RuntimeWorkflow:
                 payload_name=f"{stem}.summary_review.{cycle + 1}.json",
                 input_artifact_ids=(draft_ref.artifact_id, final.artifact_id),
             )
-            if not review.get("issues") or cycle + 1 == self.max_summary_review_count:
+            if not review.get("issues"):
+                break
+            if cycle + 1 == self.max_summary_review_count:
                 break
             revise_attempt, revised = self._run_task(
                 "write.summary.revise",
@@ -954,9 +1139,7 @@ class RuntimeWorkflow:
             )
         if final_review is None:
             raise RuntimeContractError("summary review was not recorded")
-        status: Literal["passed", "review_limit_reached"] = (
-            "review_limit_reached" if review.get("issues") else "passed"
-        )
+        status: Literal["passed"] = "passed"
         selected_attempt = self._attempt("write.summary.revise", "commit selected summary")
         selected = self.repository.commit_artifact(
             selected_attempt,
@@ -996,7 +1179,9 @@ class RuntimeWorkflow:
             final_review_ref = self._selected(f"{stem}.final_review")
             draft = self.repository.read_payload(draft_ref)
             contents.append(str(draft.get("content", "")))
-            input_ids.update((draft_ref.artifact_id, summary_ref.artifact_id, final_review_ref.artifact_id))
+            input_ids.update(
+                (draft_ref.artifact_id, summary_ref.artifact_id, final_review_ref.artifact_id)
+            )
             summary_review_id = summary_ref.manifest.metadata.get("summary_review_artifact_id")
             if isinstance(summary_review_id, str):
                 input_ids.add(summary_review_id)
@@ -1024,4 +1209,8 @@ class RuntimeWorkflow:
             input_artifact_ids=tuple(input_ids),
             metadata={"input_snapshot_id": self.snapshot.selection_snapshot_id},
         )
-        return {**manuscript, "artifact_id": ref.artifact_id, "input_snapshot_id": self.snapshot.selection_snapshot_id}
+        return {
+            **manuscript,
+            "artifact_id": ref.artifact_id,
+            "input_snapshot_id": self.snapshot.selection_snapshot_id,
+        }

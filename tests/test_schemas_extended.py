@@ -307,18 +307,15 @@ class TestValidate:
             "goal": "主人公が家族に別れを告げ、旅立ちの準備を整えて家を出る",
             "conflict": "不安と期待が入り混じる心情、父親の反対と母親の心配",
             "outcome": "父親の理解を得て、旅立つ決意を新たにして門を出る",
-            "pov": "主人公",
-            "characters": ["主人公", "父親", "母親"],
+            "pov_character_id": "char_001",
+            "character_ids": ["char_001", "char_002", "char_003"],
             "key_events": ["荷物の最終確認", "父親との対話", "母親の弁当", "門を出る"],
-            "setting": "主人公の実家、早朝の台所から玄関、そして村道へ",
+            "location_id": "loc_001",
             "hook": "台所に置かれた荷物の紐が震えている。",
             "turning_point": "父親が反対を解き、古い地図を手渡す。",
             "emotional_arc": "不安から決意へ",
             "ending_hook": "門の外で地図と同じ印が光る。",
-            "canon_patch": {
-                "characters": {"state_updates": [{"character": {"id": "char_001"}, "current_state": "旅立ちの決意を固める"}]},
-                "foreshadowing": {"plant": [{"description": "門の外の印", "intended_payoff": "地図と同じ印の意味が判明する"}]},
-            },
+            "canon_updates": [{"operation": "set_character_state", "target_id": "char_001", "value": "旅立ちの決意を固める"}],
         }
         errors = validate("design_scene", data)
         assert len(errors) == 0
@@ -385,13 +382,13 @@ class TestSchemaFieldCoverage:
         schema = get_schema("design_chapter")
         assert "emotional_arc" in schema["properties"]
 
-    def test_scene_design_has_pov(self):
+    def test_scene_design_has_pov_character_id(self):
         schema = get_schema("design_scene")
-        assert "pov" in schema["properties"]
+        assert "pov_character_id" in schema["properties"]
 
-    def test_scene_design_has_characters(self):
+    def test_scene_design_has_character_ids(self):
         schema = get_schema("design_scene")
-        assert "characters" in schema["properties"]
+        assert "character_ids" in schema["properties"]
 
     def test_scene_review_has_issues(self):
         schema = get_schema("review_issues")

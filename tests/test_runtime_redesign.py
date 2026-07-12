@@ -41,7 +41,7 @@ def _artifact(repo: RunRepository, run, *, artifact_type: str, logical_key: str,
 
 def test_registry_has_only_explicit_and_complete_resource_ownership() -> None:
     task_ids = {spec.task_id for spec in DEFAULT_TASK_REGISTRY.all()}
-    assert len(task_ids) == 16
+    assert len(task_ids) == 18
     assert not any(task_id.startswith(("plan.concept.", "plan.characters.", "plan.volumes.")) for task_id in task_ids)
     assert DEFAULT_TASK_REGISTRY.validate_resources() == []
     assert DEFAULT_TASK_REGISTRY.get("write.draft.revise").schema == "write_draft"

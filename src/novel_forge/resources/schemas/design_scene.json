@@ -2,183 +2,39 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SceneDesign",
   "type": "object",
-  "required": [
-    "title",
-    "goal",
-    "outcome",
-    "conflict",
-    "pov",
-    "characters",
-    "key_events",
-    "setting",
-    "hook",
-    "turning_point",
-    "emotional_arc",
-    "ending_hook",
-    "canon_patch"
-  ],
+  "additionalProperties": false,
+  "required": ["title", "goal", "outcome", "conflict", "pov_character_id", "character_ids", "key_events", "location_id", "hook", "turning_point", "emotional_arc", "ending_hook", "canon_updates"],
   "properties": {
-    "title": {
-      "description": "そのシーンで起きる中心的な出来事が分かる固有名（例：「初めての契約」）。",
-      "type": "string"
-    },
-    "goal": {
-      "description": "そのシーンでPOV人物が求める具体的な目的（例：子の熱を下げる薬を調合する）。",
-      "type": "string"
-    },
-    "outcome": {
-      "description": "シーン末で確定する結果（例：主人公が精霊契約で熱を鎮める）。",
-      "type": "string"
-    },
-    "conflict": {
-      "description": "目的を阻む具体的な対立・制約（例：王印断絶で常法の魔法薬が効かない）。",
-      "type": "string"
-    },
-    "pov": {
-      "description": "視点人物。出力の文脈で後続の設計・執筆に使える具体的な日本語で書く。",
-      "type": "string"
-    },
-    "characters": {
-      "description": "登場人物。1〜10個推奨。",
+    "title": {"type": "string"},
+    "goal": {"type": "string"},
+    "outcome": {"type": "string"},
+    "conflict": {"type": "string"},
+    "pov_character_id": {"type": "string", "description": "canon_context.characters[].id の完全一致。表示名は禁止。"},
+    "character_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "description": "canon_context.characters[].id の完全一致。"}},
+    "location_id": {"type": "string", "description": "canon_context.locations[].id の完全一致。場所の情景は sensory_focus に書く。"},
+    "key_events": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "hook": {"type": "string"},
+    "turning_point": {"type": "string"},
+    "emotional_arc": {"type": "string"},
+    "ending_hook": {"type": "string"},
+    "sensory_focus": {"type": "array", "items": {"type": "string"}},
+    "subtext": {"type": "string"},
+    "foreshadowing": {"type": "array", "items": {"type": "string"}},
+    "canon_updates": {
       "type": "array",
+      "description": "既存 Canon への単純な更新意図。create や曖昧な参照は禁止。Python が strict CanonPatch にコンパイルする。",
       "items": {
-        "type": "string",
-        "description": "登場人物。登場人物の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      },
-      "minItems": 1
-    },
-    "key_events": {
-      "description": "主要イベント。1〜5個推奨。",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "key events。key eventsの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      },
-      "minItems": 1
-    },
-    "setting": {
-      "description": "場所・時間・環境の具体（例：雪国の療養村、未明、薬炉の火と外の吹雪）。",
-      "type": "string"
-    },
-    "hook": {
-      "description": "冒頭1〜2文で使える具体的な引き（例：薬炉の前で子が青く痙攣している）。進行中の異変・欲求から始める。",
-      "type": "string"
-    },
-    "turning_point": {
-      "description": "場面中の不可逆な変化（例：主人公が静寂回路を開き結晶を解かす）。このシーン固有の変化に。",
-      "type": "string"
-    },
-    "emotional_arc": {
-      "description": "POV人物がそのシーンを通して追う感情の変化（例：無力感から、新たな契約への希望へ）。",
-      "type": "string"
-    },
-    "ending_hook": {
-      "description": "次シーンへの引き（例：解けた結晶から小さな精霊の光が漏れ出す）。未解決の問いとして機能させる。",
-      "type": "string"
-    },
-    "sensory_focus": {
-      "description": "このシーンで重点的に使う感覚。",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "sensory focus。sensory focusの文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      }
-    },
-    "subtext": {
-      "description": "台詞や行動の裏にある本音・隠し事・対立（例：助言しつつも王都への密書を隠す）。",
-      "type": "string"
-    },
-    "foreshadowing": {
-      "description": "設置または回収する伏線（例：薬炉の灰に混じる青い結晶の欠片）。後の回収が見える具体に。",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "description": "伏線。伏線の文脈で後続の設計・執筆に使える具体的な日本語で書く。"
-      }
-    },
-    "canon_patch": {
-      "description": "このシーンのみが Canon を更新するための差分。review 合格後にのみ適用される。各 entity は create / state_updates / promote / identity_reveals 等の操作を持つ。新規 entity は creation_key で一意に識別し、名前類似から既存を推測しない。",
-      "type": "object",
-      "properties": {
-        "characters": {
-          "type": "object",
-          "description": "キャラクターに対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規キャラクター作成オブジェクト。creation_key で一意に識別する。"}, "description": "新規キャラクターを作成する。creation_key は必須。"},
-            "state_updates": {"type": "array", "items": {"type": "object", "description": "既存キャラクターの状態更新オブジェクト。character.id で対象を指定する。"}, "description": "既存キャラクターの状態を更新する。character.id は必須。"},
-            "promote": {"type": "array", "items": {"type": "object", "description": "重要性昇格オブジェクト。character.id で対象を指定する。"}, "description": "キャラクターをより重要な階層へ昇格する。character.id は必須。"},
-            "identity_reveals": {"type": "array", "items": {"type": "object", "description": "正体開示オブジェクト。character.id で対象を指定する。"}, "description": "キャラクターの正体を開示する。character.id は必須。"}
-          }
-        },
-        "collectives": {
-          "type": "object",
-          "description": "集団に対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規集団作成オブジェクト。"}, "description": "新規の集団を作成する。creation_key で一意に識別する。"},
-            "state_updates": {"type": "array", "items": {"type": "object", "description": "集団状態更新オブジェクト。"}, "description": "既存集団の状態を更新する。"}
-          }
-        },
-        "locations": {
-          "type": "object",
-          "description": "場所に対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規場所作成オブジェクト。"}, "description": "新規の場所を作成する。creation_key で一意に識別する。"},
-            "state_updates": {"type": "array", "items": {"type": "object", "description": "場所状態更新オブジェクト。"}, "description": "既存場所の状態を更新する。"}
-          }
-        },
-        "artifacts": {
-          "type": "object",
-          "description": "アーティファクトに対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規アーティファクト作成オブジェクト。"}, "description": "新規のアーティファクトを作成する。"},
-            "custody_updates": {"type": "array", "items": {"type": "object", "description": "所持権更新オブジェクト。"}, "description": "アーティファクトの所持権を更新する。"},
-            "condition_updates": {"type": "array", "items": {"type": "object", "description": "状態更新オブジェクト。character.id 等で対象を指定する。"}, "description": "アーティファクトの状態を更新する。"}
-          }
-        },
-        "knowledge": {
-          "type": "object",
-          "description": "知識に対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規知識作成オブジェクト。"}, "description": "新規の知識を作成する。creation_key で一意に識別する。"},
-            "holder_updates": {"type": "array", "items": {"type": "object", "description": "保持者更新オブジェクト。"}, "description": "知識の保持者を更新する。"},
-            "visibility_updates": {"type": "array", "items": {"type": "object", "description": "可視性更新オブジェクト。"}, "description": "知識の可視性を更新する。"},
-            "truth_status_transitions": {"type": "array", "items": {"type": "object", "description": "真偽状態遷移オブジェクト。"}, "description": "知識の真偽状態を遷移させる。"}
-          }
-        },
-        "chronology": {
-          "type": "object",
-          "description": "時系列に対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "advance_to": {"type": "string", "description": "物語時系列を進める先のマーカー名を指定する。"},
-            "deadline_updates": {"type": "array", "items": {"type": "object", "description": "締切更新オブジェクト。対象締切を指定する。"}, "description": "アクティブな締切を更新する。"}
-          }
-        },
-        "relationships": {
-          "type": "object",
-          "description": "関係に対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規関係作成オブジェクト。"}, "description": "新規の関係を作成する。creation_key で一意に識別する。"},
-            "updates": {"type": "array", "items": {"type": "object", "description": "関係更新オブジェクト。対象関係を指定する。"}, "description": "既存関係を更新する。対象関係を指定する。"}
-          }
-        },
-        "foreshadowing": {
-          "type": "object",
-          "description": "伏線に対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "plant": {"type": "array", "items": {"type": "object", "description": "伏線設置オブジェクト。後の回収が見える具体に。"}, "description": "新しい伏線を設置する。後の回収が見える具体に。"},
-            "payoff": {"type": "array", "items": {"type": "object", "description": "伏線回収オブジェクト。設置済み伏線を指定する。"}, "description": "既存の伏線を回収する。設置済み伏線を指定する。"}
-          }
-        },
-        "subplots": {
-          "type": "object",
-          "description": "サブプロットに対する Canon 差分をまとめるオブジェクト。",
-          "properties": {
-            "create": {"type": "array", "items": {"type": "object", "description": "新規サブプロット作成オブジェクト。"}, "description": "新規のサブプロットを作成する。"},
-            "state_updates": {"type": "array", "items": {"type": "object", "description": "サブプロット状態更新オブジェクト。"}, "description": "既存サブプロットの状態を更新する。"}
-          }
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation", "target_id", "value"],
+        "properties": {
+          "operation": {"type": "string", "enum": ["set_character_state", "set_location_state", "set_artifact_condition", "transfer_artifact"]},
+          "target_id": {"type": "string", "description": "canon_context 内の対象 Canon ID。"},
+          "value": {"type": "string", "description": "新しい状態・条件。"},
+          "holder_id": {"type": "string", "description": "transfer_artifact の新しい保持者（canon_context.characters[].id）。"}
         }
       }
     }
   },
-  "description": "シーンの詳細設計。1シーン毎に生成される。デザインであり、シーンの目標・結果・葛藤・POV・キャラクター・キーイベント・設定を含む詳細設計書。"
+  "description": "厳格なID参照を使う1シーンの詳細設計。"
 }

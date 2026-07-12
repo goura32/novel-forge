@@ -24,16 +24,15 @@ _TASK_ROWS = (
 )
 # Names are canonical task resources; no legacy/v2 prompt alias is accepted.
 _PROMPT_OVERRIDES: dict[str, str] = {}
-# Tasks that only have a single generation step (no review/revise chain).
-_SINGLE_STEP_TASKS = frozenset({"plan.series"})
+# Every LLM-authored artifact follows generate → review → revise.  No task is
+# accepted directly from generation; deterministic contract checks join review.
 _OPERATIONS = ("generate", "review", "revise")
 
 
 def _build_tasks() -> dict[str, TaskSpec]:
     tasks: dict[str, TaskSpec] = {}
     for stem, resource_stem in _TASK_ROWS:
-        operations = ("generate",) if stem in _SINGLE_STEP_TASKS else _OPERATIONS
-        for operation in operations:
+        for operation in _OPERATIONS:
             task_id = f"{stem}.{operation}"
             prompt = _PROMPT_OVERRIDES.get(task_id, f"{resource_stem}_{operation}.md")
             tasks[task_id] = TaskSpec(

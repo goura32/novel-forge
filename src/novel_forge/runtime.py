@@ -847,37 +847,31 @@ class RunRepository:
 
 
 class AttemptCapture:
-    """Attempt-scoped LLM evidence writer; raw LLM data only exists when verbose."""
+    """Attempt-scoped immutable LLM evidence writer for every task execution."""
 
     def __init__(self, repository: RunRepository, attempt: AttemptHandle, verbose: bool) -> None:
         self.repository = repository
         self.attempt = attempt
         self.verbose = verbose
         self.llm_dir = attempt.path / "llm"
-        if verbose:
-            repository.writer.mkdir(self.llm_dir)
+        repository.writer.mkdir(self.llm_dir)
 
     def request(self, payload: dict[str, Any]) -> None:
-        if self.verbose:
-            self.repository.writer.write_json(self.llm_dir / "request.json", payload)
+        self.repository.writer.write_json(self.llm_dir / "request.json", payload)
 
     def response_ndjson(self, lines: list[dict[str, Any]]) -> None:
-        if self.verbose:
-            cleaned = [sanitize_for_storage(line) for line in lines]
-            text = "".join(json.dumps(line, ensure_ascii=False, sort_keys=True) + "\n" for line in cleaned)
-            self.repository.writer.write_text(self.llm_dir / "response.ndjson", text)
+        cleaned = [sanitize_for_storage(line) for line in lines]
+        text = "".join(json.dumps(line, ensure_ascii=False, sort_keys=True) + "\n" for line in cleaned)
+        self.repository.writer.write_text(self.llm_dir / "response.ndjson", text)
 
     def response_content(self, content: str) -> None:
-        if self.verbose:
-            self.repository.writer.write_json(self.llm_dir / "response.content.json", {"content": content})
+        self.repository.writer.write_json(self.llm_dir / "response.content.json", {"content": content})
 
     def parsed(self, value: dict[str, Any]) -> None:
-        if self.verbose:
-            self.repository.writer.write_json(self.llm_dir / "parsed.json", value)
+        self.repository.writer.write_json(self.llm_dir / "parsed.json", value)
 
     def validation(self, value: dict[str, Any]) -> None:
-        if self.verbose:
-            self.repository.writer.write_json(self.llm_dir / "validation.json", value)
+        self.repository.writer.write_json(self.llm_dir / "validation.json", value)
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,13 +7,17 @@
 #
 # OLLAMA_OPTIONS 環境変数は config.yaml よりも優先される（オーバーレイ）。
 
+# 作業フォルダ（出力先のルート）
+workspace:
+  root: "/mnt/hdd/novel/"
+
 # 品質ゲート設定
 quality:
-  # 生成API（APIエラー＋バリデーション）の最大リトライ回数
+  # 機械的contract（schema/JSON/ID）違反時の工程内リトライ上限
   # 必須キー欠落やキー名タイポ等の LLM 出力揺らぎはシード値リトライで吸収するため、余裕を持たせる
-  max_generation_count: 10
+  max_retry_count: 7
 
-  # レビュー（レビュー→修正サイクル）の最大回数
+  # レビュー（レビュー→修正サイクル）の工程横断上限
   max_review_count: 3
 
 llm:
@@ -29,12 +33,8 @@ llm:
   # API タイムアウト（秒）
   timeout_seconds: 3600
 
-  # 通信リトライ回数（一時的な LLM API エラーのみ）
-  # JSON/schema 出力不備の再生成は quality.max_generation_count で制御する
-  transport_retries: 2
-
-  # Ollama ホスト（OLLAMA_HOST 環境変数より優先）
-  ollama_host: "ws1.local:11434"
+  # Ollama ホスト（DNS名前解決不安定のためIP直指定）
+  ollama_host: "192.168.1.31:11434"
 
   # Ollama サンプリングオプション
   ollama_options:

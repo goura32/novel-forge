@@ -37,3 +37,7 @@ _debug_*.py
 _measure_*.py
 _measure_out.txt
 runs/
+
+# Local real-model smoke workspaces and captured LLM evidence
+smoke_test*/
+smoke_evidence_raw*/

@@ -125,6 +125,11 @@ def test_complete_uses_public_design_boundary_and_series_lock(tmp_path: Path, mo
             }
 
         @staticmethod
+        def _review_and_revise(_stem: str, candidate: dict[str, Any], attempt: Any, **_kwargs: Any) -> tuple[Any, dict[str, Any]]:
+            calls.append("plan_quality_gate")
+            return attempt, candidate
+
+        @staticmethod
         def bootstrap_plan(
             *, slug: str, plan: dict[str, Any], canon_seed: dict[str, Any], plan_attempt: Any
         ) -> None:
@@ -162,7 +167,7 @@ def test_complete_uses_public_design_boundary_and_series_lock(tmp_path: Path, mo
 
     assert result.exit_code == 0, result.output
     assert calls == [
-        "plan.series.generate", "bootstrap", "generate_volume_design", "write_volume", "export_volume"
+        "plan.series.generate", "plan_quality_gate", "bootstrap", "generate_volume_design", "write_volume", "export_volume"
     ]
     assert not list((tmp_path / ".novel-forge" / "runtime" / "locks").glob("series-series_new.lock.json"))
 

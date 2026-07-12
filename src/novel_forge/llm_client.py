@@ -143,6 +143,10 @@ class LLMClient:
                 "content with format='json'. Consider think=False for production use.[/yellow]"
             )
 
+    def set_retry_seed(self, seed: int) -> None:
+        """Set the Ollama seed for a deterministic contract retry attempt."""
+        self._ollama_options["seed"] = seed
+
     def _detect_max_ctx(self) -> int:
         """Ollama /api/show からモデルの context_length を取得する。"""
         host = os.environ.get("OLLAMA_HOST", "ws1.local:11434")
@@ -247,7 +251,7 @@ class LLMClient:
         raw_text = ""
         try:
             call_start = time.time()
-            raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload)
+            raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload, kind)
             call_elapsed = time.time() - call_start
 
             self._log.debug(
@@ -363,7 +367,7 @@ class LLMClient:
                 thinking_parts.append(thinking)
         return "".join(parts), "".join(thinking_parts)
 
-    def _call_api(self, payload: dict[str, Any]) -> tuple[str, str, str, str, int, int]:
+    def _call_api(self, payload: dict[str, Any], kind: str = "") -> tuple[str, str, str, str, int, int]:
         """Call Ollama API with stream=True.
 
         Returns: (raw_text, content, thinking, done_reason, chunk_count, total_bytes)
@@ -373,6 +377,10 @@ class LLMClient:
         chunk_count = 0
         total_bytes = 0
         call_start = time.time()
+        self._log.info(
+            "  [LLM CALL START] kind=%s url=%s timeout=%s%s",
+            kind, self.api_url, self.timeout_seconds, self._build_meta(),
+        )
         try:
             with httpx.stream(
                 "POST",
@@ -380,8 +388,15 @@ class LLMClient:
                 json=stream_payload,
                 timeout=self.timeout_seconds,
             ) as resp:
+                self._log.info("  [LLM CONNECTED] status=%s", resp.status_code)
                 resp.raise_for_status()
+                first_chunk_received = False
                 for line in resp.iter_lines():
+                    if not first_chunk_received:
+                        first_chunk_received = True
+                        self._log.info(
+                            "  [LLM FIRST CHUNK] elapsed=%.1fs", time.time() - call_start
+                        )
                     if line.strip():
                         lines.append(line.decode("utf-8") if isinstance(line, bytes) else line)
                         chunk_count += 1
@@ -394,15 +409,22 @@ class LLMClient:
                                 chunk_count, total_bytes, elapsed_total, self._build_meta(),
                             )
                             self._last_progress_log = now
+                self._log.info(
+                    "  [LLM STREAM DONE] chunks=%d bytes=%d elapsed=%.1fs",
+                    chunk_count, total_bytes, time.time() - call_start,
+                )
         except httpx.TimeoutException:
             text = "\n".join(lines)
             self._capture_response(text, "")
+            self._log.error("  [LLM TIMEOUT] elapsed=%.1fs chunks=%d", time.time() - call_start, chunk_count)
             raise LLMTransportError("Ollama request timed out") from None
         except httpx.HTTPStatusError as e:
+            self._log.error("  [LLM HTTP ERROR] %s", e)
             raise LLMTransportError(f"Ollama HTTP error: {e}") from e
         except httpx.RequestError as e:
             text = "\n".join(lines)
             self._capture_response(text, "")
+            self._log.error("  [LLM REQUEST ERROR] %s", e)
             raise LLMTransportError(f"Ollama transport error: {e}") from e
         text = "\n".join(lines)
         result, thinking_combined = self._parse_ndjson(text)

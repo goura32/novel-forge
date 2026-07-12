@@ -1,42 +1,35 @@
-# Prompt / Schema / Runtime 対応
+# Prompt / Schema Map
 
-最終更新: 2026-07-10
+この表は現行の immutable runtime の唯一の LLM タスク契約です。旧 `engine/*` / v1 の prompt 名は参照しません。
 
-この表は、現在実装されている v1 runtime の対応です。Series Bible v2 の未実装 Schema は含めません。
+## 全LLM工程の品質ゲート
 
-## 生成・レビュー・改稿
+すべての LLM 成果物は、必ず次の順序で処理されます。
 
-| 工程 | 生成 prompt / schema | review prompt / schema | revision prompt / schema | 主な実行箇所 |
+1. `generate` — schema 準拠候補を作る
+2. `review` — LLM レビューと deterministic contract review を行う
+3. `revise` — issue があれば同じ schema の候補を改訂する
+4. review issues が空になるまで繰り返す。上限到達時は **fail closed**（selection snapshot を進めない）
+
+| 成果物 | generate | review | revise | 出力 schema |
 |---|---|---|---|---|
-| Series concept | `series_plan_concept.md` / `series_plan_concept.json` | `series_plan_concept_review.md` / `review.json` | `series_plan_concept_revision.md` / `series_plan_concept.json` | `engine/plan.py` |
-| Characters | `series_plan_characters.md` / `series_plan_characters.json` | `series_plan_characters_review.md` / `review.json` | `series_plan_characters_revision.md` / `series_plan_characters.json` | `engine/plan.py` |
-| Volumes | `series_plan_volumes.md` / `series_plan_volumes.json` | `series_plan_volumes_review.md` / `review.json` | `series_plan_volumes_revision.md` / `series_plan_volumes.json` | `engine/plan.py` |
-| Volume design | `volume_design.md` / `volume_design.json` | `volume_design_review.md` / `review.json` | `volume_design_revision.md` / `volume_design.json` | `engine/design.py` |
-| Chapter design | `chapter_design.md` / `chapter_design.json` | `chapter_design_review.md` / `review.json` | `chapter_design_revision.md` / `chapter_design.json` | `engine/design.py` |
-| Scene design | `scene_design.md` / `scene_design.json` | `scene_design_review.md` / `review.json` | `scene_design_revision.md` / `scene_design.json` | `engine/design.py` |
-| Scene draft | `scene_draft.md` / `scene_draft.json` | `scene_review.md` / `review.json` | `scene_revision.md` / `scene_draft.json` | `scene_writer.py` |
-| Scene summary + v1 Bible update | `scene_summary_and_bible_update.md` / `scene_summary_and_bible_update.json` | — | — | `scene_writer.py` |
+| Series plan | `plan.series.generate` | `plan.series.review` | `plan.series.revise` | `plan_concept.json` |
+| Volume design | `design.volume.generate` | `design.volume.review` | `design.volume.revise` | `design_volume.json` |
+| Chapter design | `design.chapter.generate` | `design.chapter.review` | `design.chapter.revise` | `design_chapter.json` |
+| Scene design | `design.scene.generate` | `design.scene.review` | `design.scene.revise` | `design_scene.json` |
+| Scene draft | `write.draft.generate` | `write.draft.review` | `write.draft.revise` | `write_draft.json` |
+| Scene summary | `write.summary.generate` | `write.summary.review` | `write.summary.revise` | `write_summary.json` |
 
-`system.md` は全 LLM task で共通に使われます。
+レビューだけは共通の `review_issues.json` を使う。改訂は生成と同じ schema を返す。
 
-## 例外・未使用のリソース
+## Scene の Canon 契約
 
-| リソース | 現状 |
-|---|---|
-| `kdp_metadata.md` / `kdp_metadata.json` | export のメタデータは `engine/export.py` が Python で生成するため、現行 runtime は template を render しない |
-| `cover_prompt.md` / `cover_prompt.json` | runtime から呼ばれない |
+`design_scene.json` は CanonPatch の内部構造を LLM に露出しない。LLM は `canon_context` に明示されたIDのみを、完全一致で返す。
 
-これらは package resource として残っていますが、現行 runtime contract ではありません。削除・再導入は、実装とテストを同じ変更で扱ってください。
+- `pov_character_id`、`character_ids` は `canon_context.characters[].id` のみ。
+- `location_id` は `canon_context.locations[].id` のみ。
+- 表示名、alias、部分一致、推測したID、新規 entity は参照に使えない。
+- `canon_updates` は既存 entity に対する小さい意図DSLである。Python の `_compile_scene_updates` が strict `CanonPatch` に変換し、schema/semantic preflight を通過した候補だけが Canon Event になる。
+- ID不在、DSL不正、CanonPatch不正、semantic conflict は補正やデフォルト代入を行わない。review issue として `revise` に戻す。
 
-## Schema 展開と検証
-
-1. `PromptManager.render()` が `{schema}` を対応 Schema の簡略化表現へ展開する。
-2. prompt variables を置換する。
-3. `LLMClient.complete_json()` が Ollama 呼び出し、JSON parse、Schema validation を行う。
-4. plan / design / export などが工程固有の semantic validation を追加する。
-
-Review の共通 Schema は `review.json` です。`publication_blocking` は severity と独立した、次工程へ進めない問題の印です。
-
-## v2 への注意
-
-`scene_summary_and_bible_update` と `bible*.json` は現行 v1 runtime の契約です。Canon Event ベースの v2 では Pydantic domain model と `CanonPatch` / `CanonEvent` を使用し、現行の update 経路を廃止します。v2 の設計判断は [SERIES_BIBLE_SCHEMA_REDESIGN](dev/SERIES_BIBLE_SCHEMA_REDESIGN.md) を参照してください。
+この境界により、`artifacts.state_updates` のような LLM の近似的な CanonPatch を runtime が正規化して受け入れる経路は存在しない。

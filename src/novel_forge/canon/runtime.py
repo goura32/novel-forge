@@ -230,15 +230,14 @@ def review_scene_patch(
     """
     issues: list[str] = []
 
-    # 1) schema-validate the patch against the committed canon_patch schema (§9)
+    # 1) Validate against the committed strict CanonPatch schema.  No unknown
+    # field, inferred type, partial match, or default value is accepted here.
     patch_validator = get_validator("canon_patch")
     for err in patch_validator.iter_errors(patch):
         path = "/".join(str(p) for p in err.absolute_path) or "(root)"
         issues.append(f"[canon_patch schema] [{path}] {err.message}")
 
-    # 1b) Semantic preflight against the *current* Canon.  Schema acceptance
-    # is not approval: cast/scope, continuity, relationship, knowledge and
-    # transition rules are evaluated before a review can pass.
+    # 1b) Semantic preflight runs only for a schema-valid candidate.
     if not issues:
         try:
             typed_patch = CanonPatch.model_validate(patch)
@@ -302,9 +301,7 @@ def review_scene_patch(
             issues,
             scene_id=scene_design.scene_id,
             source_ref=(
-                f"vol{loc.volume}/ch{loc.chapter}/ord{loc.ordinal}"
-                if loc is not None
-                else ""
+                f"vol{loc.volume}/ch{loc.chapter}/ord{loc.ordinal}" if loc is not None else ""
             ),
         )
     return review
@@ -313,7 +310,10 @@ def review_scene_patch(
 def _scene_cast_ids(scene_design: SceneDesign) -> set[str]:
     """Extract actual Canon character IDs from the persisted scene scope/cast."""
     ids: set[str] = set()
-    if scene_design.context_scope is not None and scene_design.context_scope.pov_character is not None:
+    if (
+        scene_design.context_scope is not None
+        and scene_design.context_scope.pov_character is not None
+    ):
         ids.add(scene_design.context_scope.pov_character.id)
     for entry in scene_design.cast:
         if entry.kind == "character":
@@ -328,11 +328,7 @@ def _check_pov_leak(scene_design: SceneDesign, canon: Canon, issues: list[str]) 
     # Author truth would be any knowledge proposition whose visibility is
     # "secret" and which is exposed verbatim in the writer context.  The
     # projection helper never includes proposition text, so this is a guard.
-    secret_props = {
-        kn.proposition
-        for kn in canon.knowledge
-        if kn.visibility == "secret"
-    }
+    secret_props = {kn.proposition for kn in canon.knowledge if kn.visibility == "secret"}
     for constraint in wc.cast_constraints:
         text = str(constraint)
         for prop in secret_props:
@@ -400,9 +396,12 @@ def _stable_hash(obj: Any) -> str:
     import hashlib
     import json
 
-    return "sha256:" + hashlib.sha256(
-        json.dumps(obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
-    ).hexdigest()
+    return (
+        "sha256:"
+        + hashlib.sha256(
+            json.dumps(obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+    )
 
 
 # SceneDesign fields that are bookkeeping rather than reviewable artifact
@@ -455,7 +454,9 @@ def apply_reviewed_patch(
         raise ValueError("review rejected: Canon Event must not be created or persisted")
     current_digest = compute_canonical_digest(canon)
     if review.design_digest != current_digest:
-        raise ValueError("review evidence is stale for the current Canon; rebuild projection and re-review")
+        raise ValueError(
+            "review evidence is stale for the current Canon; rebuild projection and re-review"
+        )
     if review.patch_digest and review.patch_digest != _stable_hash(patch):
         raise ValueError("reviewed patch changed; re-review is required")
 
@@ -642,9 +643,7 @@ def run_v2_pipeline(
         patch = spec["patch"]
         review = review_scene_patch(design, patch, current_canon, tracker=tracker)
         if not review.passed:
-            raise ValueError(
-                f"scene {design.scene_id} review rejected: {review.issues}"
-            )
+            raise ValueError(f"scene {design.scene_id} review rejected: {review.issues}")
         # SceneDesign.cast is the authoritative scene scope (§7.2).  ``cast``
         # was validated/coerced at construction and must not be re-read from
         # the caller payload as a second, potentially divergent source.
@@ -658,8 +657,7 @@ def run_v2_pipeline(
             revision=1,
             scene_cast_ids=scene_cast_ids,
         )
-        draft = write_scene(design, prior_scene_summary=prior_summary,
-                             draft_fn=writer_draft_fn)
+        draft = write_scene(design, prior_scene_summary=prior_summary, draft_fn=writer_draft_fn)
         prior_summary = draft
         drafts.append(draft)
         designs.append(design)

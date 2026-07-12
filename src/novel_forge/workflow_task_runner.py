@@ -34,6 +34,8 @@ from novel_forge.prompts import PromptManager
 #   write.summary.revise     -> {draft, summary, review}
 _TASK_VARIABLES: dict[str, tuple[str, ...]] = {
     "plan.series.generate": ("keywords", "existing_slugs"),
+    "plan.series.review": ("plan",),
+    "plan.series.revise": ("current_plan", "review"),
     "design.volume.generate": (
         "series_plan",
         "volume_number",
@@ -75,6 +77,12 @@ _TASK_VARIABLES: dict[str, tuple[str, ...]] = {
         "previous_volume_summary",
         "canon_context",
     ),
+    "design.volume.review": ("series_plan", "design", "canon_context"),
+    "design.volume.revise": ("series_plan", "current_volume", "review", "canon_context"),
+    "design.chapter.review": ("series_plan", "design", "canon_context"),
+    "design.chapter.revise": ("series_plan", "current_chapter", "review", "canon_context"),
+    "design.scene.review": ("series_plan", "design", "canon_context"),
+    "design.scene.revise": ("series_plan", "current_scene", "review", "canon_context"),
     "write.draft.generate": ("writer_context", "previous_summary"),
     "write.draft.review": ("writer_context", "draft"),
     "write.draft.revise": ("writer_context", "draft", "review"),
@@ -117,5 +125,9 @@ def make_task_runner(client: LLMClient, manager: PromptManager | None = None) ->
         """Bind raw LLM capture to the immutable attempt currently being executed."""
         client._capture = capture
 
+    def set_retry_seed(seed: int) -> None:
+        client.set_retry_seed(seed)
+
     task_runner.set_attempt_capture = set_attempt_capture  # type: ignore[attr-defined]
+    task_runner.set_retry_seed = set_retry_seed  # type: ignore[attr-defined]
     return task_runner

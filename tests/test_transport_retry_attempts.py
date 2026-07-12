@@ -45,27 +45,21 @@ def test_transport_failure_surfaces_without_internal_retry(tmp_path: Path) -> No
         client.complete_json("test_kind", "sys", "usr")
 
 
-def test_workflow_retries_transport_failure_as_distinct_attempts(tmp_path: Path) -> None:
+def test_workflow_marks_transport_failure_nonretryable(tmp_path: Path) -> None:
+    """Transport errors do not consume the contract-retry budget."""
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=True)
     workflow = RuntimeWorkflow(repo, run, task_runner=lambda _t, _v: {})
-    workflow.max_generation_count = 3
-    task_id = "plan.series.generate"
+    workflow.max_retry_count = 3
 
-    # First two calls fail at the transport layer; the third succeeds.
-    attempts_before = len(list((run.path / "attempts").iterdir()))
-    calls = {"n": 0}
+    def unavailable(_task_id: str, _values: dict[str, Any]) -> dict[str, Any]:
+        raise LLMTransportError("temporary DNS failure")
 
-    def flaky(_task_id: str, _values: dict[str, Any]) -> dict[str, Any]:
-        calls["n"] += 1
-        if calls["n"] < 3:
-            raise LLMTransportError("transient down")
-        return {"slug": "s", "title": "t", "planned_volumes": [{"number": 1, "title": "V"}]}
+    workflow.task_runner = unavailable
+    with pytest.raises(LLMTransportError):
+        workflow._run_task("plan.series.generate", {}, reason="generate")
 
-    workflow.task_runner = flaky
-    attempt, result = workflow._run_task(task_id, {}, reason="generate")
-
-    assert result["slug"] == "s"
-    attempts_after = len(list((run.path / "attempts").iterdir()))
-    # two failed attempts + one success == 3 new attempts
-    assert attempts_after - attempts_before == 3
+    attempts = list((run.path / "attempts").iterdir())
+    assert len(attempts) == 1
+    error = json.loads((attempts[0] / "error.json").read_text(encoding="utf-8"))
+    assert error["retryable"] is False

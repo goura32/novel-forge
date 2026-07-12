@@ -156,10 +156,12 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
                 "scenes": [{"title": "覚醒", "pov": "リィナ", "goal": "状況を把握する", "conflict": "記憶が曖昧", "outcome": "案内人と話す", "characters": ["リィナ"], "key_events": ["目を覚ます"], "setting": "覚醒室"}],
                 "chapter_turning_point": "目覚める", "chapter_hook": "案内人が現れる", "foreshadowing_notes": ["星図"], "subplot_notes": ["記憶喪失"],
             }
+        if task_id.endswith(".review"):
+            return {"issues": []}
         if task_id == "design.scene.generate":
             return {
-                "title": "覚醒", "goal": "状況を把握する", "conflict": "記憶が曖昧", "outcome": "案内人と話す", "pov": "リィナ", "characters": ["リィナ"], "key_events": ["目を覚ます"], "setting": "覚醒室", "hook": "目を開ける", "turning_point": "端末が光る", "emotional_arc": "不安から安堵", "ending_hook": "扉が開く",
-                "canon_patch": {"characters": {"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "案内人と話す"}]}},
+                "title": "覚醒", "goal": "状況を把握する", "conflict": "記憶が曖昧", "outcome": "案内人と話す", "pov_character_id": "char_001", "character_ids": ["char_001"], "key_events": ["目を覚ます"], "location_id": "loc_001", "hook": "目を開ける", "turning_point": "端末が光る", "emotional_arc": "不安から安堵", "ending_hook": "扉が開く",
+                "canon_updates": [{"operation": "set_character_state", "target_id": "char_001", "value": "案内人と話す"}],
             }
         raise AssertionError(task_id)
 
@@ -168,19 +170,23 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
 
     published = workflow.generate_volume_design(volume=1, plan={"planned_volumes": [{"title": "第1巻"}]})
 
-    assert calls == ["design.volume.generate", "design.chapter.generate", "design.scene.generate"]
+    assert calls == [
+        "design.volume.generate", "design.volume.review",
+        "design.chapter.generate", "design.chapter.review",
+        "design.scene.generate", "design.scene.review",
+    ]
     for task_input in inputs:
         assert "canon_context" in task_input
         assert "bible" not in task_input
-        assert "char_001" not in str(task_input["canon_context"])
+        assert "char_001" in str(task_input["canon_context"])
     assert published.slots["canon.frontier"] != snapshot.slots["canon.frontier"]
     generated = repo.read_payload(repo.verify_artifact(published.slots["design.vol01"]))
     assert generated["scenes"][0]["status"] == "applied"
     assert generated["scenes"][0]["writer_context"]
 
 
-def test_scene_payload_without_canon_patch_is_rejected(tmp_path: Path) -> None:
-    """Runtime must refuse a scene design that omits canon_patch (SERIES_BIBLE_SCHEMA_REDESIGN §6)."""
+def test_scene_payload_without_canon_updates_is_rejected(tmp_path: Path) -> None:
+    """Runtime must refuse a scene design that omits the small Canon update DSL."""
     from novel_forge.runtime import RuntimeContractError
 
     repo = RunRepository(tmp_path)
@@ -201,13 +207,13 @@ def test_scene_payload_without_canon_patch_is_rejected(tmp_path: Path) -> None:
 
     raw_scene = {
         "title": "覚醒", "goal": "状況を把握する", "conflict": "記憶が曖昧",
-        "outcome": "案内人と話す", "pov": "リィナ", "characters": ["リィナ"],
-        "key_events": ["目を覚ます"], "setting": "覚醒室", "hook": "目を開ける",
+        "outcome": "案内人と話す", "pov_character_id": "char_001", "character_ids": ["char_001"],
+        "key_events": ["目を覚ます"], "location_id": "loc_001", "hook": "目を開ける",
         "turning_point": "端末が光る", "emotional_arc": "不安から安堵",
         "ending_hook": "扉が開く",
-        # canon_patch intentionally omitted
+        # canon_updates intentionally omitted
     }
-    with pytest.raises(RuntimeContractError, match="canon_patch"):
+    with pytest.raises(RuntimeContractError, match="canon_updates"):
         workflow._scene_from_generated_payload(raw_scene, canon=canon, volume=1, chapter=1, ordinal=1)
 
 

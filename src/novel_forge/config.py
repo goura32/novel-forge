@@ -30,9 +30,13 @@ class LLMConfig(BaseModel):
 
 
 class QualityConfig(BaseModel):
-    max_generation_count: int = Field(default=4, ge=1)
+    max_retry_count: int = Field(default=7, ge=1)
     max_review_count: int = Field(default=3, ge=1)
     max_summary_review_count: int = Field(default=2, ge=1)
+
+
+class LoggingConfig(BaseModel):
+    level: str = Field(default="DEBUG")
 
 
 class RuntimeConfig(BaseModel):
@@ -46,6 +50,7 @@ class RuntimeConfig(BaseModel):
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     quality: QualityConfig = Field(default_factory=QualityConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
     verbose: bool = False
 
     @classmethod
