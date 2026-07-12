@@ -17,6 +17,11 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 
 "update" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。value は canon_context 内の現在の状態と明確に異なる値を書くこと。変化がない場合はその update を canon_updates に含めないこと。
 
+### レビュー指摘の適用ルール
+- review で「no-op（空更新）」「現在の状態と重複」「不要な更新」と指摘された canon_updates 要素は、canon_updates から除外すること。残すべき更新がない場合は空配列 `[]` を返すこと（空配列は許容される）。
+- 除外後に canon_updates が空になるのは正常なので、無理に更新を捏造しないこと。
+- 結界の範囲・年代・物理法則などの Canon 制約（canon_context の world_rules / series_constraints / locations[].immutable_constraints）に反する描写が review で指摘された場合、該当の key_events / setting / outcome を制約に合うよう書き換えること。
+
 ### 改訂対象
 {current_scene}
 
