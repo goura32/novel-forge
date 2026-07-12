@@ -61,7 +61,7 @@
         "custody": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CustodyRef"
             },
             {
               "type": "null"
@@ -109,7 +109,7 @@
         "custody": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CustodyRef"
             },
             {
               "type": "null"
@@ -208,6 +208,17 @@
         "narrative_function": {
           "title": "Narrative Function",
           "type": "string"
+        },
+        "parent_design_intent": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/IntentItem"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "profile": {
           "anyOf": [
@@ -339,10 +350,14 @@
               "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
             },
             {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            },
+            {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Current Location"
         },
         "current_state": {
           "anyOf": [
@@ -433,6 +448,21 @@
       "additionalProperties": false,
       "description": "Full character profile (Core / Supporting).",
       "properties": {
+        "age": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age"
+        },
         "appearance": {
           "anyOf": [
             {
@@ -492,6 +522,18 @@
           ],
           "default": null,
           "title": "Motivation"
+        },
+        "occupation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Occupation"
         },
         "personality": {
           "anyOf": [
@@ -691,6 +733,31 @@
       "title": "CreationRef",
       "type": "object"
     },
+    "CustodyRef": {
+      "additionalProperties": false,
+      "description": "An artifact may only be held by a character, collective, or location.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character",
+            "collective",
+            "location"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "CustodyRef",
+      "type": "object"
+    },
     "EntityRef": {
       "additionalProperties": false,
       "description": "Typed reference to an *existing* Canon entity (id form).",
@@ -734,6 +801,11 @@
         },
         "description": {
           "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
           "type": "string"
         },
         "intended_payoff": {
@@ -893,6 +965,48 @@
         "state"
       ],
       "title": "HolderStateUpdate",
+      "type": "object"
+    },
+    "IntentItem": {
+      "additionalProperties": false,
+      "description": "Parent intent retained by supporting-character create operations (§6.1).",
+      "properties": {
+        "constraints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Constraints",
+          "type": "array"
+        },
+        "desired_outcome": {
+          "default": "",
+          "title": "Desired Outcome",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+            },
+            {
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "title": "IntentItem",
       "type": "object"
     },
     "KnowCreate": {
@@ -1123,16 +1237,8 @@
       "additionalProperties": false,
       "properties": {
         "current_state": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Current State"
+          "title": "Current State",
+          "type": "string"
         },
         "id": {
           "title": "Id",
@@ -1147,7 +1253,8 @@
         }
       },
       "required": [
-        "id"
+        "id",
+        "current_state"
       ],
       "title": "LocStateUpdate",
       "type": "object"
@@ -1192,6 +1299,41 @@
         "label"
       ],
       "title": "Marker",
+      "type": "object"
+    },
+    "Perspective": {
+      "additionalProperties": false,
+      "description": "One participant's view inside a Relationship Arc (§4.2).",
+      "properties": {
+        "attitude": {
+          "title": "Attitude",
+          "type": "string"
+        },
+        "boundary": {
+          "default": "",
+          "title": "Boundary",
+          "type": "string"
+        },
+        "character_id": {
+          "title": "Character Id",
+          "type": "string"
+        },
+        "desire_from_other": {
+          "default": "",
+          "title": "Desire From Other",
+          "type": "string"
+        },
+        "trust": {
+          "default": "conditional",
+          "title": "Trust",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character_id",
+        "attitude"
+      ],
+      "title": "Perspective",
       "type": "object"
     },
     "PerspectiveUpdate": {
@@ -1249,8 +1391,7 @@
         },
         "perspectives": {
           "items": {
-            "additionalProperties": true,
-            "type": "object"
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/Perspective"
           },
           "title": "Perspectives",
           "type": "array"
@@ -1411,6 +1552,11 @@
           "title": "Dramatic Question",
           "type": "string"
         },
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -1566,6 +1712,11 @@
         },
         "definition": {
           "title": "Definition",
+          "type": "string"
+        },
+        "id": {
+          "default": "",
+          "title": "Id",
           "type": "string"
         },
         "term": {

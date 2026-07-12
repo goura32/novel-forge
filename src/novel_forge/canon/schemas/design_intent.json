@@ -1,36 +1,260 @@
 {
+  "$defs": {
+    "CastCharacter": {
+      "additionalProperties": false,
+      "properties": {
+        "character": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "kind": {
+          "const": "character",
+          "default": "character",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character"
+      ],
+      "title": "CastCharacter",
+      "type": "object"
+    },
+    "CastIntent": {
+      "additionalProperties": false,
+      "description": "The planned Canon/local cast for a stable target scene.",
+      "properties": {
+        "entries": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CastCharacter"
+              },
+              {
+                "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CastLocalRole"
+              }
+            ]
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "target_scene_id": {
+          "title": "Target Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_scene_id"
+      ],
+      "title": "CastIntent",
+      "type": "object"
+    },
+    "CastLocalRole": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "enum": [
+            "one",
+            "some",
+            "many",
+            "crowd"
+          ],
+          "title": "Count",
+          "type": "string"
+        },
+        "kind": {
+          "const": "local_role",
+          "default": "local_role",
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "scene_function": {
+          "title": "Scene Function",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "count",
+        "scene_function"
+      ],
+      "title": "CastLocalRole",
+      "type": "object"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "description": "Typed reference to an *existing* Canon entity (id form).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character",
+            "collective",
+            "location",
+            "artifact",
+            "knowledge",
+            "relationship",
+            "foreshadowing",
+            "subplot",
+            "deadline",
+            "world_rule",
+            "glossary",
+            "series"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "ForeshadowingIntent": {
+      "additionalProperties": false,
+      "description": "A planned plant / advance / resolve operation for one stable scene.",
+      "properties": {
+        "action": {
+          "enum": [
+            "plant",
+            "advance",
+            "resolve"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "intent_key": {
+          "title": "Intent Key",
+          "type": "string"
+        },
+        "target_scene_id": {
+          "title": "Target Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_key",
+        "action",
+        "target_scene_id"
+      ],
+      "title": "ForeshadowingIntent",
+      "type": "object"
+    },
+    "RelationshipArcIntent": {
+      "additionalProperties": false,
+      "description": "A typed planned change to an existing Relationship Arc.",
+      "properties": {
+        "action": {
+          "enum": [
+            "introduce",
+            "pressure",
+            "reveal",
+            "shift",
+            "rupture",
+            "repair",
+            "commit",
+            "resolve"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "expected_effect": {
+          "default": "",
+          "title": "Expected Effect",
+          "type": "string"
+        },
+        "relationship": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "target_scene_id": {
+          "title": "Target Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship",
+        "action",
+        "target_scene_id"
+      ],
+      "title": "RelationshipArcIntent",
+      "type": "object"
+    },
+    "SubplotIntent": {
+      "additionalProperties": false,
+      "description": "A planned subplot operation for one stable scene.",
+      "properties": {
+        "action": {
+          "enum": [
+            "introduce",
+            "advance",
+            "resolve",
+            "abandon"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "intent_key": {
+          "title": "Intent Key",
+          "type": "string"
+        },
+        "target_scene_id": {
+          "title": "Target Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_key",
+        "action",
+        "target_scene_id"
+      ],
+      "title": "SubplotIntent",
+      "type": "object"
+    }
+  },
   "$id": "https://novel-forge.local/schemas/canon/design_intent.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "description": "§5 structured, reviewable commitments — never Canon state.",
   "properties": {
     "cast": {
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CastIntent"
       },
       "title": "Cast",
       "type": "array"
     },
+    "constraints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Constraints",
+      "type": "array"
+    },
     "foreshadowing": {
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/ForeshadowingIntent"
       },
       "title": "Foreshadowing",
       "type": "array"
     },
     "relationship_arcs": {
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/RelationshipArcIntent"
       },
       "title": "Relationship Arcs",
       "type": "array"
     },
     "subplots": {
       "items": {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SubplotIntent"
       },
       "title": "Subplots",
       "type": "array"

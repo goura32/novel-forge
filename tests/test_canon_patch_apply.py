@@ -201,9 +201,33 @@ def test_character_state_update_requires_a_location_ref() -> None:
         )
 
 
-# --------------------------------------------------------------------------
-# 1. Minor create
-# --------------------------------------------------------------------------
+def test_character_state_update_can_reference_same_patch_location() -> None:
+    canon = _base_canon()
+    patch = CanonPatch(
+        locations={
+            "create": [
+                {
+                    "creation_key": "sleeping_theater",
+                    "name": "眠る劇場",
+                    "kind": "theater",
+                }
+            ]
+        },
+        characters={
+            "state_updates": [
+                {
+                    "character": er("character", "char_001"),
+                    "current_location": {"creation_key": "sleeping_theater"},
+                }
+            ]
+        },
+    )
+    new_canon, event = _apply(canon, patch)
+    location_id = event.created_entity_ids["location:sleeping_theater"]
+    assert new_canon.get_entity("character", "char_001").continuity_card.current_location == EntityRef(
+        kind="location", id=location_id
+    )
+
 
 
 def test_minor_create():

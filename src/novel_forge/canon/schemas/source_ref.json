@@ -1,15 +1,41 @@
 {
+  "$defs": {
+    "SceneLocation": {
+      "additionalProperties": false,
+      "description": "Display/replay position.  It is deliberately distinct from opaque scene_id.",
+      "properties": {
+        "chapter": {
+          "minimum": 1,
+          "title": "Chapter",
+          "type": "integer"
+        },
+        "ordinal": {
+          "minimum": 1,
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "volume": {
+          "minimum": 1,
+          "title": "Volume",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "volume",
+        "chapter",
+        "ordinal"
+      ],
+      "title": "SceneLocation",
+      "type": "object"
+    }
+  },
   "$id": "https://novel-forge.local/schemas/canon/source_ref.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Opaque, immutable scene source identity + display/replay order (§3.1).",
   "properties": {
     "location": {
-      "additionalProperties": {
-        "type": "integer"
-      },
-      "title": "Location",
-      "type": "object"
+      "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/SceneLocation"
     },
     "revision": {
       "default": 1,

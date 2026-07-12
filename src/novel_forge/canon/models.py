@@ -797,11 +797,11 @@ class CharStateUpdate(BaseModel):
 
     character: ChangeRef
     current_state: str | None = None
-    current_location: EntityRef | None = None
+    current_location: ChangeRef | None = None
 
     @model_validator(mode="after")
     def _current_location_kind(self) -> CharStateUpdate:
-        if self.current_location is not None and self.current_location.kind != "location":
+        if isinstance(self.current_location, EntityRef) and self.current_location.kind != "location":
             raise ValueError("current_location must have kind='location'")
         return self
 

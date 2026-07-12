@@ -151,9 +151,9 @@ class CanonPatchApplier:
         new_canon = deepcopy(canon)
 
         try:
+            self._apply_locations(new_canon, resolved_patch, created_map, errors)
             self._apply_characters(new_canon, resolved_patch, created_map, errors)
             self._apply_collectives(new_canon, resolved_patch, created_map, errors)
-            self._apply_locations(new_canon, resolved_patch, created_map, errors)
             self._apply_artifacts(new_canon, resolved_patch, created_map, errors)
             self._apply_knowledge(
                 new_canon, resolved_patch, created_map, errors, scene_cast_ids

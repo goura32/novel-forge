@@ -38,15 +38,13 @@
         "custody": {
           "anyOf": [
             {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CustodyRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Custody"
+          "default": null
         },
         "id": {
           "title": "Id",
@@ -59,17 +57,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "name": {
           "title": "Name",
@@ -128,17 +122,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "narrative_function": {
           "title": "Narrative Function",
@@ -210,6 +200,21 @@
       "additionalProperties": false,
       "description": "Full character profile (Core / Supporting).",
       "properties": {
+        "age": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age"
+        },
         "appearance": {
           "anyOf": [
             {
@@ -269,6 +274,18 @@
           ],
           "default": null,
           "title": "Motivation"
+        },
+        "occupation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Occupation"
         },
         "personality": {
           "anyOf": [
@@ -334,17 +351,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "name": {
           "title": "Name",
@@ -452,19 +465,29 @@
       "title": "ContinuityCard",
       "type": "object"
     },
-    "CreationRef": {
+    "CustodyRef": {
       "additionalProperties": false,
-      "description": "Reference to an entity created within the *same* patch (§3.4).",
+      "description": "An artifact may only be held by a character, collective, or location.",
       "properties": {
-        "creation_key": {
-          "title": "Creation Key",
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character",
+            "collective",
+            "location"
+          ],
+          "title": "Kind",
           "type": "string"
         }
       },
       "required": [
-        "creation_key"
+        "kind",
+        "id"
       ],
-      "title": "CreationRef",
+      "title": "CustodyRef",
       "type": "object"
     },
     "Deadline": {
@@ -534,6 +557,26 @@
       "title": "EntityRef",
       "type": "object"
     },
+    "EventRef": {
+      "additionalProperties": false,
+      "description": "Immutable provenance reference to the Canon Event that changed an entity.",
+      "properties": {
+        "event_digest": {
+          "title": "Event Digest",
+          "type": "string"
+        },
+        "scene_id": {
+          "title": "Scene Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_id",
+        "event_digest"
+      ],
+      "title": "EventRef",
+      "type": "object"
+    },
     "Foreshadowing": {
       "additionalProperties": false,
       "properties": {
@@ -553,32 +596,24 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "planted_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Planted By"
+          "default": null
         },
         "related_character_ids": {
           "items": {
@@ -597,17 +632,13 @@
         "resolved_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Resolved By"
+          "default": null
         },
         "status": {
           "default": "planted",
@@ -651,13 +682,49 @@
       "title": "Glossary",
       "type": "object"
     },
+    "HolderState": {
+      "additionalProperties": false,
+      "description": "One holder's knowledge state (§4.6).",
+      "properties": {
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basis"
+        },
+        "holder": {
+          "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
+        },
+        "state": {
+          "enum": [
+            "knows",
+            "suspects",
+            "believes",
+            "unaware"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "holder",
+        "state"
+      ],
+      "title": "HolderState",
+      "type": "object"
+    },
     "Knowledge": {
       "additionalProperties": false,
       "properties": {
         "holders": {
           "items": {
-            "additionalProperties": true,
-            "type": "object"
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/HolderState"
           },
           "title": "Holders",
           "type": "array"
@@ -669,17 +736,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "proposition": {
           "title": "Proposition",
@@ -744,17 +807,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "name": {
           "title": "Name",
@@ -802,6 +861,41 @@
       "title": "Marker",
       "type": "object"
     },
+    "Perspective": {
+      "additionalProperties": false,
+      "description": "One participant's view inside a Relationship Arc (§4.2).",
+      "properties": {
+        "attitude": {
+          "title": "Attitude",
+          "type": "string"
+        },
+        "boundary": {
+          "default": "",
+          "title": "Boundary",
+          "type": "string"
+        },
+        "character_id": {
+          "title": "Character Id",
+          "type": "string"
+        },
+        "desire_from_other": {
+          "default": "",
+          "title": "Desire From Other",
+          "type": "string"
+        },
+        "trust": {
+          "default": "conditional",
+          "title": "Trust",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character_id",
+        "attitude"
+      ],
+      "title": "Perspective",
+      "type": "object"
+    },
     "Relationship": {
       "additionalProperties": false,
       "properties": {
@@ -817,17 +911,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "lifecycle": {
           "default": "active",
@@ -847,8 +937,7 @@
         },
         "perspectives": {
           "items": {
-            "additionalProperties": true,
-            "type": "object"
+            "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/Perspective"
           },
           "title": "Perspectives",
           "type": "array"
@@ -1047,17 +1136,13 @@
         "last_changed_by": {
           "anyOf": [
             {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EntityRef"
-            },
-            {
-              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/CreationRef"
+              "$ref": "https://novel-forge.local/schemas/canon/canon_patch.json#/$defs/EventRef"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Last Changed By"
+          "default": null
         },
         "name": {
           "title": "Name",
