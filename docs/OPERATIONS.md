@@ -1,4 +1,4 @@
-# 運用 runbook
+# 運用runbook
 
 ## 通常の実行順
 
@@ -8,67 +8,81 @@ uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 uv run novel-forge write -w <workdir> -s <series-slug> -V 1
 # immutable JSON artifact（既定）
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1
-# 人が読むためのMarkdown原稿
+# 読者向けMarkdown原稿
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 ```
 
-一括実行には `complete` を使えます。複数シリーズがある workdir では、plan 後の command に必ず `-s <series-slug>` を渡してください。
+一括実行には `complete` を使えます。`complete` のexportはJSON既定のため、Markdownが必要なら完了後に明示的な `export --format markdown` を実行します。
 
 ## 中断・再開
 
 ```bash
 uv run novel-forge status -w <workdir> -s <series-slug>
 uv run novel-forge resume -w <workdir> -s <series-slug>
+uv run novel-forge runs active -w <workdir>
 ```
 
-write はシーンごとに状態を保存します。通信断や停止後は status を確認してから resume を実行してください。
+後続工程は開始時にselection snapshotを固定します。通信断や停止後は `status` で選択状態を確認し、`resume` を実行してください。
 
-## Ollama 接続不良
+## Ollama接続不良
 
 ```bash
-curl -fsS http://localhost:11434/api/tags >/dev/null && echo OK || echo FAIL
+curl -fsS http://<ollama-host>/api/tags >/dev/null && echo OK || echo FAIL
 uv run novel-forge doctor -w <workdir>
 uv run novel-forge doctor -w <workdir> --ollama-host <host:port>
 ```
 
-モデル名・接続先は `config.yaml`、`NOVEL_FORGE_CONFIG`、CLI 引数で解決されます。優先順位は [使い方ガイド](USER_GUIDE.md#6-設定の優先順位) を参照してください。
+接続先・モデル・品質上限は `~/.config/novel-forge/config.yaml` で設定します。`--workdir` を省略する場合は同設定の `workspace.root` が必要です。
 
-## LLM 出力または schema validation の失敗
+## LLM contract failureの調査
 
-生成・JSON parse・schema / semantic validation の失敗は、`--max-generation-count` の上限まで再生成されます。上限に達した場合は、verbose で再実行して raw log を確認してください。
+JSON parseまたはSchema validationの失敗は、`quality.max_retry_count` の上限まで別attemptとして再生成されます。transport errorは自動再試行せず、1件の失敗attemptを残して停止します。
 
-```bash
-uv run novel-forge design -w <workdir> -s <series-slug> -V 1 -v
+LLM evidenceはverboseに関係なく、LLMを呼んだattemptに保存されます。
+
+```text
+<workdir>/.novel-forge/runs/<run-id>/attempts/<attempt-id>/llm/
+  request.json
+  response.ndjson
+  response.content.json
+  parsed.json
+  validation.json
 ```
 
-`-v` を指定した実行では、`<workdir>/_raw_logs/` に request / response の raw gzip と、人間向け summary が保存されます。形式は [RAW_LOG_FORMAT](dev/raw_log_format.md) を参照してください。
+```bash
+uv run novel-forge run show -w <workdir> <run-id>
+uv run novel-forge attempt show -w <workdir> <attempt-id>
+uv run novel-forge llm diff -w <workdir> <attempt-a> <attempt-b>
+```
+
+`parsed.json` はparse・Schema validationを通過した場合だけ保存されます。失敗時はraw request / responseと `validation.json` を先に確認し、prompt単体で期待する構造を出せるかを判断してください。
 
 ## レビューが収束しない
 
-`--max-review-count` 到達時の扱いは工程により異なります。raw log の review 入出力を確認し、次を区別してください。
+`--max-review-count` と `--max-summary-review-count` は、review → reviseサイクルの上限です。上限に達しても未解決issueを含む候補は選択されません。
 
-- schema / JSON の破損: prompt または schema / parser の問題
-- 同じ根拠ある指摘の反復: prompt / revision の問題
-- 根拠のない好みや no-op 指摘: review prompt または validator の問題
+- schema / JSONの破損: promptまたはschema / parserの問題
+- 同じ根拠ある指摘の反復: prompt / revisionの問題
+- 根拠のない好みやno-op指摘: review promptまたはvalidatorの問題
 
-修正では raw request / response を先に確認し、プロンプト単体で期待出力を出せるかを判断してください。
+## exportのpreflight失敗
 
-## export の preflight 失敗
+exportは選択snapshotにpinされた対象巻の設計・Canon・全sceneのdraft / summary / final reviewを検証できない場合に停止します。
 
-export は選択snapshotにpinされた対象巻の設計・Canon・全sceneのdraft / summary / final reviewを検証できない場合に停止します。
+不足のあるsceneは `write` で処理してからexportを再実行してください。`--format markdown` は同じ検証済み入力から読者向け本文を派生しますが、DOCX / EPUBを生成しません。
 
-不足のあるsceneは `write` で処理してから export を再実行してください。`--format markdown` は同じ検証済み入力から読者向け本文を派生しますが、DOCX / EPUBを生成するものではありません。
+## lockの問題
 
-## lock の問題
+変更系コマンド（`plan` / `design` / `write` / `export` / `resume` / `complete`）はworkspaceまたはseries lockを取得します。同一シリーズへの並行実行は避けてください。
 
-同一シリーズでは同時実行を避けてください。停止したプロセスの lock は runtime が stale と判定すれば回収します。残る場合はまず `status` と lock ファイルの PID を確認し、実行中プロセスがないことを確かめてから対処してください。
+lock待機が必要な場合は `--wait-lock` を付けます。停止プロセスのlockはruntimeがstale判定して回収します。残る場合は `runs active` とPIDを確認し、実行中プロセスがないことを確かめてから対処してください。
 
 ## 開発品質ゲート
 
 ```bash
 uv run python scripts/check_dev_quality.py
-# wheel build も含める場合
+# wheel buildも含める場合
 uv run python scripts/check_dev_quality.py --full
 ```
 
-このスクリプトは pytest、ruff、mypy、prompt validator をまとめて実行します。
+このスクリプトはpytest、ruff、mypy、prompt validatorをまとめて実行します。

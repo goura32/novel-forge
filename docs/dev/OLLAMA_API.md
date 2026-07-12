@@ -1,16 +1,21 @@
-# Ollama API 契約
+# Ollama API契約
 
-この文書は、NovelForge が現在利用する Ollama API の実装上の契約です。特定バージョンでの過去の性能測定や数値を仕様として固定しません。接続先やモデルは `config.yaml` で上書きできます。
+最終更新: 2026-07-12
 
-## 接続
+この文書は、NovelForgeのpublic CLIがOllama `/api/chat` を利用する際の実装契約です。
 
-- endpoint: `http://<ollama-host>/api/chat`
-- host の解決: `config.yaml` の `llm.ollama_host` → `OLLAMA_HOST` → runtime 既定値
+## 設定と接続
+
+- endpoint: `http://<llm.ollama_host>/api/chat`
+- canonical config: `~/.config/novel-forge/config.yaml`
+- CLIでのmodel上書き: `--model`
 - 診断: `uv run novel-forge doctor -w <workdir>`
+
+productionの `RuntimeConfig.load()` はcanonical configだけを読みます。workspace-local config、カレントディレクトリ探索、`NOVEL_FORGE_CONFIG`、`OLLAMA_HOST` はpublic runtime設定の解決順には含まれません。
 
 ## request payload
 
-`LLMClient.complete_json()` は次の形式で `/api/chat` を呼び出します。
+`LLMClient.complete_json()` は次の形で `/api/chat` を呼び出します。
 
 ```json
 {
@@ -21,33 +26,34 @@
   ],
   "format": "json",
   "options": {
-    "num_ctx": 262144,
-    "num_predict": -1,
-    "seed": 123,
-    "temperature": 0.7,
-    "top_p": 0.9
+    "seed": 123
   },
   "think": false
 }
 ```
 
-- `options` には `llm.ollama_options` の値が追加されます。
-- `think` は `options` 内ではなく top-level に送信されます。
-- `seed` はリトライごとにインクリメントされます。
-- `config.example.yaml` の既定値は `think: false` です。`think: true` を使うと JSON 出力時に `content` が空になるモデルがあるため、本番利用前は verbose log と smoke test で確認してください。
+`options` には `llm.ollama_options` のうち `think` 以外が加わります。`think` はtop-levelへ送信されます。retryごとにseedは変化します。`think` の扱いは利用モデルで確認してください。
 
-## JSON と Schema
+## responseと検証
 
-- API の `format` は `"json"` です。
-- prompt 内の `{schema}` は `PromptManager.render()` が展開済みです。`LLMClient` は受け取った payload をそのまま送信し、後処理で JSON parse と Schema validation を行います。
-- 空 content、JSON parse 失敗、Schema 不一致は、`quality.max_generation_count` の上限まで再生成します。transport 層のエラーは `transport_retries` で別に制御します。
+- `/api/chat` はNDJSONストリーミングで応答する
+- 各chunkの `message.content` を結合して最終contentを作る
+- task runnerはTaskRegistryから対応schemaを解決し、LLM clientへ渡す
+- JSON parseとSchema validationを通過した値だけが候補artifactになる
 
-## response
+全LLM呼び出しのrequest・NDJSON・最終content・validationはattempt-scoped evidenceとして保存されます。詳細は [Attempt-scoped LLM evidence形式](raw_log_format.md) を参照してください。
 
-- `/api/chat` は NDJSON ストリーミングです。各 chunk の `message.content` を結合して回答とします。
-- `message.thinking` などの非表示推論は raw log にのみ保存し、人間向け summary には含めません。
-- コンテキスト長は `/api/show` の `context_length` から検出し、取得できない場合は既定値で動作します。
+## retryと失敗
 
-## 失敗時の調査
+JSON parse failure、Schema validation failure、LLM contract failureは `quality.max_retry_count` の上限まで、別attemptとして再生成されます。transport errorはretryableではなく、1回のattemptに `error.json` を残して呼び出し側へ返します。
 
-`-v` を付けると `<workdir>/_raw_logs/` に request / response の生 payload が保存されます。形式は [raw_log_format](raw_log_format.md) を参照してください。
+`quality.max_review_count` と `quality.max_summary_review_count` はreview / reviseサイクルの上限であり、transport retry設定ではありません。
+
+## 接続不良の調査
+
+```bash
+curl -fsS http://<ollama-host>/api/tags >/dev/null && echo OK || echo FAIL
+uv run novel-forge doctor -w <workdir> --ollama-host <host:port>
+```
+
+接続に成功しても生成contractが失敗する場合は、attempt配下の `llm/request.json`、`response.ndjson`、`validation.json` を順に確認してください。

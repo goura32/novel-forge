@@ -1,6 +1,6 @@
-# CLI リファレンス
+# CLIリファレンス
 
-この文書は 2026-07-10 に取得した `novel-forge --help` と各 command help を基準にしています。実行環境では常に次を正としてください。
+最終更新: 2026-07-12。実行環境では常にlive helpを正としてください。
 
 ```bash
 uv run novel-forge --help
@@ -11,14 +11,15 @@ uv run novel-forge <command> --help
 
 | オプション | 対象 | 内容 |
 |---|---|---|
-| `-w, --workdir PATH` | 全 command | 作業ディレクトリ。既定値は `.` |
-| `-s, --series TEXT` | plan 以外のシリーズ操作 | 対象シリーズの slug |
-| `-m, --model TEXT` | LLM を使う command | モデル名を上書き |
-| `--max-generation-count INTEGER` | plan / design / write / complete | API・JSON・検証失敗を含む生成試行の上限 |
-| `--max-review-count INTEGER` | plan / design / write / complete | レビュー→改稿サイクルの上限 |
-| `-v, --verbose` | LLM を使う command | 詳細ログと raw LLM log を有効化 |
+| `-w, --workdir PATH` | workdirを扱うcommand | 作業ディレクトリ。省略時はcanonical configの `workspace.root` |
+| `-s, --series TEXT` | `design` / `write` / `export` / `resume` / `status` | 対象シリーズのslug |
+| `-m, --model TEXT` | LLM関連command | モデル名を上書き |
+| `--max-review-count INTEGER` | LLM関連command | review → reviseサイクルの上限 |
+| `--max-summary-review-count INTEGER` | LLM関連command | summary review → reviseサイクルの上限 |
+| `-v, --verbose` | LLM関連command | 詳細なコンソールログを表示。LLM evidenceは常時保存される |
+| `--wait-lock` | 変更系command | run / series lockを待機し、即時失敗を避ける |
 
-`--strict` は存在しません。schema / semantic validation に失敗した生成は、生成上限まで再試行します。
+生成JSONやSchemaのcontract失敗は `quality.max_retry_count` の範囲で再試行されます。これはCLIオプションではなくcanonical configの設定です。transport errorは自動再試行せず、1件の失敗attemptとして記録されます。
 
 ## `plan`
 
@@ -26,7 +27,7 @@ uv run novel-forge <command> --help
 uv run novel-forge plan -w <workdir> "keyword1 keyword2"
 ```
 
-キーワードからシリーズ企画と slug を生成します。`KEYWORDS` は必須の位置引数です。
+キーワードからシリーズ企画、Canon seed、series slug、初回selection snapshotを生成します。`KEYWORDS` は必須の位置引数です。
 
 ## `design`
 
@@ -34,7 +35,7 @@ uv run novel-forge plan -w <workdir> "keyword1 keyword2"
 uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 ```
 
-巻・章・シーン設計を生成します。
+巻・章・scene設計を生成し、review済みのCanon eventをfrontierへ公開します。
 
 | オプション | 既定値 | 内容 |
 |---|---:|---|
@@ -46,7 +47,7 @@ uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 uv run novel-forge write -w <workdir> -s <series-slug> -V 1
 ```
 
-対象巻のシーン草稿を生成し、レビューと改稿を行います。
+対象巻のscene draft、draft review / revise、continuity summaryとsummary review / reviseを生成します。
 
 | オプション | 既定値 | 内容 |
 |---|---:|---|
@@ -57,17 +58,18 @@ uv run novel-forge write -w <workdir> -s <series-slug> -V 1
 ```bash
 # immutable JSON artifact（既定）
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1
-# 人が読むためのMarkdown原稿
+# 読者向けMarkdown原稿
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 ```
 
-選択snapshotにpinされた設計・Canon・全sceneのdraft / summary / final reviewを検証して、runtime run配下のimmutable artifactを出力します。
+選択snapshotにpinされた設計・Canon・全sceneのdraft / summary / final reviewを検証して、immutable artifactを出力します。
 
 | オプション | 既定値 | 内容 |
 |---|---:|---|
-| `--format TEXT` | `json` | `json` はCanonとreview reportを含む監査用artifact、`markdown` は巻・章・scene見出しを持つ読者向け本文artifact |
+| `-V, --volume INTEGER` | `1` | 対象巻 |
+| `--format TEXT` | `json` | `json` はCanonとreview reportを含む監査用artifact、`markdown` は読者向け本文artifact |
 
-出力は `*.novel-forge/runs/<run>/attempts/<attempt>/artifacts/` に保存されます。`markdown` のpayload名は `export.volNN.manuscript.md` です。DOCX / EPUBは出力しません。
+出力は `<workdir>/.novel-forge/runs/<run>/attempts/<attempt>/artifacts/` に保存されます。Markdownのpayload名は `export.volNN.manuscript.md` です。DOCX / EPUBは出力しません。
 
 ## `complete`
 
@@ -75,7 +77,7 @@ uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 uv run novel-forge complete -w <workdir> "keyword1 keyword2"
 ```
 
-`plan → design → write → export` を順に実行します。必要に応じて `-V`、モデル、生成/レビュー上限、verbose を指定できます。
+新規シリーズに対して `plan → design → write → export` を順に実行します。export形式はJSON既定です。
 
 ## `status` / `resume`
 
@@ -84,14 +86,18 @@ uv run novel-forge status -w <workdir> -s <series-slug>
 uv run novel-forge resume -w <workdir> -s <series-slug>
 ```
 
-`status` はシリーズと現在巻の進捗を表示します。`resume` は保存済み状態から次に実行すべき工程を再開します。
+`status` はシリーズと現在のselection状態を表示します。`resume` は選択済みartifactから次工程を再開します。
 
-## `doctor` / `list`
+## 診断・読み取り専用監査
 
 ```bash
 uv run novel-forge doctor -w <workdir>
-uv run novel-forge doctor --ollama-host localhost:11434
 uv run novel-forge list -w <workdir>
+uv run novel-forge runs active -w <workdir>
+uv run novel-forge run show -w <workdir> <run-id>
+uv run novel-forge attempt show -w <workdir> <attempt-id>
+uv run novel-forge llm diff -w <workdir> <attempt-a> <attempt-b>
+uv run novel-forge artifact diff -w <workdir> <artifact-a> <artifact-b>
 ```
 
-`doctor` は Ollama 接続と指定モデルを確認します。`list` は workdir 内のシリーズを表示します。
+`doctor` はOllama接続とモデルを確認します。`llm diff` はcapture済みのrequest / response / parsed evidenceを比較し、`artifact diff` は検証済みartifact payloadを比較します。

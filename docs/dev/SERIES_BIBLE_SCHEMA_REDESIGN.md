@@ -1,9 +1,8 @@
 # Series Bible v2 — Canon Event Architecture
 
-> **状態：未実装 target specification**
+> **Status: historical design record (2026-07-12).** この文書はCanon Eventへの破壊的移行で採用した設計判断を保存します。現在のpublic runtimeのCLI、artifactパス、設定、LLM evidenceの説明には使用しません。現行実装の構成は [ARCHITECTURE](ARCHITECTURE.md) を参照してください。
 >
-> **この文書が Series Bible v2 の唯一の仕様正本である。**
-> 本仕様は新規 v2 プロジェクトだけを対象とする。既存方式からの移行・読込変換・バックアップ対応は、この設計の要件として定義しない。
+> **状態：採用済みの過去target specification。** 本文の `bible.json`、materialized view、readiness reportなどは設計時点の記述を含み、live runtimeの操作契約ではありません。既存方式からの移行・読込変換・バックアップ互換を持たせないという設計判断は履歴として保持します。
 
 ---
 

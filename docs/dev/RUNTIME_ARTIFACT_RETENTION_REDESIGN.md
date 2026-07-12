@@ -1,10 +1,12 @@
 # Runtime Configuration, Artifact Retention, and LLM Trace Redesign
 
-最終更新: 2026-07-11
+最終更新: 2026-07-12
 
-## Status
+> **Status: historical design record.** この文書はimmutable runtimeへの破壊的再設計時の決定・受入条件を保存します。実装済みの現在、CLI、設定解決、artifactパス、LLM evidence形式の正本ではありません。現行の説明には [ARCHITECTURE](ARCHITECTURE.md)、[Attempt-scoped LLM evidence形式](raw_log_format.md)、[Ollama API契約](OLLAMA_API.md) を使用してください。
 
-この文書は未実装の破壊的再設計仕様である。現行 runtime の動作説明ではない。既存 run データおよび既存 `config.yaml` との互換性は持たせない。
+## Historical status
+
+以下は再設計時点の仕様・移行判断です。既存runデータおよび旧 `config.yaml` との互換性を持たせないという決定を含みますが、現在の操作手順として実行してはいけません。
 
 目的は次の4点である。
 

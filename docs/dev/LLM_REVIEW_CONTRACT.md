@@ -2,62 +2,34 @@
 
 ## Goal
 
-NovelForge must not turn structurally ambiguous LLM output into accepted Canon state. The runtime is designed as a fail-closed production pipeline: an LLM candidate becomes selected output only after generation, review, revision, and deterministic validation all pass.
+NovelForgeは、曖昧または検証不能なLLM出力を選択済みCanon・原稿へ進めません。各候補はimmutable attemptとして記録され、schema、review、deterministic contractを通過してからselection snapshotへ公開されます。
 
-## Universal loop
+## Runtime task boundary
 
-Every LLM-authored artifact uses the same gate:
+| Stage | 実行task | 受理条件 |
+|---|---|---|
+| Plan | `plan.series.generate` | series schemaとCanon seed bootstrapが成立 |
+| Design | `design.volume/chapter/scene.generate` | sceneごとのnon-empty Canon patchとdeterministic patch reviewが成立 |
+| Draft | `write.draft.generate → review → revise` | final review issuesが空 |
+| Summary | `write.summary.generate → review → revise` | final summary review issuesが空 |
 
-```text
-generate → LLM review + deterministic contract review → revise → … → accept
-```
+planとdesignはpublic runtimeではgenerate-onlyです。writeのreview上限は未解決欠陥を許容する仕組みではなく、上限到達時は選択snapshotを進めず停止します。
 
-| Stage | LLM artifact | Deterministic checks | On issue |
-|---|---|---|---|
-| Plan | `plan_concept` | required seed fields, strict slug | revise |
-| Volume/chapter | design schemas | required structural children | revise |
-| Scene | ID-only scene design | Canon ID membership, intent DSL compiler, strict CanonPatch schema, semantic preflight | revise |
-| Draft | prose draft | schema plus review grounding | revise |
-| Summary | writer handoff | schema plus draft-grounded review | revise |
+## Retry boundary
 
-The configured review count is an attempt budget, **not** permission to accept unresolved defects. Reaching the budget raises `RuntimeContractError`; no selection snapshot advances.
+JSON parse / Schema validationなどのcontract failureは `quality.max_retry_count` の範囲で別attemptとして再実行されます。transport failureは自動再試行せず、`error.json` を伴う失敗attemptとして終了します。
 
 ## Canon identity boundary
 
-Scene design receives a compact `canon_context` whose entities contain both a narrative label and an opaque Canon ID. The model must return the provided IDs exactly:
+LLMはauthor-facingな名称と文脈からscene designを作ります。runtimeが名前参照をstable typed referenceへ解決し、Canon patchの整合性を検証します。
 
-- character fields: `pov_character_id`, `character_ids`
-- location field: `location_id`
-- update targets: `canon_updates[].target_id` and `holder_id`
-
-The runtime does not resolve display names, aliases, substrings, invented IDs, or missing values. A mismatch is a reviewable contract violation and triggers revision.
-
-## Intent DSL instead of LLM-authored CanonPatch
-
-A complete CanonPatch has entity-specific operation structures and typed references. Asking an LLM to construct it directly produced repeated category errors (`artifacts.state_updates`, character-shaped artifact creates, missing reference kinds). The LLM-facing scene schema now exposes only these operations:
-
-- `set_character_state`
-- `set_location_state`
-- `set_artifact_condition`
-- `transfer_artifact`
-
-`RuntimeWorkflow._compile_scene_updates` is the only compiler from that DSL to the strict CanonPatch model. It accepts only existing IDs and never injects defaults or rewrites approximate fields. The existing Canon schema and semantic preflight remain the final authority before a Canon Event is published.
-
-## Explicitly prohibited recovery paths
-
-The runtime must not use any of the following as a way to advance a candidate:
-
-- partial/name/alias location or character resolution
-- falling back to a first Canon entity
-- inferred `EntityRef.kind`
-- `extra="ignore"` on CanonPatch
-- schema-error warnings that still permit application
-- normalizing near-miss CanonPatch field names
-- assigning a default stable ID to an LLM-created entity
-- selecting `review_limit_reached` content
-
-If a requested narrative requires a Canon entity that does not yet exist, it must be introduced through an explicit, separately designed Canon expansion workflow; a scene design must not silently invent it.
+- empty / no-op patchは拒否する
+- 存在しないentity、前方参照、型不一致は拒否する
+- review済みpatchだけがCanon eventとしてactive frontierに入る
+- writerはraw Canon、event、stable IDではなくwriter-safe contextと直近summaryを受け取る
 
 ## Evidence
 
-Each generate/review/revise call has its own immutable attempt. A selected artifact therefore has an auditable trail from candidate through final empty-issue review. Raw LLM input/output capture remains bound to the attempt under the repository retention policy.
+LLMを呼んだ各attemptは `llm/request.json`、`response.ndjson`、`response.content.json`、`validation.json` を保持します。parse・Schema validation成功時のみ `parsed.json` も保存されます。これにより、選択artifactからcandidate・review・revision・validationの追跡が可能です。
+
+詳細は [Attempt-scoped LLM evidence形式](raw_log_format.md) を参照してください。
