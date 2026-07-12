@@ -37,6 +37,27 @@ def test_valid_canon_patch_validates_via_registry() -> None:
     assert errors == [], errors
 
 
+def test_committed_scene_patch_schema_rejects_core_character_create() -> None:
+    """Schema and runtime agree: Core characters originate only in the seed."""
+    data = {
+        "characters": {
+            "create": [
+                {
+                    "creation_key": "loto_duplicate",
+                    "identity": {"kind": "named", "display_name": "蓮"},
+                    "importance": "core",
+                    "tracking_level": "full",
+                    "narrative_function": "protagonist",
+                    "continuity_card": {"current_state": "active"},
+                }
+            ]
+        }
+    }
+    errors = validate("canon_patch", data)
+    assert errors
+    assert any("core" in error for error in errors)
+
+
 def test_scene_design_ref_resolves_through_registry() -> None:
     sd_validator = get_validator("scene_design")
     sd_data = {

@@ -777,7 +777,10 @@ class CharCreate(BaseModel):
     creation_key: str
     id: str = ""  # stable id assigned by StableIdGenerator at apply time
     identity: CharacterIdentity
-    importance: Literal["core", "supporting", "minor"]
+    # Core is fixed by the immutable plan seed.  This must be a DSL/schema
+    # restriction too: otherwise an LLM can produce a patch which the prompt's
+    # advertised CanonPatch schema accepts but the applier later rejects.
+    importance: Literal["supporting", "minor"]
     tracking_level: Literal["full", "continuity"]
     narrative_function: str
     parent_design_intent: IntentItem | None = None

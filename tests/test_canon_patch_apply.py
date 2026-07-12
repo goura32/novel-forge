@@ -586,21 +586,20 @@ def test_relationship_create_requires_two_participants_and_perspectives():
 
 
 def test_core_character_create_rejected():
-    canon = _base_canon()
-    patch = CanonPatch(
-        characters={
-            "create": [{
-                "creation_key": "boss",
-                "identity": {"kind": "named", "display_name": "Big Boss"},
-                "importance": "core",
-                "tracking_level": "full",
-                "narrative_function": "antagonist",
-                "continuity_card": {"current_state": "x"},
-            }]
-        }
-    )
-    with pytest.raises(PatchValidationError):
-        _apply(canon, patch)
+    """Core must be rejected by the public scene-patch DSL, before apply-time."""
+    with pytest.raises(ValidationError, match="supporting.*minor|minor.*supporting"):
+        CanonPatch(
+            characters={
+                "create": [{
+                    "creation_key": "boss",
+                    "identity": {"kind": "named", "display_name": "Big Boss"},
+                    "importance": "core",
+                    "tracking_level": "full",
+                    "narrative_function": "antagonist",
+                    "continuity_card": {"current_state": "x"},
+                }]
+            }
+        )
 
 
 def test_location_immutable_constraint_update_rejected():

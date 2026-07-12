@@ -35,6 +35,33 @@ def test_scene_design_review_is_grounded_in_the_assigned_scene_seed() -> None:
     assert missing == []
 
 
+def test_scene_prompts_keep_existing_core_characters_out_of_scene_create() -> None:
+    """A scene must refer to seed Core IDs, never recreate them by display name."""
+    expected = {
+        "design_scene_generate.md": [
+            "`canon_context.characters` にいる人物",
+            "`core` character は plan seed 専用",
+        ],
+        "design_scene_review.md": [
+            "`canon_context.characters` にいる人物",
+            "importance: \"core\"",
+        ],
+        "design_scene_revise.md": [
+            "`canon_context.characters` にいる人物",
+            "`core` は plan seed 専用",
+        ],
+    }
+    missing = {
+        filename: [
+            fragment
+            for fragment in fragments
+            if fragment not in (PROMPTS_DIR / filename).read_text(encoding="utf-8")
+        ]
+        for filename, fragments in expected.items()
+    }
+    assert {filename: fragments for filename, fragments in missing.items() if fragments} == {}
+
+
 def test_plan_review_never_emits_an_unactionable_empty_replacement() -> None:
     prompt = (PROMPTS_DIR / "plan_concept_review.md").read_text(encoding="utf-8")
 

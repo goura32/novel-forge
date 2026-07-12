@@ -8,7 +8,9 @@
 
 ## Canon mutation の原則
 - `pov_character_id`、`character_ids`、`location_id` には既存 Canon ID を完全一致で書く。
+- `canon_context.characters` にいる人物は、この scene で初登場しても既存 entity である。`characters.create` や `@created:` を使わず、その人物の ID を scene-level 参照に使い、実際に変化した状態だけを `state_updates` に書く。表示名が同じ別人物を作って既存人物を置換してはならない。
 - この scene で初登場・以後の連続性管理が必要な entity は、`canon_patch` の対応 section の `create` に追加する。作成 payload の `id` は書かず、意味的で source 内一意な `creation_key` を書く。
+- scene patch の `characters.create.importance` は `minor` または、親 Design Intent を持つ `supporting` だけである。`core` character は plan seed 専用であり、scene patch では create できない。
 - 同じ scene 内の新規 entity を scene の POV / cast / setting に使う場合は、final ID を推測せず `@created:<creation_key>` を書く。**ただし CanonPatch 内の型付き参照は schema の `ChangeRef` を使う。既存 entity は `{"kind":"...","id":"..."}`、同一 patch 内で create した entity は `{"creation_key":"..."}` と書き、後者に `kind` / `id` / `@created:` を混ぜない。** runtime が stable ID を発行する。
 - 単なる情景の細部・一回限りの通行地点を無駄に Canon entity 化しない。後続 scene が固有状態・制約・関係・知識を参照するなら create する。
 - 既存 entity の変化は create ではなく、対応する型付き update に書く。状態が変わらないなら update を捏造しない。
