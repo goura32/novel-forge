@@ -15,7 +15,7 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 - "set_artifact_condition" : アイテムの状態を更新（target_id = アイテムID）
 - "transfer_artifact" : アイテムの所持者を変更（target_id = アイテムID、holder_id = 新しい所持者ID）
 
-"update" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。value は canon_context 内の現在の状態と明確に異なる値を書くこと。変化がない場合はその update を canon_updates に含めないこと。
+"update" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。operation と target の entity 種別を必ず一致させる：`set_character_state` は `characters[].id`、`set_location_state` は `locations[].id`、`set_artifact_condition` と `transfer_artifact` は `artifacts[].id` だけを対象にする。`artifacts[]` が空なら artifact operation は一件も書かず、写真名・物品名・表示名を target_id に使わない。value は canon_context 内の現在の状態と明確に異なる値を書くこと。変化がない場合はその update を canon_updates に含めないこと。
 
 ### レビュー指摘の適用ルール
 - review で「no-op（空更新）」「現在の状態と重複」「不要な更新」と指摘された canon_updates 要素は、canon_updates から除外すること。残すべき更新がない場合は空配列 `[]` を返すこと（空配列は許容される）。

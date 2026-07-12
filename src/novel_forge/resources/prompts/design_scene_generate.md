@@ -15,7 +15,7 @@ canon_updates の各要素は operation / target_id / value を必ず含む。op
 - "set_artifact_condition" : アイテムの状態を更新（target_id = アイテムID）
 - "transfer_artifact" : アイテムの所持者を変更（target_id = アイテムID、holder_id = 新しい所持者ID）
 
-"update_state" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。value は canon_context 内の現在の状態と明確に異なる値を書くこと。現在の状態と同じ値を書くと no-op（空更新）となり拒否されるため、変化がない場合はその update を canon_updates に含めないこと。
+"update_state" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。operation と target の entity 種別を必ず一致させる：`set_character_state` は `characters[].id`、`set_location_state` は `locations[].id`、`set_artifact_condition` と `transfer_artifact` は `artifacts[].id` だけを対象にする。`artifacts[]` が空なら artifact operation は一件も書かず、写真名・物品名・表示名を target_id に使わない。value は canon_context 内の現在の状態と明確に異なる値を書くこと。現在の状態と同じ値を書くと no-op（空更新）となり拒否されるため、変化がない場合はその update を canon_updates に含めないこと。
 
 ### Canon 制約の厳守
 canon_context の world_rules / series_constraints / locations[].immutable_constraints に書かれた制約は、key_events / setting / outcome の生成時に絶対に守る。Canon の `characters[]` は `character_id` と表示名の対応表であり、`character_ids` にはこの表にある ID だけを完全一致で入れる。表示名だけから人物や ID を推測せず、対応表にない人物名は登場者・発言者・更新対象として書かない。

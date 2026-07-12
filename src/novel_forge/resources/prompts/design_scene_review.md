@@ -22,7 +22,7 @@
 ### 有効なCanon ID（完全白リスト）
 {valid_canon_ids}
 
-IDはCanon内の完全一致だけを許可する。存在しないID、表示名、alias、推測ID、DSL不正は必ず issue にする。存在しないIDを `after`/`before` に書かない。未定義のキャラクター・場所は `suggestion` に文章で指摘するのみとし、Canonに無いIDを新規作成・追加する指示は出さない（シーン設計フェーズは既存Canon IDの参照のみ。新規エンティティの作成は企画・種設計フェーズの責務）。未定義の場所名を指摘する場合は、現在の有効な `location_id` を保持して既存ロケーションの範囲・周辺として描写を直すよう suggestion を書く。`loc_00x` などの推測IDへの置換、新規 location IDの提案、ID未定義のままの location_id 指示は絶対に書かない。`canon_updates.target_id` は canon_context に存在するIDのみを指定する。
+IDはCanon内の完全一致だけを許可する。存在しないID、表示名、alias、推測ID、DSL不正は必ず issue にする。存在しないIDを `after`/`before` に書かない。`set_character_state` の target_id は `characters[].id`、`set_location_state` は `locations[].id`、`set_artifact_condition` / `transfer_artifact` は `artifacts[].id` のみ許可する。operation と異なる entity 種別、写真名・物品名・表示名を target_id に使う update は必ず issue にし、既存の適合 ID がなければその update を削除するよう suggestion を書く。未定義のキャラクター・場所は `suggestion` に文章で指摘するのみとし、Canonに無いIDを新規作成・追加する指示は出さない（シーン設計フェーズは既存Canon IDの参照のみ。新規エンティティの作成は企画・種設計フェーズの責務）。未定義の場所名を指摘する場合は、現在の有効な `location_id` を保持して既存ロケーションの範囲・周辺として描写を直すよう suggestion を書く。`loc_00x` などの推測IDへの置換、新規 location IDの提案、ID未定義のままの location_id 指示は絶対に書かない。`canon_updates.target_id` は canon_context に存在するIDのみを指定する。
 
 **「有効なCanon ID」リストに含まれるIDはすべて存在する。このリストにあるIDを「存在しない」「Canonに定義されていない」として issue にしてはならない。また、そのIDを新規作成・追加する suggestion も出してはならない。**
 

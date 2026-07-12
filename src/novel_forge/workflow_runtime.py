@@ -444,9 +444,12 @@ class RuntimeWorkflow:
         review_values: Callable[[dict[str, Any]], dict[str, Any]],
         revise_values: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
         contract_issues: Callable[[dict[str, Any]], list[dict[str, Any]]] | None = None,
+        normalize_candidate: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> tuple[AttemptHandle, dict[str, Any]]:
         """Run bounded cross-phase review/revision; only a contract-valid candidate advances."""
         attempt, current = candidate_attempt, candidate
+        if normalize_candidate is not None:
+            current = normalize_candidate(current)
         last_contract_valid: tuple[AttemptHandle, dict[str, Any]] | None = None
         for cycle in range(1, self.max_review_count + 1):
             _, llm_review = self._run_task(
@@ -478,6 +481,8 @@ class RuntimeWorkflow:
                     revise_values(current, review),
                     reason=f"revise {stem} after review",
                 )
+                if normalize_candidate is not None:
+                    current = normalize_candidate(current)
             except (LLMError, RuntimeContractError) as exc:
                 # A flaky revise (e.g. 35B dropped a required field) must not
                 # abort the entire novel run. Keep the last good design and skip
@@ -742,6 +747,59 @@ class RuntimeWorkflow:
         if any(entity.id == value for entity in entities):
             return value
         raise RuntimeContractError(f"scene {entity_kind}_id does not exist in Canon: {value!r}")
+
+    @staticmethod
+    def _normalize_scene_update_targets(raw_scene: dict[str, Any], canon: Canon) -> dict[str, Any]:
+        """Drop only DSL updates whose target cannot exist for their operation.
+
+        ``canon_updates`` is an optional state-change proposal, unlike scene POV,
+        cast, and location references.  A model may hallucinate an artifact ID
+        when Canon has no artifact of that name; preserving that update cannot
+        produce a valid event.  Keep the raw LLM response in the attempt record,
+        but remove such impossible proposals from the selected candidate.  Other
+        malformed updates remain for the strict compiler to reject.
+        """
+        updates = raw_scene.get("canon_updates")
+        if not isinstance(updates, list):
+            return raw_scene
+
+        character_ids = {entity.id for entity in canon.characters}
+        location_ids = {entity.id for entity in canon.locations}
+        artifact_ids = {entity.id for entity in canon.artifacts}
+        kept: list[object] = []
+        dropped: list[str] = []
+        for index, update in enumerate(updates):
+            if not isinstance(update, dict):
+                kept.append(update)
+                continue
+            operation = update.get("operation")
+            target_id = update.get("target_id")
+            invalid_target = (
+                (operation == "set_character_state" and target_id not in character_ids)
+                or (operation == "set_location_state" and target_id not in location_ids)
+                or (operation == "set_artifact_condition" and target_id not in artifact_ids)
+                or (
+                    operation == "transfer_artifact"
+                    and (
+                        target_id not in artifact_ids
+                        or update.get("holder_id") not in character_ids
+                    )
+                )
+            )
+            if invalid_target:
+                dropped.append(f"{index}:{operation}:{target_id!r}")
+            else:
+                kept.append(update)
+        if not dropped:
+            return raw_scene
+
+        warnings.warn(
+            f"dropped {len(dropped)} Canon-invalid scene update(s): {', '.join(dropped)}",
+            stacklevel=2,
+        )
+        normalized = copy.deepcopy(raw_scene)
+        normalized["canon_updates"] = kept
+        return normalized
 
     @staticmethod
     def _compile_scene_updates(canon: Canon, updates: object) -> dict[str, Any]:
@@ -1029,6 +1087,11 @@ class RuntimeWorkflow:
                         ]
                     return []
 
+                def normalize_scene_candidate(
+                    candidate: dict[str, Any], *, _canon: Canon = canon
+                ) -> dict[str, Any]:
+                    return self._normalize_scene_update_targets(candidate, _canon)
+
                 def scene_review_values(
                     candidate: dict[str, Any], *, _canon: Canon = canon, _seed: dict[str, Any] = scene_seed
                 ) -> dict[str, Any]:
@@ -1059,6 +1122,7 @@ class RuntimeWorkflow:
                     review_values=scene_review_values,
                     revise_values=scene_revise_values,
                     contract_issues=scene_contract,
+                    normalize_candidate=normalize_scene_candidate,
                 )
                 design, patch = self._scene_from_generated_payload(
                     raw_scene,

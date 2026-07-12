@@ -245,6 +245,69 @@ def test_review_cap_keeps_last_contract_valid_scene_candidate(tmp_path: Path) ->
     assert candidate == {"location_id": "loc_001", "title": "valid intermediate"}
 
 
+def test_scene_candidate_normalizer_drops_unknown_artifact_update(tmp_path: Path) -> None:
+    """A hallucinated artifact update must not abort an otherwise valid scene."""
+    repo = RunRepository(tmp_path)
+    seed = BibleFactory.create_seed(PLAN)
+    bootstrap_run = repo.create_run(command="plan", model="fake", verbose=False)
+    bootstrap = RuntimeWorkflow(repo, bootstrap_run, task_runner=lambda _task, _values: {})
+    snapshot = bootstrap.bootstrap_plan(
+        slug="series_a",
+        plan={"slug": "series_a", **PLAN},
+        canon_seed=seed.model_dump(mode="json"),
+    )
+    run = repo.create_run(
+        command="design",
+        model="fake",
+        verbose=False,
+        input_snapshot_id=snapshot.selection_snapshot_id,
+    )
+    workflow = RuntimeWorkflow(repo, run, slug="series_a", task_runner=lambda _task, _values: {})
+    raw_scene = {
+        "title": "覚醒",
+        "goal": "状況を把握する",
+        "conflict": "記憶が曖昧",
+        "outcome": "案内人と話す",
+        "pov_character_id": "char_001",
+        "character_ids": ["char_001"],
+        "key_events": ["目を覚ます"],
+        "location_id": "loc_001",
+        "hook": "目を開ける",
+        "turning_point": "端末が光る",
+        "emotional_arc": "不安から安堵",
+        "ending_hook": "扉が開く",
+        "canon_updates": [
+            {"operation": "set_character_state", "target_id": "char_001", "value": "案内人と話す"},
+            {
+                "operation": "set_artifact_condition",
+                "target_id": "photo_akane",
+                "value": "現像済み",
+            },
+        ],
+    }
+
+    with pytest.warns(UserWarning, match="dropped 1 Canon-invalid scene update"):
+        candidate = workflow._normalize_scene_update_targets(raw_scene, workflow.load_canon())
+    _design, patch = workflow._scene_from_generated_payload(
+        candidate,
+        canon=workflow.load_canon(),
+        volume=1,
+        chapter=1,
+        ordinal=1,
+    )
+
+    published, applied = workflow.accept_scene_design(_design, patch)
+
+    assert raw_scene["canon_updates"][1]["target_id"] == "photo_akane"
+    assert candidate["canon_updates"] == [raw_scene["canon_updates"][0]]
+    assert applied.status == "applied"
+    assert f"design.scene.{applied.scene_id}" in published.slots
+    assert patch["characters"]["state_updates"] == [
+        {"character": {"kind": "character", "id": "char_001"}, "current_state": "案内人と話す"}
+    ]
+    assert patch["artifacts"]["condition_updates"] == []
+
+
 def test_scene_payload_without_canon_updates_is_rejected(tmp_path: Path) -> None:
     """Runtime must refuse a scene design that omits the small Canon update DSL."""
     from novel_forge.runtime import RuntimeContractError
