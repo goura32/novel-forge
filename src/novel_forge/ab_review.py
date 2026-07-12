@@ -85,6 +85,16 @@ def render_review_prompt(
     )
 
 
+def replay_ollama_options(configured: dict[str, Any], *, seed: int) -> dict[str, Any]:
+    """Return replay options without overriding provider sampling controls.
+
+    A/B replay must let the provider use the production default for temperature
+    and top-p.  The seed is retained only to pair A/B calls reproducibly.
+    """
+    options = {key: value for key, value in configured.items() if key not in {"temperature", "top_p"}}
+    return {**options, "seed": seed}
+
+
 def actionability_summary(draft: dict[str, Any], review: dict[str, Any]) -> dict[str, int]:
     """Measure mechanical revision readiness without judging creative validity."""
 

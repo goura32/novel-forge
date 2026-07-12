@@ -20,6 +20,7 @@ from novel_forge.ab_review import (
     actionability_summary,
     extract_case_from_request,
     render_review_prompt,
+    replay_ollama_options,
 )
 from novel_forge.config import RuntimeConfig
 from novel_forge.llm_client import LLMClient
@@ -81,7 +82,11 @@ def main() -> int:
         "model": config.llm.model,
         "ollama_host": config.llm.ollama_host,
         "timeout_seconds": config.llm.timeout_seconds,
-        "ollama_options": config.llm.ollama_options,
+        "ollama_options": {
+            key: value
+            for key, value in config.llm.ollama_options.items()
+            if key not in {"temperature", "top_p"}
+        },
         "variants": {name: _digest(path.read_bytes()) for name, path in variants.items()},
         "seeds": seeds,
         "cases": [
@@ -179,7 +184,7 @@ def _replay_one(
     }
     _write_json_exclusive(attempt_dir / "attempt.json", metadata)
     capture = ExperimentCapture(attempt_dir)
-    options = {**config.llm.ollama_options, "seed": seed}
+    options = replay_ollama_options(config.llm.ollama_options, seed=seed)
     client = LLMClient(
         api_url=f"http://{config.llm.ollama_host}/api/chat",
         model=config.llm.model,

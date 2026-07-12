@@ -7,6 +7,7 @@ from novel_forge.ab_review import (
     actionability_summary,
     extract_case_from_request,
     render_review_prompt,
+    replay_ollama_options,
 )
 
 
@@ -64,6 +65,15 @@ def test_render_review_prompt_has_no_unresolved_placeholders(tmp_path: Path) -> 
     assert "{writer_context}" not in rendered
     assert "{draft}" not in rendered
     assert "{schema}" not in rendered
+
+
+def test_replay_options_leave_temperature_and_top_p_unspecified() -> None:
+    options = replay_ollama_options(
+        {"think": False, "temperature": 0.7, "top_p": 0.9, "num_ctx": 262144},
+        seed=101,
+    )
+
+    assert options == {"think": False, "num_ctx": 262144, "seed": 101}
 
 
 def test_actionability_summary_rejects_missing_before_and_empty_after() -> None:
