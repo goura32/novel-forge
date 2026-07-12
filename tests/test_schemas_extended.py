@@ -318,7 +318,7 @@ class TestValidate:
             "turning_point": "父親が反対を解き、古い地図を手渡す。",
             "emotional_arc": "不安から決意へ",
             "ending_hook": "門の外で地図と同じ印が光る。",
-            "canon_updates": [{"operation": "set_character_state", "target_id": "char_001", "value": "旅立ちの決意を固める"}],
+            "canon_patch": {"characters": {"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "旅立ちの決意を固める"}]}},
         }
         errors = validate("design_scene", data)
         assert len(errors) == 0

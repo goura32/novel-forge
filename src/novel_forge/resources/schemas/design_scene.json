@@ -3,15 +3,15 @@
   "title": "SceneDesign",
   "type": "object",
   "additionalProperties": false,
-  "required": ["title", "goal", "outcome", "conflict", "pov_character_id", "character_ids", "key_events", "location_id", "hook", "turning_point", "emotional_arc", "ending_hook", "canon_updates"],
+  "required": ["title", "goal", "outcome", "conflict", "pov_character_id", "character_ids", "key_events", "location_id", "hook", "turning_point", "emotional_arc", "ending_hook", "canon_patch"],
   "properties": {
     "title": {"type": "string"},
     "goal": {"type": "string"},
     "outcome": {"type": "string"},
     "conflict": {"type": "string"},
-    "pov_character_id": {"type": "string", "description": "canon_context.characters[].id の完全一致。表示名は禁止。"},
-    "character_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "description": "canon_context.characters[].id の完全一致。"}},
-    "location_id": {"type": "string", "description": "canon_context.locations[].id の完全一致。場所の情景は sensory_focus に書く。"},
+    "pov_character_id": {"type": "string", "description": "既存 character ID、または同一 canon_patch.characters.create の creation_key を @created:<key> で参照する。"},
+    "character_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "description": "既存 character ID、または同一 canon_patch.characters.create を @created:<key> で参照する。"}},
+    "location_id": {"type": "string", "description": "既存 location ID、または同一 canon_patch.locations.create の creation_key を @created:<key> で参照する。"},
     "key_events": {"type": "array", "minItems": 1, "items": {"type": "string"}},
     "hook": {"type": "string"},
     "turning_point": {"type": "string"},
@@ -20,21 +20,10 @@
     "sensory_focus": {"type": "array", "items": {"type": "string"}},
     "subtext": {"type": "string"},
     "foreshadowing": {"type": "array", "items": {"type": "string"}},
-    "canon_updates": {
-      "type": "array",
-      "description": "既存 Canon への単純な更新意図。create や曖昧な参照は禁止。Python が strict CanonPatch にコンパイルする。",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["operation", "target_id", "value"],
-        "properties": {
-          "operation": {"type": "string", "enum": ["set_character_state", "set_location_state", "set_artifact_condition", "transfer_artifact"]},
-          "target_id": {"type": "string", "description": "canon_context 内の対象 Canon ID。"},
-          "value": {"type": "string", "description": "新しい状態・条件。"},
-          "holder_id": {"type": "string", "description": "transfer_artifact の新しい保持者（canon_context.characters[].id）。"}
-        }
-      }
+    "canon_patch": {
+      "type": "object",
+      "description": "完全な CanonPatch。characters / collectives / locations / artifacts / knowledge / chronology / relationships / foreshadowing / subplots / glossary の各 section は create と型付き update を持てる。存在しない section は省略可。create は creation_key を必須とし final ID を書かない。既存IDまたは同一 patch の @created:<creation_key> を参照できる。"
     }
   },
-  "description": "厳格なID参照を使う1シーンの詳細設計。"
+  "description": "scene design と完全 CanonPatch を一体で返す。既存参照は stable ID、新規 entity は creation_key を使う。"
 }

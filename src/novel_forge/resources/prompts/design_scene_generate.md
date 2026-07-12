@@ -1,35 +1,40 @@
 # シーン設計生成
 
 ## 目的
-親章の意図を満たす、Canon ID参照だけを使うシーン設計を生成する。
+親章の意図を満たし、物語に必要な Canon の追加・変更を **完全な `canon_patch`** として同時に設計する。
 
 ## 応答方針
-表示名からIDを推測しない。許可Canonにない人物・場所を使わず、必要ならreviewで明示的に不備として扱える設計にする。
+物語上必要な Canon 追加・更新を明示するが、既存設定を推測で書き換えず、必要最小限の entity と patch だけを返す。
+
+## Canon mutation の原則
+- `pov_character_id`、`character_ids`、`location_id` には既存 Canon ID を完全一致で書く。
+- この scene で初登場・以後の連続性管理が必要な entity は、`canon_patch` の対応 section の `create` に追加する。作成 payload の `id` は書かず、意味的で source 内一意な `creation_key` を書く。
+- 同じ scene 内で新規 entity を POV / cast / setting / patch 内の他参照に使う場合は、final ID を推測せず `@created:<creation_key>` を書く。runtime が stable ID を発行する。
+- 単なる情景の細部・一回限りの通行地点を無駄に Canon entity 化しない。後続 scene が固有状態・制約・関係・知識を参照するなら create する。
+- 既存 entity の変化は create ではなく、対応する型付き update に書く。状態が変わらないなら update を捏造しない。
+- Canon にない ID、表示名、推測 ID は既存参照欄に書かない。新しい概念は create + creation_key で表現する。
+
+## `canon_patch` の構造
+`canon_patch` は必要な section だけを返す object。各 section の操作は以下の strict CanonPatch に従う。
+
+- `characters`: `create`、`state_updates`、`promote`、`identity_reveals`
+- `collectives`: `create`、`state_updates`
+- `locations`: `create`、`state_updates`
+- `artifacts`: `create`、`custody_updates`、`condition_updates`
+- `knowledge`: `create`、`holder_updates`、`visibility_updates`、`truth_status_transitions`
+- `chronology`: `advance_to`、`deadline_updates`
+- `relationships`: `create`、`updates`
+- `foreshadowing`: `create`、`transitions`
+- `subplots`: `create`、`updates`
+- `glossary`: `create`
+
+作成 payload は entity ごとの必須属性をすべて満たす。例: location は `creation_key` / `name` / `kind`、artifact は `creation_key` / `name` / `kind`、knowledge は `creation_key` / `proposition`、subplot は `creation_key` / `name` / `dramatic_question` / `stakes`。character create は identity・importance・tracking_level・narrative_function・continuity_card を必ず含める。relationship create は2人の participant と relationship state を持つ。
 
 ## 実行指示
-pov_character_id、character_ids、location_id はCanonのIDを完全一致で返す。hook は冒頭の読者関心、turning_point は場面の不可逆な転換、ending_hook は次場面を読む理由、key_events は実際の出来事を順に書く。canon_updates は既存entityの単純更新だけを返し、CanonPatchを直接返さない。
-
-canon_updates の各要素は operation / target_id / value を必ず含む。operation は以下の4値のいずれかのみ使用すること（その他の値は禁止）:
-- "set_character_state" : キャラクターの状態を更新（target_id = キャラクターID）
-- "set_location_state" : 場所の状態を更新（target_id = 場所ID）
-- "set_artifact_condition" : アイテムの状態を更新（target_id = アイテムID）
-- "transfer_artifact" : アイテムの所持者を変更（target_id = アイテムID、holder_id = 新しい所持者ID）
-
-"update_state" 等の独自値は使用しないこと。target_id は canon_context 内の既存IDを完全一致で指定すること。operation と target の entity 種別を必ず一致させる：`set_character_state` は `characters[].id`、`set_location_state` は `locations[].id`、`set_artifact_condition` と `transfer_artifact` は `artifacts[].id` だけを対象にする。`artifacts[]` が空なら artifact operation は一件も書かず、写真名・物品名・表示名を target_id に使わない。value は canon_context 内の現在の状態と明確に異なる値を書くこと。現在の状態と同じ値を書くと no-op（空更新）となり拒否されるため、変化がない場合はその update を canon_updates に含めないこと。
+`hook` は冒頭の読者関心、`turning_point` は場面の不可逆な転換、`ending_hook` は次場面を読む理由、`key_events` は実際の出来事を順に書く。新規 location をこの scene の舞台にする場合は `locations.create` と `location_id: "@created:<creation_key>"` を同時に返す。新規 character を登場させる場合は `characters.create` と `character_ids: ["@created:<creation_key>"]` を使う。
 
 ### Canon 制約の厳守
-canon_context の world_rules / series_constraints / locations[].immutable_constraints に書かれた制約は、key_events / setting / outcome の生成時に絶対に守る。Canon の `characters[]` は `character_id` と表示名の対応表であり、`character_ids` にはこの表にある ID だけを完全一致で入れる。表示名だけから人物や ID を推測せず、対応表にない人物名は登場者・発言者・更新対象として書かない。
-
-`current_state` と場所・アイテムの現在状態は、このシーン開始時点の確定事実である。状態が「解消済み」「離脱中」「局所的」「使用不可」なら、key_events / outcome でその反対の状態を前提にしない。状態を変える必要があるときだけ、原因から結果までが分かる明確な canon_updates を書く。
-
-具体的には以下を破る描写を書かないこと：
-- 結界の範囲（例：店外では妖怪への直接干渉は不可能、店内のみ会話・干渉可）
-- 年代の統一（例：明治初期＝1870年代。別の時代表記と混在させない）
-- 物理法則の扱い（例：怪異の影響であっても急激な凍結・結露等の極端な環境変化は避ける）
-- world_rules で限定された知覚・能力・道具の機能を拡張しない。明示されない感官、戦闘機能、増幅・反射などの作用を推測で追加しない
-- Canon で定義されていない怪異名・術名・固有名詞を新規に導入しない（既存 entity の名前のみ使用）
-- 人物の接触可能性は結界の範囲に従う（例：神楽響は現在結界外にいるため、朔が直接触れ・対話できるのは店内の痕跡「幻燈り」のみ。神楽本人への直接的な応答描写は書かない）
-- canon_updates には必ず現在の状態と異なる値を書くこと。シーンで状態変化が生じない場合は canon_updates を空配列 `[]` にすること（重複更新・no-op 更新は書かない）
+`canon_context` の world_rules / series_constraints / locations[].immutable_constraints / current_state は scene 開始時点の確定事実である。既存の人物・場所・物品・能力を表示名だけから推測しない。world rule で定義されない知覚・戦闘能力・道具の作用を追加しない。新規 entity を作ることは許されるが、既存設定と矛盾する能力・年代・関係・物理法則を作らない。
 
 ### 入力情報
 ### シリーズ企画

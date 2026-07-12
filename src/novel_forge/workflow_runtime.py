@@ -23,7 +23,18 @@ from novel_forge.canon.frontier import (
     replay_frontier,
     validate_frontier_payload,
 )
-from novel_forge.canon.models import Canon, ContextScope, EntityRef, SceneLocation, WriterContext
+from novel_forge.canon.idgen import StableIdGenerator
+from novel_forge.canon.models import (
+    Canon,
+    CanonPatch,
+    ContextScope,
+    EntityRef,
+    ReviewEvidence,
+    SceneLocation,
+    SourceRef,
+    WriterContext,
+)
+from novel_forge.canon.patch_apply import CanonPatchApplier
 from novel_forge.canon.runtime import (
     apply_reviewed_patch,
     attach_projection,
@@ -109,6 +120,39 @@ class RuntimeWorkflow:
             )
         except (SeedPayloadError, FrontierPayloadError) as exc:
             raise RuntimeContractError(f"selected Canon artifacts are invalid: {exc}") from exc
+
+    @staticmethod
+    def _preview_scene_canon(
+        design: SceneDesign,
+        patch: dict[str, Any],
+        canon: Canon,
+        active_events: list[Any],
+    ) -> Canon:
+        """Apply a candidate patch in memory before projecting the new scene.
+
+        The preview is never persisted.  It lets a just-created character or
+        location participate in this scene's scope and writer context while the
+        later reviewed event remains the sole durable Canon mutation.
+        """
+        if design.source_location is None:
+            raise RuntimeContractError("scene design source_location is required")
+        typed_patch = CanonPatch.model_validate(patch)
+        source = SourceRef(scene_id=design.scene_id, location=design.source_location, revision=1)
+        scene_cast_ids = {entry.character.id for entry in design.cast if entry.kind == "character"}
+        preview, _event = CanonPatchApplier().apply(
+            canon=canon,
+            patch=typed_patch,
+            source=source,
+            review_evidence=ReviewEvidence(
+                status="approved",
+                reviewed_artifact_digest="sha256:preview",
+                review_digest="sha256:preview",
+            ),
+            id_gen=StableIdGenerator(),
+            scene_cast_ids=scene_cast_ids,
+            existing_events=active_events,
+        )
+        return preview
 
     def publish_canon_event(self, event_payload: dict[str, Any]) -> SelectionSnapshot:
         """Replace one active scene event and publish a descendant frontier.
@@ -197,7 +241,8 @@ class RuntimeWorkflow:
         canon = self.load_canon()
         try:
             active_events = list(validate_frontier_payload(self._payload("canon.frontier")))
-            projected = attach_projection(design, canon)
+            preview_canon = self._preview_scene_canon(design, patch, canon, active_events)
+            projected = attach_projection(design, preview_canon)
             review = review_scene_patch(projected, patch, canon)
         except (FrontierPayloadError, ValueError) as exc:
             raise RuntimeContractError(f"scene design review failed: {exc}") from exc
@@ -258,8 +303,7 @@ class RuntimeWorkflow:
         if not issues:
             return False
         return all(
-            ("no-op" in issue) or ("empty updates are rejected" in issue)
-            for issue in issues
+            ("no-op" in issue) or ("empty updates are rejected" in issue) for issue in issues
         )
 
     @staticmethod
@@ -475,7 +519,6 @@ class RuntimeWorkflow:
                     return last_contract_valid
                 return attempt, current
             try:
-
                 attempt, current = self._run_task(
                     f"{stem}.revise",
                     revise_values(current, review),
@@ -749,119 +792,79 @@ class RuntimeWorkflow:
         raise RuntimeContractError(f"scene {entity_kind}_id does not exist in Canon: {value!r}")
 
     @staticmethod
-    def _normalize_scene_update_targets(raw_scene: dict[str, Any], canon: Canon) -> dict[str, Any]:
-        """Drop only DSL updates whose target cannot exist for their operation.
-
-        ``canon_updates`` is an optional state-change proposal, unlike scene POV,
-        cast, and location references.  A model may hallucinate an artifact ID
-        when Canon has no artifact of that name; preserving that update cannot
-        produce a valid event.  Keep the raw LLM response in the attempt record,
-        but remove such impossible proposals from the selected candidate.  Other
-        malformed updates remain for the strict compiler to reject.
-        """
-        updates = raw_scene.get("canon_updates")
-        if not isinstance(updates, list):
-            return raw_scene
-
-        character_ids = {entity.id for entity in canon.characters}
-        location_ids = {entity.id for entity in canon.locations}
-        artifact_ids = {entity.id for entity in canon.artifacts}
-        kept: list[object] = []
-        dropped: list[str] = []
-        for index, update in enumerate(updates):
-            if not isinstance(update, dict):
-                kept.append(update)
-                continue
-            operation = update.get("operation")
-            target_id = update.get("target_id")
-            invalid_target = (
-                (operation == "set_character_state" and target_id not in character_ids)
-                or (operation == "set_location_state" and target_id not in location_ids)
-                or (operation == "set_artifact_condition" and target_id not in artifact_ids)
-                or (
-                    operation == "transfer_artifact"
-                    and (
-                        target_id not in artifact_ids
-                        or update.get("holder_id") not in character_ids
-                    )
+    def _resolve_created_reference(
+        canon: Canon,
+        entity_kind: Literal["character", "location"],
+        value: object,
+        created_ids: dict[str, str],
+    ) -> str:
+        """Resolve an existing Canon ID or ``@created:<creation_key>`` reference."""
+        if isinstance(value, str) and value.startswith("@created:"):
+            creation_key = value.removeprefix("@created:")
+            resolved = created_ids.get(f"{entity_kind}:{creation_key}")
+            if resolved is None:
+                raise RuntimeContractError(
+                    f"scene {entity_kind}_id references undeclared creation_key: {creation_key!r}"
                 )
-            )
-            if invalid_target:
-                dropped.append(f"{index}:{operation}:{target_id!r}")
-            else:
-                kept.append(update)
-        if not dropped:
-            return raw_scene
-
-        warnings.warn(
-            f"dropped {len(dropped)} Canon-invalid scene update(s): {', '.join(dropped)}",
-            stacklevel=2,
-        )
-        normalized = copy.deepcopy(raw_scene)
-        normalized["canon_updates"] = kept
-        return normalized
+            return resolved
+        return RuntimeWorkflow._require_canon_id(canon, entity_kind, value)
 
     @staticmethod
-    def _compile_scene_updates(canon: Canon, updates: object) -> dict[str, Any]:
-        """Compile the small, ID-only scene DSL to the strict CanonPatch shape."""
-        if not isinstance(updates, list):
-            raise RuntimeContractError("scene canon_updates must be an array")
-        character_ids = {entity.id for entity in canon.characters}
-        location_ids = {entity.id for entity in canon.locations}
-        artifact_ids = {entity.id for entity in canon.artifacts}
-        patch: dict[str, Any] = {
-            "characters": {"state_updates": []},
-            "locations": {"state_updates": []},
-            "artifacts": {"custody_updates": [], "condition_updates": []},
-        }
-        for index, update in enumerate(updates):
-            if not isinstance(update, dict):
-                raise RuntimeContractError(f"canon_updates[{index}] must be an object")
-            operation, target_id, value = (
-                update.get("operation"),
-                update.get("target_id"),
-                update.get("value"),
-            )
-            if not isinstance(value, str) or not value.strip():
-                raise RuntimeContractError(f"canon_updates[{index}].value must be non-empty")
-            if operation == "set_character_state":
-                if target_id not in character_ids:
-                    raise RuntimeContractError(
-                        f"canon_updates[{index}].target_id is not a Canon character: {target_id!r}"
-                    )
-                patch["characters"]["state_updates"].append(
-                    {"character": {"kind": "character", "id": target_id}, "current_state": value}
-                )
-            elif operation == "set_location_state":
-                if target_id not in location_ids:
-                    raise RuntimeContractError(
-                        f"canon_updates[{index}].target_id is not a Canon location: {target_id!r}"
-                    )
-                patch["locations"]["state_updates"].append(
-                    {"id": target_id, "current_state": value}
-                )
-            elif operation == "set_artifact_condition":
-                if target_id not in artifact_ids:
-                    raise RuntimeContractError(
-                        f"canon_updates[{index}].target_id is not a Canon artifact: {target_id!r}"
-                    )
-                patch["artifacts"]["condition_updates"].append(
-                    {"id": target_id, "condition": value}
-                )
-            elif operation == "transfer_artifact":
-                holder_id = update.get("holder_id")
-                if target_id not in artifact_ids or holder_id not in character_ids:
-                    raise RuntimeContractError(
-                        f"canon_updates[{index}] requires existing artifact target_id and character holder_id"
-                    )
-                patch["artifacts"]["custody_updates"].append(
-                    {"id": target_id, "custody": {"kind": "character", "id": holder_id}}
-                )
-            else:
+    def _resolve_created_patch_references(value: Any, created_ids: dict[str, str]) -> Any:
+        """Resolve ``@created:<key>`` links inside a full CanonPatch payload.
+
+        Creation keys are intentionally model-facing aliases.  The runtime owns
+        stable IDs and replaces aliases only after :class:`StableIdGenerator`
+        assigned them, so an LLM never invents or persists final Canon IDs.
+        """
+        if isinstance(value, str) and value.startswith("@created:"):
+            creation_key = value.removeprefix("@created:")
+            matches = [
+                entity_id
+                for typed_key, entity_id in created_ids.items()
+                if typed_key.split(":", 1)[1] == creation_key
+            ]
+            if len(matches) != 1:
                 raise RuntimeContractError(
-                    f"canon_updates[{index}].operation is not supported: {operation!r}"
+                    f"CanonPatch reference has undeclared or ambiguous creation_key: {creation_key!r}"
                 )
-        return patch
+            return matches[0]
+        if isinstance(value, list):
+            return [
+                RuntimeWorkflow._resolve_created_patch_references(item, created_ids)
+                for item in value
+            ]
+        if isinstance(value, dict):
+            return {
+                key: RuntimeWorkflow._resolve_created_patch_references(item, created_ids)
+                for key, item in value.items()
+            }
+        return value
+
+    @staticmethod
+    def _prepare_scene_canon_patch(
+        raw_patch: object,
+        canon: Canon,
+        source: SourceRef,
+    ) -> tuple[dict[str, Any], dict[str, str]]:
+        """Type-check a scene's complete CanonPatch and resolve creation aliases."""
+        if not isinstance(raw_patch, dict):
+            raise RuntimeContractError("scene canon_patch must be an object")
+        try:
+            typed_patch = CanonPatch.model_validate(raw_patch)
+            assigned_patch, created_ids = StableIdGenerator().assign(
+                typed_patch,
+                canon,
+                source,
+                existing_events=None,
+            )
+            resolved_patch = RuntimeWorkflow._resolve_created_patch_references(
+                assigned_patch.model_dump(mode="json"), created_ids
+            )
+            CanonPatch.model_validate(resolved_patch)
+        except ValueError as exc:
+            raise RuntimeContractError(f"scene canon_patch is invalid: {exc}") from exc
+        return resolved_patch, created_ids
 
     def _scene_from_generated_payload(
         self,
@@ -873,15 +876,30 @@ class RuntimeWorkflow:
         ordinal: int,
     ) -> tuple[SceneDesign, dict[str, Any]]:
         """Resolve an LLM narrative scene into one typed, Canon-scoped design."""
+        scene_id = f"scn_v{volume:03d}_c{chapter:03d}_s{ordinal:03d}"
+        source = SourceRef(
+            scene_id=scene_id,
+            location=SceneLocation(volume=volume, chapter=chapter, ordinal=ordinal),
+            revision=1,
+        )
         try:
-            pov_id = self._require_canon_id(canon, "character", raw_scene["pov_character_id"])
-            setting_id = self._require_canon_id(canon, "location", raw_scene["location_id"])
+            patch, created_ids = self._prepare_scene_canon_patch(
+                raw_scene["canon_patch"], canon, source
+            )
+            pov_id = self._resolve_created_reference(
+                canon, "character", raw_scene["pov_character_id"], created_ids
+            )
+            setting_id = self._resolve_created_reference(
+                canon, "location", raw_scene["location_id"], created_ids
+            )
             raw_cast_ids = raw_scene["character_ids"]
             if not isinstance(raw_cast_ids, list):
                 raise RuntimeContractError("scene character_ids must be an array")
-            cast_ids = {self._require_canon_id(canon, "character", value) for value in raw_cast_ids}
+            cast_ids = {
+                self._resolve_created_reference(canon, "character", value, created_ids)
+                for value in raw_cast_ids
+            }
             cast_ids.add(pov_id)
-            patch = self._compile_scene_updates(canon, raw_scene["canon_updates"])
         except KeyError as exc:
             raise RuntimeContractError(
                 f"scene generation is missing required field: {exc.args[0]}"
@@ -1087,13 +1105,11 @@ class RuntimeWorkflow:
                         ]
                     return []
 
-                def normalize_scene_candidate(
-                    candidate: dict[str, Any], *, _canon: Canon = canon
-                ) -> dict[str, Any]:
-                    return self._normalize_scene_update_targets(candidate, _canon)
-
                 def scene_review_values(
-                    candidate: dict[str, Any], *, _canon: Canon = canon, _seed: dict[str, Any] = scene_seed
+                    candidate: dict[str, Any],
+                    *,
+                    _canon: Canon = canon,
+                    _seed: dict[str, Any] = scene_seed,
                 ) -> dict[str, Any]:
                     return {
                         "series_plan": plan,
@@ -1104,7 +1120,11 @@ class RuntimeWorkflow:
                     }
 
                 def scene_revise_values(
-                    candidate: dict[str, Any], review: dict[str, Any], *, _canon: Canon = canon, _seed: dict[str, Any] = scene_seed
+                    candidate: dict[str, Any],
+                    review: dict[str, Any],
+                    *,
+                    _canon: Canon = canon,
+                    _seed: dict[str, Any] = scene_seed,
                 ) -> dict[str, Any]:
                     return {
                         "series_plan": plan,
@@ -1122,7 +1142,6 @@ class RuntimeWorkflow:
                     review_values=scene_review_values,
                     revise_values=scene_revise_values,
                     contract_issues=scene_contract,
-                    normalize_candidate=normalize_scene_candidate,
                 )
                 design, patch = self._scene_from_generated_payload(
                     raw_scene,
@@ -1423,7 +1442,10 @@ class RuntimeWorkflow:
                 payload=content,
                 payload_name=f"export.vol{volume:02d}.manuscript.md",
                 input_artifact_ids=tuple(input_ids),
-                metadata={"input_snapshot_id": self.snapshot.selection_snapshot_id, "format": format},
+                metadata={
+                    "input_snapshot_id": self.snapshot.selection_snapshot_id,
+                    "format": format,
+                },
             )
             return {
                 "content": content,

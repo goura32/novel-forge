@@ -161,7 +161,7 @@ def test_workflow_generates_volume_through_typed_scene_event_boundary(tmp_path: 
         if task_id == "design.scene.generate":
             return {
                 "title": "覚醒", "goal": "状況を把握する", "conflict": "記憶が曖昧", "outcome": "案内人と話す", "pov_character_id": "char_001", "character_ids": ["char_001"], "key_events": ["目を覚ます"], "location_id": "loc_001", "hook": "目を開ける", "turning_point": "端末が光る", "emotional_arc": "不安から安堵", "ending_hook": "扉が開く",
-                "canon_updates": [{"operation": "set_character_state", "target_id": "char_001", "value": "案内人と話す"}],
+                "canon_patch": {"characters": {"state_updates": [{"character": {"kind": "character", "id": "char_001"}, "current_state": "案内人と話す"}]}},
             }
         raise AssertionError(task_id)
 
@@ -245,8 +245,8 @@ def test_review_cap_keeps_last_contract_valid_scene_candidate(tmp_path: Path) ->
     assert candidate == {"location_id": "loc_001", "title": "valid intermediate"}
 
 
-def test_scene_candidate_normalizer_drops_unknown_artifact_update(tmp_path: Path) -> None:
-    """A hallucinated artifact update must not abort an otherwise valid scene."""
+def test_scene_payload_full_canon_patch_creates_scope_location_and_updates_canon(tmp_path: Path) -> None:
+    """A scene may create Canon entities and immediately use the new setting."""
     repo = RunRepository(tmp_path)
     seed = BibleFactory.create_seed(PLAN)
     bootstrap_run = repo.create_run(command="plan", model="fake", verbose=False)
@@ -264,52 +264,75 @@ def test_scene_candidate_normalizer_drops_unknown_artifact_update(tmp_path: Path
     )
     workflow = RuntimeWorkflow(repo, run, slug="series_a", task_runner=lambda _task, _values: {})
     raw_scene = {
-        "title": "覚醒",
-        "goal": "状況を把握する",
-        "conflict": "記憶が曖昧",
-        "outcome": "案内人と話す",
+        "title": "地下舞台",
+        "goal": "劇場の秘密を調べる",
+        "conflict": "舞台機構が侵入を拒む",
+        "outcome": "封印された写真を見つける",
         "pov_character_id": "char_001",
         "character_ids": ["char_001"],
-        "key_events": ["目を覚ます"],
-        "location_id": "loc_001",
-        "hook": "目を開ける",
-        "turning_point": "端末が光る",
-        "emotional_arc": "不安から安堵",
-        "ending_hook": "扉が開く",
-        "canon_updates": [
-            {"operation": "set_character_state", "target_id": "char_001", "value": "案内人と話す"},
-            {
-                "operation": "set_artifact_condition",
-                "target_id": "photo_akane",
-                "value": "現像済み",
+        "key_events": ["奈落へ降りる", "写真を見つける"],
+        "location_id": "@created:theater_understage",
+        "hook": "眠った幕がひとりでに上がる",
+        "turning_point": "奈落の扉が開く",
+        "emotional_arc": "不安から決意",
+        "ending_hook": "写真の裏に妹の筆跡がある",
+        "canon_patch": {
+            "characters": {
+                "state_updates": [
+                    {
+                        "character": {"kind": "character", "id": "char_001"},
+                        "current_state": "地下舞台の秘密を知った",
+                    }
+                ]
             },
-        ],
+            "locations": {
+                "create": [
+                    {
+                        "creation_key": "theater_understage",
+                        "name": "眠る劇場の地下舞台",
+                        "kind": "theater_backstage",
+                        "parent_location": {"kind": "location", "id": "loc_001"},
+                        "immutable_constraints": ["深夜以外は扉が開かない"],
+                        "current_state": "封鎖されている",
+                    }
+                ]
+            },
+            "artifacts": {
+                "create": [
+                    {
+                        "creation_key": "sister_photograph",
+                        "name": "妹の写真",
+                        "kind": "photograph",
+                        "narrative_significance": "失踪の手掛かり",
+                        "condition": "裏面に筆跡がある",
+                    }
+                ]
+            },
+        },
     }
 
-    with pytest.warns(UserWarning, match="dropped 1 Canon-invalid scene update"):
-        candidate = workflow._normalize_scene_update_targets(raw_scene, workflow.load_canon())
-    _design, patch = workflow._scene_from_generated_payload(
-        candidate,
+    design, patch = workflow._scene_from_generated_payload(
+        raw_scene,
         canon=workflow.load_canon(),
         volume=1,
         chapter=1,
         ordinal=1,
     )
+    published, applied = workflow.accept_scene_design(design, patch)
 
-    published, applied = workflow.accept_scene_design(_design, patch)
-
-    assert raw_scene["canon_updates"][1]["target_id"] == "photo_akane"
-    assert candidate["canon_updates"] == [raw_scene["canon_updates"][0]]
+    setting = applied.context_scope.setting
+    assert setting is not None
+    assert setting.id.startswith("loc_")
     assert applied.status == "applied"
     assert f"design.scene.{applied.scene_id}" in published.slots
-    assert patch["characters"]["state_updates"] == [
-        {"character": {"kind": "character", "id": "char_001"}, "current_state": "案内人と話す"}
-    ]
-    assert patch["artifacts"]["condition_updates"] == []
+    canon = workflow.load_canon()
+    assert canon.get_entity("location", setting.id).name == "眠る劇場の地下舞台"
+    assert any(artifact.name == "妹の写真" for artifact in canon.artifacts)
+    assert canon.get_entity("character", "char_001").continuity_card.current_state == "地下舞台の秘密を知った"
 
 
-def test_scene_payload_without_canon_updates_is_rejected(tmp_path: Path) -> None:
-    """Runtime must refuse a scene design that omits the small Canon update DSL."""
+def test_scene_payload_without_canon_patch_is_rejected(tmp_path: Path) -> None:
+    """Runtime must require the full CanonPatch scene mutation contract."""
     from novel_forge.runtime import RuntimeContractError
 
     repo = RunRepository(tmp_path)
@@ -334,9 +357,9 @@ def test_scene_payload_without_canon_updates_is_rejected(tmp_path: Path) -> None
         "key_events": ["目を覚ます"], "location_id": "loc_001", "hook": "目を開ける",
         "turning_point": "端末が光る", "emotional_arc": "不安から安堵",
         "ending_hook": "扉が開く",
-        # canon_updates intentionally omitted
+        # canon_patch intentionally omitted
     }
-    with pytest.raises(RuntimeContractError, match="canon_updates"):
+    with pytest.raises(RuntimeContractError, match="canon_patch"):
         workflow._scene_from_generated_payload(raw_scene, canon=canon, volume=1, chapter=1, ordinal=1)
 
 

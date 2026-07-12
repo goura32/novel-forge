@@ -175,7 +175,7 @@ def test_quality_schema_fields_exist_for_generation_pipeline() -> None:
     issue_properties = review["properties"]["issues"]["items"]["properties"]
     assert "publication_blocking" not in issue_properties
     assert {"hook", "turning_point", "emotional_arc", "ending_hook"} <= set(scene["properties"])
-    assert {"pov_character_id", "character_ids", "location_id", "canon_updates"} <= set(scene["required"])
+    assert {"pov_character_id", "character_ids", "location_id", "canon_patch"} <= set(scene["required"])
     assert {"chapter_turning_point", "chapter_hook", "foreshadowing_notes", "subplot_notes"} <= set(chapter["properties"])
 
 
@@ -251,7 +251,6 @@ EMPTY_ARRAY_ALLOWED_PATHS = {
     ("review_issues.json", "issues"),
     ("write_summary.json", "characters"),
     ("write_summary.json", "facts"),
-    ("design_scene.json", "canon_updates"),
 }
 
 

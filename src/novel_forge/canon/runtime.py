@@ -237,12 +237,15 @@ def review_scene_patch(
         path = "/".join(str(p) for p in err.absolute_path) or "(root)"
         issues.append(f"[canon_patch schema] [{path}] {err.message}")
 
-    # 1b) Semantic preflight runs only for a schema-valid candidate.
+    # 1b) Semantic preflight runs only for a schema-valid candidate.  Keep the
+    # resulting ephemeral Canon so a scene that creates its own setting or cast
+    # is projected and reviewed against the state it would actually write.
+    projected_canon = canon
     if not issues:
         try:
             typed_patch = CanonPatch.model_validate(patch)
             source = _source_from_design(scene_design, revision=1)
-            CanonPatchApplier().apply(
+            projected_canon, _event = CanonPatchApplier().apply(
                 canon=canon,
                 patch=typed_patch,
                 source=source,
@@ -262,17 +265,22 @@ def review_scene_patch(
     #    contain author-only truth (proposition text of secret knowledge the
     #    POV does not hold).  The projection helper already strips these, but
     #    we re-assert the guardrail contract here.
-    _check_pov_leak(scene_design, canon, issues)
+    _check_pov_leak(scene_design, projected_canon, issues)
 
     # 3b) Cast-relevant Bible slice: relationships must not be changed (created
     #     / promoted / transitioned / perspective-updated) without the related
     #     cast in scope (§6.3 cast-relevant slice).
-    _check_cast_relevant_cast(scene_design, patch, canon, issues)
-    # Canon change therefore requires a fresh projection and review.
-    current_digest = compute_canonical_digest(canon)
+    _check_cast_relevant_cast(scene_design, patch, projected_canon, issues)
+    # Low-level callers that only scope existing entities legitimately project
+    # from the selected base Canon.  Public scene design may instead project the
+    # post-patch preview so a newly created setting/cast is usable immediately.
+    # No third digest is accepted: that would permit a stale or unrelated writer
+    # context to cross the review boundary.
+    base_digest = compute_canonical_digest(canon)
+    preview_digest = compute_canonical_digest(projected_canon)
     if scene_design.projection_manifest is None:
         issues.append("[review_evidence] scene design has no projection manifest")
-    elif scene_design.projection_manifest.canon_digest != current_digest:
+    elif scene_design.projection_manifest.canon_digest not in {base_digest, preview_digest}:
         issues.append(
             "[review_evidence] projection canon digest is stale; rebuild projection and re-review"
         )
@@ -281,7 +289,9 @@ def review_scene_patch(
     if prior_review_digest and prior_review_digest != patch_digest:
         issues.append("[review_evidence] reviewed patch changed; re-review is required")
 
-    design_digest = _design_digest(scene_design)
+    # Apply-time stale-review protection compares this to the selected *base*
+    # Canon.  The projection manifest separately binds the post-patch preview.
+    design_digest = compute_canonical_digest(canon)
     # The reviewed artifact digest binds the *reviewed input* (scene design
     # content + the exact patch reviewed), not the resulting Canon state (§6.3 /
     # §7.1).  It is what ``apply_reviewed_patch`` must echo into the event and
