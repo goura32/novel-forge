@@ -261,7 +261,7 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         payload_name="request.json",
     )
 
-    scene = author.author_scene(
+    scene, _consumed = author.author_scene(
         run=run,
         parent=chapter,
         request=scene_request,

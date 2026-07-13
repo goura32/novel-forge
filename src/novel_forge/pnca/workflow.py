@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any, cast
 
 from novel_forge.pnca.contracts import (
     AcceptanceCommit,
+    AdmissionAllowance,
+    AdmissionConsumption,
     BundleSlotRecord,
     ChapterAcceptanceCommit,
     ChapterContract,
     DesignBundle,
     FrontierBinding,
     SceneContract,
+    SceneSlot,
     SeriesAcceptanceCommit,
     SeriesContract,
     VolumeAcceptanceCommit,
@@ -123,6 +127,8 @@ class PNCAWorkflow:
         frontier: ArtifactReference,
         frontier_binding: FrontierBinding,
         scope_id: str,
+        admission_allowances: Iterable[AdmissionAllowance] = (),
+        scene_slot: SceneSlot | None = None,
     ) -> AuthoredContract[SceneContract]:
         """Author one scene from only the pinned Chapter, frontier, and request."""
         return cast(
@@ -134,6 +140,8 @@ class PNCAWorkflow:
                 frontier=frontier,
                 frontier_binding=frontier_binding,
                 scope_id=scope_id,
+                admission_allowances=admission_allowances,
+                scene_slot=scene_slot,
             ),
         )
 
@@ -207,6 +215,116 @@ class PNCAWorkflow:
             acceptance=acceptance,
             frontier_binding=frontier_binding,
         )
+
+    def design_volume_full(
+        self,
+        *,
+        slug: str,
+        run: RunHandle,
+        parent: AuthoredContract[SeriesContract],
+        volume_ordinal: int,
+        base_snapshot_id: str,
+        chapters: int,
+    ) -> SelectionSnapshot:
+        """Author and accept one Volume Contract plus every Chapter and Scene it contains.
+
+        The chapter count is supplied by the caller (the VolumeContract must not
+        enumerate chapters).  Each Chapter Contract decides its own scene slots,
+        which are then authored and accepted in sequence.
+        """
+        from novel_forge.pnca.production import (
+            stage_chapter_request,
+            stage_scene_request,
+            stage_volume_request,
+        )
+
+        volume_request = stage_volume_request(
+            repository=self.repository, run=run, series_id=slug, volume_ordinal=volume_ordinal
+        )
+        volume_authored = self.author_volume(
+            run=run,
+            parent=parent,
+            request=volume_request,
+            scope_id=f"{slug}.volume.{volume_ordinal:03d}",
+        )
+        snapshot = self.accept_volume(
+            slug=slug, authored=volume_authored, base_snapshot_id=base_snapshot_id
+        )
+        current_snapshot_id = snapshot.selection_snapshot_id
+
+        for chapter_ordinal in range(1, chapters + 1):
+            chapter_request = stage_chapter_request(
+                repository=self.repository,
+                run=run,
+                volume_id=volume_authored.contract.contract_id,
+                chapter_ordinal=chapter_ordinal,
+            )
+            chapter_authored = self.author_chapter(
+                run=run,
+                parent=volume_authored,
+                request=chapter_request,
+                scope_id=f"{slug}.volume.{volume_ordinal:03d}.chapter.{chapter_ordinal:03d}",
+            )
+            snapshot = self.accept_chapter(
+                slug=slug,
+                authored=chapter_authored,
+                base_snapshot_id=current_snapshot_id,
+                volume_ordinal=volume_ordinal,
+            )
+            current_snapshot_id = snapshot.selection_snapshot_id
+
+            base_snapshot = self.repository.load_snapshot(slug, current_snapshot_id)
+            frontier_id = base_snapshot.slots.get("canon.frontier")
+            if frontier_id is None:
+                raise RuntimeContractError("selected snapshot requires canon.frontier for scene authoring")
+            frontier = self.repository.verify_artifact(frontier_id)
+            lineage_root = frontier.manifest.canon_lineage_root_digest
+            if lineage_root is None:
+                raise RuntimeContractError("scene frontier artifact requires a canon lineage root digest")
+
+            consumed_admissions: tuple[AdmissionConsumption, ...] = ()
+            for scene_slot in sorted(chapter_authored.contract.scene_slots, key=lambda s: s.ordinal):
+                # The frontier artifact is stable per chapter; rebind its input
+                # snapshot to the snapshot each scene is accepted against so the
+                # acceptance commit's base snapshot matches the frontier binding.
+                frontier_binding = FrontierBinding(
+                    input_snapshot_id=current_snapshot_id,
+                    frontier_artifact_id=frontier.artifact_id,
+                    frontier_digest=frontier.manifest.content_digest,
+                    lineage_root_digest=lineage_root,
+                )
+                scene_request = stage_scene_request(
+                    repository=self.repository,
+                    run=run,
+                    chapter_id=chapter_authored.contract.contract_id,
+                    slot_id=scene_slot.slot_id,
+                )
+                scene_authored, consumed_admissions = self.contract_author.author_scene(
+                    run=run,
+                    parent=chapter_authored,
+                    request=scene_request,
+                    frontier=frontier,
+                    frontier_binding=frontier_binding,
+                    scope_id=f"{slug}.{volume_ordinal:03d}.{chapter_ordinal:03d}.{scene_slot.slot_id}",
+                    admission_allowances=volume_authored.contract.admission_allowances,
+                    scene_slot=scene_slot,
+                    previously_consumed=consumed_admissions,
+                )
+                acceptance = self.build_scene_acceptance(
+                    slug=slug,
+                    run=run,
+                    scene=scene_authored,
+                    parent_chapter=chapter_authored,
+                    parent_volume=volume_authored,
+                    frontier_binding=scene_authored.contract.frontier_binding,
+                    base_snapshot_id=current_snapshot_id,
+                )
+                snapshot = self.accept_scene(
+                    slug=slug, acceptance=acceptance, frontier_binding=scene_authored.contract.frontier_binding
+                )
+                current_snapshot_id = snapshot.selection_snapshot_id
+
+        return snapshot
 
     def write_volume(
         self,

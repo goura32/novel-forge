@@ -83,7 +83,7 @@ class PNCARenderer:
             task_id="pnca.draft.audit",
             artifacts={
                 "writer.view": writer_view.model_dump(mode="json"),
-                "draft": self.repository.read_payload(draft),
+                "scene.draft": self.repository.read_payload(draft),
             },
             input_artifact_ids=(writer_view_artifact_id, draft.artifact_id),
             scope_id=scope_id,

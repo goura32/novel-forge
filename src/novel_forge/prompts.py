@@ -47,23 +47,40 @@ class PromptManager:
 
 
 def _build_simplified_schema(schema: dict[str, Any]) -> str:
-    """Build a simplified schema text focusing on descriptions for both top-level and nested properties."""
-    def extract_props(obj: Any, indent: int = 0) -> dict[str, Any]:
+    """Build a field-spec text from a JSON Schema, stripping the schema envelope
+    ($schema/title/properties/required/description) that triggers model echo.
+
+    Keeps field names, types, required flags, enums, patterns, and nested
+    item-object fields so the model loses no constraints while the prompt no
+    longer contains a copyable schema object.
+    """
+    required_top: set[str] = set(schema.get("required", []))
+
+    def extract_props(obj: Any, required_set: set[str] | None = None) -> dict[str, Any]:
         result: dict[str, Any] = {}
         if not isinstance(obj, dict):
             return result
+        required_set = required_set or set()
         for prop_name, prop_def in obj.get("properties", {}).items():
-            entry = {"description": prop_def.get("description", "")}
-            # Include type if available
-            if "type" in prop_def:
-                entry["type"] = prop_def["type"]
-            # Handle nested items (arrays of objects)
+            if not isinstance(prop_def, dict):
+                continue
+            entry: dict[str, Any] = {
+                "type": prop_def.get("type", "object" if "properties" in prop_def else "string"),
+                "required": prop_name in required_set,
+                "description": prop_def.get("description", ""),
+            }
+            if "enum" in prop_def:
+                entry["enum"] = prop_def["enum"]
+            if "pattern" in prop_def:
+                entry["pattern"] = prop_def["pattern"]
             if prop_def.get("type") == "array" and "items" in prop_def:
                 items = prop_def["items"]
                 if isinstance(items, dict) and "properties" in items:
-                    entry["items_properties"] = extract_props(items, indent + 2)
+                    entry["items"] = extract_props(items, set(items.get("required", [])))
+            elif "properties" in prop_def:
+                entry["fields"] = extract_props(prop_def, set(prop_def.get("required", [])))
             result[prop_name] = entry
         return result
 
-    simplified = extract_props(schema)
+    simplified = extract_props(schema, required_top)
     return json.dumps(simplified, ensure_ascii=False, indent=2)

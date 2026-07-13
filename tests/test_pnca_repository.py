@@ -238,7 +238,7 @@ def test_volume_acceptance_publishes_parent_pinned_volume_slot(tmp_path: Path) -
 
     assert snapshot.base_snapshot_id == base.selection_snapshot_id
     assert snapshot.slots["pnca.series.contract.series_001"] == series.artifact_id
-    assert snapshot.slots["volume.contract.001"] == volume.artifact_id
+    assert snapshot.slots["pnca.volume.contract.series_001.001"] == volume.artifact_id
 
 
 def test_chapter_acceptance_publishes_parent_pinned_chapter_slot(tmp_path: Path) -> None:
@@ -258,8 +258,8 @@ def test_chapter_acceptance_publishes_parent_pinned_chapter_slot(tmp_path: Path)
     snapshot = repo.commit_pnca_chapter_acceptance(slug="series_001", acceptance=ChapterAcceptanceCommit(acceptance_id="accept_chapter", base_snapshot_id=second_volume_snapshot.selection_snapshot_id, operation_key="series_001:volume:002:chapter:001:accept", role_artifact_ids={"chapter.contract": chapter.artifact_id}))
 
     assert snapshot.base_snapshot_id == second_volume_snapshot.selection_snapshot_id
-    assert snapshot.slots["volume.contract.002"] == second_volume.artifact_id
-    assert snapshot.slots["chapter.contract.002.001"] == chapter.artifact_id
+    assert snapshot.slots["pnca.volume.contract.series_001.002"] == second_volume.artifact_id
+    assert snapshot.slots["pnca.chapter.contract.series_001.002.001"] == chapter.artifact_id
 
 
 def test_acceptance_rejects_frontier_digest_that_is_not_the_exact_base_snapshot_frontier(

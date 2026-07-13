@@ -248,22 +248,30 @@ class LLMClient:
             kind, self.model, payload["options"]["seed"], meta,
         )
 
-        raw_text = ""
+        call_start = time.time()
+        max_schema_echo_attempts = 3
+        parsed: dict[str, Any] | None = None
         try:
-            call_start = time.time()
-            raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload, kind)
-            call_elapsed = time.time() - call_start
-
-            self._log.debug(
-                "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
-                kind, chunk_count, total_bytes, call_elapsed, meta, done_reason,
-            )
-            self._capture_response(raw_text, raw)
-
-            parsed = parse_json_response(raw)
-
-            if self._is_schema_echo(parsed):
+            for attempt_idx in range(max_schema_echo_attempts):
+                if attempt_idx > 0:
+                    payload["options"]["seed"] = base_seed + seed_offset + attempt_idx * 7
+                    self._log.debug(
+                        "  [LLM RETRY schema-echo] kind=%s attempt=%d seed=%d%s",
+                        kind, attempt_idx + 1, payload["options"]["seed"], meta,
+                    )
+                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload, kind)
+                self._log.debug(
+                    "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
+                    kind, chunk_count, total_bytes, time.time() - call_start, meta, done_reason,
+                )
+                self._capture_response(raw_text, raw)
+                parsed = parse_json_response(raw)
+                if not self._is_schema_echo(parsed):
+                    break
+                self._log.debug("  [LLM schema-echo detected] kind=%s attempt=%d", kind, attempt_idx + 1)
+            else:
                 raise LLMError("LLM returned schema structure instead of data")
+            assert parsed is not None  # parse_json_response always ran at least once
 
             if schema:
                 if isinstance(parsed, dict) and "slug" in parsed:
@@ -274,7 +282,6 @@ class LLMClient:
                 self._capture.parsed(cast(dict[str, Any], parsed))
                 self._capture.validation({"outcome": "passed"})
             return cast(dict[str, Any], parsed)
-
         except RuntimeError:
             raise
         except JsonParseError as e:

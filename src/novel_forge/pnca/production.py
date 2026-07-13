@@ -8,7 +8,7 @@ from typing import Any
 
 from novel_forge.pnca.defaults import default_pnca_task_registry
 from novel_forge.pnca.registry import PNCATaskExecutor
-from novel_forge.prompts import PromptManager
+from novel_forge.prompts import PromptManager, _build_simplified_schema
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository
 
 _SYSTEM_PROMPT = "あなたは小説執筆支援AIです。与えられた指示と入力に従い、要求されたJSONのみを出力してください。"
@@ -126,7 +126,7 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
         except KeyError as exc:
             raise ValueError(f"production PNCA provider does not implement task: {task_id}") from exc
         variables: dict[str, str] = {
-            "schema": json.dumps(schema, ensure_ascii=False, indent=2),
+            "schema": _build_simplified_schema(schema),
         }
         if task_id == "pnca.scene.render":
             variables["start_context"] = json.dumps(projection["writer_view"]["start_context"], ensure_ascii=False)

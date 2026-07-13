@@ -19,7 +19,13 @@ def _schema_description_issues(node: object, path: tuple[str, ...] = ()) -> list
     issues: list[str] = []
     if isinstance(node, dict):
         node_type = node.get("type")
-        if path and node_type in {"object", "array", "string", "integer", "number", "boolean"}:
+        if isinstance(node_type, str):
+            node_types = {node_type}
+        elif isinstance(node_type, list):
+            node_types = set(node_type)
+        else:
+            node_types = set()
+        if path and node_types & {"object", "array", "string", "integer", "number", "boolean"}:
             description = str(node.get("description", "")).strip()
             if len(description) < 12:
                 issues.append(".".join(path))

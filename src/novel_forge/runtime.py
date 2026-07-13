@@ -670,7 +670,7 @@ class RunRepository:
         ordinal = payload.get("volume_ordinal") if isinstance(payload, dict) else None
         if not isinstance(ordinal, int) or ordinal < 1:
             raise RuntimeContractError("Volume acceptance requires a positive volume_ordinal")
-        slot = f"volume.contract.{ordinal:03d}"
+        slot = f"pnca.volume.contract.{slug}.{ordinal:03d}"
         if slot in base.slots:
             raise RuntimeContractError("Volume acceptance must not overwrite an existing selected slot")
         slots = dict(base.slots)
@@ -708,7 +708,7 @@ class RunRepository:
         selected_volumes = [
             artifact_id
             for key, artifact_id in base.slots.items()
-            if key.startswith("volume.contract.")
+            if key.startswith("pnca.volume.contract.")
         ]
         parent_id = next(
             (
@@ -728,7 +728,7 @@ class RunRepository:
         volume_ordinal = parent.get("volume_ordinal") if isinstance(parent, dict) else None
         if not isinstance(volume_ordinal, int) or volume_ordinal < 1:
             raise RuntimeContractError("Chapter acceptance selected Volume Contract requires a positive volume_ordinal")
-        slot = f"chapter.contract.{volume_ordinal:03d}.{chapter_ordinal:03d}"
+        slot = f"pnca.chapter.contract.{slug}.{volume_ordinal:03d}.{chapter_ordinal:03d}"
         if slot in base.slots:
             raise RuntimeContractError("Chapter acceptance must not overwrite an existing selected slot")
         slots = dict(base.slots)

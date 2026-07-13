@@ -54,6 +54,35 @@ def validate_writer_view(view: WriterView) -> None:
     walk(view.model_dump())
 
 
+def strip_forbidden_writer_keys(view: WriterView) -> WriterView:
+    """Return a copy of ``view`` with any authority-bearing keys removed.
+
+    The LLM occasionally emits forbidden keys (``summary``, ``canon``, ...) inside
+    the writer view dicts.  Rather than hard-failing, strip them so the contract
+    stays within the writer boundary.
+    """
+
+    def walk(value: object) -> object:
+        if isinstance(value, dict):
+            return {
+                key: walk(nested)
+                for key, nested in value.items()
+                if key not in _WRITER_FORBIDDEN_KEYS
+            }
+        if isinstance(value, (tuple, list)):
+            return [walk(nested) for nested in value]
+        return value
+
+    return view.model_copy(
+        update={
+            "start_context": walk(view.start_context),
+            "narrative_contract": walk(view.narrative_contract),
+            "end_constraints": walk(view.end_constraints),
+            "presentation_constraints": walk(view.presentation_constraints),
+        }
+    )
+
+
 def validate_scene_structure(
     *,
     contract: SceneContract,

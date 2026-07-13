@@ -13,7 +13,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from novel_forge.canon.store import BibleFactory
 from novel_forge.config import RuntimeConfig
 from novel_forge.logging_config import get_logger
 from novel_forge.pnca.contracts import (
@@ -34,14 +33,11 @@ from novel_forge.pnca.progression import AuthoredContract, PNCAContractAuthor
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
-    RunHandle,
     RunManager,
     RunRepository,
     RuntimeContractError,
     sanitize_for_storage,
 )
-from novel_forge.workflow_runtime import RuntimeWorkflow
-from novel_forge.workflow_task_runner import make_task_runner
 
 console = Console()
 _log = get_logger("novel_forge.cli")
@@ -171,7 +167,7 @@ def _selected_series_contract(repo: RunRepository, slug: str, snapshot_id: str) 
 def _selected_volume_contract(
     repo: RunRepository, slug: str, snapshot_id: str, volume_ordinal: int
 ) -> AuthoredContract[VolumeContract]:
-    slot = f"volume.contract.{volume_ordinal:03d}"
+    slot = f"pnca.volume.contract.{slug}.{volume_ordinal:03d}"
     snapshot = repo.load_snapshot(slug, snapshot_id)
     try:
         artifact_id = snapshot.slots[slot]
@@ -184,7 +180,7 @@ def _selected_volume_contract(
 def _selected_chapter_contract(
     repo: RunRepository, slug: str, snapshot_id: str, volume_ordinal: int, chapter_ordinal: int
 ) -> AuthoredContract[ChapterContract]:
-    slot = f"chapter.contract.{volume_ordinal:03d}.{chapter_ordinal:03d}"
+    slot = f"pnca.chapter.contract.{slug}.{volume_ordinal:03d}.{chapter_ordinal:03d}"
     snapshot = repo.load_snapshot(slug, snapshot_id)
     try:
         artifact_id = snapshot.slots[slot]
@@ -192,40 +188,6 @@ def _selected_chapter_contract(
         raise RuntimeContractError(f"selected snapshot is missing required Chapter Contract: {slot}") from exc
     artifact = repo.verify_artifact(artifact_id)
     return AuthoredContract(artifact=artifact, contract=ChapterContract.model_validate(repo.read_payload(artifact)))
-
-
-def _make_workflow(
-    repo: RunRepository,
-    run: RunHandle,
-    slug: str | None,
-    config: RuntimeConfig,
-    model: str | None,
-    max_review_count: int | None,
-    max_summary_review_count: int | None,
-    verbose: bool | None,
-) -> RuntimeWorkflow:
-    """Build a RuntimeWorkflow wired to the real LLM task runner."""
-    from novel_forge.llm_client import LLMClient
-
-    client = LLMClient(
-        api_url=f"http://{config.llm.ollama_host}/api/chat",
-        model=model or config.llm.model,
-        timeout_seconds=config.llm.timeout_seconds,
-        ollama_options=config.llm.ollama_options,
-        num_predict=config.llm.num_predict,
-        num_ctx=config.llm.num_ctx,
-        series_slug=slug or "",
-    )
-    task_runner = make_task_runner(client, PromptManager())
-    return RuntimeWorkflow(
-        repository=repo,
-        run=run,
-        slug=slug,
-        task_runner=task_runner,
-        max_review_count=max_review_count or config.quality.max_review_count,
-        max_summary_review_count=max_summary_review_count or config.quality.max_summary_review_count,
-        max_retry_count=config.quality.max_retry_count,
-    )
 
 
 
@@ -385,7 +347,7 @@ def design(
                     frontier_digest=frontier.manifest.content_digest,
                     lineage_root_digest=lineage_root,
                 ),
-                scope_id=f"{series_dir.name}.volume.{volume:03d}.chapter.{chapter:03d}.scene.{scene:03d}",
+                scope_id=f"{series_dir.name}.{volume:03d}.{chapter:03d}.{scene:03d}",
             )
             acceptance = workflow.build_scene_acceptance(
                 slug=series_dir.name,
@@ -493,16 +455,16 @@ def write(
 def export(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
-    series: str = typer.Option(None, "--series", "-s", help="Series slug"),
+    series: str | None = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    format: str = typer.Option("json", "--format", help="Export format: json or markdown"),
+    format: str = typer.Option("markdown", "--format", help="Export format: markdown"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Export manuscript for KDP."""
-    if format not in {"json", "markdown"}:
-        raise typer.BadParameter("must be one of: json, markdown", param_hint="--format")
-    export_format = cast(Literal["json", "markdown"], format)
+    if format != "markdown":
+        raise typer.BadParameter("PNCA export supports markdown only", param_hint="--format")
+    export_format = cast(Literal["markdown"], format)
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -516,9 +478,12 @@ def export(
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export", wait=wait_lock):
-        workflow = _make_workflow(repo, run, series_dir.name, config, model, None, None, verbose)
-        result = workflow.export_volume(volume, format=export_format)
-        console.print(f"[green]✓[/green] Exported {export_format} to {result.get('artifact_id', 'N/A')}")
+        workflow = _make_pnca_workflow(repo, config, model)
+        executor = make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager())
+        bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
+        exporter = PNCAExporter(repository=repo)
+        manuscript = exporter.export(run=run, bundle=bundle, format=export_format)
+        console.print(f"[green]✓[/green] Exported {export_format} to {manuscript.artifact.artifact_id}")
 
 
 @app.command()
@@ -547,11 +512,9 @@ def status(
 @app.command()
 def resume(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
-    series: str = typer.Option(None, "--series", "-s", help="Series slug"),
+    series: str | None = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
-    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
@@ -569,14 +532,14 @@ def resume(
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume", wait=wait_lock):
-        workflow = _make_workflow(
-            repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
-        )
+        workflow = _make_pnca_workflow(repo, config, model)
+        executor = make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager())
         # Resume by running write/export for the requested volume (plan/design already exist).
         console.print(f"[yellow]▶[/yellow] Resuming volume {volume} (write + export)")
-        workflow.write_volume(volume)
-        result = workflow.export_volume(volume)
-        console.print(f"[green]✓[/green] Resumed: {result.get('artifact_id', 'N/A')}")
+        bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
+        exporter = PNCAExporter(repository=repo)
+        manuscript = exporter.export(run=run, bundle=bundle, format="markdown")
+        console.print(f"[green]✓[/green] Resumed: {manuscript.artifact.artifact_id}")
 
 
 @app.command()
@@ -585,12 +548,13 @@ def complete(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
-    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
+    chapters: int = typer.Option(3, "--chapters", "-C", help="Number of chapters to design in the volume"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
     """Run the full pipeline: plan → design → write → export."""
+    if chapters < 1:
+        raise typer.BadParameter("chapters must be >= 1")
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
@@ -599,42 +563,42 @@ def complete(
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete", wait=wait_lock)
     series_lock = None
     try:
-        workflow = _make_workflow(repo, run, None, config, model, max_review_count, max_summary_review_count, verbose)
+        workflow = _make_pnca_workflow(repo, config, model)
+        executor = make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager())
         console.print("[bold]Step 1/4: Plan[/bold]")
-        existing = _existing_series_slugs(resolved_workdir)
-        plan_attempt, plan = workflow._run_task(
-            "plan.series.generate",
-            {"keywords": keywords, "existing_slugs": existing},
-            reason="generate series plan",
+        existing = tuple(_existing_series_slugs(resolved_workdir))
+        request = stage_series_request(
+            repository=repo,
+            run=run,
+            request_id=run.manifest.run_id,
+            keywords=keywords,
+            existing_slugs=existing,
         )
-        plan_attempt, plan = workflow._review_and_revise(
-            "plan.series", plan, plan_attempt,
-            review_values=lambda candidate: {"plan": candidate},
-            revise_values=lambda candidate, review: {"current_plan": candidate, "review": review},
-            contract_issues=lambda candidate: (
-                [] if isinstance(candidate.get("slug"), str) and re.fullmatch(r"[a-z0-9_]{1,40}", candidate["slug"])
-                else [{"severity": "error", "category": "contract", "message": "slug must match [a-z0-9_]{1,40}; it is not normalized by runtime"}]
-            ),
-        )
-        slug = plan["slug"]
-        series_lock = manager.promote_plan_to_series(
-            workspace_lock=workspace_lock, run=run, slug=slug
-        )
-        canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
-        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed, plan_attempt=plan_attempt)
-        console.print(f"[green]✓[/green] Plan: {plan.get('title', 'N/A')} (slug: {slug})")
+        authored = workflow.author_series(run=run, scope_id=run.manifest.run_id, request=request)
+        slug = authored.contract.contract_id
+        series_lock = manager.promote_plan_to_series(workspace_lock=workspace_lock, run=run, slug=slug)
+        snapshot = workflow.accept_series(authored=authored)
+        console.print(f"[green]✓[/green] PNCA Series root accepted (slug: {slug})")
 
-        console.print(f"[bold]Step 2/4: Design (vol {volume})[/bold]")
-        workflow.generate_volume_design(volume=volume, plan=plan)
-        console.print(f"[green]✓[/green] Design vol {volume}")
+        console.print(f"[bold]Step 2/4: Design (vol {volume}, {chapters} chapters)[/bold]")
+        workflow.design_volume_full(
+            slug=slug,
+            run=run,
+            parent=authored,
+            volume_ordinal=volume,
+            base_snapshot_id=snapshot.selection_snapshot_id,
+            chapters=chapters,
+        )
+        console.print(f"[green]✓[/green] Design vol {volume} ({chapters} chapters)")
 
         console.print(f"[bold]Step 3/4: Write (vol {volume})[/bold]")
-        write_result = workflow.write_volume(volume)
-        console.print(f"[green]✓[/green] Write vol {volume} (snapshot: {write_result.selection_snapshot_id})")
+        bundle = workflow.write_volume(slug=slug, run=run, volume=volume, executor=executor)
+        console.print(f"[green]✓[/green] Write vol {volume} (bundle: {bundle.bundle_id})")
 
         console.print(f"[bold]Step 4/4: Export (vol {volume})[/bold]")
-        export_result = workflow.export_volume(volume)
-        console.print(f"[green]✓[/green] Export vol {volume}: {export_result.get('artifact_id', 'N/A')}")
+        exporter = PNCAExporter(repository=repo)
+        manuscript = exporter.export(run=run, bundle=bundle, format="markdown")
+        console.print(f"[green]✓[/green] Export vol {volume}: {manuscript.artifact.artifact_id}")
     finally:
         if series_lock is not None:
             series_lock.release()

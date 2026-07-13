@@ -117,7 +117,7 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
         @staticmethod
         def author_scene(**kwargs):
             captured.update(kwargs)
-            return SimpleNamespace(contract=SimpleNamespace(contract_id="scene_001"))
+            return SimpleNamespace(contract=SimpleNamespace(contract_id="scene_001")), ()
 
     parent = AuthoredContract(
         artifact=SimpleNamespace(artifact_id="art_chapter"),
@@ -137,7 +137,7 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
         lineage_root_digest="sha256:seed",
     )
 
-    result = PNCAWorkflow(repository=object(), contract_author=FakeAuthor()).author_scene(
+    result, consumed = PNCAWorkflow(repository=object(), contract_author=FakeAuthor()).author_scene(
         run=SimpleNamespace(run_id="run_001"),
         parent=parent,
         request=request,
@@ -147,6 +147,7 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
     )
 
     assert result.contract.contract_id == "scene_001"
+    assert consumed == ()
     assert captured == {
         "run": SimpleNamespace(run_id="run_001"),
         "parent": parent,
@@ -154,6 +155,8 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
         "frontier": frontier,
         "frontier_binding": binding,
         "scope_id": "scene_001",
+        "admission_allowances": (),
+        "scene_slot": None,
     }
 
 

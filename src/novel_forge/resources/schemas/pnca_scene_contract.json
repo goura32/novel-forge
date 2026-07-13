@@ -27,7 +27,7 @@
         "properties": {
           "requirement_id": {"type": "string", "description": "parent requirement ID。"},
           "disposition": {"type": "string", "enum": ["implemented", "preserved", "deferred"], "description": "この scene における扱い。"},
-          "defer_target_slot_id": {"type": "string", "description": "deferred のときだけ指定する descendant target slot。"}
+          "defer_target_slot_id": {"type": ["string", "null"], "description": "deferred のときだけ指定する descendant target slot。それ以外は null または省略。"}
         }
       }
     },
