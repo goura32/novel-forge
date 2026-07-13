@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from novel_forge.pnca.contracts import ChapterContract, SeriesContract, VolumeContract
-from novel_forge.pnca.progression import PNCAContractAuthor
+from novel_forge.pnca.contracts import (
+    ChapterContract,
+    FrontierBinding,
+    SeriesContract,
+    VolumeContract,
+)
+from novel_forge.pnca.progression import AuthoredContract, PNCAContractAuthor
 from novel_forge.pnca.registry import (
     ArtifactSpec,
     InputBinding,
@@ -22,7 +27,13 @@ def _executor(outputs):
         TaskSpec(
             task_id=task_id,
             task_kind="authoring",
-            input_bindings=(InputBinding(role="parent.contract", variable="parent"),) if task_id != "pnca.series.contract" else (),
+            input_bindings=(
+                (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="canon.frontier", variable="frontier"))
+                if task_id == "pnca.scene.contract"
+                else (InputBinding(role="parent.contract", variable="parent"),)
+                if task_id != "pnca.series.contract"
+                else ()
+            ),
             output=ArtifactSpec(role=task_id, artifact_type="pnca.contract", logical_key_template=f"{task_id}.{{scope_id}}"),
             prompt_digest="sha256:prompt",
             schema_digest="sha256:schema",
@@ -70,3 +81,67 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
     assert isinstance(volume.contract, VolumeContract)
     assert chapter.artifact.manifest.input_artifact_ids == (volume.artifact.artifact_id,)
     assert isinstance(chapter.contract, ChapterContract)
+
+
+def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    frontier_attempt = repo.start_attempt(run, task_id="seed", phase="plan", reason="test")
+    frontier = repo.commit_artifact(
+        frontier_attempt,
+        artifact_type="canon.event_set",
+        logical_key="canon.frontier.root",
+        payload={"events": []},
+        payload_name="frontier.json",
+    )
+    outputs = {
+        "pnca.chapter.contract": {
+            "contract_id": "chapter_001",
+            "parent_volume_contract_id": "volume_001",
+            "chapter_ordinal": 1,
+            "scene_slots": [{"slot_id": "scene_001", "ordinal": 1}],
+        },
+        "pnca.scene.contract": {
+            "contract_id": "scene_contract_001",
+            "slot_id": "scene_001",
+            "frontier_binding": {
+                "input_snapshot_id": "snap_001",
+                "frontier_artifact_id": frontier.artifact_id,
+                "frontier_digest": frontier.manifest.content_digest,
+                "lineage_root_digest": "sha256:root",
+            },
+            "canon_effect": "none",
+        },
+    }
+    volume = VolumeContract(contract_id="volume_001", parent_series_contract_id="series_001", volume_ordinal=1)
+    volume_artifact = repo.commit_artifact(
+        repo.start_attempt(run, task_id="volume", phase="design", reason="test"),
+        artifact_type="pnca.volume.contract",
+        logical_key="pnca.volume.contract.volume_001",
+        payload=volume.model_dump(mode="json"),
+        payload_name="volume.json",
+    )
+    author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
+    chapter = author.author_chapter(
+        run=run,
+        parent=AuthoredContract(artifact=volume_artifact, contract=volume),
+        scope_id="chapter_001",
+    )
+    binding = FrontierBinding(
+        input_snapshot_id="snap_001",
+        frontier_artifact_id=frontier.artifact_id,
+        frontier_digest=frontier.manifest.content_digest,
+        lineage_root_digest="sha256:root",
+    )
+
+    scene = author.author_scene(
+        run=run,
+        parent=chapter,
+        slot_id="scene_001",
+        frontier=frontier,
+        frontier_binding=binding,
+        scope_id="scene_001",
+    )
+
+    assert scene.artifact.manifest.input_artifact_ids == (chapter.artifact.artifact_id, frontier.artifact_id)
+    assert scene.contract.slot_id == "scene_001"

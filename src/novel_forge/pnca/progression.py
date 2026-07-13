@@ -7,7 +7,13 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from novel_forge.pnca.contracts import ChapterContract, SeriesContract, VolumeContract
+from novel_forge.pnca.contracts import (
+    ChapterContract,
+    FrontierBinding,
+    SceneContract,
+    SeriesContract,
+    VolumeContract,
+)
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository, RuntimeContractError
 
@@ -63,6 +69,50 @@ class PNCAContractAuthor:
         if authored.contract.parent_volume_contract_id != parent.contract.contract_id:
             raise RuntimeContractError("ChapterContract does not bind its parent VolumeContract")
         return authored
+
+    def author_scene(
+        self,
+        *,
+        run: RunHandle,
+        parent: AuthoredContract[ChapterContract],
+        slot_id: str,
+        frontier: ArtifactReference,
+        frontier_binding: FrontierBinding,
+        scope_id: str,
+    ) -> AuthoredContract[SceneContract]:
+        if slot_id not in {slot.slot_id for slot in parent.contract.scene_slots}:
+            raise RuntimeContractError("SceneContract slot is not allocated by its parent ChapterContract")
+        if (
+            frontier_binding.frontier_artifact_id != frontier.artifact_id
+            or frontier_binding.frontier_digest != frontier.manifest.content_digest
+        ):
+            raise RuntimeContractError("SceneContract frontier binding must exactly match its input artifact")
+        result = self.executor.execute(
+            task_id="pnca.scene.contract",
+            artifacts={
+                "parent.contract": parent.contract.model_dump(mode="json"),
+                "canon.frontier": self.repository.read_payload(frontier),
+            },
+            input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id),
+            scope_id=scope_id,
+        )
+        contract = SceneContract.model_validate(result)
+        if contract.slot_id != slot_id:
+            raise RuntimeContractError("SceneContract does not bind its allocated ChapterContract slot")
+        if contract.frontier_binding != frontier_binding:
+            raise RuntimeContractError("SceneContract does not preserve its exact input frontier binding")
+        attempt = self.repository.start_attempt(
+            run, task_id="pnca.scene.contract", phase="design", reason="author scene contract"
+        )
+        artifact = self.repository.commit_artifact(
+            attempt,
+            artifact_type="pnca.scene.contract",
+            logical_key=f"pnca.scene.contract.{scope_id}",
+            payload=contract.model_dump(mode="json"),
+            payload_name="contract.json",
+            input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id),
+        )
+        return AuthoredContract(artifact=artifact, contract=contract)
 
     def _author(
         self,
