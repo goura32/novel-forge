@@ -95,6 +95,12 @@ class SceneSlot(BaseModel):
     allowed_admission_allowance_ids: tuple[str, ...] = ()
 
 
+class SceneBeat(BaseModel):
+    """One ordered, POV-observable beat that a scene prose draft must realize."""
+
+    description: str = Field(min_length=1)
+
+
 class WriterView(BaseModel):
     """The only authoritative input surface allowed to the prose writer."""
 
@@ -104,7 +110,7 @@ class WriterView(BaseModel):
     narrative_contract: dict[str, Any] = Field(default_factory=dict)
     end_constraints: dict[str, Any] = Field(default_factory=dict)
     presentation_constraints: dict[str, Any] = Field(default_factory=dict)
-    required_beats: tuple[str, ...] = ()
+    required_beats: tuple[SceneBeat, ...] = ()
 
 
 class SceneContract(BaseModel):

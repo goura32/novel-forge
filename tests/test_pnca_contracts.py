@@ -69,15 +69,17 @@ def _slots() -> tuple[SceneSlot, ...]:
     )
 
 
-def test_writer_view_exposes_only_the_four_writer_inputs() -> None:
+def test_writer_view_exposes_required_observable_beats_to_the_writer() -> None:
     view = WriterView(
         start_context={"pov": "リナ"},
         narrative_contract={"goal": "鍵を探す"},
         end_constraints={"location": "塔"},
         presentation_constraints={"pov": "三人称"},
+        required_beats=({"description": "リナが鍵穴に手を伸ばす"},),
     )
 
     assert view.model_dump()["narrative_contract"]["goal"] == "鍵を探す"
+    assert view.required_beats[0].description == "リナが鍵穴に手を伸ばす"
 
     with pytest.raises(PNCAStructuralError, match="forbidden writer input"):
         validate_writer_view(
