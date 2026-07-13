@@ -16,11 +16,42 @@ from novel_forge.pnca.contracts import (
     ParentRequirementLedger,
     SceneContract,
     SceneSlot,
+    WriterView,
 )
 
 
 class PNCAStructuralError(ValueError):
     """A deterministic PNCA contract or topology failure."""
+
+
+_WRITER_FORBIDDEN_KEYS = frozenset(
+    {
+        "artifact_id",
+        "canon",
+        "canon_event",
+        "canon_patch",
+        "canon_snapshot",
+        "event_log",
+        "stable_id",
+        "summary",
+    }
+)
+
+
+def validate_writer_view(view: WriterView) -> None:
+    """Reject authority-bearing inputs from the prose-writer boundary."""
+
+    def walk(value: object) -> None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                if key in _WRITER_FORBIDDEN_KEYS:
+                    raise PNCAStructuralError(f"forbidden writer input: {key}")
+                walk(nested)
+        elif isinstance(value, (tuple, list)):
+            for nested in value:
+                walk(nested)
+
+    walk(view.model_dump())
 
 
 def validate_scene_structure(
@@ -33,6 +64,7 @@ def validate_scene_structure(
 ) -> None:
     """Validate one SceneContract against accepted parent structural authority."""
 
+    validate_writer_view(contract.writer_view)
     slots = tuple(scene_slots)
     slot_by_id = {slot.slot_id: slot for slot in slots}
     if len(slot_by_id) != len(slots):

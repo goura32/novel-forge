@@ -23,8 +23,13 @@ from novel_forge.pnca.contracts import (
     SceneSlot,
     SeriesContract,
     VolumeContract,
+    WriterView,
 )
-from novel_forge.pnca.validation import PNCAStructuralError, validate_scene_structure
+from novel_forge.pnca.validation import (
+    PNCAStructuralError,
+    validate_scene_structure,
+    validate_writer_view,
+)
 
 
 def _binding() -> FrontierBinding:
@@ -61,6 +66,22 @@ def _slots() -> tuple[SceneSlot, ...]:
         SceneSlot(slot_id="scene_001", ordinal=1, allowed_admission_allowance_ids=("allow_support",)),
         SceneSlot(slot_id="scene_002", ordinal=2),
     )
+
+
+def test_writer_view_exposes_only_the_four_writer_inputs() -> None:
+    view = WriterView(
+        start_context={"pov": "リナ"},
+        narrative_contract={"goal": "鍵を探す"},
+        end_constraints={"location": "塔"},
+        presentation_constraints={"pov": "三人称"},
+    )
+
+    assert view.model_dump()["narrative_contract"]["goal"] == "鍵を探す"
+
+    with pytest.raises(PNCAStructuralError, match="forbidden writer input"):
+        validate_writer_view(
+            view.model_copy(update={"start_context": {"canon": {"all": "facts"}}})
+        )
 
 
 def test_no_effect_scene_rejects_any_patch() -> None:

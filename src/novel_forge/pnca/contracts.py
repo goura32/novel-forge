@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RequirementCardinality = Literal["exactly_once", "one_or_more", "preserve_until"]
 RequirementDispositionKind = Literal["implemented", "preserved", "deferred"]
@@ -95,6 +95,17 @@ class SceneSlot(BaseModel):
     allowed_admission_allowance_ids: tuple[str, ...] = ()
 
 
+class WriterView(BaseModel):
+    """The only authoritative input surface allowed to the prose writer."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_context: dict[str, Any] = Field(default_factory=dict)
+    narrative_contract: dict[str, Any] = Field(default_factory=dict)
+    end_constraints: dict[str, Any] = Field(default_factory=dict)
+    presentation_constraints: dict[str, Any] = Field(default_factory=dict)
+
+
 class SceneContract(BaseModel):
     """An executable scene authority bounded by one pinned SceneSlot."""
 
@@ -103,6 +114,7 @@ class SceneContract(BaseModel):
     frontier_binding: FrontierBinding
     canon_effect: CanonEffect
     canon_patch: dict[str, Any] | None = None
+    writer_view: WriterView = Field(default_factory=WriterView)
     requirement_dispositions: tuple[RequirementDisposition, ...] = ()
     admission_consumptions: tuple[AdmissionConsumption, ...] = ()
 
