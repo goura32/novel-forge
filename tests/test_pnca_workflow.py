@@ -59,7 +59,6 @@ def test_bootstrap_series_authors_then_selects_pnca_root(tmp_path) -> None:
     request_artifact = request
     result = PNCAWorkflow(repository=repo, contract_author=FakeAuthor()).bootstrap_series(
         run=run,
-        slug="series_001",
         scope_id="series_001",
         request=request_artifact,
     )

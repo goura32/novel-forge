@@ -22,7 +22,7 @@ class PNCAWorkflow:
         self.contract_author = contract_author
 
     def bootstrap_series(
-        self, *, run: RunHandle, slug: str, scope_id: str, request: ArtifactReference
+        self, *, run: RunHandle, scope_id: str, request: ArtifactReference
     ) -> SelectionSnapshot:
         """Author and atomically select the immutable PNCA Series root."""
         authored = self.contract_author.author_series(run=run, scope_id=scope_id, request=request)
@@ -33,11 +33,14 @@ class PNCAWorkflow:
             raise RuntimeContractError("SeriesContract root frontier digest is not the selected artifact digest")
         acceptance = SeriesAcceptanceCommit(
             acceptance_id=f"accept_{contract.contract_id}",
-            operation_key=f"{slug}:root:{contract.contract_id}:accept",
+            operation_key=f"{contract.contract_id}:root:{contract.contract_id}:accept",
             role_artifact_ids={
                 "series.contract": authored.artifact.artifact_id,
                 "canon.seed": seed.artifact_id,
                 "canon.frontier.output": frontier.artifact_id,
             },
         )
-        return self.repository.commit_pnca_series_acceptance(slug=slug, acceptance=acceptance)
+        return self.repository.commit_pnca_series_acceptance(
+            slug=contract.contract_id,
+            acceptance=acceptance,
+        )
