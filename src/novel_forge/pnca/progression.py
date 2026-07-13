@@ -45,13 +45,22 @@ class PNCAContractAuthor:
         self, *, run: RunHandle, scope_id: str, request: ArtifactReference
     ) -> AuthoredContract[SeriesContract]:
         """Materialize provider seed data before pinning a final SeriesContract."""
+        request_payload = self.repository.read_payload(request)
         result = self.executor.execute(
             task_id="pnca.series.contract",
-            artifacts={"series.request": self.repository.read_payload(request)},
+            artifacts={"series.request": request_payload},
             input_artifact_ids=(request.artifact_id,),
             scope_id=scope_id,
         )
         proposal = SeriesContractProposal.model_validate(result)
+        requested_volume_count = request_payload.get("volume_count") if isinstance(request_payload, dict) else None
+        if requested_volume_count is not None:
+            if not isinstance(requested_volume_count, int) or requested_volume_count < 1:
+                raise RuntimeContractError("series request volume_count must be a positive integer")
+            if len(proposal.volume_purposes) != requested_volume_count:
+                raise RuntimeContractError(
+                    "SeriesContract proposal must allocate exactly the requested volume_count"
+                )
         seed_attempt = self.repository.start_attempt(
             run, task_id="pnca.series.seed", phase="plan", reason="materialize series Canon seed"
         )

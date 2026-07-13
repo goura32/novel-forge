@@ -22,6 +22,7 @@ def test_stage_series_request_persists_only_cli_intent_as_an_artifact(tmp_path) 
         request_id=run.manifest.run_id,
         keywords="月灯りの魔女",
         existing_slugs=("old_series",),
+        volume_count=3,
     )
 
     assert request.manifest.artifact_type == "pnca.series.request"
@@ -29,6 +30,7 @@ def test_stage_series_request_persists_only_cli_intent_as_an_artifact(tmp_path) 
     assert repo.read_payload(request) == {
         "keywords": "月灯りの魔女",
         "existing_slugs": ["old_series"],
+        "volume_count": 3,
     }
 
 

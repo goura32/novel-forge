@@ -21,8 +21,14 @@ def stage_series_request(
     request_id: str,
     keywords: str,
     existing_slugs: tuple[str, ...],
+    volume_count: int | None = None,
 ) -> ArtifactReference:
     """Commit unmodified CLI planning intent before it reaches an LLM."""
+    if volume_count is not None and volume_count < 1:
+        raise ValueError("volume_count must be >= 1 when supplied")
+    payload: dict[str, Any] = {"keywords": keywords, "existing_slugs": list(existing_slugs)}
+    if volume_count is not None:
+        payload["volume_count"] = volume_count
     attempt = repository.start_attempt(
         run,
         task_id="pnca.series.request",
@@ -33,7 +39,7 @@ def stage_series_request(
         attempt,
         artifact_type="pnca.series.request",
         logical_key=f"pnca.series.request.{request_id}",
-        payload={"keywords": keywords, "existing_slugs": list(existing_slugs)},
+        payload=payload,
         payload_name="request.json",
     )
 

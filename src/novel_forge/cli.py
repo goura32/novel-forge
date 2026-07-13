@@ -258,6 +258,7 @@ def plan(
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
     max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
+    volumes: int | None = typer.Option(None, "--volumes", min=1, help="Exact number of series volumes"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
@@ -279,6 +280,7 @@ def plan(
             request_id=run.manifest.run_id,
             keywords=keywords,
             existing_slugs=existing,
+            volume_count=volumes,
         )
         workflow = _make_pnca_workflow(repo, config, model)
         authored = workflow.author_series(run=run, scope_id=run.manifest.run_id, request=request)
@@ -563,6 +565,7 @@ def complete(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
+    volumes: int = typer.Option(3, "--volumes", min=1, help="Exact number of series volumes"),
     chapters: int = typer.Option(3, "--chapters", "-C", help="Number of chapters to design in the volume"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
@@ -588,6 +591,7 @@ def complete(
             request_id=run.manifest.run_id,
             keywords=keywords,
             existing_slugs=existing,
+            volume_count=volumes,
         )
         authored = workflow.author_series(run=run, scope_id=run.manifest.run_id, request=request)
         slug = authored.contract.contract_id
