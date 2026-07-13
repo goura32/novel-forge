@@ -57,11 +57,9 @@ def test_bootstrap_series_authors_then_selects_pnca_root(tmp_path) -> None:
             return AuthoredContract(artifact=contract_artifact, contract=contract)
 
     request_artifact = request
-    result = PNCAWorkflow(repository=repo, contract_author=FakeAuthor()).bootstrap_series(
-        run=run,
-        scope_id="series_001",
-        request=request_artifact,
-    )
+    workflow = PNCAWorkflow(repository=repo, contract_author=FakeAuthor())
+    authored = workflow.author_series(run=run, scope_id="series_001", request=request_artifact)
+    result = workflow.accept_series(authored=authored)
 
     assert result.selection_snapshot_id == repo.current_snapshot_id("series_001")
     assert result.slots["pnca.series.contract.series_001"] == contract_artifact.artifact_id

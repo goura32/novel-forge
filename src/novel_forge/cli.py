@@ -16,6 +16,9 @@ from rich.table import Table
 from novel_forge.canon.store import BibleFactory
 from novel_forge.config import RuntimeConfig
 from novel_forge.logging_config import get_logger
+from novel_forge.pnca.production import make_pnca_task_executor, stage_series_request
+from novel_forge.pnca.progression import PNCAContractAuthor
+from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
     RunHandle,
@@ -176,6 +179,30 @@ def _make_workflow(
     )
 
 
+
+def _make_pnca_workflow(
+    repo: RunRepository,
+    config: RuntimeConfig,
+    model: str | None,
+) -> PNCAWorkflow:
+    """Build the production PNCA root-authoring boundary."""
+    from novel_forge.llm_client import LLMClient
+
+    client = LLMClient(
+        api_url=f"http://{config.llm.ollama_host}/api/chat",
+        model=model or config.llm.model,
+        timeout_seconds=config.llm.timeout_seconds,
+        ollama_options=config.llm.ollama_options,
+        num_predict=config.llm.num_predict,
+        num_ctx=config.llm.num_ctx,
+    )
+    author = PNCAContractAuthor(
+        repository=repo,
+        executor=make_pnca_task_executor(client=client, manager=PromptManager()),
+    )
+    return PNCAWorkflow(repository=repo, contract_author=author)
+
+
 def _resolve_verbose(config: RuntimeConfig, cli_verbose: bool | None) -> bool:
     """Resolve verbose with explicit CLI input taking priority over canonical config."""
     return cli_verbose if cli_verbose is not None else config.verbose
@@ -226,31 +253,23 @@ def plan(
     workspace_lock = manager.acquire(scope="workspace", run=run, phase="plan", wait=wait_lock)
     series_lock = None
     try:
-        workflow = _make_workflow(
-            repo, run, None, config, model, max_review_count, max_summary_review_count, verbose
+        existing = tuple(_existing_series_slugs(resolved_workdir))
+        request = stage_series_request(
+            repository=repo,
+            run=run,
+            request_id=run.manifest.run_id,
+            keywords=keywords,
+            existing_slugs=existing,
         )
-        existing = _existing_series_slugs(resolved_workdir)
-        plan_attempt, plan = workflow._run_task(
-            "plan.series.generate",
-            {"keywords": keywords, "existing_slugs": existing},
-            reason="generate series plan",
-        )
-        plan_attempt, plan = workflow._review_and_revise(
-            "plan.series", plan, plan_attempt,
-            review_values=lambda candidate: {"plan": candidate},
-            revise_values=lambda candidate, review: {"current_plan": candidate, "review": review},
-            contract_issues=lambda candidate: (
-                [] if isinstance(candidate.get("slug"), str) and re.fullmatch(r"[a-z0-9_]{1,40}", candidate["slug"])
-                else [{"severity": "error", "category": "contract", "message": "slug must match [a-z0-9_]{1,40}; it is not normalized by runtime"}]
-            ),
-        )
-        slug = plan["slug"]
+        workflow = _make_pnca_workflow(repo, config, model)
+        authored = workflow.author_series(run=run, scope_id=run.manifest.run_id, request=request)
+        slug = authored.contract.contract_id
         series_lock = manager.promote_plan_to_series(
             workspace_lock=workspace_lock, run=run, slug=slug
         )
-        canon_seed = BibleFactory.create_seed(plan).model_dump(mode="json")
-        workflow.bootstrap_plan(slug=slug, plan=plan, canon_seed=canon_seed, plan_attempt=plan_attempt)
-        console.print(f"[green]✓[/green] Series plan generated: {plan.get('title', 'N/A')} (slug: {slug})")
+        snapshot = workflow.accept_series(authored=authored)
+        console.print(f"[green]✓[/green] PNCA Series root accepted (slug: {slug})")
+        console.print(f"  [dim]Snapshot: {snapshot.selection_snapshot_id}[/dim]")
         console.print(f"  [dim]Run: {run.manifest.run_id}[/dim]")
     finally:
         if series_lock is not None:

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
-from novel_forge.pnca.contracts import SeriesAcceptanceCommit
+from novel_forge.pnca.contracts import SeriesAcceptanceCommit, SeriesContract
+from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.runtime import (
     ArtifactReference,
     RunHandle,
@@ -21,11 +22,17 @@ class PNCAWorkflow:
         self.repository = repository
         self.contract_author = contract_author
 
-    def bootstrap_series(
+    def author_series(
         self, *, run: RunHandle, scope_id: str, request: ArtifactReference
-    ) -> SelectionSnapshot:
-        """Author and atomically select the immutable PNCA Series root."""
-        authored = self.contract_author.author_series(run=run, scope_id=scope_id, request=request)
+    ) -> AuthoredContract[SeriesContract]:
+        """Produce root artifacts before the caller acquires the final series lock."""
+        return cast(
+            AuthoredContract[SeriesContract],
+            self.contract_author.author_series(run=run, scope_id=scope_id, request=request),
+        )
+
+    def accept_series(self, *, authored: AuthoredContract[SeriesContract]) -> SelectionSnapshot:
+        """Atomically select one fully materialized Series root."""
         contract = authored.contract
         seed = self.repository.verify_artifact(contract.canon_seed_artifact_id)
         frontier = self.repository.verify_artifact(contract.root_frontier_artifact_id)
@@ -44,3 +51,9 @@ class PNCAWorkflow:
             slug=contract.contract_id,
             acceptance=acceptance,
         )
+
+    def bootstrap_series(
+        self, *, run: RunHandle, scope_id: str, request: ArtifactReference
+    ) -> SelectionSnapshot:
+        """Convenience boundary for callers that do not need lock promotion."""
+        return self.accept_series(authored=self.author_series(run=run, scope_id=scope_id, request=request))

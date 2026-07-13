@@ -195,6 +195,46 @@ def test_export_command_passes_markdown_format_to_workflow(tmp_path: Path, monke
     assert captured == {"volume": 1, "format": "markdown"}
 
 
+
+def test_plan_command_delegates_root_bootstrap_to_pnca_workflow(tmp_path: Path, monkeypatch) -> None:
+    calls: list[str] = []
+    request = SimpleNamespace(artifact_id="request_artifact")
+
+    class FakePNCAWorkflow:
+        @staticmethod
+        def author_series(*, run: Any, scope_id: str, request: Any) -> Any:
+            calls.append("author")
+            assert run.manifest.command == "plan"
+            assert scope_id == run.manifest.run_id
+            assert request.artifact_id == "request_artifact"
+            return SimpleNamespace(contract=SimpleNamespace(contract_id="moon_lantern"))
+
+        @staticmethod
+        def accept_series(*, authored: Any) -> Any:
+            calls.append("accept")
+            assert authored.contract.contract_id == "moon_lantern"
+            return SimpleNamespace(selection_snapshot_id="snap-pnca")
+
+    def fake_stage(**kwargs: Any) -> Any:
+        calls.append("stage")
+        assert kwargs["request_id"] == kwargs["run"].manifest.run_id
+        assert kwargs["keywords"] == "月灯りの魔女"
+        assert kwargs["existing_slugs"] == ()
+        return request
+
+    monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
+    monkeypatch.setattr(cli, "stage_series_request", fake_stage, raising=False)
+    monkeypatch.setattr(cli, "_make_pnca_workflow", lambda *_args: FakePNCAWorkflow(), raising=False)
+
+    result = CliRunner().invoke(cli.app, ["plan", "月灯りの魔女", "--workdir", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert calls == ["stage", "author", "accept"]
+    assert "moon_lantern" in result.output
+    assert "snap-pnca" in result.output
+
+
+
 def test_task_runner_passes_registry_schema_to_llm_client() -> None:
     """Schema validation must not be bypassed: the runner must hand the resolved
     task schema to ``LLMClient.complete_json``."""
