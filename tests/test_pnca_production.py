@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from novel_forge.pnca.contracts import SeriesContractProposal
-from novel_forge.pnca.production import make_pnca_task_executor, stage_series_request
+from novel_forge.pnca.production import (
+    make_pnca_task_executor,
+    stage_chapter_request,
+    stage_series_request,
+)
 from novel_forge.runtime import RunRepository
 
 
@@ -25,6 +29,22 @@ def test_stage_series_request_persists_only_cli_intent_as_an_artifact(tmp_path) 
         "keywords": "月灯りの魔女",
         "existing_slugs": ["old_series"],
     }
+
+
+def test_stage_chapter_request_persists_only_chapter_target_as_an_artifact(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id="snap_001")
+
+    request = stage_chapter_request(
+        repository=repo,
+        run=run,
+        volume_id="volume_001",
+        chapter_ordinal=2,
+    )
+
+    assert request.manifest.artifact_type == "pnca.chapter.request"
+    assert request.manifest.logical_key == "pnca.chapter.request.volume_001.002"
+    assert repo.read_payload(request) == {"chapter_ordinal": 2}
 
 
 def test_series_proposal_rejects_an_unsafe_final_slug() -> None:

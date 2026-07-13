@@ -36,6 +36,8 @@ def _executor(outputs):
                 if task_id == "pnca.series.contract"
                 else (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="volume.request", variable="request"))
                 if task_id == "pnca.volume.contract"
+                else (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="chapter.request", variable="request"))
+                if task_id == "pnca.chapter.contract"
                 else (InputBinding(role="parent.contract", variable="parent"),)
             ),
             output=ArtifactSpec(role=task_id, artifact_type="pnca.contract", logical_key_template=f"{task_id}.{{scope_id}}"),
@@ -90,13 +92,20 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
         payload_name="request.json",
     )
     volume = author.author_volume(run=run, parent=series, request=volume_request, scope_id="volume_001")
-    chapter = author.author_chapter(run=run, parent=volume, scope_id="chapter_001")
+    chapter_request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="chapter-request", phase="design", reason="test"),
+        artifact_type="pnca.chapter.request",
+        logical_key="pnca.chapter.request.volume_001.001",
+        payload={"chapter_ordinal": 1},
+        payload_name="request.json",
+    )
+    chapter = author.author_chapter(run=run, parent=volume, request=chapter_request, scope_id="chapter_001")
 
     assert isinstance(repo.read_payload(series.artifact), dict)
     assert isinstance(series.contract, SeriesContract)
     assert volume.artifact.manifest.input_artifact_ids == (series.artifact.artifact_id, volume_request.artifact_id)
     assert isinstance(volume.contract, VolumeContract)
-    assert chapter.artifact.manifest.input_artifact_ids == (volume.artifact.artifact_id,)
+    assert chapter.artifact.manifest.input_artifact_ids == (volume.artifact.artifact_id, chapter_request.artifact_id)
     assert isinstance(chapter.contract, ChapterContract)
 
 
@@ -229,10 +238,18 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         payload=volume.model_dump(mode="json"),
         payload_name="volume.json",
     )
+    chapter_request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="chapter-request", phase="design", reason="test"),
+        artifact_type="pnca.chapter.request",
+        logical_key="pnca.chapter.request.volume_001.001",
+        payload={"chapter_ordinal": 1},
+        payload_name="request.json",
+    )
     author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
     chapter = author.author_chapter(
         run=run,
         parent=AuthoredContract(artifact=volume_artifact, contract=volume),
+        request=chapter_request,
         scope_id="chapter_001",
     )
     binding = FrontierBinding(

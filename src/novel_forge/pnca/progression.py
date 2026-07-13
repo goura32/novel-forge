@@ -117,17 +117,30 @@ class PNCAContractAuthor:
         return authored
 
     def author_chapter(
-        self, *, run: RunHandle, parent: AuthoredContract[VolumeContract], scope_id: str
+        self,
+        *,
+        run: RunHandle,
+        parent: AuthoredContract[VolumeContract],
+        request: ArtifactReference,
+        scope_id: str,
     ) -> AuthoredContract[ChapterContract]:
+        request_payload = self.repository.read_payload(request)
+        if not isinstance(request_payload, dict) or not isinstance(request_payload.get("chapter_ordinal"), int):
+            raise RuntimeContractError("ChapterContract requires a chapter.request artifact with chapter_ordinal")
+        chapter_ordinal = request_payload["chapter_ordinal"]
         authored = self._author(
             run=run,
             task_id="pnca.chapter.contract",
             scope_id=scope_id,
             model=ChapterContract,
             parent=parent,
+            request=request,
+            request_role="chapter.request",
         )
         if authored.contract.parent_volume_contract_id != parent.contract.contract_id:
             raise RuntimeContractError("ChapterContract does not bind its parent VolumeContract")
+        if authored.contract.chapter_ordinal != chapter_ordinal:
+            raise RuntimeContractError("ChapterContract does not bind its requested chapter ordinal")
         return authored
 
     def author_scene(

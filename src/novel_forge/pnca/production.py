@@ -56,12 +56,35 @@ def stage_volume_request(
     )
 
 
+def stage_chapter_request(
+    *,
+    repository: RunRepository,
+    run: RunHandle,
+    volume_id: str,
+    chapter_ordinal: int,
+) -> ArtifactReference:
+    """Commit one CLI chapter target as a provider-visible immutable input."""
+    attempt = repository.start_attempt(
+        run,
+        task_id="pnca.chapter.request",
+        phase="design",
+        reason="stage immutable chapter request",
+    )
+    return repository.commit_artifact(
+        attempt,
+        artifact_type="pnca.chapter.request",
+        logical_key=f"pnca.chapter.request.{volume_id}.{chapter_ordinal:03d}",
+        payload={"chapter_ordinal": chapter_ordinal},
+        payload_name="request.json",
+    )
+
 def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None) -> PNCATaskExecutor:
     """Build the production provider adapter from registered PNCA task resources."""
     prompt_manager = manager or PromptManager()
     resources_by_task = {
         "pnca.series.contract": ("pnca_series_contract.md", "pnca_series_contract.json"),
         "pnca.volume.contract": ("pnca_volume_contract.md", "pnca_volume_contract.json"),
+        "pnca.chapter.contract": ("pnca_chapter_contract.md", "pnca_chapter_contract.json"),
     }
     schemas = {
         task_id: json.loads(
@@ -80,7 +103,7 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
             "request": json.dumps(projection["request"], ensure_ascii=False),
             "schema": json.dumps(schema, ensure_ascii=False, indent=2),
         }
-        if task_id == "pnca.volume.contract":
+        if task_id in {"pnca.volume.contract", "pnca.chapter.contract"}:
             variables["parent"] = json.dumps(projection["parent"], ensure_ascii=False)
         user_prompt = prompt_manager.render(prompt_name, variables)
         return client.complete_json(
