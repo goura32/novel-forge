@@ -196,6 +196,7 @@ class VolumeContract(BaseModel):
     volume_ordinal: int = Field(ge=1)
     purpose: str = Field(default="", min_length=0)
     series_final_resolution: str = Field(default="", min_length=0)
+    is_terminal_volume: bool = False
     admission_allowances: tuple[AdmissionAllowance, ...] = ()
 
     @model_validator(mode="after")
@@ -214,6 +215,7 @@ class ChapterContract(BaseModel):
     chapter_ordinal: int = Field(ge=1)
     volume_purpose: str = Field(default="", min_length=0)
     series_final_resolution: str = Field(default="", min_length=0)
+    is_terminal_volume: bool = False
     scene_slots: tuple[SceneSlot, ...]
 
     @model_validator(mode="after")

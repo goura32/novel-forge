@@ -123,6 +123,7 @@ class PNCAContractAuthor:
                 "volume_ordinal": volume_ordinal,
                 "purpose": purpose,
                 "series_final_resolution": parent.contract.final_resolution,
+                "is_terminal_volume": volume_ordinal == max(item.ordinal for item in parent.contract.volume_purposes),
             },
         )
         if authored.contract.parent_series_contract_id != parent.contract.contract_id:
@@ -156,6 +157,7 @@ class PNCAContractAuthor:
                 "chapter_ordinal": chapter_ordinal,
                 "volume_purpose": parent.contract.purpose,
                 "series_final_resolution": parent.contract.series_final_resolution,
+                "is_terminal_volume": parent.contract.is_terminal_volume,
             },
         )
         if authored.contract.parent_volume_contract_id != parent.contract.contract_id:
@@ -211,6 +213,8 @@ class PNCAContractAuthor:
         # Provider output is immutable evidence.  Structural failures are rejected
         # for retry/upstream handling; this boundary never repairs or truncates it.
         validate_writer_view(proposal.writer_view)
+        if parent.contract.is_terminal_volume and proposal.canon_effect != "mutates":
+            raise RuntimeContractError("terminal-volume scene must mutate Canon to implement the series final resolution")
         if proposal.requirement_dispositions:
             raise RuntimeContractError(
                 "SceneContract declares requirement dispositions but the accepted parent ledger is empty"
@@ -235,7 +239,12 @@ class PNCAContractAuthor:
         narrative_contract = dict(proposal.writer_view.narrative_contract)
         narrative_contract["parent_volume_purpose"] = parent.contract.volume_purpose
         narrative_contract["series_final_resolution"] = parent.contract.series_final_resolution
-        writer_view = proposal.writer_view.model_copy(update={"narrative_contract": narrative_contract})
+        end_constraints = dict(proposal.writer_view.end_constraints)
+        if parent.contract.is_terminal_volume:
+            end_constraints["series_final_resolution"] = parent.contract.series_final_resolution
+        writer_view = proposal.writer_view.model_copy(
+            update={"narrative_contract": narrative_contract, "end_constraints": end_constraints}
+        )
         contract = SceneContract(
             **proposal.model_dump(mode="python", exclude={"writer_view"}),
             writer_view=writer_view,
