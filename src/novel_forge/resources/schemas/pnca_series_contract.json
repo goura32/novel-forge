@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "required": ["contract_id", "canon_seed"],
+  "properties": {
+    "contract_id": {
+      "type": "string",
+      "description": "Series request の slug と完全一致する空でない stable ID。"
+    },
+    "canon_seed": {
+      "type": "object",
+      "description": "空でないシリーズ開始時点の Canon。series ID、title、logline、初期 entity/state を含む JSON object。"
+    }
+  }
+}
