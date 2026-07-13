@@ -146,6 +146,7 @@ def test_production_executor_renders_only_registered_scene_projection() -> None:
         artifacts={
             "parent.contract": {"contract_id": "chapter_001", "scene_slots": [{"slot_id": "scene_001", "ordinal": 1}]},
             "canon.frontier": {"events": [{"event": "known"}]},
+            "canon.projection": {"seed": {"title": "seed"}, "events": [{"event": "known"}]},
             "scene.request": {"slot_id": "scene_001"},
         },
         input_artifact_ids=("art_chapter", "art_frontier", "art_request"),

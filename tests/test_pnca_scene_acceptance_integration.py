@@ -216,6 +216,11 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path) -> None:
     assert slot.scene_contract_artifact_id == scene.artifact_id
     assert slot.draft_artifact_id
     assert slot.draft_assessment_artifact_id
+    frozen = workflow.load_selected_bundle(slug=slug, volume=1)
+    assert frozen == bundle
+    frozen_snapshot = repo.load_snapshot(slug, repo.current_snapshot_id(slug))
+    bundle_artifact_id = frozen_snapshot.slots["pnca.design_bundle.series_001.001"]
+    assert repo.verify_artifact(bundle_artifact_id).manifest.artifact_type == "pnca.design_bundle"
 
     exporter = PNCAExporter(repository=repo)
     manuscript = exporter.export(run=run, bundle=bundle, format="markdown")

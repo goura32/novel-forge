@@ -44,8 +44,6 @@ class PNCASceneAuditSynthesizer:
     ) -> PreparedSceneAudit:
         contract = scene.contract
         binding = contract.frontier_binding
-        if contract.canon_effect != "none":
-            raise RuntimeContractError("mutating SceneContract requires canonical patch audit (not yet implemented)")
         frontier = self.repository.verify_artifact(binding.frontier_artifact_id)
         if frontier.manifest.content_digest != binding.frontier_digest:
             raise RuntimeContractError("SceneContract FrontierBinding digest does not match its frontier artifact")

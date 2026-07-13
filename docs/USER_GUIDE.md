@@ -30,17 +30,20 @@ uv run novel-forge plan -w <workdir> "近未来東京 記憶探偵"
 ## 3. 巻を設計・執筆・出力する
 
 ```bash
-# 1巻を設計
+# Volume Contractを設計する
 uv run novel-forge design -w <workdir> -s <series-slug> -V 1
 
-# 草稿・レビュー・改稿・summaryを生成
+# Chapter ContractとScene Contractまで設計する（例: 第1巻・第1章・scene 1）
+uv run novel-forge design -w <workdir> -s <series-slug> -V 1 --chapter 1 --scene 1
+
+# 本文を生成・監査し、選択snapshotに不変のDesignBundleをfreezeする
 uv run novel-forge write -w <workdir> -s <series-slug> -V 1
 
-# 監査用JSON artifact
-uv run novel-forge export -w <workdir> -s <series-slug> -V 1
-# 読者向けMarkdown原稿
+# 既にfreeze済みのDesignBundleだけからMarkdown原稿を出力する（LLMは呼ばない）
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 ```
+
+`write` と `export` は分離されています。`export` は草稿生成やauditを再実行せず、現在の選択snapshotの `pnca.design_bundle.<series>.<volume>` を検証して出力します。audit issueが一つでも未解決なら出力しません。
 
 全巻を設計する場合は `design -V 0` を使います。初回から新規シリーズを一括実行する場合は次のとおりです。
 
@@ -48,7 +51,7 @@ uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
 ```
 
-`complete` はJSON exportまでを実行します。Markdownが必要な場合は、その後に `export --format markdown` を実行してください。
+`complete` は `plan → design → write → export` を順に実行し、Markdown原稿 artifact まで作成します。
 
 ## 4. 成果物と証跡を確認する
 
@@ -56,8 +59,8 @@ uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
 
 | payload名 | 内容 |
 |---|---|
-| `export.volNN.manuscript.json` | Canon・review reportを含む監査用の結合原稿（既定） |
-| `export.volNN.manuscript.md` | 巻・章・scene見出しを持つ読者向け本文（`--format markdown`） |
+| `design_bundle.json` | 本文・WriterView・audit・output frontier をpinした不変のDesignBundle |
+| `manuscript.md` | DesignBundleから再現された読者向けMarkdown本文 |
 
 LLMを呼ぶattemptは同じattempt配下の `llm/` に、送信payload・生NDJSON・最終content・parse結果・validation結果を保存します。`--verbose` はコンソールログ量を変えるだけで、evidence保存の有無を変えません。
 
@@ -67,7 +70,7 @@ uv run novel-forge run show -w <workdir> <run-id>
 uv run novel-forge attempt show -w <workdir> <attempt-id>
 ```
 
-`export` は選択snapshotにpinされた設計・Canon・全sceneのdraft / summary / final reviewを検証してから出力します。DOCX / EPUBやKDP提出用メタデータは出力しないため、提出前の人による整形・確認は別途必要です。
+`export` は選択snapshotにpinされたDesignBundleの Scene Contract・WriterView・draft・audit・output frontier を型・digest・provenanceで検証してから出力します。DOCX / EPUBやKDP提出用メタデータは出力しないため、提出前の人による整形・確認は別途必要です。
 
 ## 5. 中断から再開する
 

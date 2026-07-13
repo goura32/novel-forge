@@ -1,20 +1,59 @@
 {
   "type": "object",
-  "required": ["contract_id", "slot_id", "canon_effect", "writer_view"],
+  "required": [
+    "contract_id",
+    "slot_id",
+    "canon_effect",
+    "writer_view"
+  ],
   "properties": {
-    "contract_id": {"type": "string", "description": "この Scene Contract proposal の stable ID。"},
-    "slot_id": {"type": "string", "description": "入力 scene request の slot_id と完全一致する Chapter-owned slot ID。"},
-    "canon_effect": {"type": "string", "enum": ["none", "mutates"], "description": "Canon を変更しない none、または patch を提案する mutates。"},
-    "canon_patch": {"type": "object", "description": "canon_effect が mutates のときだけ返す non-empty typed Canon patch payload。none のときは省略する。"},
+    "contract_id": {
+      "type": "string",
+      "description": "この Scene Contract proposal の stable ID。"
+    },
+    "slot_id": {
+      "type": "string",
+      "description": "入力 scene request の slot_id と完全一致する Chapter-owned slot ID。"
+    },
+    "canon_effect": {
+      "type": "string",
+      "enum": [
+        "none",
+        "mutates"
+      ],
+      "description": "Canon を変更しない none、または patch を提案する mutates。"
+    },
+    "canon_patch": {
+      "type": "object",
+      "description": "canon_effect が mutates のときだけ返す non-empty typed Canon patch payload。none のときは省略する。",
+      "minProperties": 1
+    },
     "writer_view": {
       "type": "object",
       "description": "本文 writer に渡す唯一の authority surface。Canon/frontier/artifact ID を含めない。",
-      "required": ["start_context", "narrative_contract", "end_constraints", "presentation_constraints"],
+      "required": [
+        "start_context",
+        "narrative_contract",
+        "end_constraints",
+        "presentation_constraints"
+      ],
       "properties": {
-        "start_context": {"type": "object", "description": "scene 開始時の writer 向け状況。"},
-        "narrative_contract": {"type": "object", "description": "scene が本文で果たす narrative contract。"},
-        "end_constraints": {"type": "object", "description": "scene 終了時に本文が満たす制約。"},
-        "presentation_constraints": {"type": "object", "description": "視点・語調などの本文 presentation 制約。"}
+        "start_context": {
+          "type": "object",
+          "description": "scene 開始時の writer 向け状況。"
+        },
+        "narrative_contract": {
+          "type": "object",
+          "description": "scene が本文で果たす narrative contract。"
+        },
+        "end_constraints": {
+          "type": "object",
+          "description": "scene 終了時に本文が満たす制約。"
+        },
+        "presentation_constraints": {
+          "type": "object",
+          "description": "視点・語調などの本文 presentation 制約。"
+        }
       }
     },
     "requirement_dispositions": {
@@ -23,11 +62,31 @@
       "items": {
         "type": "object",
         "description": "一つの parent requirement の disposition。",
-        "required": ["requirement_id", "disposition"],
+        "required": [
+          "requirement_id",
+          "disposition"
+        ],
         "properties": {
-          "requirement_id": {"type": "string", "description": "parent requirement ID。"},
-          "disposition": {"type": "string", "enum": ["implemented", "preserved", "deferred"], "description": "この scene における扱い。"},
-          "defer_target_slot_id": {"type": ["string", "null"], "description": "deferred のときだけ指定する descendant target slot。それ以外は null または省略。"}
+          "requirement_id": {
+            "type": "string",
+            "description": "parent requirement ID。"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "implemented",
+              "preserved",
+              "deferred"
+            ],
+            "description": "この scene における扱い。"
+          },
+          "defer_target_slot_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "deferred のときだけ指定する descendant target slot。それ以外は null または省略。"
+          }
         }
       }
     },
@@ -37,13 +96,70 @@
       "items": {
         "type": "object",
         "description": "一つの admission allowance consumption。",
-        "required": ["allowance_id", "entity_id", "kind"],
+        "required": [
+          "allowance_id",
+          "entity_id",
+          "kind"
+        ],
         "properties": {
-          "allowance_id": {"type": "string", "description": "Volume-owned allowance ID。"},
-          "entity_id": {"type": "string", "description": "許可を消費する stable entity ID。"},
-          "kind": {"type": "string", "enum": ["character", "location", "artifact", "organization"], "description": "entity kind。"}
+          "allowance_id": {
+            "type": "string",
+            "description": "Volume-owned allowance ID。"
+          },
+          "entity_id": {
+            "type": "string",
+            "description": "許可を消費する stable entity ID。"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "location",
+              "artifact",
+              "organization"
+            ],
+            "description": "entity kind。"
+          }
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "canon_effect": {
+            "const": "mutates"
+          }
+        },
+        "required": [
+          "canon_effect"
+        ]
+      },
+      "then": {
+        "required": [
+          "canon_patch"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "canon_effect": {
+            "const": "none"
+          }
+        },
+        "required": [
+          "canon_effect"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "canon_patch"
+          ]
+        }
+      }
+    }
+  ]
 }

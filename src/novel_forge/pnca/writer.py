@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from novel_forge.pnca.contracts import WriterView
+from novel_forge.pnca.contracts import DraftAudit, WriterView
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.pnca.validation import PNCAStructuralError, validate_writer_view
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository
@@ -88,9 +88,10 @@ class PNCARenderer:
             input_artifact_ids=(writer_view_artifact_id, draft.artifact_id),
             scope_id=scope_id,
         )
-        issues = result.get("issues") if isinstance(result, dict) else None
-        if not isinstance(issues, list):
-            raise PNCAStructuralError("PNCA draft audit requires an issues list")
+        try:
+            audit_payload = DraftAudit.model_validate(result)
+        except ValueError as exc:
+            raise PNCAStructuralError(f"PNCA draft audit output is invalid: {exc}") from exc
         audit_attempt = self.repository.start_attempt(
             run, task_id="pnca.draft.audit", phase="write", reason="audit scene draft"
         )
@@ -98,8 +99,27 @@ class PNCARenderer:
             audit_attempt,
             artifact_type="pnca.draft_audit",
             logical_key=f"pnca.draft_audit.{scope_id}",
-            payload={"issues": issues},
+            payload=audit_payload.model_dump(mode="json"),
             payload_name="draft_audit.json",
             input_artifact_ids=(scene_contract_artifact_id, writer_view_artifact_id, draft.artifact_id),
         )
         return audit
+
+    def revise(
+        self, *, run: RunHandle, writer_view: WriterView, writer_view_artifact_id: str,
+        draft: ArtifactReference, audit: ArtifactReference, executor: PNCATaskExecutor, scope_id: str
+    ) -> ArtifactReference:
+        result = executor.execute(
+            task_id="pnca.scene.revise",
+            artifacts={"writer.view": writer_view.model_dump(mode="json"), "scene.draft": self.repository.read_payload(draft), "draft.audit": self.repository.read_payload(audit)},
+            input_artifact_ids=(writer_view_artifact_id, draft.artifact_id, audit.artifact_id), scope_id=scope_id,
+        )
+        content = result.get("content") if isinstance(result, dict) else None
+        if not isinstance(content, str) or not content.strip():
+            raise PNCAStructuralError("PNCA revision output requires non-empty content")
+        attempt = self.repository.start_attempt(run, task_id="pnca.scene.revise", phase="write", reason="resolve draft audit issues")
+        return self.repository.commit_artifact(
+            attempt, artifact_type="pnca.scene_draft", logical_key=f"pnca.scene_draft.revised.{scope_id}",
+            payload={"content": content}, payload_name="draft.json",
+            input_artifact_ids=(writer_view_artifact_id, draft.artifact_id, audit.artifact_id),
+        )

@@ -13,6 +13,7 @@ from novel_forge.pnca.contracts import (
     ChapterAcceptanceCommit,
     ChapterContract,
     DesignBundle,
+    DraftAudit,
     FrontierBinding,
     SceneContract,
     SceneSlot,
@@ -37,9 +38,12 @@ from novel_forge.runtime import (
 class PNCAWorkflow:
     """Public orchestration facade; it never reads mutable "latest" state."""
 
-    def __init__(self, *, repository: RunRepository, contract_author: Any) -> None:
+    def __init__(
+        self, *, repository: RunRepository, contract_author: Any, max_review_count: int = 3
+    ) -> None:
         self.repository = repository
         self.contract_author = contract_author
+        self.max_review_count = max_review_count
 
     def author_series(
         self, *, run: RunHandle, scope_id: str, request: ArtifactReference
@@ -129,10 +133,11 @@ class PNCAWorkflow:
         scope_id: str,
         admission_allowances: Iterable[AdmissionAllowance] = (),
         scene_slot: SceneSlot | None = None,
-    ) -> AuthoredContract[SceneContract]:
+        previously_consumed: tuple[AdmissionConsumption, ...] = (),
+    ) -> tuple[AuthoredContract[SceneContract], tuple[AdmissionConsumption, ...]]:
         """Author one scene from only the pinned Chapter, frontier, and request."""
         return cast(
-            AuthoredContract[SceneContract],
+            tuple[AuthoredContract[SceneContract], tuple[AdmissionConsumption, ...]],
             self.contract_author.author_scene(
                 run=run,
                 parent=parent,
@@ -142,6 +147,7 @@ class PNCAWorkflow:
                 scope_id=scope_id,
                 admission_allowances=admission_allowances,
                 scene_slot=scene_slot,
+                previously_consumed=previously_consumed,
             ),
         )
 
@@ -174,7 +180,7 @@ class PNCAWorkflow:
         frontier_binding: FrontierBinding,
         base_snapshot_id: str,
     ) -> AcceptanceCommit:
-        """Assemble every required role into one acceptance commit for a non-mutating scene."""
+        """Assemble every required role into one acceptance commit."""
         structure = PNCASceneStructurePreparer(repository=self.repository).prepare(
             slug=slug,
             run=run,
@@ -194,7 +200,7 @@ class PNCAWorkflow:
             acceptance_id=f"accept_{contract.contract_id}",
             base_snapshot_id=base_snapshot_id,
             operation_key=f"{slug}:scene:{contract.contract_id}:accept",
-            canon_effect="none",
+            canon_effect=contract.canon_effect,
             role_artifact_ids={
                 **structure.role_artifact_ids,
                 "audit.batch": audit.batch.artifact_id,
@@ -323,6 +329,17 @@ class PNCAWorkflow:
                     slug=slug, acceptance=acceptance, frontier_binding=scene_authored.contract.frontier_binding
                 )
                 current_snapshot_id = snapshot.selection_snapshot_id
+                # A mutating accepted scene advances the selected frontier.  The
+                # next scene must bind to that descendant rather than reusing the
+                # chapter's pre-scene frontier.
+                accepted_snapshot = self.repository.load_snapshot(slug, current_snapshot_id)
+                frontier_id = accepted_snapshot.slots.get("canon.frontier")
+                if frontier_id is None:
+                    raise RuntimeContractError("accepted scene snapshot requires canon.frontier")
+                frontier = self.repository.verify_artifact(frontier_id)
+                lineage_root = frontier.manifest.canon_lineage_root_digest
+                if lineage_root is None:
+                    raise RuntimeContractError("accepted scene frontier requires a canon lineage root digest")
 
         return snapshot
 
@@ -369,15 +386,42 @@ class PNCAWorkflow:
                     executor=executor,
                     scope_id=scope_id,
                 )
+                draft = rendered.draft
                 audit = renderer.audit(
                     run=run,
                     scene_contract_artifact_id=scene_ref.artifact_id,
                     writer_view=scene_contract.writer_view,
                     writer_view_artifact_id=rendered.writer_view.artifact_id,
-                    draft=rendered.draft,
+                    draft=draft,
                     executor=executor,
                     scope_id=scope_id,
                 )
+                for review_cycle in range(1, self.max_review_count):
+                    if not DraftAudit.model_validate(self.repository.read_payload(audit)).issues:
+                        break
+                    draft = renderer.revise(
+                        run=run,
+                        writer_view=scene_contract.writer_view,
+                        writer_view_artifact_id=rendered.writer_view.artifact_id,
+                        draft=draft,
+                        audit=audit,
+                        executor=executor,
+                        scope_id=f"{scope_id}.revision.{review_cycle}",
+                    )
+                    audit = renderer.audit(
+                        run=run,
+                        scene_contract_artifact_id=scene_ref.artifact_id,
+                        writer_view=scene_contract.writer_view,
+                        writer_view_artifact_id=rendered.writer_view.artifact_id,
+                        draft=draft,
+                        executor=executor,
+                        scope_id=f"{scope_id}.revision.{review_cycle}",
+                    )
+                final_audit = DraftAudit.model_validate(self.repository.read_payload(audit))
+                if any(issue.severity == "blocker" for issue in final_audit.issues):
+                    raise RuntimeContractError(
+                        f"draft audit blockers remain after {self.max_review_count} review cycles for {scope_id}"
+                    )
                 slots.append(
                     BundleSlotRecord(
                         volume_ordinal=volume,
@@ -386,14 +430,60 @@ class PNCAWorkflow:
                         scene_slot_id=scene_slot.slot_id,
                         scene_contract_artifact_id=scene_ref.artifact_id,
                         writer_view_artifact_id=rendered.writer_view.artifact_id,
-                        draft_artifact_id=rendered.draft.artifact_id,
+                        draft_artifact_id=draft.artifact_id,
                         draft_assessment_artifact_id=audit.artifact_id,
                         output_frontier_artifact_id=scene_contract.frontier_binding.frontier_artifact_id,
                     )
                 )
         if not slots:
             raise RuntimeContractError(f"selected snapshot has no accepted scenes for Volume {volume}")
-        return DesignBundle(bundle_id=f"{slug}.volume.{volume:03d}", slots=tuple(slots))
+        bundle = DesignBundle(bundle_id=f"{slug}.volume.{volume:03d}", slots=tuple(slots))
+        bundle_attempt = self.repository.start_attempt(
+            run, task_id="pnca.design_bundle", phase="write", reason="freeze selected writer and audit artifacts"
+        )
+        bundle_ref = self.repository.commit_artifact(
+            bundle_attempt,
+            artifact_type="pnca.design_bundle",
+            logical_key=f"pnca.design_bundle.{slug}.{volume:03d}",
+            payload=bundle.model_dump(mode="json"),
+            payload_name="design_bundle.json",
+            input_artifact_ids=tuple(
+                sorted(
+                    {
+                        artifact_id
+                        for slot in bundle.slots
+                        for artifact_id in (
+                            slot.scene_contract_artifact_id,
+                            slot.writer_view_artifact_id,
+                            slot.draft_artifact_id,
+                            slot.draft_assessment_artifact_id,
+                            slot.output_frontier_artifact_id,
+                        )
+                    }
+                )
+            ),
+        )
+        selected_slots = dict(snapshot.slots)
+        selected_slots[bundle_ref.manifest.logical_key] = bundle_ref.artifact_id
+        self.repository.create_selection_snapshot(
+            slug=slug,
+            slots=selected_slots,
+            base_snapshot_id=snapshot_id,
+            reason=f"pnca.design_bundle.{volume:03d}",
+        )
+        return bundle
+
+    def load_selected_bundle(self, *, slug: str, volume: int) -> DesignBundle:
+        """Load the frozen selected DesignBundle without invoking a provider."""
+        snapshot = self.repository.load_snapshot(slug, self.repository.current_snapshot_id(slug))
+        slot = f"pnca.design_bundle.{slug}.{volume:03d}"
+        artifact_id = snapshot.slots.get(slot)
+        if artifact_id is None:
+            raise RuntimeContractError(f"selected snapshot has no frozen DesignBundle for Volume {volume}")
+        bundle = self.repository.verify_artifact(artifact_id)
+        if bundle.manifest.artifact_type != "pnca.design_bundle":
+            raise RuntimeContractError("selected DesignBundle slot has an invalid artifact type")
+        return DesignBundle.model_validate(self.repository.read_payload(bundle))
 
     def bootstrap_series(
         self, *, run: RunHandle, scope_id: str, request: ArtifactReference

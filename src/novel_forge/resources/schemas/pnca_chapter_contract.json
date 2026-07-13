@@ -1,6 +1,11 @@
 {
   "type": "object",
-  "required": ["contract_id", "parent_volume_contract_id", "chapter_ordinal", "scene_slots"],
+  "required": [
+    "contract_id",
+    "parent_volume_contract_id",
+    "chapter_ordinal",
+    "scene_slots"
+  ],
   "properties": {
     "contract_id": {
       "type": "string",
@@ -22,14 +27,27 @@
       "items": {
         "type": "object",
         "description": "一つの順序付き Scene slot。slot_id、ordinal、許可された admission allowance ID を含む。",
-        "required": ["slot_id", "ordinal"],
+        "required": [
+          "slot_id",
+          "ordinal"
+        ],
         "properties": {
-          "slot_id": {"type": "string", "description": "この Chapter 内で一意な stable scene slot ID。"},
-          "ordinal": {"type": "integer", "minimum": 1, "description": "この Chapter 内で一意かつ昇順の scene 順序。"},
+          "slot_id": {
+            "type": "string",
+            "description": "この Chapter 内で一意な stable scene slot ID。"
+          },
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "この Chapter 内で一意かつ昇順の scene 順序。"
+          },
           "allowed_admission_allowance_ids": {
             "type": "array",
             "description": "この scene で使用を許可する parent Volume Contract の admission allowance ID。不要なら空配列。",
-            "items": {"type": "string", "description": "parent Volume Contract に存在する admission allowance ID。"}
+            "items": {
+              "type": "string",
+              "description": "parent Volume Contract に存在する admission allowance ID。"
+            }
           }
         }
       }

@@ -313,8 +313,14 @@ class AcceptanceCommit(BaseModel):
     @model_validator(mode="after")
     def _contains_complete_scene_acceptance_group(self) -> AcceptanceCommit:
         missing = _REQUIRED_SCENE_ACCEPTANCE_ROLES - self.role_artifact_ids.keys()
-        if missing:
-            raise ValueError(f"AcceptanceCommit missing required role(s): {sorted(missing)}")
+        unexpected = self.role_artifact_ids.keys() - _REQUIRED_SCENE_ACCEPTANCE_ROLES
+        if missing or unexpected:
+            details: list[str] = []
+            if missing:
+                details.append(f"missing={sorted(missing)}")
+            if unexpected:
+                details.append(f"unexpected={sorted(unexpected)}")
+            raise ValueError(f"AcceptanceCommit requires exactly the required role group ({', '.join(details)})")
         if any(not artifact_id for artifact_id in self.role_artifact_ids.values()):
             raise ValueError("AcceptanceCommit role artifact IDs must be non-empty")
         return self
@@ -374,6 +380,23 @@ class ChapterAcceptanceCommit(BaseModel):
         if not self.role_artifact_ids["chapter.contract"]:
             raise ValueError("ChapterAcceptanceCommit chapter.contract artifact ID must be non-empty")
         return self
+
+
+class DraftAuditIssue(BaseModel):
+    """A typed, publication-gating finding against one rendered scene."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    severity: Literal["blocker", "major", "minor"]
+    detail: str = Field(min_length=1)
+
+
+class DraftAudit(BaseModel):
+    """An explicit audit result; an empty issue list is the only clean result."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    issues: tuple[DraftAuditIssue, ...]
 
 
 class BundleSlotRecord(BaseModel):

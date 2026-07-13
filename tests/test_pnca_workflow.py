@@ -157,6 +157,7 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
         "scope_id": "scene_001",
         "admission_allowances": (),
         "scene_slot": None,
+        "previously_consumed": (),
     }
 
 
@@ -247,7 +248,7 @@ def test_build_scene_acceptance_assembles_complete_role_group(monkeypatch) -> No
     acceptance = workflow.build_scene_acceptance(
         slug="series_001",
         run=SimpleNamespace(run_id="run_001"),
-        scene=SimpleNamespace(contract=SimpleNamespace(contract_id="scene_contract_001")),
+        scene=SimpleNamespace(contract=SimpleNamespace(contract_id="scene_contract_001", canon_effect="none")),
         parent_chapter=SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_chapter")),
         parent_volume=SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_volume")),
         frontier_binding=FrontierBinding(

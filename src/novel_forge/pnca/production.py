@@ -110,6 +110,7 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
         "pnca.chapter.contract": ("pnca_chapter_contract.md", "pnca_chapter_contract.json"),
         "pnca.scene.contract": ("pnca_scene_contract.md", "pnca_scene_contract.json"),
         "pnca.scene.render": ("pnca_scene_render.md", "pnca_scene_render.json"),
+        "pnca.scene.revise": ("pnca_scene_revise.md", "pnca_scene_revise.json"),
         "pnca.draft.audit": ("pnca_draft_audit.md", "pnca_draft_audit.json"),
     }
     schemas = {
@@ -135,6 +136,10 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
             variables["presentation_constraints"] = json.dumps(
                 projection["writer_view"]["presentation_constraints"], ensure_ascii=False
             )
+        elif task_id == "pnca.scene.revise":
+            variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
+            variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)
+            variables["issues"] = json.dumps(projection["issues"], ensure_ascii=False)
         elif task_id == "pnca.draft.audit":
             variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
             variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)
@@ -144,6 +149,7 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
                 variables["parent"] = json.dumps(projection["parent"], ensure_ascii=False)
             if task_id == "pnca.scene.contract":
                 variables["frontier"] = json.dumps(projection["frontier"], ensure_ascii=False)
+                variables["canon_projection"] = json.dumps(projection["canon_projection"], ensure_ascii=False)
         user_prompt = prompt_manager.render(prompt_name, variables)
         return client.complete_json(
             kind=task_id,

@@ -30,7 +30,12 @@ def _executor(outputs):
             task_id=task_id,
             task_kind="authoring",
             input_bindings=(
-                (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="canon.frontier", variable="frontier"), InputBinding(role="scene.request", variable="request"))
+                (
+                    InputBinding(role="parent.contract", variable="parent"),
+                    InputBinding(role="canon.frontier", variable="frontier"),
+                    InputBinding(role="canon.projection", variable="canon_projection"),
+                    InputBinding(role="scene.request", variable="request"),
+                )
                 if task_id == "pnca.scene.contract"
                 else (InputBinding(role="series.request", variable="request"),)
                 if task_id == "pnca.series.contract"
@@ -203,6 +208,13 @@ def test_volume_authoring_requires_a_pinned_volume_request(tmp_path) -> None:
 def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> None:
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)
+    seed = repo.commit_artifact(
+        repo.start_attempt(run, task_id="seed-root", phase="plan", reason="test"),
+        artifact_type="canon.seed",
+        logical_key="canon.seed",
+        payload={"title": "test seed"},
+        payload_name="seed.json",
+    )
     frontier_attempt = repo.start_attempt(run, task_id="seed", phase="plan", reason="test")
     frontier = repo.commit_artifact(
         frontier_attempt,
@@ -250,7 +262,7 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         input_snapshot_id="snap_001",
         frontier_artifact_id=frontier.artifact_id,
         frontier_digest=frontier.manifest.content_digest,
-        lineage_root_digest="sha256:root",
+        lineage_root_digest=seed.manifest.content_digest,
     )
 
     scene_request = repo.commit_artifact(

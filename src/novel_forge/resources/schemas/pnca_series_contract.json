@@ -1,14 +1,20 @@
 {
   "type": "object",
-  "required": ["contract_id", "canon_seed", "volume_purposes"],
+  "required": [
+    "contract_id",
+    "canon_seed",
+    "volume_purposes"
+  ],
   "properties": {
     "contract_id": {
       "type": "string",
-      "description": "最終 series slug。`^[a-z0-9_]{1,40}$` に一致し、request の existing_slugs と重複しない stable ID。"
+      "description": "最終 series slug。`^[a-z0-9_]{1,40}$` に一致し、request の existing_slugs と重複しない stable ID。",
+      "pattern": "^[a-z0-9_]{1,40}$"
     },
     "canon_seed": {
       "type": "object",
-      "description": "空でないシリーズ開始時点の Canon。series ID、title、logline、初期 entity/state を含む JSON object。"
+      "description": "空でないシリーズ開始時点の Canon。series ID、title、logline、初期 entity/state を含む JSON object。",
+      "minProperties": 1
     },
     "volume_purposes": {
       "type": "array",
@@ -17,10 +23,20 @@
       "items": {
         "type": "object",
         "description": "一巻分の purpose record。ordinal と purpose を必ず含める。",
-        "required": ["ordinal", "purpose"],
+        "required": [
+          "ordinal",
+          "purpose"
+        ],
         "properties": {
-          "ordinal": {"type": "integer", "minimum": 1, "description": "シリーズ内での巻番号。1 からの昇順で重複させない。"},
-          "purpose": {"type": "string", "description": "その巻がシリーズ全体で果たす一文の役割。章、scene、具体的 beat、Canon patch は書かない。"}
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "シリーズ内での巻番号。1 からの昇順で重複させない。"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "その巻がシリーズ全体で果たす一文の役割。章、scene、具体的 beat、Canon patch は書かない。"
+          }
         }
       }
     }

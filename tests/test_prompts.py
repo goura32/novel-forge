@@ -34,6 +34,9 @@ class TestRenderPrompt:
     def test_repeated_placeholder(self):
         result = render_prompt("{x} {x}", {"x": "same"})
         assert result == "same same"
+    def test_inserted_value_is_not_reinterpreted_as_a_placeholder(self):
+        result = render_prompt("request={request}\nschema={schema}", {"request": '{"keywords":"{schema}"}', "schema": "SPEC"})
+        assert result == 'request={"keywords":"{schema}"}\nschema=SPEC'
 
 
 class TestPromptManager:

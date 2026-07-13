@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -9,15 +10,18 @@ _PROMPT_DIR = resources.files("novel_forge") / "resources" / "prompts"
 
 
 def render_prompt(template: str, variables: dict[str, str]) -> str:
-    """Render a template by replacing {key} placeholders with values.
+    """Render only placeholders present in the original template.
 
-    Placeholders use single-brace format: {key}
-    Keys are sorted by length (longest first) to avoid partial matches.
+    Replacement is single-pass so data inserted for one variable can never be
+    interpreted as a placeholder for another variable.
     """
-    result = template
-    for key in sorted(variables, key=len, reverse=True):
-        result = result.replace(f"{{{key}}}", str(variables[key]))
-    return result
+    placeholder = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+    def replace(match: re.Match[str]) -> str:
+        key = match.group(1)
+        return str(variables[key]) if key in variables else match.group(0)
+
+    return placeholder.sub(replace, template)
 
 
 class PromptManager:

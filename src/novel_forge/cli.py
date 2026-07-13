@@ -201,7 +201,11 @@ def _make_pnca_workflow(
         repository=repo,
         executor=make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager()),
     )
-    return PNCAWorkflow(repository=repo, contract_author=author)
+    return PNCAWorkflow(
+        repository=repo,
+        contract_author=author,
+        max_review_count=config.quality.max_review_count,
+    )
 
 
 def _make_pnca_client(config: RuntimeConfig, model: str | None):
@@ -330,13 +334,27 @@ def design(
             lineage_root = frontier.manifest.canon_lineage_root_digest
             if lineage_root is None:
                 raise RuntimeContractError("scene frontier artifact requires a canon lineage root digest")
+            volume_parent = _selected_volume_contract(repo, series_dir.name, snapshot_id, volume)
+            try:
+                scene_slot = next(slot for slot in chapter_parent.contract.scene_slots if slot.ordinal == scene)
+            except StopIteration as exc:
+                raise typer.BadParameter(
+                    f"Chapter {chapter} does not allocate scene ordinal {scene}", param_hint="--scene"
+                ) from exc
+            from novel_forge.pnca.scene_preparation import PNCASceneStructurePreparer
+
+            previously_consumed = PNCASceneStructurePreparer(repository=repo)._prior_admission_consumptions(
+                slug=series_dir.name,
+                input_snapshot_id=snapshot_id,
+                parent_chapter_artifact_id=chapter_parent.artifact.artifact_id,
+            )
             request = stage_scene_request(
                 repository=repo,
                 run=run,
                 chapter_id=chapter_parent.contract.contract_id,
-                slot_id=f"scene_{scene:03d}",
+                slot_id=scene_slot.slot_id,
             )
-            scene_authored = workflow.author_scene(
+            scene_authored, _consumed = workflow.author_scene(
                 run=run,
                 parent=chapter_parent,
                 request=request,
@@ -348,13 +366,16 @@ def design(
                     lineage_root_digest=lineage_root,
                 ),
                 scope_id=f"{series_dir.name}.{volume:03d}.{chapter:03d}.{scene:03d}",
+                admission_allowances=volume_parent.contract.admission_allowances,
+                scene_slot=scene_slot,
+                previously_consumed=previously_consumed,
             )
             acceptance = workflow.build_scene_acceptance(
                 slug=series_dir.name,
                 run=run,
                 scene=scene_authored,
                 parent_chapter=chapter_parent,
-                parent_volume=_selected_volume_contract(repo, series_dir.name, snapshot_id, volume),
+                parent_volume=volume_parent,
                 frontier_binding=scene_authored.contract.frontier_binding,
                 base_snapshot_id=snapshot_id,
             )
@@ -443,12 +464,7 @@ def write(
         workflow = _make_pnca_workflow(repo, config, model)
         executor = make_pnca_task_executor(client=_make_pnca_client(config, model))
         bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
-        exporter = PNCAExporter(repository=repo)
-        manuscript = exporter.export(run=run, bundle=bundle, format="markdown")
-        console.print(
-            f"[green]✓[/green] Volume {volume} written (bundle: {bundle.bundle_id}, "
-            f"manuscript: {manuscript.artifact.artifact_id})"
-        )
+        console.print(f"[green]✓[/green] Volume {volume} written and frozen (bundle: {bundle.bundle_id})")
 
 
 @app.command()
@@ -479,8 +495,7 @@ def export(
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export", wait=wait_lock):
         workflow = _make_pnca_workflow(repo, config, model)
-        executor = make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager())
-        bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
+        bundle = workflow.load_selected_bundle(slug=series_dir.name, volume=volume)
         exporter = PNCAExporter(repository=repo)
         manuscript = exporter.export(run=run, bundle=bundle, format=export_format)
         console.print(f"[green]✓[/green] Exported {export_format} to {manuscript.artifact.artifact_id}")
@@ -634,11 +649,8 @@ def list(
             continue
         try:
             snapshot_id = repo.current_snapshot_id(d.name)
-            plan = _selected_payload(repo, d.name, snapshot_id, "plan.series")
-            slug = str(plan.get("slug", d.name))
-            title = str(plan.get("title", "?"))
-            volumes = len(plan.get("planned_volumes", []))
-            table.add_row(slug, title, str(volumes), "snapshot-managed")
+            contract = _selected_series_contract(repo, d.name, snapshot_id).contract
+            table.add_row(contract.contract_id, "PNCA Canon", str(len(contract.volume_purposes)), "snapshot-managed")
         except (FileNotFoundError, RuntimeContractError) as exc:
             _log.warning("Failed to read selected plan while listing %s: %s", d.name, exc)
 

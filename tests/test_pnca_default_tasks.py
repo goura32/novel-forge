@@ -45,6 +45,7 @@ def test_default_registry_defines_scene_contract_from_pinned_chapter_frontier_an
     assert [(item.role, item.variable) for item in spec.input_bindings] == [
         ("parent.contract", "parent"),
         ("canon.frontier", "frontier"),
+        ("canon.projection", "canon_projection"),
         ("scene.request", "request"),
     ]
     assert spec.output.artifact_type == "pnca.scene.contract.proposal"

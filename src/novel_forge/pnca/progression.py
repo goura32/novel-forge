@@ -22,7 +22,7 @@ from novel_forge.pnca.contracts import (
     VolumeContract,
 )
 from novel_forge.pnca.registry import PNCATaskExecutor
-from novel_forge.pnca.validation import strip_forbidden_writer_keys
+from novel_forge.pnca.validation import validate_writer_view
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository, RuntimeContractError
 
 ContractT = TypeVar("ContractT", bound=BaseModel)
@@ -182,11 +182,16 @@ class PNCAContractAuthor:
             or frontier_binding.frontier_digest != frontier.manifest.content_digest
         ):
             raise RuntimeContractError("SceneContract frontier binding must exactly match its input artifact")
+        canon_projection = self.repository.materialize_canon_projection(
+            frontier_artifact_id=frontier.artifact_id,
+            lineage_root_digest=frontier_binding.lineage_root_digest,
+        )
         result = self.executor.execute(
             task_id="pnca.scene.contract",
             artifacts={
                 "parent.contract": parent.contract.model_dump(mode="json"),
                 "canon.frontier": self.repository.read_payload(frontier),
+                "canon.projection": canon_projection,
                 "scene.request": request_payload,
             },
             input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id, request.artifact_id),
@@ -195,44 +200,27 @@ class PNCAContractAuthor:
         proposal = SceneContractProposal.model_validate(result)
         if proposal.slot_id != slot_id:
             raise RuntimeContractError("SceneContract does not bind its allocated ChapterContract slot")
-        if proposal.canon_effect != "none":
-            # The current PNCA authoring path supports only non-mutating scenes;
-            # canon output-frontier materialization is out of scope for design_volume_full.
-            proposal = proposal.model_copy(update={"canon_effect": "none", "canon_patch": None})
+        # Provider output is immutable evidence.  Structural failures are rejected
+        # for retry/upstream handling; this boundary never repairs or truncates it.
+        validate_writer_view(proposal.writer_view)
         if proposal.requirement_dispositions:
-            # Parent requirement ledgers are not populated during authoring, so the
-            # model must not invent requirement IDs; drop any it emits.
-            proposal = proposal.model_copy(update={"requirement_dispositions": ()})
-        proposal = proposal.model_copy(
-            update={"writer_view": strip_forbidden_writer_keys(proposal.writer_view)}
-        )
-        if admission_allowances:
-            # The model occasionally consumes an allowance more times than the
-            # chapter budget allows (shared across scenes), or one not permitted
-            # for this slot.  Clamp against the *remaining* budget = max_count
-            # minus what earlier scenes in this chapter already consumed.
-            max_count_by_id = {a.allowance_id: a.max_count for a in admission_allowances}
-            allowed_ids = set(scene_slot.allowed_admission_allowance_ids) if scene_slot is not None else None
-            kind_by_id = {a.allowance_id: a.kind for a in admission_allowances}
-            already_used = Counter(c.allowance_id for c in previously_consumed)
-            seen: dict[str, int] = {}
-            kept: list = []
+            raise RuntimeContractError(
+                "SceneContract declares requirement dispositions but the accepted parent ledger is empty"
+            )
+        if proposal.admission_consumptions:
+            if scene_slot is None:
+                raise RuntimeContractError("scene authoring with admission consumptions requires an allocated SceneSlot")
+            allowances = {allowance.allowance_id: allowance for allowance in admission_allowances}
+            used = Counter(consumption.allowance_id for consumption in previously_consumed)
             for consumption in proposal.admission_consumptions:
-                if allowed_ids is not None and consumption.allowance_id not in allowed_ids:
-                    continue
-                # The model occasionally emits a consumption kind inconsistent with
-                # the allowance it belongs to; the allowance is authoritative, so
-                # override the consumption kind rather than reject the whole scene.
-                canonical_kind = kind_by_id.get(consumption.allowance_id)
-                if canonical_kind is not None and consumption.kind != canonical_kind:
-                    consumption = consumption.model_copy(update={"kind": canonical_kind})
-                used = already_used.get(consumption.allowance_id, 0) + seen.get(consumption.allowance_id, 0)
-                cap = max_count_by_id.get(consumption.allowance_id)
-                if cap is None or used >= cap:
-                    continue
-                kept.append(consumption)
-                seen[consumption.allowance_id] = seen.get(consumption.allowance_id, 0) + 1
-            proposal = proposal.model_copy(update={"admission_consumptions": tuple(kept)})
+                allowance = allowances.get(consumption.allowance_id)
+                if allowance is None or consumption.allowance_id not in scene_slot.allowed_admission_allowance_ids:
+                    raise RuntimeContractError(f"supporting entity admission is not authorized: {consumption.allowance_id}")
+                if allowance.kind != consumption.kind:
+                    raise RuntimeContractError(f"supporting entity admission kind mismatch: {consumption.allowance_id}")
+                used[consumption.allowance_id] += 1
+                if used[consumption.allowance_id] > allowance.max_count:
+                    raise RuntimeContractError(f"supporting entity admission allowance is exhausted: {consumption.allowance_id}")
         total_consumed = (*previously_consumed, *proposal.admission_consumptions)
         contract = SceneContract(
             **proposal.model_dump(mode="python"),

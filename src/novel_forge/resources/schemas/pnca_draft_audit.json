@@ -9,12 +9,19 @@
       "items": {
         "type": "object",
         "description": "単一の指摘。severity で重大度を、detail で違反箇所と根拠を具体的に示す。",
-        "required": ["severity", "detail"],
+        "required": [
+          "severity",
+          "detail"
+        ],
         "properties": {
           "severity": {
             "type": "string",
             "description": "指摘の重大度。blocker は出版不能、major は読者体験を損なう、minor は軽微な不備を示す。",
-            "enum": ["blocker", "major", "minor"]
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ]
           },
           "detail": {
             "type": "string",

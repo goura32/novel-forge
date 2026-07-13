@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from novel_forge.pnca.contracts import BundleSlotRecord, DesignBundle
+from novel_forge.pnca.contracts import BundleSlotRecord, DesignBundle, DraftAudit
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository, RuntimeContractError
 
 
@@ -69,22 +69,39 @@ class PNCAExporter:
         view = self.repository.verify_artifact(slot.writer_view_artifact_id)
         draft = self.repository.verify_artifact(slot.draft_artifact_id)
         assessment = self.repository.verify_artifact(slot.draft_assessment_artifact_id)
+        output_frontier = self.repository.verify_artifact(slot.output_frontier_artifact_id)
         if contract.manifest.artifact_type != "pnca.scene.contract":
             raise RuntimeContractError("bundle scene contract artifact type is invalid")
+        if output_frontier.manifest.artifact_type != "canon.event_set":
+            raise RuntimeContractError("bundle output frontier artifact type is invalid")
         if view.manifest.artifact_type != "pnca.writer_view":
             raise RuntimeContractError("bundle writer view artifact type is invalid")
         if view.manifest.input_artifact_ids != (contract.artifact_id,):
             raise RuntimeContractError("writer view must be derived from its pinned scene contract")
         if view.manifest.metadata.get("scene_contract_digest") != contract.manifest.content_digest:
             raise RuntimeContractError("writer view must pin its scene contract digest")
-        if draft.manifest.artifact_type != "pnca.scene_draft" or draft.manifest.input_artifact_ids != (view.artifact_id,):
+        if draft.manifest.artifact_type != "pnca.scene_draft" or view.artifact_id not in draft.manifest.input_artifact_ids:
             raise RuntimeContractError("draft must be derived from its pinned writer view")
         if assessment.manifest.artifact_type != "pnca.draft_audit":
             raise RuntimeContractError("bundle draft assessment artifact type is invalid")
-        if {contract.artifact_id, draft.artifact_id} - set(assessment.manifest.input_artifact_ids):
-            raise RuntimeContractError("draft assessment must bind contract and draft artifacts")
+        required_assessment_inputs = {contract.artifact_id, view.artifact_id, draft.artifact_id}
+        if not required_assessment_inputs.issubset(assessment.manifest.input_artifact_ids):
+            raise RuntimeContractError("draft assessment must bind contract, writer view, and draft artifacts")
+        try:
+            audit = DraftAudit.model_validate(self.repository.read_payload(assessment))
+        except ValueError as exc:
+            raise RuntimeContractError(f"bundle draft assessment payload is invalid: {exc}") from exc
+        blocking = [issue for issue in audit.issues if issue.severity == "blocker"]
+        if blocking:
+            raise RuntimeContractError("bundle contains unresolved blocker draft audit issues")
         payload = self.repository.read_payload(draft)
         content = payload.get("content") if isinstance(payload, dict) else None
         if not isinstance(content, str) or not content.strip():
             raise RuntimeContractError("pinned draft has no manuscript content")
-        return content, {contract.artifact_id, view.artifact_id, draft.artifact_id, assessment.artifact_id}
+        return content, {
+            contract.artifact_id,
+            view.artifact_id,
+            draft.artifact_id,
+            assessment.artifact_id,
+            output_frontier.artifact_id,
+        }

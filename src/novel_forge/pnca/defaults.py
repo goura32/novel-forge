@@ -77,6 +77,7 @@ def default_pnca_task_registry() -> PNCATaskRegistry:
                 input_bindings=(
                     InputBinding(role="parent.contract", variable="parent"),
                     InputBinding(role="canon.frontier", variable="frontier"),
+                    InputBinding(role="canon.projection", variable="canon_projection"),
                     InputBinding(role="scene.request", variable="request"),
                 ),
                 output=ArtifactSpec(
@@ -106,6 +107,20 @@ def default_pnca_task_registry() -> PNCATaskRegistry:
                 max_input_bytes=32_768,
                 max_output_bytes=65_536,
                 idempotency_scope="scene-render",
+            ),
+            TaskSpec(
+                task_id="pnca.scene.revise",
+                task_kind="render",
+                input_bindings=(
+                    InputBinding(role="writer.view", variable="writer_view"),
+                    InputBinding(role="scene.draft", variable="draft"),
+                    InputBinding(role="draft.audit", variable="issues"),
+                ),
+                output=ArtifactSpec(role="scene.draft.revised", artifact_type="pnca.scene_draft", logical_key_template="pnca.scene_draft.revised.{scope_id}"),
+                prompt_digest=_resource_digest("prompts", "pnca_scene_revise.md"),
+                schema_digest=_resource_digest("schemas", "pnca_scene_revise.json"),
+                model_profile="default", max_input_bytes=65_536, max_output_bytes=65_536,
+                idempotency_scope="scene-revise",
             ),
             TaskSpec(
                 task_id="pnca.draft.audit",

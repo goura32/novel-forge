@@ -565,11 +565,25 @@ class RunRepository:
                         f"got {ref.manifest.logical_key!r}"
                     )
             elif ref.manifest.logical_key != slot:
-                raise RuntimeContractError(
-                    f"selection slot {slot!r} does not match referenced artifact logical key "
-                    f"{ref.manifest.logical_key!r}"
-                )
+                # Selection keys encode PNCA topology (for example
+                # `pnca.chapter.contract.<series>.<volume>.<chapter>`), while
+                # authoring artifact keys include a human-readable hierarchy.
+                # Permit only this typed aliasing; all other selection slots
+                # must name their immutable artifact exactly.
+                pnca_alias_prefixes = {
+                    "pnca.series.contract": "pnca.series.contract.",
+                    "pnca.volume.contract": "pnca.volume.contract.",
+                    "pnca.chapter.contract": "pnca.chapter.contract.",
+                    "pnca.scene.contract": "pnca.scene.contract.",
+                }
+                alias_prefix = pnca_alias_prefixes.get(ref.manifest.artifact_type)
+                if alias_prefix is None or not slot.startswith(alias_prefix):
+                    raise RuntimeContractError(
+                        f"selection slot {slot!r} does not match referenced artifact logical key "
+                        f"{ref.manifest.logical_key!r}"
+                    )
         if base_snapshot_id is not None:
+            self._require_current_base_snapshot(slug=slug, base_snapshot_id=base_snapshot_id)
             self.load_snapshot(slug, base_snapshot_id)
         self.verify_canon_snapshot(slots)
         ledger = self.ledger_root(slug)
@@ -657,6 +671,7 @@ class RunRepository:
 
     def commit_pnca_volume_acceptance(self, *, slug: str, acceptance: VolumeAcceptanceCommit) -> SelectionSnapshot:
         """Atomically publish one Volume Contract against its selected Series parent."""
+        self._require_current_base_snapshot(slug=slug, base_snapshot_id=acceptance.base_snapshot_id)
         base = self.load_snapshot(slug, acceptance.base_snapshot_id)
         parent_id = next((artifact_id for key, artifact_id in base.slots.items() if key.startswith("pnca.series.contract.")), None)
         if parent_id is None:
@@ -692,6 +707,7 @@ class RunRepository:
         self, *, slug: str, acceptance: ChapterAcceptanceCommit
     ) -> SelectionSnapshot:
         """Atomically publish one Chapter Contract against its selected Volume parent."""
+        self._require_current_base_snapshot(slug=slug, base_snapshot_id=acceptance.base_snapshot_id)
         base = self.load_snapshot(slug, acceptance.base_snapshot_id)
         chapter = self.verify_artifact(acceptance.role_artifact_ids["chapter.contract"])
         if chapter.manifest.artifact_type != "pnca.chapter.contract":
@@ -805,6 +821,7 @@ class RunRepository:
 
         if acceptance.base_snapshot_id != frontier_binding.input_snapshot_id:
             raise RuntimeContractError("AcceptanceCommit base snapshot must equal FrontierBinding input snapshot")
+        self._require_current_base_snapshot(slug=slug, base_snapshot_id=acceptance.base_snapshot_id)
         base = self.load_snapshot(slug, acceptance.base_snapshot_id)
         base_frontier_id = base.slots.get("canon.frontier")
         if base_frontier_id is None:
@@ -823,6 +840,20 @@ class RunRepository:
 
         slots = dict(base.slots)
         scene_contract = self.verify_artifact(acceptance.role_artifact_ids["scene.contract"])
+        expected_role_types = {
+            "scene.contract": "pnca.scene.contract",
+            "parent.requirement_ledger": "pnca.parent_requirement_ledger",
+            "accepted.requirement_ledger": "pnca.accepted_requirement_ledger",
+            "audit.batch": "pnca.audit.batch",
+            "review.synthesis": "pnca.review.synthesis",
+            "scene.slot_binding": "pnca.scene.slot_binding",
+        }
+        if scene_contract.manifest.artifact_type != expected_role_types["scene.contract"]:
+            raise RuntimeContractError("PNCA scene.contract role requires pnca.scene.contract")
+        for role, artifact_type in expected_role_types.items():
+            ref = self.verify_artifact(acceptance.role_artifact_ids[role])
+            if ref.manifest.artifact_type != artifact_type:
+                raise RuntimeContractError(f"PNCA role {role!r} requires artifact type {artifact_type}")
         for role, artifact_id in acceptance.role_artifact_ids.items():
             ref = self.verify_artifact(artifact_id)
             manifest = ref.manifest
@@ -917,6 +948,18 @@ class RunRepository:
             if isinstance(operation, dict) and operation.get("operation_key") == operation_key:
                 return event
         return None
+
+    def _require_current_base_snapshot(self, *, slug: str, base_snapshot_id: str) -> None:
+        """Reject a commit prepared from a snapshot that is no longer selected.
+
+        The caller may retry by re-authoring against the latest immutable state;
+        silently merging a stale candidate would lose already-selected slots.
+        """
+        current = self.current_snapshot_id(slug)
+        if base_snapshot_id != current:
+            raise RuntimeContractError(
+                f"stale PNCA selection base: expected current snapshot {current}, got {base_snapshot_id}"
+            )
 
     def current_snapshot_id(self, slug: str) -> str:
         """Return the latest *ledger-selected* snapshot, never a latest artifact."""
@@ -1044,6 +1087,43 @@ class RunRepository:
         if digest_bytes(payload_path.read_bytes()) != ref.manifest.content_digest:
             raise CorruptArtifactError(f"artifact payload digest mismatch: {artifact_id}")
         return ref
+
+    def materialize_canon_projection(
+        self, *, frontier_artifact_id: str, lineage_root_digest: str
+    ) -> dict[str, Any]:
+        """Return the immutable seed plus ordered frontier events for authoring.
+
+        The projection is data, not a mutable Canon lookup.  It is reconstructed
+        from the frontier ancestry that is already pinned by FrontierBinding.
+        """
+        seed: ArtifactReference | None = None
+        for manifest_path in self.runs_root.glob("*/attempts/*/artifacts/*.manifest.json"):
+            manifest = ArtifactManifest.model_validate_json(manifest_path.read_bytes())
+            if manifest.artifact_type == "canon.seed" and manifest.content_digest == lineage_root_digest:
+                seed = self.verify_artifact(manifest.artifact_id)
+                break
+        if seed is None:
+            raise RuntimeContractError("Canon frontier lineage root has no canon.seed artifact")
+        chain: list[ArtifactReference] = []
+        current = self.verify_artifact(frontier_artifact_id)
+        while True:
+            if current.manifest.artifact_type != "canon.event_set":
+                raise RuntimeContractError("Canon projection frontier must be canon.event_set")
+            chain.append(current)
+            parent_id = current.manifest.parent_frontier_artifact_id
+            if parent_id is None:
+                break
+            current = self.verify_artifact(parent_id)
+        events: list[Any] = []
+        for frontier in reversed(chain):
+            payload = self.read_payload(frontier)
+            if not isinstance(payload, dict) or not isinstance(payload.get("events", []), list):
+                raise RuntimeContractError("canon.event_set payload requires an events list")
+            events.extend(payload["events"])
+        seed_payload = self.read_payload(seed)
+        if not isinstance(seed_payload, dict):
+            raise RuntimeContractError("canon.seed payload requires an object")
+        return {"seed": seed_payload, "events": events}
 
     def verify_canon_snapshot(self, slots: dict[str, str]) -> None:
         frontier_id = slots.get("canon.frontier")
