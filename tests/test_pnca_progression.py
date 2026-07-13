@@ -238,7 +238,7 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
             "canon_effect": "none",
         },
     }
-    volume = VolumeContract(contract_id="volume_001", parent_series_contract_id="series_001", volume_ordinal=1)
+    volume = VolumeContract(contract_id="volume_001", parent_series_contract_id="series_001", volume_ordinal=1, purpose="呪いを解き幸福へ至る")
     volume_artifact = repo.commit_artifact(
         repo.start_attempt(run, task_id="volume", phase="design", reason="test"),
         artifact_type="pnca.volume.contract",
@@ -290,3 +290,4 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         scene_request.artifact_id,
     )
     assert scene.contract.slot_id == "scene_001"
+    assert scene.contract.writer_view.narrative_contract["parent_volume_purpose"] == "呪いを解き幸福へ至る"

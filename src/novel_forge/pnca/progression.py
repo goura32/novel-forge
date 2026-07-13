@@ -225,8 +225,14 @@ class PNCAContractAuthor:
                 if used[consumption.allowance_id] > allowance.max_count:
                     raise RuntimeContractError(f"supporting entity admission allowance is exhausted: {consumption.allowance_id}")
         total_consumed = (*previously_consumed, *proposal.admission_consumptions)
+        # The chapter's parent-pinned volume purpose is authoritative.  Preserve it in
+        # the WriterView instead of trusting a scene proposal to restate the long arc.
+        narrative_contract = dict(proposal.writer_view.narrative_contract)
+        narrative_contract["parent_volume_purpose"] = parent.contract.volume_purpose
+        writer_view = proposal.writer_view.model_copy(update={"narrative_contract": narrative_contract})
         contract = SceneContract(
-            **proposal.model_dump(mode="python"),
+            **proposal.model_dump(mode="python", exclude={"writer_view"}),
+            writer_view=writer_view,
             frontier_binding=frontier_binding,
         )
         attempt = self.repository.start_attempt(
