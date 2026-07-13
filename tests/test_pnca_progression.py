@@ -6,6 +6,7 @@ from novel_forge.pnca.contracts import (
     ChapterContract,
     FrontierBinding,
     SeriesContract,
+    SeriesContractProposal,
     VolumeContract,
 )
 from novel_forge.pnca.progression import AuthoredContract, PNCAContractAuthor
@@ -53,9 +54,7 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
     outputs = {
         "pnca.series.contract": {
             "contract_id": "series_001",
-            "canon_seed_artifact_id": "seed_001",
-            "root_frontier_artifact_id": "frontier_001",
-            "root_frontier_digest": "sha256:root",
+            "canon_seed": {"schema_version": 2, "series": {"id": "series_001"}},
         },
         "pnca.volume.contract": {
             "contract_id": "volume_001",
@@ -81,6 +80,33 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
     assert isinstance(volume.contract, VolumeContract)
     assert chapter.artifact.manifest.input_artifact_ids == (volume.artifact.artifact_id,)
     assert isinstance(chapter.contract, ChapterContract)
+
+
+def test_series_authoring_materializes_seed_and_root_frontier_before_contract(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    author = PNCAContractAuthor(
+        repository=repo,
+        executor=_executor(
+            {
+                "pnca.series.contract": {
+                    "contract_id": "series_001",
+                    "canon_seed": {"schema_version": 2, "series": {"id": "series_001"}},
+                }
+            }
+        ),
+    )
+
+    series = author.author_series(run=run, scope_id="series_001")
+
+    assert isinstance(SeriesContractProposal(contract_id="series_001", canon_seed={"seed": True}), SeriesContractProposal)
+    seed = repo.verify_artifact(series.contract.canon_seed_artifact_id)
+    frontier = repo.verify_artifact(series.contract.root_frontier_artifact_id)
+    assert seed.manifest.artifact_type == "canon.seed"
+    assert frontier.manifest.logical_key == "canon.frontier.root"
+    assert frontier.manifest.canon_lineage_root_digest == seed.manifest.content_digest
+    assert series.contract.root_frontier_digest == frontier.manifest.content_digest
+    assert series.artifact.manifest.input_artifact_ids == (seed.artifact_id, frontier.artifact_id)
 
 
 def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> None:

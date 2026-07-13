@@ -127,6 +127,13 @@ class SceneContract(BaseModel):
         return self
 
 
+class SeriesContractProposal(BaseModel):
+    """Provider output before repository-created Canon artifacts are pinned."""
+
+    contract_id: str = Field(min_length=1)
+    canon_seed: dict[str, Any] = Field(min_length=1)
+
+
 class SeriesContract(BaseModel):
     """The root progressive contract and immutable Canon seed authority."""
 

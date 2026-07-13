@@ -12,6 +12,7 @@ from novel_forge.pnca.contracts import (
     FrontierBinding,
     SceneContract,
     SeriesContract,
+    SeriesContractProposal,
     VolumeContract,
 )
 from novel_forge.pnca.registry import PNCATaskExecutor
@@ -34,13 +35,53 @@ class PNCAContractAuthor:
         self.executor = executor
 
     def author_series(self, *, run: RunHandle, scope_id: str) -> AuthoredContract[SeriesContract]:
-        return self._author(
-            run=run,
+        """Materialize provider seed data before pinning a final SeriesContract."""
+        result = self.executor.execute(
             task_id="pnca.series.contract",
+            artifacts={},
+            input_artifact_ids=(),
             scope_id=scope_id,
-            model=SeriesContract,
-            parent=None,
         )
+        proposal = SeriesContractProposal.model_validate(result)
+        seed_attempt = self.repository.start_attempt(
+            run, task_id="pnca.series.seed", phase="plan", reason="materialize series Canon seed"
+        )
+        seed = self.repository.commit_artifact(
+            seed_attempt,
+            artifact_type="canon.seed",
+            logical_key="canon.seed",
+            payload=proposal.canon_seed,
+            payload_name="canon_seed.json",
+        )
+        frontier_attempt = self.repository.start_attempt(
+            run, task_id="pnca.series.frontier", phase="plan", reason="materialize root Canon frontier"
+        )
+        frontier = self.repository.commit_artifact(
+            frontier_attempt,
+            artifact_type="canon.event_set",
+            logical_key="canon.frontier.root",
+            payload={"events": []},
+            payload_name="frontier.json",
+            canon_lineage_root_digest=seed.manifest.content_digest,
+        )
+        contract = SeriesContract(
+            contract_id=proposal.contract_id,
+            canon_seed_artifact_id=seed.artifact_id,
+            root_frontier_artifact_id=frontier.artifact_id,
+            root_frontier_digest=frontier.manifest.content_digest,
+        )
+        contract_attempt = self.repository.start_attempt(
+            run, task_id="pnca.series.contract", phase="plan", reason="pin finalized series contract"
+        )
+        artifact = self.repository.commit_artifact(
+            contract_attempt,
+            artifact_type="pnca.series.contract",
+            logical_key=f"pnca.series.contract.{scope_id}",
+            payload=contract.model_dump(mode="json"),
+            payload_name="contract.json",
+            input_artifact_ids=(seed.artifact_id, frontier.artifact_id),
+        )
+        return AuthoredContract(artifact=artifact, contract=contract)
 
     def author_volume(
         self, *, run: RunHandle, parent: AuthoredContract[SeriesContract], scope_id: str
