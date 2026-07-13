@@ -57,7 +57,7 @@ reconciliation.  Design establishes Canon truth before any prose exists.
 | Series Contract | series invariants and macro promises | creates Canon seed | volume/chapter/scene detail |
 | Volume Contract | one volume's bounded dramatic arc | none | exact scene events or mutations |
 | Chapter Contract | one chapter's ordered functional slots | none | scene-level Canon changes or prose |
-| Scene Contract | one scene's executable events and requirements | creates one Canon event | facts outside its parent bounds |
+| Scene Contract | one scene's executable events and requirements | creates one Canon event **or preserves the input frontier eventlessly** | facts outside its parent bounds |
 | Render / Write | presentation only | none | durable story information |
 | Summary / analysis | derived audit only | none | later writer or design inputs |
 | Export | format conversion only | none | selection, design, or Canon updates |
@@ -102,7 +102,9 @@ canon.frontier.root
 ```
 
 The root frontier is created once and is bound to the Canon seed digest from its
-first artifact.
+first artifact.  `CanonSeed` is the root state, not a `CanonEvent`: Canon event
+lineage begins only when a selected mutating Scene Contract consumes this root or a
+later scene frontier.
 
 ### 2. Volume Contract — one volume, bounded arc only
 
@@ -116,8 +118,15 @@ It refines the volume placement into a bounded dramatic contract:
 - opening and closing dramatic pressure for the volume;
 - chapter count/order and one purpose per chapter;
 - requirements inherited from Series Contract and their intended chapter;
-- approved admission budget for supporting entities;
+- approved `AdmissionAllowance`s for supporting entities: each has `allowance_id`,
+  entity `kind`, `max_count`, and optional immutable constraints;
 - volume completion conditions and unresolved threads intentionally carried out.
+
+A Chapter Contract assigns an allowance ID only to an allowed SceneSlot.  Every
+supporting-entity creation in a Scene Contract patch must cite that allowance ID.
+After typed-ref resolution, deterministic validation checks kind, count, slot ownership,
+and one-time consumption; an unapproved or double-spent admission is structural failure.
+Core seed entities and non-entity patch operations are outside this allowance mechanism.
 
 It must **not** decide the exact events of a scene, exact dialogue, individual
 CanonPatch operations, or a writer-facing state projection.  It can state that a
@@ -155,7 +164,9 @@ scene.
   "parent_requirement_ids": ["req_vol01_investigation"],
   "function": "Make the protagonist commit to entering the closed theatre.",
   "must_preserve": ["The postcard sender remains unknown."],
-  "expected_handoff": "The entry is possible, but the motive is still contested."
+  "expected_handoff": "The entry is possible, but the motive is still contested.",
+  "allowed_admission_allowance_ids": ["allow_vol01_attendant"],
+  "allowed_deferment_targets": []
 }
 ```
 
@@ -164,8 +175,9 @@ A Chapter Contract owns:
 - scene count, order, and the functional purpose of every slot;
 - allocation of parent requirements to slots;
 - required causal handoffs between slots;
-- which slots may introduce a supporting-entity admission already approved by the
-  Volume Contract.
+- which slots may consume a supporting-entity `AdmissionAllowance` already approved by the
+  Volume Contract;
+- which inherited requirements may be deferred, and the named later target slot for each;
 
 It must **not** specify a scene's exact beats, POV-safe observation, exact object
 state, CanonPatch, or prose.  Therefore it stays small even when a chapter has
@@ -175,7 +187,11 @@ multiple scenes.
 
 **Input:** one accepted SceneSlot, its parent contracts, the exact pre-scene Canon
 frontier, a `ParentRequirementLedger` compiled only from accepted parent authority,
-and a deterministic transition packet from the previous accepted Scene Contract.
+and a deterministic transition packet.  For a non-first slot it is derived from the
+immediately preceding selected Scene Contract and output frontier.  For the first slot
+of a chapter it is derived from that chapter's pinned input frontier and Chapter Contract;
+for the first chapter/volume it ultimately derives from the selected pre-volume frontier
+(or the `CanonSeed` root frontier for the first volume), never from draft prose.
 
 **Output:** one complete `SceneContract`, a disjoint Canon-effect declaration, an
 output frontier binding, and a compiled writer view.
@@ -198,27 +214,31 @@ scene required beat
    through the service entrance despite Suzu's objection.”
         ↓ rendered by writer
 prose evidence
-  an exact span that realizes the required beat
+  an audit-located span that appears to realize the required beat
 ```
 
-A Scene Contract may refine its parents but cannot contradict them or silently
-relocate their requirements.  Its deterministic candidate preflight requires a
-mapping from all inherited requirement IDs to one of:
+A Scene Contract may refine its parents but cannot structurally alter their provenance,
+requirement IDs, allocation topology, or permitted deferments.  Whether its natural-language
+content semantically contradicts a parent remains an audit observation, not a runtime truth
+predicate.  Its deterministic candidate preflight requires a mapping from all inherited
+requirement IDs to one of:
 
 - `implemented` — concrete candidate scene beat IDs;
 - `preserved` — an explicit non-disclosure or continuity constraint;
-- `deferred` — permitted only when the parent contract explicitly allows a later
-  target slot.
+- `deferred` — permitted only when the parent contract names an existing later target
+  `scene_slot_id`; the target slot's candidate must map that same requirement ID before
+  its own acceptance.
 
 The candidate's beat IDs are a `CandidateCommitmentIndex`: they explain how this
 candidate realizes **already-existing** parent obligations, but are not new hard
 requirements used to accept the candidate.  Only after selection does the runtime
-freeze those beat IDs as the scene's `AcceptedRequirementLedger`, which a draft
-must later realize with prose evidence.  This avoids circular self-certification
-without adding a fifth authoring call before Scene Contract generation.
+freeze those beat IDs as the scene's `AcceptedRequirementLedger`, which a DraftAudit
+may assess for evidence.  That audit is a semantic observation, not a deterministic
+proof that prose realizes a beat.  This avoids circular self-certification without
+adding a fifth authoring call before Scene Contract generation.
 
-This makes hierarchy violations deterministic instead of relying on an LLM review
-to notice them.
+This makes mapping, membership, cardinality, and topology violations deterministic;
+semantic adequacy remains an audit observation.
 
 ## Why this does not overload the LLM
 
@@ -242,8 +262,8 @@ Scene Contract   = one scene + relevant Canon slice + typed patch
 Writer           = one compiled scene contract, not a novel outline
 ```
 
-The runtime should enforce these shape boundaries in prompt descriptions and
-semantic validators rather than relying only on token budgets.  A model must never
+The runtime should enforce these shape boundaries with prompt descriptions and
+structural validators rather than relying only on token budgets.  A model must never
 be asked to output an all-series scene table, a full Canon dump, or prose in a
 design contract.
 
@@ -268,10 +288,19 @@ for every active obligation:
 unallocated → allocated → implemented | preserved | deferred | waived
 ```
 
+Every `ParentRequirementLedger` entry declares `owner_scope`, `allowed_next_owner`,
+cardinality, and an optional explicit `defer_target_slot_id`.  `owner_scope` is the
+contract that created the requirement; `allowed_next_owner` is an ordered list of
+immediately lower contract scopes allowed to allocate it (empty means terminal at this
+scope).  Only the owner may create or change these fields.  A deferred requirement is
+still active: its named target must receive the ID, and terminal validation rejects a
+missing target, an illegal target order, or an unresolved disposition.
+
 An active requirement has an explicit cardinality (`exactly_once`, `one_or_more`,
 `preserve_until`, or a named deferred target).  Parent acceptance rejects an illegal
-allocation; terminal-scope acceptance requires selected realization evidence or a
-separately pinned waiver.  The runtime never infers fulfillment from audit prose.
+allocation; terminal-scope validation requires a selected artifact to declare the
+required disposition or a separately pinned waiver.  It does not infer semantic
+fulfillment from audit prose or claim that natural-language intent has been proven.
 
 | Parent output | Child may do | Child may not do |
 |---|---|---|
@@ -353,21 +382,22 @@ facts from a draft.
 
 ### Root cause: a review/revise loop has no convergence guarantee
 
-A serial `candidate → review → revise → review` loop is not a quality system.  It
-mutates one current candidate repeatedly and assumes the next revision will retain
-all previously repaired properties.  A reviewer can instead flag a different
-problem, the revise step can regress a previously satisfied requirement, and the
-next reviewer can correctly flag that regression.  More cycles only repeat the
-state transition:
+A serial `candidate → review → revise → review` loop is not a quality system when it
+mutates one current candidate repeatedly and assumes the next revision will retain all
+previously repaired properties.  A reviewer can instead flag a different problem, the
+revise step can regress a previously satisfied requirement, and the next reviewer can
+correctly flag that regression.  More unbounded in-place cycles only repeat the state
+transition:
 
 ```text
 repair A → regress B → repair B → regress A
 ```
 
-A review count cap does not resolve this contradiction.  Selecting the final
-candidate merely hides it; handing that candidate to a later stage spreads an
-unresolved design defect.  PNCA therefore has **no generic review/revise loop**.
-It replaces it with a bounded candidate process whose unresolved state is explicit.
+A review count cap does not resolve this contradiction.  Selecting the final candidate
+merely hides it; handing that candidate to a later stage spreads an unresolved design
+defect.  PNCA therefore has no generic, in-place, or unbounded review/revise loop.  It
+permits only a `CandidatePlan`-bounded set of immutable revision branches: every candidate
+gets a fresh complete audit batch, and no branch overwrites or semantically certifies another.
 
 ### LLM uncertainty is a permanent architectural condition
 
@@ -439,7 +469,7 @@ A newly discovered concern is still preserved; it is classified as one of:
 |---|---|---|
 | `observed_contract_risk` | LLM evidence suggests an existing requirement may be missing or contradicted. | Preserve it in the raw audit batch; ReviewSynthesis and policy decide the next LLM action. |
 | `structural_failure` | Schema, typed reference, lineage, or deterministic simulation fails. | Candidate invalid. |
-| `scope_escalation` | The problem may be real but its predeclared owner is a parent/sibling contract, not the current artifact. | Do not revise locally; return to named owner. |
+| `scope_escalation` | An LLM observation points at a predeclared parent/sibling owner. | Preserve it as evidence; never reopen a parent automatically.  Only a DecisionRecord/human action may start a new explicit owner operation. |
 | `editorial_note` | A grounded reader-facing improvement outside the ledger. | Immutable evidence only; never blocks Canon or selection. |
 
 This does **not** suppress correct issues.  It prevents an unbounded stream of
@@ -449,19 +479,30 @@ obligations may be selected by an audit through the relevant ledger.
 
 ### CandidatePolicy is pinned before any LLM call
 
-Every candidate batch starts with one immutable `CandidatePolicy` artifact.  It fixes
-`max_candidates`, `max_revision_candidates`, `max_fresh_candidates`, exactly three
-**ContractAudit** profiles, any separately declared fixed `DraftAudit` profile, mechanical
-retry ceilings, provider/model configuration digests, and per-candidate / per-audit /
-per-synthesis / total-batch byte and token budgets.
+Every candidate batch starts with one immutable `CandidatePolicy` and `CandidatePlan`
+artifact.  They fix `max_candidates`, `max_revision_candidates`, `max_fresh_candidates`,
+exactly three **ContractAudit** profiles, any separately declared fixed `DraftAudit` profile,
+mechanical retry ceilings, provider/model configuration digests, and per-candidate /
+per-audit / per-synthesis / total-batch byte and token budgets.
 
-The runtime never truncates, drops, or runtime-summarizes a raw audit to fit a later
-prompt.  It bounds output at source.  If the complete required batch cannot fit its
-pinned budget, the batch has a durable `budget_exhausted` outcome; it is not a
-zero-risk audit.  Audit transport, parse, or schema failure likewise becomes an
-immutable `AuditFailureArtifact` referencing the candidate and request evidence.
+Policy creation is itself deterministic: its worst-case complete candidate/audit/synthesis
+input for every permitted downstream task must fit the corresponding pinned input budget.
+A plan that cannot carry every required raw artifact is invalid before the first LLM call.
+The runtime never truncates, drops, or runtime-summarizes a raw audit to fit a later prompt;
+it bounds output at source.
+
+`CandidatePlan` reserves a monotonic `candidate_id` before each candidate request and records
+one consumed credit when that provider request returns a payload, including a malformed or
+structurally invalid payload.  A transport retry that produced no payload consumes only its
+separately pinned retry allowance.  Audit/synthesis calls reserve their own operation credits.
+Scope escalation starts a distinct owner operation and never steals credits from the child plan.
+The operation record makes this accounting idempotent across crash/resume.
+
+If an otherwise required batch is unavailable because a pinned budget, retry, transport,
+parse, or schema limit is exhausted, it has a durable explicit outcome (including
+`budget_exhausted` or an immutable `AuditFailureArtifact`), not a zero-risk audit.
 `conservative` resolves that state through `needs_decision`; `best_effort` may select
-only when its pinned policy explicitly permits the named failure outcome.
+only when its pinned policy explicitly permits that named failure outcome.
 
 ### Fixed three-audit assessment, not three revision cycles
 
@@ -472,10 +513,20 @@ review sees a candidate modified in response to a previous review.
 candidate C0
   ├─ ContractAudit 1: parent requirement coverage and scope
   ├─ ContractAudit 2: internal causal / disclosure consistency
-  └─ ContractAudit 3: Canon feasibility and writer-view renderability
+  └─ ContractAudit 3: scope-specific executable feasibility
           ↓
   immutable assessment matrix for C0
 ```
+
+`ContractAudit 3` is selected from the candidate's declared contract type, not reused as
+scene-only draft compliance:
+
+| Contract type | Third audit scope |
+|---|---|
+| Series | macro promise / CanonSeed readability observation |
+| Volume | chapter-placement and admission-plan feasibility observation |
+| Chapter | slot ordering / handoff feasibility observation |
+| Scene | Canon feasibility and writer-view renderability observation |
 
 Each ContractAudit receives the same candidate digest, the same `ParentRequirementLedger`,
 and its explicit review scope.  Draft compliance is a separate `DraftAudit` performed only
@@ -559,7 +610,10 @@ raw issue is erased because a synthesis did not mention it, and no candidate is
 considered semantically proven correct because a synthesis preferred it.
 
 At a bounded candidate budget, `conservative` returns `needs_decision` when semantic
-observations remain.  It persists a resumable `DecisionRecord` containing candidate IDs,
+observations remain.  It normally completes its pinned CandidatePlan rather than stopping
+on the first observation; it stops earlier only when no remaining structurally selectable
+candidate or operation credit exists.  It persists a resumable `DecisionRecord` containing
+candidate IDs,
 complete evidence IDs, owner scope, pinned policy, permitted resolutions, decision
 actor/reason, and the exact resulting parent or waiver artifact; resume refuses to cross
 an unresolved record.  Under `best_effort`, a final **selection-synthesis LLM** receives
@@ -586,8 +640,10 @@ in snapshots, run status, and export manifest for audit.
 
 A review selects a requirement ID; its `owner_scope` is predeclared in the relevant
 `ParentRequirementLedger` or `AcceptedRequirementLedger`.  The runtime therefore does not
-trust a reviewer's free-text claim about which layer should change.  A real scope escalation
-becomes an explicit design decision, not another local rewrite.
+trust a reviewer's free-text claim about which layer should change.  An LLM-reported
+scope escalation is evidence only: `best_effort` never auto-reopens a parent, and
+`conservative` emits a DecisionRecord.  Only an explicit decision starts a new parent
+operation; it then invalidates descendants by digest and rebuilds the affected suffix.
 
 | Failure source | Correct owner | Forbidden response |
 |---|---|---|
@@ -621,7 +677,9 @@ an implicit “continue after review cap” switch, and a `best_effort` selectio
 never relabelled `passed`.
 
 A selected scene is an atomic snapshot boundary.  The runtime stages immutable artifacts
-first, then creates exactly one descendant selection snapshot:
+first, then makes exactly one `AcceptanceCommit` the sole visibility transition.  The commit
+has `acceptance_id`, `base_snapshot_id`, `operation_key`, required artifact roles, and expected
+`FrontierBinding`; it creates one descendant selection snapshot:
 
 ```text
 scene.contract
@@ -636,20 +694,52 @@ scene.slot_binding
 workflow.cursor
 ```
 
-A crash before snapshot publication may leave unselected staged artifacts, but there is no
-selected snapshot where Canon advanced without its causal Scene Contract, slot binding, and
-acceptance record.  A Volume Contract and Chapter Contract are also snapshot-pinned upon
-acceptance so resume always uses explicit inputs.  Resume is idempotent: it reuses a
-matching selected binding, rejects mismatched slot/source/frontier state, and never
-recreates an already-selected Canon event.
+Every Canon-reading artifact carries:
+
+```text
+FrontierBinding {
+  input_snapshot_id, frontier_artifact_id, frontier_digest, lineage_root_digest
+}
+```
+
+For a selected Scene Contract, the commit validator requires exact equality between this
+binding and the base snapshot's Canon frontier; the mutating output frontier must name the
+same input frontier artifact/digest as parent; its event source contract ID/digest must equal
+the selected Scene Contract; and its output must be the immediate predecessor binding for the
+next slot.  Ancestor checks are historical/export inspection only, never Scene acceptance.
+
+A crash before commit may leave unselected prepared artifacts, but no selected snapshot may
+contain Canon advancement without its causal Scene Contract, slot binding, and acceptance
+record.  `OperationRecord` makes prepare/execute/artifacts-ready/committed/failed/superseded
+state immutable under `operation_key = lineage_root + base_snapshot + scope + stage + task +
+policy/config digests`.  Resume targets that record or explicit base snapshot, returns a
+matching committed result, reuses prepared artifacts only when every digest/binding matches,
+and marks any attempt to rebase a committed operation onto a different base as `superseded`.
+It never recreates an already-selected Canon event.
+
+## PNCA task and artifact registry
+
+PNCA has no parallel prompt-variable table outside its task registry.  Each `TaskSpec`
+declares its task ID, permitted input artifact roles and variables, prompt/schema/model
+digests, output `ArtifactSpec`, logical-key template, required provenance/bindings,
+deterministic validator, retry class, candidate-budget class, and idempotency scope.
+`ArtifactSpec` declares the schema, selectable slots, required parent roles, acceptance group,
+and whether a `FrontierBinding` is mandatory.  The runner resolves variables and schemas only
+from these specs; the repository rejects an unregistered task/artifact type or illegal role
+graph.  Contract candidate, ContractAudit, ReviewSynthesis, revision, selection-synthesis,
+writer, DraftAudit, acceptance, bundle, and strict export each have a distinct spec.
 
 ## Design bundle, render, summary, export
 
 After all scene contracts for a target volume are accepted, the runtime creates a
-`DesignBundle` index containing ordered `SceneSlotBinding`s, selected contract IDs/digests,
+`DesignBundle` index containing ordered `BundleSlotRecord`s, selected contract IDs/digests,
 parent contracts, required placement topology, and the volume-end Canon frontier checkpoint.
+Each record has immutable volume/chapter/slot order, parent contract IDs/digests, selected
+Scene Contract ID/digest, writer-view digest, exact input/output frontier bindings, required
+draft ID/digest, draft acceptance/audit/synthesis/waiver references, and any policy status.
 It does not duplicate full scene payloads.  The bundle validator rejects missing, duplicate,
-out-of-order, foreign-volume, or non-contiguous frontier bindings before render begins.
+out-of-order, foreign-volume, non-contiguous frontier, non-one-to-one SceneContract/draft, or
+checkpoint-mismatched bindings before render begins.
 
 Render begins only from an accepted frozen bundle.  A deterministic compiler creates each
 writer view from the selected Scene Contract plus its exact **pre-scene** frontier:
@@ -671,13 +761,13 @@ A prose recap may be created for people, search, and audit.  It is marked derive
 - never a substitute for required-beat evidence.
 
 Export is a pure derivation from an explicit DesignBundle/snapshot.  It validates
-ordered topology, selected draft and assessment evidence, artifact/manifest digests,
-the bundle's pinned volume-end frontier replay, the pinned semantic-observation /
-waiver policy, and the complete raw audits, ReviewSynthesis artifacts, and
-selection-synthesis rationale.  A `selected_with_semantic_observations` export must
-expose those artifacts in its manifest; strict export may reject it when the selected
-release policy requires no open semantic observations.  Export never reads a current
-global frontier, creates a selection snapshot, or mutates Canon.
+ordered topology, selected draft and assessment artifact **presence**, artifact/manifest
+digests, the bundle's pinned volume-end frontier replay, the pinned semantic-observation /
+waiver policy, and the complete raw audits, ReviewSynthesis artifacts, and selection-synthesis
+rationale.  A `selected_with_semantic_observations` export must expose those artifacts in its
+manifest; strict release may reject a policy-defined open-observation lineage, but does not
+claim to prove literary adequacy, reader comprehension, or semantic consistency.  Export never
+reads a current global frontier, creates a selection snapshot, or mutates Canon.
 
 ## Implementation migration order
 
@@ -685,12 +775,13 @@ global frontier, creates a selection snapshot, or mutates Canon.
    `series_contract`, `volume_contract`, `chapter_contract`, `scene_contract`.
 2. Add `ParentRequirementLedger`, `CandidateCommitmentIndex`,
    `AcceptedRequirementLedger`, bidirectional allocation/lifecycle, `CandidatePolicy`,
-   `DecisionRecord`, `SceneSlotBinding`, `WorkflowCursor`, and `DesignBundle` schemas
-   with fake-runner tests before orchestration changes.
-3. Extend repository primitives with atomic multi-slot selection publication, exact
-   SceneSlot frontier equality, idempotent cursor resume, and dependency-closure
-   invalidation.  Retire the public path that first selects a frontier and later
-   selects its causal scene artifact.
+   `CandidatePlan`, `DecisionRecord`, `OperationRecord`, `FrontierBinding`,
+   `SceneSlotBinding`, `WorkflowCursor`, and `DesignBundle` schemas with fake-runner tests
+   before orchestration changes.
+3. Extend repository primitives with `AcceptanceCommit` atomic multi-role publication,
+   exact `FrontierBinding` equality, idempotent operation/cursor resume, and
+   dependency-closure invalidation.  Retire the public path that first selects a frontier
+   and later selects its causal scene artifact.
 4. Implement typed Canon references with `(source_id, kind, creation_key)` identity,
    disjoint `canon_effect` validation, whole-patch stable-ID resolution, DAG simulation,
    and replay.  `canon_effect: "none"` must preserve the input frontier without an event.
@@ -713,18 +804,27 @@ global frontier, creates a selection snapshot, or mutates Canon.
 - Contract prompts and schemas expose only their permitted resolution and input artifacts;
   CI does not claim to decide whether free prose is “scene-level enough.”
 - Every active parent requirement has a legal allocation/disposition; `exactly_once`
-  requirements cannot vanish or be fulfilled twice, and terminal scopes require selected
-  realization evidence or a pinned waiver.
+  requirements cannot vanish or be declared fulfilled twice, deferred IDs must arrive at
+  their named later slots, and terminal scopes require a selected declaration or pinned waiver
+  without claiming semantic natural-language fulfillment.
+- `CanonSeed` initializes the sole root frontier without a CanonEvent; first slot transition
+  packets derive from pinned chapter/volume/root inputs and never from draft prose.
+- Every supporting-entity creation cites a slot-authorized `AdmissionAllowance`; wrong kind,
+  over-consumption, duplicate consumption, or an unapproved creation is structural failure.
 - A Scene Contract cannot be accepted without its selected parent SceneSlot, immutable
   source ID, and exact pre-scene frontier digest.  Revisions rebuild the affected suffix
   and cannot leave duplicate active events for one source.
 - `canon_effect: "none"` has no patch/event and preserves the exact input frontier;
   `canon_effect: "mutates"` rejects empty/no-op patches and replay failure.
-- A simulated crash between staging and snapshot publication leaves no selected
-  frontier-only state.  The selected snapshot contains the scene contract, ledgers,
-  complete audit/failure evidence, acceptance record, slot binding, cursor, and output frontier.
-- Candidate / audit / synthesis batch overflow never truncates or drops raw evidence;
-  audit failure is explicit and follows only the pinned policy.
+- `AcceptanceCommit` requires every named role plus exact `FrontierBinding`; a simulated
+  crash before commit leaves no selected frontier-only state.  A committed operation is returned
+  idempotently on resume, while a different base snapshot marks the operation `superseded`.
+- CandidatePolicy rejects a worst-case audit/synthesis input that cannot fit its pinned budget.
+  Candidate, audit, and synthesis credits are consumed once under `OperationRecord`; overflow
+  never truncates or drops raw evidence, and audit failure follows only the pinned policy.
+- PNCA task execution resolves prompt variables, schema, retry policy, logical key, and
+  artifact role graph from one TaskSpec/ArtifactSpec registry; an unregistered task or illegal
+  role binding is rejected before a provider call.
 - Three ContractAudits assess the same candidate digest and cannot observe one another's
   revision.  DraftAudit is a separate task over a selected contract and its
   `AcceptedRequirementLedger`.
@@ -734,9 +834,10 @@ global frontier, creates a selection snapshot, or mutates Canon.
 - A revision receives the complete raw audit batch and synthesis, not a mechanically
   filtered issue list.  A later selection-synthesis receives every eligible candidate and
   all of its raw audits/syntheses.
-- Structural failure is never selectable.  `conservative` cannot resume across an
-  unresolved `DecisionRecord`; `best_effort` records `selected_with_semantic_observations`
-  and never injects audit claims into downstream prompts.
+- Structural failure is never selectable.  An LLM-reported scope escalation remains evidence
+  until an explicit DecisionRecord action starts a new owner operation; `conservative` cannot
+  resume across an unresolved DecisionRecord, while `best_effort` records
+  `selected_with_semantic_observations` and never injects audit claims into downstream prompts.
 - Writer input contains only one compiled pre-frontier writer view plus separate end
   constraints; altering a summary cannot alter any later writer request.
 - Export rejects missing/duplicated/out-of-order scene slots, unreviewed drafts, digest
