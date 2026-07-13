@@ -75,6 +75,16 @@
                     "description": "POV人物が観測可能な一つの行為・台詞・反応・到達点。"
                   }
                 }
+              },
+              {
+                "type": "object",
+                "required": ["beat"],
+                "properties": {
+                  "beat": {
+                    "type": "string",
+                    "description": "POV人物が観測可能な一つの行為・台詞・反応・到達点。"
+                  }
+                }
               }
             ]
           }

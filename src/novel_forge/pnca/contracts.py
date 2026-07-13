@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 RequirementCardinality = Literal["exactly_once", "one_or_more", "preserve_until"]
 RequirementDispositionKind = Literal["implemented", "preserved", "deferred"]
@@ -98,7 +98,7 @@ class SceneSlot(BaseModel):
 class SceneBeat(BaseModel):
     """One ordered, POV-observable beat that a scene prose draft must realize."""
 
-    description: str = Field(min_length=1)
+    description: str = Field(min_length=1, validation_alias=AliasChoices("description", "beat"))
 
 
 class WriterView(BaseModel):
