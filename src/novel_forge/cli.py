@@ -22,6 +22,7 @@ from novel_forge.pnca.contracts import (
     SeriesContract,
     VolumeContract,
 )
+from novel_forge.pnca.export import PNCAExporter
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
     stage_chapter_request,
@@ -234,9 +235,18 @@ def _make_pnca_workflow(
     model: str | None,
 ) -> PNCAWorkflow:
     """Build the production PNCA root-authoring boundary."""
+    author = PNCAContractAuthor(
+        repository=repo,
+        executor=make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager()),
+    )
+    return PNCAWorkflow(repository=repo, contract_author=author)
+
+
+def _make_pnca_client(config: RuntimeConfig, model: str | None):
+    """Build the production PNCA writer/export provider client."""
     from novel_forge.llm_client import LLMClient
 
-    client = LLMClient(
+    return LLMClient(
         api_url=f"http://{config.llm.ollama_host}/api/chat",
         model=model or config.llm.model,
         timeout_seconds=config.llm.timeout_seconds,
@@ -244,11 +254,6 @@ def _make_pnca_workflow(
         num_predict=config.llm.num_predict,
         num_ctx=config.llm.num_ctx,
     )
-    author = PNCAContractAuthor(
-        repository=repo,
-        executor=make_pnca_task_executor(client=client, manager=PromptManager()),
-    )
-    return PNCAWorkflow(repository=repo, contract_author=author)
 
 
 def _resolve_verbose(config: RuntimeConfig, cli_verbose: bool | None) -> bool:
@@ -473,11 +478,15 @@ def write(
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write", wait=wait_lock):
-        workflow = _make_workflow(
-            repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
+        workflow = _make_pnca_workflow(repo, config, model)
+        executor = make_pnca_task_executor(client=_make_pnca_client(config, model))
+        bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
+        exporter = PNCAExporter(repository=repo)
+        manuscript = exporter.export(run=run, bundle=bundle, format="markdown")
+        console.print(
+            f"[green]✓[/green] Volume {volume} written (bundle: {bundle.bundle_id}, "
+            f"manuscript: {manuscript.artifact.artifact_id})"
         )
-        result = workflow.write_volume(volume)
-        console.print(f"[green]✓[/green] Volume {volume} written (snapshot: {result.selection_snapshot_id})")
 
 
 @app.command()

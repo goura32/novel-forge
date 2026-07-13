@@ -66,3 +66,40 @@ class PNCARenderer:
             input_artifact_ids=(writer_view.artifact_id,),
         )
         return RenderedDraft(writer_view=writer_view, draft=draft)
+
+    def audit(
+        self,
+        *,
+        run: RunHandle,
+        scene_contract_artifact_id: str,
+        writer_view: WriterView,
+        writer_view_artifact_id: str,
+        draft: ArtifactReference,
+        executor: PNCATaskExecutor,
+        scope_id: str,
+    ) -> ArtifactReference:
+        """Review a rendered draft against its WriterView; returns the draft audit artifact."""
+        result = executor.execute(
+            task_id="pnca.draft.audit",
+            artifacts={
+                "writer.view": writer_view.model_dump(mode="json"),
+                "draft": self.repository.read_payload(draft),
+            },
+            input_artifact_ids=(writer_view_artifact_id, draft.artifact_id),
+            scope_id=scope_id,
+        )
+        issues = result.get("issues") if isinstance(result, dict) else None
+        if not isinstance(issues, list):
+            raise PNCAStructuralError("PNCA draft audit requires an issues list")
+        audit_attempt = self.repository.start_attempt(
+            run, task_id="pnca.draft.audit", phase="write", reason="audit scene draft"
+        )
+        audit = self.repository.commit_artifact(
+            audit_attempt,
+            artifact_type="pnca.draft_audit",
+            logical_key=f"pnca.draft_audit.{scope_id}",
+            payload={"issues": issues},
+            payload_name="draft_audit.json",
+            input_artifact_ids=(scene_contract_artifact_id, writer_view_artifact_id, draft.artifact_id),
+        )
+        return audit

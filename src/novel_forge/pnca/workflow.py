@@ -6,8 +6,10 @@ from typing import Any, cast
 
 from novel_forge.pnca.contracts import (
     AcceptanceCommit,
+    BundleSlotRecord,
     ChapterAcceptanceCommit,
     ChapterContract,
+    DesignBundle,
     FrontierBinding,
     SceneContract,
     SeriesAcceptanceCommit,
@@ -18,6 +20,7 @@ from novel_forge.pnca.contracts import (
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.scene_audit import PNCASceneAuditSynthesizer
 from novel_forge.pnca.scene_preparation import PNCASceneStructurePreparer, PreparedSceneStructure
+from novel_forge.pnca.writer import PNCARenderer
 from novel_forge.runtime import (
     ArtifactReference,
     RunHandle,
@@ -204,6 +207,75 @@ class PNCAWorkflow:
             acceptance=acceptance,
             frontier_binding=frontier_binding,
         )
+
+    def write_volume(
+        self,
+        *,
+        slug: str,
+        run: RunHandle,
+        volume: int,
+        executor: Any,
+    ) -> DesignBundle:
+        """Render every accepted Scene in a Volume into a frozen, export-ready DesignBundle."""
+        snapshot_id = self.repository.current_snapshot_id(slug)
+        snapshot = self.repository.load_snapshot(slug, snapshot_id)
+        volume_artifact_id = snapshot.slots.get(f"pnca.volume.contract.{slug}.{volume:03d}")
+        if volume_artifact_id is None:
+            raise RuntimeContractError(f"selected snapshot has no accepted Volume {volume} contract")
+        volume_ref = self.repository.verify_artifact(volume_artifact_id)
+        VolumeContract.model_validate(self.repository.read_payload(volume_ref))
+
+        renderer = PNCARenderer(repository=self.repository)
+        slots: list[BundleSlotRecord] = []
+        chapter_prefix = f"pnca.chapter.contract.{slug}.{volume:03d}."
+        scene_prefix = f"pnca.scene.contract.{slug}.{volume:03d}."
+        for chapter_key, chapter_artifact_id in sorted(snapshot.slots.items()):
+            if not chapter_key.startswith(chapter_prefix):
+                continue
+            chapter_ref = self.repository.verify_artifact(chapter_artifact_id)
+            chapter_contract = ChapterContract.model_validate(self.repository.read_payload(chapter_ref))
+            for scene_slot in sorted(chapter_contract.scene_slots, key=lambda s: s.ordinal):
+                scene_artifact_id = snapshot.slots.get(
+                    f"{scene_prefix}{chapter_contract.chapter_ordinal:03d}.{scene_slot.slot_id}"
+                )
+                if scene_artifact_id is None:
+                    continue
+                scene_ref = self.repository.verify_artifact(scene_artifact_id)
+                scene_contract = SceneContract.model_validate(self.repository.read_payload(scene_ref))
+                scope_id = f"{slug}.volume.{volume:03d}.chapter.{chapter_contract.chapter_ordinal:03d}.scene.{scene_slot.slot_id}"
+                rendered = renderer.render(
+                    run=run,
+                    scene_contract_artifact_id=scene_ref.artifact_id,
+                    scene_contract_digest=scene_ref.manifest.content_digest,
+                    view=scene_contract.writer_view,
+                    executor=executor,
+                    scope_id=scope_id,
+                )
+                audit = renderer.audit(
+                    run=run,
+                    scene_contract_artifact_id=scene_ref.artifact_id,
+                    writer_view=scene_contract.writer_view,
+                    writer_view_artifact_id=rendered.writer_view.artifact_id,
+                    draft=rendered.draft,
+                    executor=executor,
+                    scope_id=scope_id,
+                )
+                slots.append(
+                    BundleSlotRecord(
+                        volume_ordinal=volume,
+                        chapter_ordinal=chapter_contract.chapter_ordinal,
+                        scene_ordinal=scene_slot.ordinal,
+                        scene_slot_id=scene_slot.slot_id,
+                        scene_contract_artifact_id=scene_ref.artifact_id,
+                        writer_view_artifact_id=rendered.writer_view.artifact_id,
+                        draft_artifact_id=rendered.draft.artifact_id,
+                        draft_assessment_artifact_id=audit.artifact_id,
+                        output_frontier_artifact_id=scene_contract.frontier_binding.frontier_artifact_id,
+                    )
+                )
+        if not slots:
+            raise RuntimeContractError(f"selected snapshot has no accepted scenes for Volume {volume}")
+        return DesignBundle(bundle_id=f"{slug}.volume.{volume:03d}", slots=tuple(slots))
 
     def bootstrap_series(
         self, *, run: RunHandle, scope_id: str, request: ArtifactReference

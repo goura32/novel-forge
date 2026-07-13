@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from novel_forge.pnca.contracts import (
     ChapterContract,
@@ -10,7 +11,9 @@ from novel_forge.pnca.contracts import (
     SceneContract,
     SceneSlot,
     VolumeContract,
+    WriterView,
 )
+from novel_forge.pnca.export import PNCAExporter
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.runtime import RunRepository
@@ -129,3 +132,92 @@ def test_build_and_commit_non_mutating_scene_acceptance_group(tmp_path: Path) ->
     assert snapshot.slots["pnca.scene.contract.series_001.001.001.scene_001"] == scene.artifact_id
     assert snapshot.slots["canon.frontier"] == root.artifact_id
     assert snapshot.slots["pnca.audit.batch.scene_contract_001"] == acceptance.role_artifact_ids["audit.batch"]
+
+
+class FakeExecutor:
+    """Provider-free executor stub for writer/export wiring tests."""
+
+    def __init__(self, repository: RunRepository) -> None:
+        self._repo = repository
+
+    def execute(self, *, task_id: str, scope_id: str, artifacts: dict[str, Any], input_artifact_ids: tuple[str, ...]) -> Any:
+        if task_id == "pnca.scene.render":
+            return {"content": "シーンの本文。約500字の自然な日本語で書く。"}
+        if task_id == "pnca.draft.audit":
+            return {"issues": []}
+        raise AssertionError(f"unexpected task_id: {task_id}")
+
+
+def test_write_volume_renders_and_exports_bundle(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    run, seed, root, base = _bootstrap(repo)
+    slug = "series_001"
+    common = {
+        "canon_lineage_root_digest": seed.manifest.content_digest,
+        "input_canon_frontier_digest": root.manifest.content_digest,
+        "input_artifact_ids": (root.artifact_id,),
+    }
+    volume_contract = VolumeContract(contract_id="volume_001", parent_series_contract_id="series_001", volume_ordinal=1)
+    volume = _artifact(
+        repo, run, artifact_type="pnca.volume.contract",
+        logical_key="pnca.volume.contract.series_001.001",
+        payload=volume_contract.model_dump(mode="json"), **common,
+    )
+    chapter_contract = ChapterContract(
+        contract_id="chapter_001", parent_volume_contract_id="volume_001",
+        chapter_ordinal=1, scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+    )
+    chapter = _artifact(
+        repo, run, artifact_type="pnca.chapter.contract",
+        logical_key="pnca.chapter.contract.series_001.001.001",
+        payload=chapter_contract.model_dump(mode="json"),
+        input_artifact_ids=(volume.artifact_id, root.artifact_id),
+        canon_lineage_root_digest=seed.manifest.content_digest,
+        input_canon_frontier_digest=root.manifest.content_digest,
+    )
+    binding = FrontierBinding(
+        input_snapshot_id=base.selection_snapshot_id,
+        frontier_artifact_id=root.artifact_id,
+        frontier_digest=root.manifest.content_digest,
+        lineage_root_digest=seed.manifest.content_digest,
+    )
+    scene_contract = SceneContract(
+        contract_id="scene_contract_001", slot_id="scene_001",
+        frontier_binding=binding, canon_effect="none",
+        writer_view=WriterView(start_context={"scene": "open"}),
+    )
+    scene = _artifact(
+        repo, run, artifact_type="pnca.scene.contract",
+        logical_key="pnca.scene.contract.series_001.001.001.scene_001",
+        payload=scene_contract.model_dump(mode="json"),
+        input_artifact_ids=(chapter.artifact_id, root.artifact_id),
+        canon_lineage_root_digest=seed.manifest.content_digest,
+        input_canon_frontier_digest=root.manifest.content_digest,
+    )
+    accepted = repo.create_selection_snapshot(
+        slug=slug,
+        slots={
+            "canon.seed": seed.artifact_id,
+            "canon.frontier": root.artifact_id,
+            "pnca.volume.contract.series_001.001": volume.artifact_id,
+            "pnca.chapter.contract.series_001.001.001": chapter.artifact_id,
+            "pnca.scene.contract.series_001.001.001.scene_001": scene.artifact_id,
+        },
+        reason="accepted bundle",
+    )
+    assert accepted.slots["pnca.scene.contract.series_001.001.001.scene_001"] == scene.artifact_id
+
+    workflow = PNCAWorkflow(repository=repo, contract_author=object())
+    bundle = workflow.write_volume(slug=slug, run=run, volume=1, executor=FakeExecutor(repo))
+    assert bundle.bundle_id == "series_001.volume.001"
+    assert len(bundle.slots) == 1
+    slot = bundle.slots[0]
+    assert slot.scene_slot_id == "scene_001"
+    assert slot.scene_contract_artifact_id == scene.artifact_id
+    assert slot.draft_artifact_id
+    assert slot.draft_assessment_artifact_id
+
+    exporter = PNCAExporter(repository=repo)
+    manuscript = exporter.export(run=run, bundle=bundle, format="markdown")
+    assert manuscript.artifact.artifact_id
+    assert "シーンの本文" in manuscript.content

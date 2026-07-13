@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneRenderOutput",
+  "type": "object",
+  "required": ["content"],
+  "properties": {
+    "content": {
+      "description": "シーン本文。WriterView の制約に厳守し、約500〜5000文字の範囲で書くこと。",
+      "type": "string"
+    }
+  }
+}
