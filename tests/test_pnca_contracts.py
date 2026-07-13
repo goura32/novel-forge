@@ -81,6 +81,12 @@ def test_writer_view_exposes_required_observable_beats_to_the_writer() -> None:
     assert view.model_dump()["narrative_contract"]["goal"] == "鍵を探す"
     assert view.required_beats[0].description == "リナが鍵穴に手を伸ばす"
 
+
+def test_writer_view_preserves_string_beats_when_provider_uses_compact_form() -> None:
+    view = WriterView(required_beats=("リナが鍵穴に手を伸ばす",))
+
+    assert view.required_beats == ("リナが鍵穴に手を伸ばす",)
+
     with pytest.raises(PNCAStructuralError, match="forbidden writer input"):
         validate_writer_view(
             view.model_copy(update={"start_context": {"canon": {"all": "facts"}}})

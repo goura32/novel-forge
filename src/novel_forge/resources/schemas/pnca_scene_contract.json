@@ -61,14 +61,22 @@
           "minItems": 2,
           "maxItems": 4,
           "items": {
-            "type": "object",
-            "required": ["description"],
-            "properties": {
-              "description": {
+            "anyOf": [
+              {
                 "type": "string",
                 "description": "POV人物が観測可能な一つの行為・台詞・反応・到達点。"
+              },
+              {
+                "type": "object",
+                "required": ["description"],
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "POV人物が観測可能な一つの行為・台詞・反応・到達点。"
+                  }
+                }
               }
-            }
+            ]
           }
         }
       }
