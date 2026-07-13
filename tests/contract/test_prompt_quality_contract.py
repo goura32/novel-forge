@@ -82,6 +82,16 @@ def test_write_draft_review_requires_core_issue_fields() -> None:
     assert "`before` / `after` は任意の補足" in prompt
 
 
+
+
+def test_pnca_scene_prompts_require_completed_observable_beats() -> None:
+    render = (PROMPTS_DIR / "pnca_scene_render.md").read_text(encoding="utf-8")
+    revise = (PROMPTS_DIR / "pnca_scene_revise.md").read_text(encoding="utf-8")
+
+    assert "準備・試行・直前で止めず" in render
+    assert "未完の準備・試行・直前で終わらせない" in revise
+
+
 def test_prompts_do_not_use_ok_ng_examples() -> None:
     forbidden_fragments = [
         "OK例",
