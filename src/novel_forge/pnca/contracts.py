@@ -138,7 +138,6 @@ class SceneContractProposal(BaseModel):
     """Provider output before repository injects exact frontier provenance."""
 
     contract_id: str = Field(min_length=1)
-    slot_id: str = Field(min_length=1)
     canon_effect: CanonEffect
     canon_patch: dict[str, Any] | None = None
     writer_view: WriterView = Field(default_factory=WriterView)

@@ -225,8 +225,7 @@ class PNCAContractAuthor:
             scope_id=scope_id,
         )
         proposal = SceneContractProposal.model_validate(result)
-        if proposal.slot_id != slot_id:
-            raise RuntimeContractError("SceneContract does not bind its allocated ChapterContract slot")
+        # Slot identity is immutable request authority, not model-authored content.
         # Provider output is immutable evidence.  Structural failures are rejected
         # for retry/upstream handling; this boundary never repairs or truncates it.
         validate_writer_view(proposal.writer_view)
@@ -264,6 +263,7 @@ class PNCAContractAuthor:
         )
         contract = SceneContract(
             **proposal.model_dump(mode="python", exclude={"writer_view"}),
+            slot_id=slot_id,
             writer_view=writer_view,
             frontier_binding=frontier_binding,
         )

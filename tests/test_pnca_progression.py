@@ -242,7 +242,7 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         },
         "pnca.scene.contract": {
             "contract_id": "scene_contract_001",
-            "slot_id": "scene_001",
+            "slot_id": "provider_wrong_slot",
             "canon_effect": "mutates",
             "canon_patch": {"scene_progress": "契約を受け入れた"},
         },
