@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "required": ["contract_id", "parent_series_contract_id", "volume_ordinal"],
+  "properties": {
+    "contract_id": {
+      "type": "string",
+      "description": "この Volume Contract の stable ID。"
+    },
+    "parent_series_contract_id": {
+      "type": "string",
+      "description": "入力 parent Series Contract の contract_id と完全一致する stable ID。"
+    },
+    "volume_ordinal": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "入力 volume request の volume_ordinal と完全一致する巻番号。"
+    },
+    "admission_allowances": {
+      "type": "array",
+      "description": "この巻で必要な補助 entity の作成許可。不要なら空配列。",
+      "items": {
+        "type": "object",
+        "description": "一種類の entity 作成許可。allowance_id、kind、max_count を含む。",
+        "required": ["allowance_id", "kind", "max_count"],
+        "properties": {
+          "allowance_id": {"type": "string", "description": "この許可の stable ID。"},
+          "kind": {"type": "string", "description": "許可する entity 種別。character、location、artifact、organization のいずれか。"},
+          "max_count": {"type": "integer", "minimum": 1, "description": "この許可で作成できる entity の最大件数。"}
+        }
+      }
+    }
+  }
+}

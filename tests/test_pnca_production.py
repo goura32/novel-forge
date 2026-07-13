@@ -57,4 +57,28 @@ def test_production_executor_renders_only_registered_request_projection() -> Non
     assert result["contract_id"] == "moon_lantern"
     assert calls[0]["kind"] == "pnca.series.contract"
     assert "月灯りの魔女" in calls[0]["user_prompt"]
-    assert "pnca.series.contract" not in calls[0]["user_prompt"]
+
+
+def test_production_executor_renders_only_registered_volume_projection() -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def complete_json(self, **kwargs):
+            calls.append(kwargs)
+            return {"contract_id": "volume_001", "parent_series_contract_id": "series_001", "volume_ordinal": 1}
+
+    executor = make_pnca_task_executor(client=FakeClient())
+    result = executor.execute(
+        task_id="pnca.volume.contract",
+        scope_id="volume_001",
+        artifacts={
+            "parent.contract": {"contract_id": "series_001", "volume_purposes": [{"ordinal": 1, "purpose": "受諾"}]},
+            "volume.request": {"volume_ordinal": 1},
+        },
+        input_artifact_ids=("art_series", "art_request"),
+    )
+
+    assert result["parent_series_contract_id"] == "series_001"
+    assert calls[0]["kind"] == "pnca.volume.contract"
+    assert "series_001" in calls[0]["user_prompt"]
+    assert "volume_001" not in calls[0]["user_prompt"]

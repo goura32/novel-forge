@@ -33,5 +33,24 @@ def default_pnca_task_registry() -> PNCATaskRegistry:
                 max_output_bytes=65_536,
                 idempotency_scope="series-contract",
             ),
+            TaskSpec(
+                task_id="pnca.volume.contract",
+                task_kind="authoring",
+                input_bindings=(
+                    InputBinding(role="parent.contract", variable="parent"),
+                    InputBinding(role="volume.request", variable="request"),
+                ),
+                output=ArtifactSpec(
+                    role="volume.contract.proposal",
+                    artifact_type="pnca.volume.contract.proposal",
+                    logical_key_template="pnca.volume.contract.proposal.{scope_id}",
+                ),
+                prompt_digest=_resource_digest("prompts", "pnca_volume_contract.md"),
+                schema_digest=_resource_digest("schemas", "pnca_volume_contract.json"),
+                model_profile="default",
+                max_input_bytes=16_384,
+                max_output_bytes=65_536,
+                idempotency_scope="volume-contract",
+            ),
         )
     )

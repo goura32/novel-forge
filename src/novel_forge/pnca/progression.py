@@ -87,17 +87,33 @@ class PNCAContractAuthor:
         return AuthoredContract(artifact=artifact, contract=contract)
 
     def author_volume(
-        self, *, run: RunHandle, parent: AuthoredContract[SeriesContract], scope_id: str
+        self,
+        *,
+        run: RunHandle,
+        parent: AuthoredContract[SeriesContract],
+        request: ArtifactReference,
+        scope_id: str,
     ) -> AuthoredContract[VolumeContract]:
+        """Author a requested Volume only from its pinned Series and request artifacts."""
+        request_payload = self.repository.read_payload(request)
+        volume_ordinal = request_payload.get("volume_ordinal") if isinstance(request_payload, dict) else None
+        if not isinstance(volume_ordinal, int) or volume_ordinal < 1:
+            raise RuntimeContractError("volume request requires a positive volume_ordinal")
+        if volume_ordinal not in {item.ordinal for item in parent.contract.volume_purposes}:
+            raise RuntimeContractError("volume request ordinal is not allocated by its parent SeriesContract")
         authored = self._author(
             run=run,
             task_id="pnca.volume.contract",
             scope_id=scope_id,
             model=VolumeContract,
             parent=parent,
+            request=request,
+            request_role="volume.request",
         )
         if authored.contract.parent_series_contract_id != parent.contract.contract_id:
             raise RuntimeContractError("VolumeContract does not bind its parent SeriesContract")
+        if authored.contract.volume_ordinal != volume_ordinal:
+            raise RuntimeContractError("VolumeContract does not bind its requested volume ordinal")
         return authored
 
     def author_chapter(
@@ -166,9 +182,16 @@ class PNCAContractAuthor:
         scope_id: str,
         model: type[ContractT],
         parent: AuthoredContract[Any] | None,
+        request: ArtifactReference | None = None,
+        request_role: str | None = None,
     ) -> AuthoredContract[ContractT]:
+        if (request is None) != (request_role is None):
+            raise ValueError("request and request_role must be supplied together")
         artifacts = {} if parent is None else {"parent.contract": parent.contract.model_dump(mode="json")}
-        input_ids = () if parent is None else (parent.artifact.artifact_id,)
+        input_ids: tuple[str, ...] = () if parent is None else (parent.artifact.artifact_id,)
+        if request is not None and request_role is not None:
+            artifacts[request_role] = self.repository.read_payload(request)
+            input_ids += (request.artifact_id,)
         result = self.executor.execute(
             task_id=task_id,
             artifacts=artifacts,

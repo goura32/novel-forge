@@ -41,22 +41,30 @@ def stage_series_request(
 def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None) -> PNCATaskExecutor:
     """Build the production provider adapter from registered PNCA task resources."""
     prompt_manager = manager or PromptManager()
-    schema = json.loads(
-        (resources.files("novel_forge") / "resources" / "schemas" / "pnca_series_contract.json").read_text(
-            encoding="utf-8"
+    resources_by_task = {
+        "pnca.series.contract": ("pnca_series_contract.md", "pnca_series_contract.json"),
+        "pnca.volume.contract": ("pnca_volume_contract.md", "pnca_volume_contract.json"),
+    }
+    schemas = {
+        task_id: json.loads(
+            (resources.files("novel_forge") / "resources" / "schemas" / schema_name).read_text(encoding="utf-8")
         )
-    )
+        for task_id, (_prompt_name, schema_name) in resources_by_task.items()
+    }
 
     def provider(task_id: str, projection: dict[str, Any], operation_key: str) -> Any:
-        if task_id != "pnca.series.contract":
-            raise ValueError(f"production PNCA provider does not implement task: {task_id}")
-        user_prompt = prompt_manager.render(
-            "pnca_series_contract.md",
-            {
-                "request": json.dumps(projection["request"], ensure_ascii=False),
-                "schema": json.dumps(schema, ensure_ascii=False, indent=2),
-            },
-        )
+        try:
+            prompt_name, _schema_name = resources_by_task[task_id]
+            schema = schemas[task_id]
+        except KeyError as exc:
+            raise ValueError(f"production PNCA provider does not implement task: {task_id}") from exc
+        variables = {
+            "request": json.dumps(projection["request"], ensure_ascii=False),
+            "schema": json.dumps(schema, ensure_ascii=False, indent=2),
+        }
+        if task_id == "pnca.volume.contract":
+            variables["parent"] = json.dumps(projection["parent"], ensure_ascii=False)
+        user_prompt = prompt_manager.render(prompt_name, variables)
         return client.complete_json(
             kind=task_id,
             system_prompt=_SYSTEM_PROMPT,

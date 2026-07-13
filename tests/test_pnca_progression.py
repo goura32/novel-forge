@@ -34,6 +34,8 @@ def _executor(outputs):
                 if task_id == "pnca.scene.contract"
                 else (InputBinding(role="series.request", variable="request"),)
                 if task_id == "pnca.series.contract"
+                else (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="volume.request", variable="request"))
+                if task_id == "pnca.volume.contract"
                 else (InputBinding(role="parent.contract", variable="parent"),)
             ),
             output=ArtifactSpec(role=task_id, artifact_type="pnca.contract", logical_key_template=f"{task_id}.{{scope_id}}"),
@@ -80,18 +82,72 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
         payload_name="request.json",
     )
     series = author.author_series(run=run, scope_id="series_001", request=request)
-    volume = author.author_volume(run=run, parent=series, scope_id="volume_001")
+    volume_request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="volume-request", phase="design", reason="test"),
+        artifact_type="pnca.volume.request",
+        logical_key="pnca.volume.request.001",
+        payload={"volume_ordinal": 1},
+        payload_name="request.json",
+    )
+    volume = author.author_volume(run=run, parent=series, request=volume_request, scope_id="volume_001")
     chapter = author.author_chapter(run=run, parent=volume, scope_id="chapter_001")
 
     assert isinstance(repo.read_payload(series.artifact), dict)
     assert isinstance(series.contract, SeriesContract)
-    assert volume.artifact.manifest.input_artifact_ids == (series.artifact.artifact_id,)
+    assert volume.artifact.manifest.input_artifact_ids == (series.artifact.artifact_id, volume_request.artifact_id)
     assert isinstance(volume.contract, VolumeContract)
     assert chapter.artifact.manifest.input_artifact_ids == (volume.artifact.artifact_id,)
     assert isinstance(chapter.contract, ChapterContract)
 
 
-def test_series_authoring_materializes_seed_and_root_frontier_before_contract(tmp_path) -> None:
+
+def test_volume_authoring_requires_a_pinned_volume_request(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id="snap_001")
+    series = SeriesContract(
+        contract_id="series_001",
+        canon_seed_artifact_id="art_seed",
+        root_frontier_artifact_id="art_frontier",
+        root_frontier_digest="sha256:root",
+        volume_purposes=(VolumePurpose(ordinal=1, purpose="呪いの受諾"),),
+    )
+    series_artifact = repo.commit_artifact(
+        repo.start_attempt(run, task_id="series", phase="plan", reason="test"),
+        artifact_type="pnca.series.contract",
+        logical_key="pnca.series.contract.series_001",
+        payload=series.model_dump(mode="json"),
+        payload_name="contract.json",
+    )
+    request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="request", phase="design", reason="test"),
+        artifact_type="pnca.volume.request",
+        logical_key="pnca.volume.request.001",
+        payload={"volume_ordinal": 1},
+        payload_name="request.json",
+    )
+    author = PNCAContractAuthor(
+        repository=repo,
+        executor=_executor(
+            {
+                "pnca.volume.contract": {
+                    "contract_id": "volume_001",
+                    "parent_series_contract_id": "series_001",
+                    "volume_ordinal": 1,
+                }
+            }
+        ),
+    )
+
+    volume = author.author_volume(
+        run=run,
+        parent=AuthoredContract(artifact=series_artifact, contract=series),
+        request=request,
+        scope_id="volume_001",
+    )
+
+    assert volume.artifact.manifest.input_artifact_ids == (series_artifact.artifact_id, request.artifact_id)
+    assert volume.contract.volume_ordinal == 1
+
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)
     author = PNCAContractAuthor(
