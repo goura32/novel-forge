@@ -11,7 +11,8 @@
 ## 実行指示
 
 - `contract_id` は最終 series slug として `[a-z0-9_]{1,40}` に完全一致する、request 内の既存 slug と重複しない stable ID を設計する。英字は ASCII 小文字 `a`〜`z` のみを使用し、アクセント記号・ダイアクリティカルマーク・日本語・ハイフン・空白を一文字も含めない。たとえば英語の借用語も `fiance` のように ASCII 化し、`fiancé` のような Unicode 文字は使わない。
-- `canon_seed` は series ID、title、logline、初期 entity と state を含む JSON object にする。
+- `canon_seed` は series ID、title、logline、初期 entity と state を含む JSON object にする。request の物語的キーワードは、単に title に残すのでなく、呪い・鍵となる artifact・政治的対立・関係性のそれぞれを seed の具体的な設定に反映する。
+- `final_resolution` は最終巻で解決すべき呪い、鍵となる artifact、宮廷対立、二人の関係の到達状態を、request の具体語を用いて一文で固定する。初対面・契約締結・関係の萌芽ではなく、解決後の幸福な状態まで書く。
 - `volume_purposes` は各巻につき一つの短い目的を `ordinal` の昇順で列挙する。シリーズ全体の進行上その巻が果たす役割だけを書き、chapter、scene、具体的な beat、Canon patch は書かない。
 - 不自然な英語、簡体字、ハングルを混在させず、自然な日本語で書く。
 - 空の object や未定義の仮名を出力しない。

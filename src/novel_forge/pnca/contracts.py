@@ -166,6 +166,7 @@ class SeriesContractProposal(BaseModel):
 
     contract_id: str = Field(min_length=1, pattern=r"^[a-z0-9_]{1,40}$")
     canon_seed: dict[str, Any] = Field(min_length=1)
+    final_resolution: str = Field(default="", min_length=0)
     volume_purposes: tuple[VolumePurpose, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -183,6 +184,7 @@ class SeriesContract(BaseModel):
     canon_seed_artifact_id: str = Field(min_length=1)
     root_frontier_artifact_id: str = Field(min_length=1)
     root_frontier_digest: str = Field(min_length=1)
+    final_resolution: str = Field(default="", min_length=0)
     volume_purposes: tuple[VolumePurpose, ...] = Field(min_length=1)
 
 
@@ -193,6 +195,7 @@ class VolumeContract(BaseModel):
     parent_series_contract_id: str = Field(min_length=1)
     volume_ordinal: int = Field(ge=1)
     purpose: str = Field(default="", min_length=0)
+    series_final_resolution: str = Field(default="", min_length=0)
     admission_allowances: tuple[AdmissionAllowance, ...] = ()
 
     @model_validator(mode="after")
@@ -210,6 +213,7 @@ class ChapterContract(BaseModel):
     parent_volume_contract_id: str = Field(min_length=1)
     chapter_ordinal: int = Field(ge=1)
     volume_purpose: str = Field(default="", min_length=0)
+    series_final_resolution: str = Field(default="", min_length=0)
     scene_slots: tuple[SceneSlot, ...]
 
     @model_validator(mode="after")

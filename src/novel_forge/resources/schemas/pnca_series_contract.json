@@ -3,6 +3,7 @@
   "required": [
     "contract_id",
     "canon_seed",
+    "final_resolution",
     "volume_purposes"
   ],
   "properties": {
@@ -15,6 +16,10 @@
       "type": "object",
       "description": "空でないシリーズ開始時点の Canon。series ID、title、logline、初期 entity/state を含む JSON object。",
       "minProperties": 1
+    },
+    "final_resolution": {
+      "type": "string",
+      "description": "最終巻で必ず具体的に解決する、request に含まれる中心の呪い・鍵となる artifact・宮廷対立・二人の関係の到達状態を一文で結んだ最終解決契約。"
     },
     "volume_purposes": {
       "type": "array",

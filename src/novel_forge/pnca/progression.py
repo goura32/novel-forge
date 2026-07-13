@@ -78,6 +78,7 @@ class PNCAContractAuthor:
             canon_seed_artifact_id=seed.artifact_id,
             root_frontier_artifact_id=frontier.artifact_id,
             root_frontier_digest=frontier.manifest.content_digest,
+            final_resolution=proposal.final_resolution,
             volume_purposes=proposal.volume_purposes,
         )
         contract_attempt = self.repository.start_attempt(
@@ -121,6 +122,7 @@ class PNCAContractAuthor:
                 "parent_series_contract_id": parent.contract.contract_id,
                 "volume_ordinal": volume_ordinal,
                 "purpose": purpose,
+                "series_final_resolution": parent.contract.final_resolution,
             },
         )
         if authored.contract.parent_series_contract_id != parent.contract.contract_id:
@@ -153,6 +155,7 @@ class PNCAContractAuthor:
                 "parent_volume_contract_id": parent.contract.contract_id,
                 "chapter_ordinal": chapter_ordinal,
                 "volume_purpose": parent.contract.purpose,
+                "series_final_resolution": parent.contract.series_final_resolution,
             },
         )
         if authored.contract.parent_volume_contract_id != parent.contract.contract_id:
@@ -229,6 +232,7 @@ class PNCAContractAuthor:
         # the WriterView instead of trusting a scene proposal to restate the long arc.
         narrative_contract = dict(proposal.writer_view.narrative_contract)
         narrative_contract["parent_volume_purpose"] = parent.contract.volume_purpose
+        narrative_contract["series_final_resolution"] = parent.contract.series_final_resolution
         writer_view = proposal.writer_view.model_copy(update={"narrative_contract": narrative_contract})
         contract = SceneContract(
             **proposal.model_dump(mode="python", exclude={"writer_view"}),
