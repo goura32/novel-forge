@@ -304,6 +304,10 @@ class PNCAWorkflow:
                     run=run,
                     chapter_id=chapter_authored.contract.contract_id,
                     slot_id=scene_slot.slot_id,
+                    is_terminal_scene=(
+                        chapter_authored.contract.is_terminal_volume
+                        and scene_slot.ordinal == max(slot.ordinal for slot in chapter_authored.contract.scene_slots)
+                    ),
                 )
                 scene_authored, consumed_admissions = self.contract_author.author_scene(
                     run=run,

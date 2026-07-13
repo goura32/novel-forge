@@ -90,6 +90,7 @@ def stage_scene_request(
     run: RunHandle,
     chapter_id: str,
     slot_id: str,
+    is_terminal_scene: bool = False,
 ) -> ArtifactReference:
     """Commit one Chapter-owned Scene slot as a provider-visible immutable input."""
     attempt = repository.start_attempt(
@@ -102,7 +103,7 @@ def stage_scene_request(
         attempt,
         artifact_type="pnca.scene.request",
         logical_key=f"pnca.scene.request.{chapter_id}.{slot_id}",
-        payload={"slot_id": slot_id},
+        payload={"slot_id": slot_id, "is_terminal_scene": is_terminal_scene},
         payload_name="request.json",
     )
 

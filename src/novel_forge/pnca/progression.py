@@ -194,6 +194,15 @@ class PNCAContractAuthor:
             raise RuntimeContractError("scene request requires a non-empty slot_id")
         if slot_id not in {slot.slot_id for slot in parent.contract.scene_slots}:
             raise RuntimeContractError("SceneContract slot is not allocated by its parent ChapterContract")
+        expected_terminal_scene = (
+            parent.contract.is_terminal_volume
+            and any(
+                slot.slot_id == slot_id and slot.ordinal == max(item.ordinal for item in parent.contract.scene_slots)
+                for slot in parent.contract.scene_slots
+            )
+        )
+        if bool(request_payload.get("is_terminal_scene", False)) != expected_terminal_scene:
+            raise RuntimeContractError("scene request terminal role must match the allocated ChapterContract slot")
         if (
             frontier_binding.frontier_artifact_id != frontier.artifact_id
             or frontier_binding.frontier_digest != frontier.manifest.content_digest
@@ -256,7 +265,7 @@ class PNCAContractAuthor:
         narrative_contract["parent_volume_purpose"] = parent.contract.volume_purpose
         narrative_contract["series_final_resolution"] = parent.contract.series_final_resolution
         end_constraints = dict(proposal.writer_view.end_constraints)
-        if parent.contract.is_terminal_volume:
+        if expected_terminal_scene:
             end_constraints["series_final_resolution"] = parent.contract.series_final_resolution
         writer_view = proposal.writer_view.model_copy(
             update={"narrative_contract": narrative_contract, "end_constraints": end_constraints}

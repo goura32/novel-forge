@@ -50,7 +50,7 @@ def test_stage_chapter_request_persists_only_chapter_target_as_an_artifact(tmp_p
     assert repo.read_payload(request) == {"chapter_ordinal": 2}
 
 
-def test_stage_scene_request_persists_only_chapter_slot_as_an_artifact(tmp_path) -> None:
+def test_stage_scene_request_persists_terminal_role_with_chapter_slot_as_an_artifact(tmp_path) -> None:
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id="snap_001")
 
@@ -59,11 +59,12 @@ def test_stage_scene_request_persists_only_chapter_slot_as_an_artifact(tmp_path)
         run=run,
         chapter_id="chapter_001",
         slot_id="scene_002",
+        is_terminal_scene=True,
     )
 
     assert request.manifest.artifact_type == "pnca.scene.request"
     assert request.manifest.logical_key == "pnca.scene.request.chapter_001.scene_002"
-    assert repo.read_payload(request) == {"slot_id": "scene_002"}
+    assert repo.read_payload(request) == {"slot_id": "scene_002", "is_terminal_scene": True}
 
 
 def test_series_proposal_rejects_an_unsafe_final_slug() -> None:
