@@ -78,6 +78,7 @@ def default_pnca_task_registry() -> PNCATaskRegistry:
                     InputBinding(role="parent.contract", variable="parent"),
                     InputBinding(role="canon.frontier", variable="frontier"),
                     InputBinding(role="canon.projection", variable="canon_projection"),
+                    InputBinding(role="admission.allowances", variable="admission_allowances"),
                     InputBinding(role="scene.request", variable="request"),
                 ),
                 output=ArtifactSpec(

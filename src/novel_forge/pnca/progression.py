@@ -192,12 +192,14 @@ class PNCAContractAuthor:
             frontier_artifact_id=frontier.artifact_id,
             lineage_root_digest=frontier_binding.lineage_root_digest,
         )
+        admission_allowances = tuple(admission_allowances)
         result = self.executor.execute(
             task_id="pnca.scene.contract",
             artifacts={
                 "parent.contract": parent.contract.model_dump(mode="json"),
                 "canon.frontier": self.repository.read_payload(frontier),
                 "canon.projection": canon_projection,
+                "admission.allowances": [allowance.model_dump(mode="json") for allowance in admission_allowances],
                 "scene.request": request_payload,
             },
             input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id, request.artifact_id),

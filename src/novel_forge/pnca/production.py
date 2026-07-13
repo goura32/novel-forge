@@ -169,6 +169,7 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
             if task_id == "pnca.scene.contract":
                 variables["frontier"] = json.dumps(projection["frontier"], ensure_ascii=False)
                 variables["canon_projection"] = json.dumps(projection["canon_projection"], ensure_ascii=False)
+                variables["admission_allowances"] = json.dumps(projection["admission_allowances"], ensure_ascii=False)
         user_prompt = prompt_manager.render(prompt_name, variables)
         return client.complete_json(
             kind=task_id,

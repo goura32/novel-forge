@@ -46,6 +46,7 @@ def test_default_registry_defines_scene_contract_from_pinned_chapter_frontier_an
         ("parent.contract", "parent"),
         ("canon.frontier", "frontier"),
         ("canon.projection", "canon_projection"),
+        ("admission.allowances", "admission_allowances"),
         ("scene.request", "request"),
     ]
     assert spec.output.artifact_type == "pnca.scene.contract.proposal"
