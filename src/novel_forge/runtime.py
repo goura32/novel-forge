@@ -26,6 +26,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from novel_forge.pnca.contracts import AcceptanceCommit, FrontierBinding, OperationRecord
+
 FORMAT_VERSION = 1
 _DIR_MODE = 0o700
 _FILE_MODE = 0o600
@@ -594,12 +596,154 @@ class RunRepository:
         _fsync_directory(ledger)
         return snapshot
 
+    def commit_pnca_acceptance(
+        self,
+        *,
+        slug: str,
+        acceptance: AcceptanceCommit,
+        frontier_binding: FrontierBinding,
+    ) -> SelectionSnapshot:
+        """Atomically make a complete prepared PNCA acceptance visible.
+
+        Prepared artifacts may exist after a crash, but only the ledger event written
+        here makes their complete role group selected.  This method deliberately does
+        not delegate to ``create_selection_snapshot`` because PNCA needs the selection
+        and operation record in one visibility event.
+        """
+        prior = self._pnca_operation_event(slug, acceptance.operation_key)
+        if prior is not None:
+            operation = OperationRecord.model_validate(prior.payload["operation"])
+            if (
+                operation.input_snapshot_id == acceptance.base_snapshot_id
+                and prior.payload.get("acceptance_id") == acceptance.acceptance_id
+                and prior.payload.get("frontier_binding") == frontier_binding.model_dump(mode="json")
+            ):
+                snapshot_id = prior.payload.get("selection_snapshot_id")
+                if isinstance(snapshot_id, str):
+                    return self.load_snapshot(slug, snapshot_id)
+            self._append_ledger_event(
+                slug,
+                "pnca.operation.superseded",
+                {
+                    "operation_key": acceptance.operation_key,
+                    "existing_acceptance_id": prior.payload.get("acceptance_id"),
+                    "requested_acceptance_id": acceptance.acceptance_id,
+                    "existing_base_snapshot_id": operation.input_snapshot_id,
+                    "requested_base_snapshot_id": acceptance.base_snapshot_id,
+                },
+            )
+            raise RuntimeContractError("PNCA operation key reuse is superseded")
+
+        if acceptance.base_snapshot_id != frontier_binding.input_snapshot_id:
+            raise RuntimeContractError("AcceptanceCommit base snapshot must equal FrontierBinding input snapshot")
+        base = self.load_snapshot(slug, acceptance.base_snapshot_id)
+        base_frontier_id = base.slots.get("canon.frontier")
+        if base_frontier_id is None:
+            raise RuntimeContractError("PNCA acceptance base snapshot requires canon.frontier")
+        if base_frontier_id != frontier_binding.frontier_artifact_id:
+            raise RuntimeContractError("PNCA acceptance requires the exact base snapshot frontier artifact")
+        base_frontier = self.verify_artifact(base_frontier_id).manifest
+        if base_frontier.content_digest != frontier_binding.frontier_digest:
+            raise RuntimeContractError("PNCA acceptance requires the exact base snapshot frontier digest")
+        base_seed_id = base.slots.get("canon.seed")
+        if base_seed_id is None:
+            raise RuntimeContractError("PNCA acceptance base snapshot requires canon.seed")
+        base_seed = self.verify_artifact(base_seed_id).manifest
+        if base_seed.content_digest != frontier_binding.lineage_root_digest:
+            raise RuntimeContractError("PNCA FrontierBinding lineage root does not match base canon.seed")
+
+        slots = dict(base.slots)
+        for role, artifact_id in acceptance.role_artifact_ids.items():
+            ref = self.verify_artifact(artifact_id)
+            manifest = ref.manifest
+            if role == "canon.frontier.output":
+                if manifest.artifact_type != "canon.event_set":
+                    raise RuntimeContractError("PNCA output frontier role requires canon.event_set")
+                if not manifest.logical_key.startswith("canon.frontier"):
+                    raise RuntimeContractError("PNCA output frontier role requires canon.frontier logical key")
+                if manifest.parent_frontier_artifact_id != frontier_binding.frontier_artifact_id:
+                    raise RuntimeContractError("PNCA output frontier parent must equal exact input frontier")
+                if manifest.parent_frontier_digest != frontier_binding.frontier_digest:
+                    raise RuntimeContractError("PNCA output frontier parent digest must equal exact input frontier")
+                if manifest.input_canon_frontier_digest != frontier_binding.frontier_digest:
+                    raise RuntimeContractError("PNCA output frontier input digest must equal exact input frontier")
+                slots["canon.frontier"] = artifact_id
+                continue
+            if manifest.input_canon_frontier_digest != frontier_binding.frontier_digest:
+                raise RuntimeContractError(
+                    f"PNCA role {role!r} does not bind to the exact input Canon frontier"
+                )
+            if manifest.canon_lineage_root_digest != frontier_binding.lineage_root_digest:
+                raise RuntimeContractError(
+                    f"PNCA role {role!r} does not bind to the exact Canon lineage root"
+                )
+            if manifest.logical_key in slots and slots[manifest.logical_key] != artifact_id:
+                raise RuntimeContractError(f"PNCA role {role!r} overwrites an existing selected slot")
+            slots[manifest.logical_key] = artifact_id
+
+        self.verify_canon_snapshot(slots)
+        ledger = self.ledger_root(slug)
+        self.writer.mkdir(ledger)
+        snapshots = ledger / "snapshots"
+        self.writer.mkdir(snapshots)
+        snapshot_id = f"sel_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:6]}"
+        snapshot = SelectionSnapshot(
+            selection_snapshot_id=snapshot_id,
+            base_snapshot_id=acceptance.base_snapshot_id,
+            slots=dict(sorted(slots.items())),
+            slots_digest=digest_json(dict(sorted(slots.items()))),
+            created_at=utc_now(),
+        )
+        snapshot_path = snapshots / f"{snapshot_id}.json"
+        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        _fsync_directory(snapshots)
+        operation = OperationRecord(
+            operation_key=acceptance.operation_key,
+            input_snapshot_id=acceptance.base_snapshot_id,
+            state="committed",
+            acceptance_id=acceptance.acceptance_id,
+        )
+        self._append_ledger_event(
+            slug,
+            "pnca.acceptance.committed",
+            {
+                "acceptance_id": acceptance.acceptance_id,
+                "selection_snapshot_id": snapshot_id,
+                "base_snapshot_id": acceptance.base_snapshot_id,
+                "slots": snapshot.slots,
+                "slots_digest": snapshot.slots_digest,
+                "snapshot_path": str(snapshot_path.relative_to(self.series_root(slug))),
+                "snapshot_digest": snapshot_digest,
+                "acceptance": acceptance.model_dump(mode="json"),
+                "frontier_binding": frontier_binding.model_dump(mode="json"),
+                "operation": operation.model_dump(mode="json"),
+            },
+        )
+        _fsync_directory(ledger)
+        return snapshot
+
+    def load_pnca_operation(self, slug: str, operation_key: str) -> OperationRecord:
+        """Return the durable selected operation record for an idempotency key."""
+        event = self._pnca_operation_event(slug, operation_key)
+        if event is None:
+            raise FileNotFoundError(f"PNCA operation not found: {operation_key}")
+        return OperationRecord.model_validate(event.payload["operation"])
+
+    def _pnca_operation_event(self, slug: str, operation_key: str) -> LedgerEvent | None:
+        for event in self._ledger_events(slug):
+            if event.event_type != "pnca.acceptance.committed":
+                continue
+            operation = event.payload.get("operation")
+            if isinstance(operation, dict) and operation.get("operation_key") == operation_key:
+                return event
+        return None
+
     def current_snapshot_id(self, slug: str) -> str:
         """Return the latest *ledger-selected* snapshot, never a latest artifact."""
         selected = [
             event.payload.get("selection_snapshot_id")
             for event in self._ledger_events(slug)
-            if event.event_type == "selection.snapshot.created"
+            if event.event_type in {"selection.snapshot.created", "pnca.acceptance.committed"}
         ]
         if not selected or not isinstance(selected[-1], str):
             raise FileNotFoundError(f"no selection snapshot found for series: {slug}")
@@ -609,7 +753,7 @@ class RunRepository:
         event = next(
             (
                 event for event in self._ledger_events(slug)
-                if event.event_type == "selection.snapshot.created"
+                if event.event_type in {"selection.snapshot.created", "pnca.acceptance.committed"}
                 and event.payload.get("selection_snapshot_id") == snapshot_id
             ),
             None,
