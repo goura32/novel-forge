@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from novel_forge.pnca.contracts import BundleSlotRecord, DesignBundle, DraftAudit
+from novel_forge.pnca.contracts import (
+    BundleSlotRecord,
+    DesignBundle,
+    DraftAudit,
+    DraftCoverage,
+    WriterView,
+)
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository, RuntimeContractError
 
 
@@ -13,6 +19,30 @@ from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository, Run
 class ExportedManuscript:
     artifact: ArtifactReference
     content: str
+
+
+def _validate_export_coverage(*, view: WriterView, payload: object) -> str:
+    if not isinstance(payload, dict):
+        raise RuntimeContractError("pinned draft has no structured payload")
+    content = payload.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeContractError("pinned draft has no manuscript content")
+    try:
+        coverage = DraftCoverage.model_validate(payload.get("coverage"))
+    except ValueError as exc:
+        raise RuntimeContractError(f"pinned draft has invalid obligation coverage: {exc}") from exc
+    required_indexes = set(range(len(view.required_beats)))
+    actual_indexes = {item.beat_index for item in coverage.evidence if item.obligation == "required_beat"}
+    if actual_indexes != required_indexes:
+        raise RuntimeContractError("pinned draft coverage does not prove every required beat")
+    end_count = sum(item.obligation == "end_constraint" for item in coverage.evidence)
+    if bool(view.end_constraints) != (end_count == 1):
+        raise RuntimeContractError("pinned draft coverage does not prove the end constraint")
+    if len(coverage.evidence) != len(required_indexes) + end_count:
+        raise RuntimeContractError("pinned draft coverage duplicates obligations")
+    if any(item.draft_quote not in content for item in coverage.evidence):
+        raise RuntimeContractError("pinned draft coverage quote is not present in manuscript content")
+    return content
 
 
 class PNCAExporter:
@@ -88,16 +118,15 @@ class PNCAExporter:
         if not required_assessment_inputs.issubset(assessment.manifest.input_artifact_ids):
             raise RuntimeContractError("draft assessment must bind contract, writer view, and draft artifacts")
         try:
-            audit = DraftAudit.model_validate(self.repository.read_payload(assessment))
+            DraftAudit.model_validate(self.repository.read_payload(assessment))
         except ValueError as exc:
             raise RuntimeContractError(f"bundle draft assessment payload is invalid: {exc}") from exc
-        blocking = [issue for issue in audit.issues if issue.severity == "blocker"]
-        if blocking:
-            raise RuntimeContractError("bundle contains unresolved blocker draft audit issues")
+        try:
+            writer_view = WriterView.model_validate(self.repository.read_payload(view))
+        except ValueError as exc:
+            raise RuntimeContractError(f"bundle writer view payload is invalid: {exc}") from exc
         payload = self.repository.read_payload(draft)
-        content = payload.get("content") if isinstance(payload, dict) else None
-        if not isinstance(content, str) or not content.strip():
-            raise RuntimeContractError("pinned draft has no manuscript content")
+        content = _validate_export_coverage(view=writer_view, payload=payload)
         return content, {
             contract.artifact_id,
             view.artifact_id,

@@ -48,7 +48,7 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
         run,
         artifact_type="pnca.scene_draft",
         logical_key="pnca.scene_draft.s1",
-        payload={"content": "リナは塔へ向かった。"},
+        payload={"content": "リナは塔へ向かった。", "coverage": {"evidence": []}},
         input_artifact_ids=(view.artifact_id,),
     )
     assessment = _artifact(

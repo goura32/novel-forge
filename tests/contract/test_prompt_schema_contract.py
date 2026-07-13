@@ -257,6 +257,8 @@ EMPTY_ARRAY_ALLOWED_PATHS = {
     ("review_issues.json", "issues"),
     ("write_summary.json", "characters"),
     ("write_summary.json", "facts"),
+    ("pnca_scene_render.json", "coverage.evidence"),
+    ("pnca_scene_revise.json", "coverage.evidence"),
 }
 
 

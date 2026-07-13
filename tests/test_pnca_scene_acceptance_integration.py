@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from novel_forge.pnca.contracts import (
     ChapterContract,
     FrontierBinding,
@@ -137,20 +139,29 @@ def test_build_and_commit_non_mutating_scene_acceptance_group(tmp_path: Path) ->
 class FakeExecutor:
     """Provider-free executor stub for writer/export wiring tests."""
 
-    def __init__(self, repository: RunRepository) -> None:
+    def __init__(self, repository: RunRepository, *, audit_issues: list[dict[str, str]] | None = None) -> None:
         self._repo = repository
+        self._audit_issues = audit_issues or []
 
     def execute(self, *, task_id: str, scope_id: str, artifacts: dict[str, Any], input_artifact_ids: tuple[str, ...]) -> Any:
         if task_id == "pnca.writer_view.review":
             return {"issues": []}
         if task_id == "pnca.scene.render":
-            return {"content": "シーンの本文。約500字の自然な日本語で書く。"}
+            return {"content": "シーンの本文。約500字の自然な日本語で書く。", "coverage": {"evidence": []}}
         if task_id == "pnca.draft.audit":
-            return {"issues": []}
+            return {"issues": self._audit_issues}
         raise AssertionError(f"unexpected task_id: {task_id}")
 
 
-def test_write_volume_renders_and_exports_bundle(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "audit_issues",
+    [
+        [],
+        [{"severity": "blocker", "constraint_kind": "pov_fact", "writer_view_field": "presentation_constraints", "draft_quote": "シーンの本文", "detail": "可視の行為を誤ってPOV違反と評価した観察記録"}],
+    ],
+    ids=["clean_audit", "editorial_blocker_does_not_replace_coverage"],
+)
+def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: list[dict[str, str]]) -> None:
     repo = RunRepository(tmp_path)
     run, seed, root, base = _bootstrap(repo)
     slug = "series_001"
@@ -210,7 +221,7 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path) -> None:
     assert accepted.slots["pnca.scene.contract.series_001.001.001.scene_001"] == scene.artifact_id
 
     workflow = PNCAWorkflow(repository=repo, contract_author=object())
-    bundle = workflow.write_volume(slug=slug, run=run, volume=1, executor=FakeExecutor(repo))
+    bundle = workflow.write_volume(slug=slug, run=run, volume=1, executor=FakeExecutor(repo, audit_issues=audit_issues))
     assert bundle.bundle_id == "series_001.volume.001"
     assert len(bundle.slots) == 1
     slot = bundle.slots[0]

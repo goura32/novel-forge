@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from novel_forge.pnca.contracts import DraftAudit, WriterView, WriterViewReview
+from novel_forge.pnca.contracts import DraftAudit, DraftCoverage, WriterView, WriterViewReview
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.pnca.validation import PNCAStructuralError, validate_writer_view
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository
@@ -14,6 +14,27 @@ from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository
 class RenderedDraft:
     writer_view: ArtifactReference
     draft: ArtifactReference
+
+
+def _validate_draft_coverage(*, view: WriterView, content: str, payload: object) -> DraftCoverage:
+    """Accept only exact, complete proof for the WriterView's mandatory obligations."""
+    try:
+        coverage = DraftCoverage.model_validate(payload)
+    except ValueError as exc:
+        raise PNCAStructuralError(f"PNCA render output requires valid obligation coverage: {exc}") from exc
+
+    required_indexes = set(range(len(view.required_beats)))
+    actual_indexes = {item.beat_index for item in coverage.evidence if item.obligation == "required_beat"}
+    if actual_indexes != required_indexes:
+        raise PNCAStructuralError("PNCA render coverage must prove every required_beat exactly once")
+    end_count = sum(item.obligation == "end_constraint" for item in coverage.evidence)
+    if bool(view.end_constraints) != (end_count == 1):
+        raise PNCAStructuralError("PNCA render coverage must prove the end_constraint exactly once when present")
+    if len(coverage.evidence) != len(required_indexes) + end_count:
+        raise PNCAStructuralError("PNCA render coverage must not duplicate obligations")
+    if any(item.draft_quote not in content for item in coverage.evidence):
+        raise PNCAStructuralError("PNCA render coverage quotes must occur verbatim in the draft")
+    return coverage
 
 
 class PNCARenderer:
@@ -62,6 +83,7 @@ class PNCARenderer:
         content = result.get("content") if isinstance(result, dict) else None
         if not isinstance(content, str) or not content.strip():
             raise PNCAStructuralError("PNCA render output requires non-empty content")
+        coverage = _validate_draft_coverage(view=view, content=content, payload=result.get("coverage") if isinstance(result, dict) else None)
         draft_attempt = self.repository.start_attempt(
             run, task_id="pnca.scene.render", phase="write", reason="render scene draft"
         )
@@ -69,7 +91,7 @@ class PNCARenderer:
             draft_attempt,
             artifact_type="pnca.scene_draft",
             logical_key=f"pnca.scene_draft.{scope_id}",
-            payload={"content": content},
+            payload={"content": content, "coverage": coverage.model_dump(mode="json")},
             payload_name="draft.json",
             input_artifact_ids=(writer_view.artifact_id,),
         )
@@ -194,9 +216,14 @@ class PNCARenderer:
         content = result.get("content") if isinstance(result, dict) else None
         if not isinstance(content, str) or not content.strip():
             raise PNCAStructuralError("PNCA revision output requires non-empty content")
+        coverage = _validate_draft_coverage(
+            view=writer_view,
+            content=content,
+            payload=result.get("coverage") if isinstance(result, dict) else None,
+        )
         attempt = self.repository.start_attempt(run, task_id="pnca.scene.revise", phase="write", reason="resolve draft audit issues")
         return self.repository.commit_artifact(
             attempt, artifact_type="pnca.scene_draft", logical_key=f"pnca.scene_draft.revised.{scope_id}",
-            payload={"content": content}, payload_name="draft.json",
+            payload={"content": content, "coverage": coverage.model_dump(mode="json")}, payload_name="draft.json",
             input_artifact_ids=(writer_view_artifact_id, draft.artifact_id, audit.artifact_id),
         )

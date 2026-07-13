@@ -406,6 +406,32 @@ class WriterViewReview(BaseModel):
     issues: tuple[WriterViewReviewIssue, ...]
 
 
+class DraftObligationEvidence(BaseModel):
+    """One exact prose quote proving a WriterView obligation was realized."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obligation: Literal["required_beat", "end_constraint"]
+    beat_index: int | None = Field(default=None, ge=0)
+    draft_quote: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _indexes_only_required_beats(self) -> DraftObligationEvidence:
+        if self.obligation == "required_beat" and self.beat_index is None:
+            raise ValueError("required_beat evidence requires beat_index")
+        if self.obligation == "end_constraint" and self.beat_index is not None:
+            raise ValueError("end_constraint evidence must not have beat_index")
+        return self
+
+
+class DraftCoverage(BaseModel):
+    """Writer-supplied, exact-quote evidence for every mandatory prose obligation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    evidence: tuple[DraftObligationEvidence, ...]
+
+
 class DraftAuditIssue(BaseModel):
     """A grounded finding against one rendered scene."""
 

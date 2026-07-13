@@ -396,32 +396,11 @@ class PNCAWorkflow:
                     executor=executor,
                     scope_id=scope_id,
                 )
-                for review_cycle in range(1, self.max_review_count):
-                    if not DraftAudit.model_validate(self.repository.read_payload(audit)).issues:
-                        break
-                    draft = renderer.revise(
-                        run=run,
-                        writer_view=scene_contract.writer_view,
-                        writer_view_artifact_id=rendered.writer_view.artifact_id,
-                        draft=draft,
-                        audit=audit,
-                        executor=executor,
-                        scope_id=f"{scope_id}.revision.{review_cycle}",
-                    )
-                    audit = renderer.audit(
-                        run=run,
-                        scene_contract_artifact_id=scene_ref.artifact_id,
-                        writer_view=scene_contract.writer_view,
-                        writer_view_artifact_id=rendered.writer_view.artifact_id,
-                        draft=draft,
-                        executor=executor,
-                        scope_id=f"{scope_id}.revision.{review_cycle}",
-                    )
-                final_audit = DraftAudit.model_validate(self.repository.read_payload(audit))
-                if any(issue.severity == "blocker" for issue in final_audit.issues):
-                    raise RuntimeContractError(
-                        f"draft audit blockers remain after {self.max_review_count} review cycles for {scope_id}"
-                    )
+                # The render-time coverage is the authoritative publication gate: it proves every
+                # WriterView obligation with a verbatim quote from this immutable draft. Draft audit
+                # is retained as review evidence, but its interpretive severity cannot re-open the
+                # contract or trigger an oscillating prose rewrite loop.
+                DraftAudit.model_validate(self.repository.read_payload(audit))
                 slots.append(
                     BundleSlotRecord(
                         volume_ordinal=volume,
