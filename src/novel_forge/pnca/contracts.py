@@ -247,6 +247,7 @@ class AcceptanceCommit(BaseModel):
     acceptance_id: str = Field(min_length=1)
     base_snapshot_id: str = Field(min_length=1)
     operation_key: str = Field(min_length=1)
+    canon_effect: CanonEffect
     role_artifact_ids: dict[str, str]
 
     @model_validator(mode="after")

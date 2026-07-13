@@ -129,6 +129,10 @@ def _prepared_scene_acceptance(repo: RunRepository):
         parent_frontier_artifact_id=root.artifact_id,
         parent_frontier_digest=root.manifest.content_digest,
         source_patch_artifact_ids=(patch.artifact_id,),
+        metadata={
+            "source_scene_contract_artifact_id": scene.artifact_id,
+            "source_scene_contract_digest": scene.manifest.content_digest,
+        },
     )
     roles = {
         "scene.contract": scene.artifact_id,
@@ -143,6 +147,7 @@ def _prepared_scene_acceptance(repo: RunRepository):
         acceptance_id="accept_scene_001",
         base_snapshot_id=base.selection_snapshot_id,
         operation_key="series:base:scene_001:accept",
+        canon_effect="mutates",
         role_artifact_ids=roles,
     )
     binding = FrontierBinding(

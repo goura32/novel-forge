@@ -653,10 +653,16 @@ class RunRepository:
             raise RuntimeContractError("PNCA FrontierBinding lineage root does not match base canon.seed")
 
         slots = dict(base.slots)
+        scene_contract = self.verify_artifact(acceptance.role_artifact_ids["scene.contract"])
         for role, artifact_id in acceptance.role_artifact_ids.items():
             ref = self.verify_artifact(artifact_id)
             manifest = ref.manifest
             if role == "canon.frontier.output":
+                if acceptance.canon_effect == "none":
+                    if artifact_id != frontier_binding.frontier_artifact_id:
+                        raise RuntimeContractError("eventless PNCA acceptance must preserve the exact input frontier artifact")
+                    slots["canon.frontier"] = artifact_id
+                    continue
                 if manifest.artifact_type != "canon.event_set":
                     raise RuntimeContractError("PNCA output frontier role requires canon.event_set")
                 if not manifest.logical_key.startswith("canon.frontier"):
@@ -667,6 +673,11 @@ class RunRepository:
                     raise RuntimeContractError("PNCA output frontier parent digest must equal exact input frontier")
                 if manifest.input_canon_frontier_digest != frontier_binding.frontier_digest:
                     raise RuntimeContractError("PNCA output frontier input digest must equal exact input frontier")
+                metadata = manifest.metadata
+                if metadata.get("source_scene_contract_artifact_id") != scene_contract.artifact_id:
+                    raise RuntimeContractError("PNCA output frontier must bind its selected scene contract artifact")
+                if metadata.get("source_scene_contract_digest") != scene_contract.manifest.content_digest:
+                    raise RuntimeContractError("PNCA output frontier must bind its selected scene contract digest")
                 slots["canon.frontier"] = artifact_id
                 continue
             if manifest.input_canon_frontier_digest != frontier_binding.frontier_digest:

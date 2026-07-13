@@ -306,6 +306,7 @@ def test_acceptance_commit_requires_a_scene_frontier_evidence_group() -> None:
             acceptance_id="accept_scene_001",
             base_snapshot_id="sel_parent",
             operation_key="series:sel_parent:scene:contract",
+            canon_effect="mutates",
             role_artifact_ids={"scene.contract": "art_scene"},
         )
 
