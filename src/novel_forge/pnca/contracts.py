@@ -80,11 +80,16 @@ class AdmissionAllowance(BaseModel):
 
 
 class AdmissionConsumption(BaseModel):
-    """One scene's immutable use of an approved supporting-entity allowance."""
+    """One scene's immutable use of an approved supporting-entity allowance.
+
+    `kind` is structural authority fixed by the Volume-owned allowance, not
+    model-authored output.  It is optional on provider output and the repository
+    derives it from the matching allowance before materializing the contract.
+    """
 
     allowance_id: str = Field(min_length=1)
     entity_id: str = Field(min_length=1)
-    kind: Literal["character", "location", "artifact", "organization"]
+    kind: Literal["character", "location", "artifact", "organization"] | None = None
 
 
 class SceneSlot(BaseModel):

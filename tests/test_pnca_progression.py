@@ -315,3 +315,105 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
     assert projections[-1]["admission_allowances"] == [
         {"allowance_id": "allow_artifact", "kind": "artifact", "max_count": 1}
     ]
+
+
+def test_scene_admission_kind_is_derived_from_allowance_not_provider_output(tmp_path) -> None:
+    """Models must not author `kind`: the Volume-owned allowance fixes it.
+
+    Regression guard for the `supporting entity admission kind mismatch` crash where a
+    provider emitted an allowance_id with a wrong `kind` and the old validator rejected
+    the entire proposal.  Now repository derives `kind` from the allowance definition.
+    """
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    seed = repo.commit_artifact(
+        repo.start_attempt(run, task_id="seed-root", phase="plan", reason="test"),
+        artifact_type="canon.seed",
+        logical_key="canon.seed",
+        payload={"title": "test seed"},
+        payload_name="seed.json",
+    )
+    frontier_attempt = repo.start_attempt(run, task_id="seed", phase="plan", reason="test")
+    frontier = repo.commit_artifact(
+        frontier_attempt,
+        artifact_type="canon.event_set",
+        logical_key="canon.frontier.root",
+        payload={"events": []},
+        payload_name="frontier.json",
+    )
+    outputs = {
+        "pnca.chapter.contract": {
+            "contract_id": "chapter_001",
+            "parent_volume_contract_id": "volume_001",
+            "chapter_ordinal": 1,
+            "scene_slots": [
+                {"slot_id": "scene_001", "ordinal": 1, "allowed_admission_allowance_ids": ["allow_character"]}
+            ],
+        },
+        "pnca.scene.contract": {
+            "contract_id": "scene_contract_001",
+            "canon_effect": "mutates",
+            "canon_patch": {"new_character": "許可された新人物"},
+            "admission_consumptions": [
+                {"allowance_id": "allow_character", "entity_id": "char_new_001"}
+            ],
+        },
+    }
+    volume = VolumeContract(
+        contract_id="volume_001",
+        parent_series_contract_id="series_001",
+        volume_ordinal=1,
+        purpose="許可された新人物を導入",
+        admission_allowances=(
+            AdmissionAllowance(allowance_id="allow_character", kind="character", max_count=1),
+        ),
+    )
+    volume_artifact = repo.commit_artifact(
+        repo.start_attempt(run, task_id="volume", phase="design", reason="test"),
+        artifact_type="pnca.volume.contract",
+        logical_key="pnca.volume.contract.volume_001",
+        payload=volume.model_dump(mode="json"),
+        payload_name="volume.json",
+    )
+    chapter_request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="chapter-request", phase="design", reason="test"),
+        artifact_type="pnca.chapter.request",
+        logical_key="pnca.chapter.request.volume_001.001",
+        payload={"chapter_ordinal": 1},
+        payload_name="request.json",
+    )
+    author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
+    chapter = author.author_chapter(
+        run=run,
+        parent=AuthoredContract(artifact=volume_artifact, contract=volume),
+        request=chapter_request,
+        scope_id="chapter_001",
+    )
+    binding = FrontierBinding(
+        input_snapshot_id="snap_001",
+        frontier_artifact_id=frontier.artifact_id,
+        frontier_digest=frontier.manifest.content_digest,
+        lineage_root_digest=seed.manifest.content_digest,
+    )
+    scene_request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="scene-request", phase="design", reason="test"),
+        artifact_type="pnca.scene.request",
+        logical_key="pnca.scene.request.chapter_001.scene_001",
+        payload={"slot_id": "scene_001"},
+        payload_name="request.json",
+    )
+
+    scene, consumed = author.author_scene(
+        run=run,
+        parent=chapter,
+        request=scene_request,
+        frontier=frontier,
+        frontier_binding=binding,
+        scope_id="scene_001",
+        admission_allowances=volume.admission_allowances,
+        scene_slot=chapter.contract.scene_slots[0],
+    )
+
+    assert scene.contract.admission_consumptions[0].allowance_id == "allow_character"
+    assert scene.contract.admission_consumptions[0].kind == "character"
+    assert consumed[0].kind == "character"

@@ -127,14 +127,13 @@
     },
     "admission_consumptions": {
       "type": "array",
-      "description": "parent slot が許可した Volume admission allowance の消費。",
+      "description": "parent slot が許可した Volume admission allowance の消費。各 item は allowance_id と entity_id を返す。kind は省略する（repository が allowance 定義から導出）。",
       "items": {
         "type": "object",
         "description": "一つの admission allowance consumption。",
         "required": [
           "allowance_id",
-          "entity_id",
-          "kind"
+          "entity_id"
         ],
         "properties": {
           "allowance_id": {
@@ -153,7 +152,7 @@
               "artifact",
               "organization"
             ],
-            "description": "entity kind。"
+            "description": "省略する。repository が入力 allowance から導出して materialize する。"
           }
         }
       }

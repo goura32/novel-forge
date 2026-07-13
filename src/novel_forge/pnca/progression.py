@@ -244,6 +244,7 @@ class PNCAContractAuthor:
             raise RuntimeContractError(
                 "SceneContract declares requirement dispositions but the accepted parent ledger is empty"
             )
+        rebuilt_consumptions: list[AdmissionConsumption] = []
         if proposal.admission_consumptions:
             if scene_slot is None:
                 raise RuntimeContractError("scene authoring with admission consumptions requires an allocated SceneSlot")
@@ -253,12 +254,18 @@ class PNCAContractAuthor:
                 allowance = allowances.get(consumption.allowance_id)
                 if allowance is None or consumption.allowance_id not in scene_slot.allowed_admission_allowance_ids:
                     raise RuntimeContractError(f"supporting entity admission is not authorized: {consumption.allowance_id}")
-                if allowance.kind != consumption.kind:
-                    raise RuntimeContractError(f"supporting entity admission kind mismatch: {consumption.allowance_id}")
+                # `kind` is structural authority fixed by the Volume-owned allowance, not
+                # model-authored output.  Derive it from the allowance and ignore any
+                # mismatch in provider output instead of rejecting the whole proposal.
+                rebuilt_consumptions.append(
+                    consumption.model_copy(update={"kind": allowance.kind})
+                )
                 used[consumption.allowance_id] += 1
                 if used[consumption.allowance_id] > allowance.max_count:
                     raise RuntimeContractError(f"supporting entity admission allowance is exhausted: {consumption.allowance_id}")
-        total_consumed = (*previously_consumed, *proposal.admission_consumptions)
+            total_consumed = (*previously_consumed, *rebuilt_consumptions)
+        else:
+            total_consumed = (*previously_consumed, *proposal.admission_consumptions)
         # The chapter's parent-pinned volume purpose is authoritative.  Preserve it in
         # the WriterView instead of trusting a scene proposal to restate the long arc.
         narrative_contract = dict(proposal.writer_view.narrative_contract)
@@ -271,7 +278,8 @@ class PNCAContractAuthor:
             update={"narrative_contract": narrative_contract, "end_constraints": end_constraints}
         )
         contract = SceneContract(
-            **proposal.model_dump(mode="python", exclude={"writer_view"}),
+            **proposal.model_dump(mode="python", exclude={"writer_view", "admission_consumptions"}),
+            admission_consumptions=tuple(rebuilt_consumptions),
             slot_id=slot_id,
             writer_view=writer_view,
             frontier_binding=frontier_binding,
