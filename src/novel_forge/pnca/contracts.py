@@ -269,6 +269,8 @@ class BundleSlotRecord(BaseModel):
     scene_slot_id: str = Field(min_length=1)
     scene_contract_artifact_id: str = Field(min_length=1)
     writer_view_artifact_id: str = Field(min_length=1)
+    draft_artifact_id: str = Field(min_length=1)
+    draft_assessment_artifact_id: str = Field(min_length=1)
     output_frontier_artifact_id: str = Field(min_length=1)
 
 

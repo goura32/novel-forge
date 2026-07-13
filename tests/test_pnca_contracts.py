@@ -319,6 +319,8 @@ def test_design_bundle_rejects_duplicate_or_nonsequential_slot_topology() -> Non
         scene_slot_id="scene_001",
         scene_contract_artifact_id="art_scene_001",
         writer_view_artifact_id="art_view_001",
+        draft_artifact_id="art_draft_001",
+        draft_assessment_artifact_id="art_assessment_001",
         output_frontier_artifact_id="art_frontier_001",
     )
     with pytest.raises(ValidationError, match="unique"):
