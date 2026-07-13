@@ -1,0 +1,303 @@
+"""RED contracts for the PNCA structural foundation."""
+
+from __future__ import annotations
+
+import pytest
+from pydantic import ValidationError
+
+from novel_forge.pnca.contracts import (
+    AcceptanceCommit,
+    AdmissionAllowance,
+    AdmissionConsumption,
+    BundleSlotRecord,
+    CandidatePlan,
+    CandidatePolicy,
+    ChapterContract,
+    DesignBundle,
+    FrontierBinding,
+    OperationRecord,
+    ParentRequirementLedger,
+    RequirementDisposition,
+    RequirementEntry,
+    SceneContract,
+    SceneSlot,
+    SeriesContract,
+    VolumeContract,
+)
+from novel_forge.pnca.validation import PNCAStructuralError, validate_scene_structure
+
+
+def _binding() -> FrontierBinding:
+    return FrontierBinding(
+        input_snapshot_id="sel_parent",
+        frontier_artifact_id="art_frontier_parent",
+        frontier_digest="sha256:frontier-parent",
+        lineage_root_digest="sha256:seed",
+    )
+
+
+def _ledger() -> ParentRequirementLedger:
+    return ParentRequirementLedger(
+        owner_contract_id="chapter_001",
+        requirements=(
+            RequirementEntry(
+                requirement_id="req_entry",
+                owner_scope="chapter",
+                cardinality="exactly_once",
+            ),
+            RequirementEntry(
+                requirement_id="req_reveal",
+                owner_scope="chapter",
+                cardinality="preserve_until",
+                allowed_next_owner=("scene",),
+                defer_target_slot_id="scene_002",
+            ),
+        ),
+    )
+
+
+def _slots() -> tuple[SceneSlot, ...]:
+    return (
+        SceneSlot(slot_id="scene_001", ordinal=1, allowed_admission_allowance_ids=("allow_support",)),
+        SceneSlot(slot_id="scene_002", ordinal=2),
+    )
+
+
+def test_no_effect_scene_rejects_any_patch() -> None:
+    with pytest.raises(ValidationError, match="canon_effect none"):
+        SceneContract(
+            contract_id="scene_contract_001",
+            slot_id="scene_001",
+            frontier_binding=_binding(),
+            canon_effect="none",
+            canon_patch={"characters": {"state_updates": [{"id": "char_001"}]}},
+        )
+
+
+def test_mutating_scene_requires_a_nonempty_patch() -> None:
+    with pytest.raises(ValidationError, match="non-empty canon_patch"):
+        SceneContract(
+            contract_id="scene_contract_001",
+            slot_id="scene_001",
+            frontier_binding=_binding(),
+            canon_effect="mutates",
+            canon_patch={},
+        )
+
+
+def test_frontier_binding_rejects_blank_identity_fields() -> None:
+    with pytest.raises(ValidationError, match="frontier_artifact_id"):
+        FrontierBinding(
+            input_snapshot_id="sel_parent",
+            frontier_artifact_id="",
+            frontier_digest="sha256:frontier-parent",
+            lineage_root_digest="sha256:seed",
+        )
+
+
+def test_deferred_requirement_must_name_its_predeclared_later_slot() -> None:
+    ledger = ParentRequirementLedger(
+        owner_contract_id="chapter_001",
+        requirements=(
+            RequirementEntry(
+                requirement_id="req_reveal",
+                owner_scope="chapter",
+                cardinality="preserve_until",
+                allowed_next_owner=("scene",),
+                defer_target_slot_id="scene_001",
+            ),
+        ),
+    )
+    contract = SceneContract(
+        contract_id="scene_contract_001",
+        slot_id="scene_001",
+        frontier_binding=_binding(),
+        canon_effect="none",
+        requirement_dispositions=(
+            RequirementDisposition(
+                requirement_id="req_reveal",
+                disposition="deferred",
+                defer_target_slot_id="scene_001",
+            ),
+        ),
+    )
+
+    with pytest.raises(PNCAStructuralError, match="later target slot"):
+        validate_scene_structure(
+            contract=contract,
+            parent_ledger=ledger,
+            scene_slots=_slots(),
+            admission_allowances=(),
+            consumed_admissions=(),
+        )
+
+
+def test_scene_rejects_unapproved_supporting_entity_admission() -> None:
+    contract = SceneContract(
+        contract_id="scene_contract_001",
+        slot_id="scene_001",
+        frontier_binding=_binding(),
+        canon_effect="none",
+        admission_consumptions=(
+            AdmissionConsumption(
+                allowance_id="allow_unknown",
+                entity_id="character_guest",
+                kind="character",
+            ),
+        ),
+    )
+
+    with pytest.raises(PNCAStructuralError, match="not authorized"):
+        validate_scene_structure(
+            contract=contract,
+            parent_ledger=_ledger(),
+            scene_slots=_slots(),
+            admission_allowances=(AdmissionAllowance(allowance_id="allow_support", kind="character", max_count=1),),
+            consumed_admissions=(),
+        )
+
+
+def test_scene_rejects_duplicate_admission_consumption_across_selected_slots() -> None:
+    allowance = AdmissionAllowance(allowance_id="allow_support", kind="character", max_count=1)
+    prior = AdmissionConsumption(
+        allowance_id="allow_support",
+        entity_id="character_prior",
+        kind="character",
+    )
+    contract = SceneContract(
+        contract_id="scene_contract_001",
+        slot_id="scene_001",
+        frontier_binding=_binding(),
+        canon_effect="none",
+        admission_consumptions=(
+            AdmissionConsumption(
+                allowance_id="allow_support",
+                entity_id="character_new",
+                kind="character",
+            ),
+        ),
+    )
+
+    with pytest.raises(PNCAStructuralError, match="exhausted"):
+        validate_scene_structure(
+            contract=contract,
+            parent_ledger=_ledger(),
+            scene_slots=_slots(),
+            admission_allowances=(allowance,),
+            consumed_admissions=(prior,),
+        )
+
+
+def test_scene_rejects_duplicate_requirement_disposition() -> None:
+    contract = SceneContract(
+        contract_id="scene_contract_001",
+        slot_id="scene_001",
+        frontier_binding=_binding(),
+        canon_effect="none",
+        requirement_dispositions=(
+            RequirementDisposition(requirement_id="req_entry", disposition="implemented"),
+            RequirementDisposition(requirement_id="req_entry", disposition="preserved"),
+        ),
+    )
+
+    with pytest.raises(PNCAStructuralError, match="duplicate requirement disposition"):
+        validate_scene_structure(
+            contract=contract,
+            parent_ledger=_ledger(),
+            scene_slots=_slots(),
+            admission_allowances=(),
+            consumed_admissions=(),
+        )
+
+
+def test_progressive_contracts_preserve_parent_identity_and_slot_topology() -> None:
+    series = SeriesContract(
+        contract_id="series_001",
+        canon_seed_artifact_id="art_seed",
+        root_frontier_artifact_id="art_frontier_root",
+        root_frontier_digest="sha256:root",
+    )
+    volume = VolumeContract(
+        contract_id="volume_001",
+        parent_series_contract_id=series.contract_id,
+        volume_ordinal=1,
+    )
+
+    with pytest.raises(ValidationError, match="strictly increasing"):
+        ChapterContract(
+            contract_id="chapter_001",
+            parent_volume_contract_id=volume.contract_id,
+            chapter_ordinal=1,
+            scene_slots=(
+                SceneSlot(slot_id="scene_002", ordinal=2),
+                SceneSlot(slot_id="scene_001", ordinal=1),
+            ),
+        )
+
+
+def test_candidate_plan_cannot_exceed_its_pinned_policy() -> None:
+    policy = CandidatePolicy(
+        policy_id="policy_scene",
+        max_total_candidates=2,
+        max_fresh_candidates=1,
+        max_revision_candidates=1,
+        audits_per_candidate=3,
+        max_input_tokens=4096,
+        worst_case_candidate_input_tokens=2048,
+        worst_case_selection_input_tokens=4096,
+    )
+
+    with pytest.raises(ValidationError, match="max_total_candidates"):
+        CandidatePlan(
+            plan_id="plan_scene",
+            policy_id=policy.policy_id,
+            candidate_ids=("cand_001", "cand_002", "cand_003"),
+            max_total_candidates=policy.max_total_candidates,
+        )
+
+
+def test_candidate_policy_rejects_unbounded_raw_audit_selection_input() -> None:
+    with pytest.raises(ValidationError, match="worst_case_selection_input_tokens"):
+        CandidatePolicy(
+            policy_id="policy_scene",
+            max_total_candidates=1,
+            max_fresh_candidates=1,
+            max_revision_candidates=0,
+            audits_per_candidate=3,
+            max_input_tokens=4096,
+            worst_case_candidate_input_tokens=2048,
+            worst_case_selection_input_tokens=4097,
+        )
+
+
+def test_operation_record_rejects_committed_state_without_acceptance_id() -> None:
+    with pytest.raises(ValidationError, match="acceptance_id"):
+        OperationRecord(
+            operation_key="series:sel_parent:scene:contract",
+            input_snapshot_id="sel_parent",
+            state="committed",
+        )
+
+
+def test_acceptance_commit_requires_a_scene_frontier_evidence_group() -> None:
+    with pytest.raises(ValidationError, match="required role"):
+        AcceptanceCommit(
+            acceptance_id="accept_scene_001",
+            base_snapshot_id="sel_parent",
+            operation_key="series:sel_parent:scene:contract",
+            role_artifact_ids={"scene.contract": "art_scene"},
+        )
+
+
+def test_design_bundle_rejects_duplicate_or_nonsequential_slot_topology() -> None:
+    duplicate = BundleSlotRecord(
+        volume_ordinal=1,
+        chapter_ordinal=1,
+        scene_ordinal=1,
+        scene_slot_id="scene_001",
+        scene_contract_artifact_id="art_scene_001",
+        writer_view_artifact_id="art_view_001",
+        output_frontier_artifact_id="art_frontier_001",
+    )
+    with pytest.raises(ValidationError, match="unique"):
+        DesignBundle(bundle_id="bundle_001", slots=(duplicate, duplicate))
