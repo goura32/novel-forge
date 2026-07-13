@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from novel_forge.pnca.contracts import (
     AcceptanceCommit,
+    ChapterAcceptanceCommit,
     FrontierBinding,
     OperationRecord,
     SeriesAcceptanceCommit,
@@ -687,6 +688,83 @@ class RunRepository:
         _fsync_directory(ledger)
         return snapshot
 
+    def commit_pnca_chapter_acceptance(
+        self, *, slug: str, acceptance: ChapterAcceptanceCommit
+    ) -> SelectionSnapshot:
+        """Atomically publish one Chapter Contract against its selected Volume parent."""
+        base = self.load_snapshot(slug, acceptance.base_snapshot_id)
+        chapter = self.verify_artifact(acceptance.role_artifact_ids["chapter.contract"])
+        if chapter.manifest.artifact_type != "pnca.chapter.contract":
+            raise RuntimeContractError("Chapter acceptance requires pnca.chapter.contract")
+        payload = self.read_payload(chapter)
+        if not isinstance(payload, dict):
+            raise RuntimeContractError("Chapter acceptance requires a Chapter Contract payload")
+        chapter_ordinal = payload.get("chapter_ordinal")
+        if not isinstance(chapter_ordinal, int) or chapter_ordinal < 1:
+            raise RuntimeContractError("Chapter acceptance requires a positive chapter_ordinal")
+        parent_contract_id = payload.get("parent_volume_contract_id")
+        if not isinstance(parent_contract_id, str) or not parent_contract_id:
+            raise RuntimeContractError("Chapter acceptance requires parent_volume_contract_id")
+        selected_volumes = [
+            artifact_id
+            for key, artifact_id in base.slots.items()
+            if key.startswith("volume.contract.")
+        ]
+        parent_id = next(
+            (
+                artifact_id
+                for artifact_id in selected_volumes
+                if (selected_payload := self.read_payload(self.verify_artifact(artifact_id)))
+                and isinstance(selected_payload, dict)
+                and selected_payload.get("contract_id") == parent_contract_id
+            ),
+            None,
+        )
+        if parent_id is None:
+            raise RuntimeContractError("Chapter acceptance base snapshot requires the named selected Volume Contract")
+        if parent_id not in chapter.manifest.input_artifact_ids:
+            raise RuntimeContractError("Chapter acceptance requires exact selected Volume Contract input")
+        parent = self.read_payload(self.verify_artifact(parent_id))
+        volume_ordinal = parent.get("volume_ordinal") if isinstance(parent, dict) else None
+        if not isinstance(volume_ordinal, int) or volume_ordinal < 1:
+            raise RuntimeContractError("Chapter acceptance selected Volume Contract requires a positive volume_ordinal")
+        slot = f"chapter.contract.{volume_ordinal:03d}.{chapter_ordinal:03d}"
+        if slot in base.slots:
+            raise RuntimeContractError("Chapter acceptance must not overwrite an existing selected slot")
+        slots = dict(base.slots)
+        slots[slot] = chapter.artifact_id
+        self.verify_canon_snapshot(slots)
+        ledger = self.ledger_root(slug)
+        self.writer.mkdir(ledger)
+        snapshots = ledger / "snapshots"
+        self.writer.mkdir(snapshots)
+        snapshot_id = f"sel_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:6]}"
+        snapshot = SelectionSnapshot(
+            selection_snapshot_id=snapshot_id,
+            base_snapshot_id=acceptance.base_snapshot_id,
+            slots=dict(sorted(slots.items())),
+            slots_digest=digest_json(dict(sorted(slots.items()))),
+            created_at=utc_now(),
+        )
+        snapshot_path = snapshots / f"{snapshot_id}.json"
+        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        self._append_ledger_event(
+            slug,
+            "pnca.chapter.acceptance.committed",
+            {
+                "acceptance_id": acceptance.acceptance_id,
+                "selection_snapshot_id": snapshot_id,
+                "base_snapshot_id": acceptance.base_snapshot_id,
+                "slots": snapshot.slots,
+                "slots_digest": snapshot.slots_digest,
+                "snapshot_path": str(snapshot_path.relative_to(self.series_root(slug))),
+                "snapshot_digest": snapshot_digest,
+                "acceptance": acceptance.model_dump(mode="json"),
+            },
+        )
+        _fsync_directory(ledger)
+        return snapshot
+
     def commit_pnca_acceptance(
         self,
         *,
@@ -850,6 +928,7 @@ class RunRepository:
                 "pnca.acceptance.committed",
                 "pnca.series.acceptance.committed",
                 "pnca.volume.acceptance.committed",
+                "pnca.chapter.acceptance.committed",
             }
         ]
         if not selected or not isinstance(selected[-1], str):
@@ -865,6 +944,7 @@ class RunRepository:
                 "pnca.acceptance.committed",
                 "pnca.series.acceptance.committed",
                 "pnca.volume.acceptance.committed",
+                "pnca.chapter.acceptance.committed",
             }
                 and event.payload.get("selection_snapshot_id") == snapshot_id
             ),

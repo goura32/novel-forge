@@ -8,6 +8,7 @@ import pytest
 
 from novel_forge.pnca.contracts import (
     AcceptanceCommit,
+    ChapterAcceptanceCommit,
     FrontierBinding,
     SeriesAcceptanceCommit,
     VolumeAcceptanceCommit,
@@ -238,6 +239,28 @@ def test_volume_acceptance_publishes_parent_pinned_volume_slot(tmp_path: Path) -
     assert snapshot.base_snapshot_id == base.selection_snapshot_id
     assert snapshot.slots["pnca.series.contract.series_001"] == series.artifact_id
     assert snapshot.slots["volume.contract.001"] == volume.artifact_id
+
+
+def test_chapter_acceptance_publishes_parent_pinned_chapter_slot(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    seed = _artifact(repo, run, artifact_type="canon.seed", logical_key="canon.seed", payload={"seed": True})
+    root = _artifact(repo, run, artifact_type="canon.event_set", logical_key="canon.frontier.root", payload={"events": []}, canon_lineage_root_digest=seed.manifest.content_digest)
+    series = _artifact(repo, run, artifact_type="pnca.series.contract", logical_key="pnca.series.contract.series_001", payload={"contract_id": "series_001"})
+    root_snapshot = repo.commit_pnca_series_acceptance(slug="series_001", acceptance=SeriesAcceptanceCommit(acceptance_id="accept_series", operation_key="series_001:root:accept", role_artifact_ids={"series.contract": series.artifact_id, "canon.seed": seed.artifact_id, "canon.frontier.output": root.artifact_id}))
+    design_run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id=root_snapshot.selection_snapshot_id)
+    volume = _artifact(repo, design_run, artifact_type="pnca.volume.contract", logical_key="pnca.volume.contract.series_001.001", payload={"contract_id": "volume_001", "volume_ordinal": 1}, input_artifact_ids=(series.artifact_id,))
+    volume_snapshot = repo.commit_pnca_volume_acceptance(slug="series_001", acceptance=VolumeAcceptanceCommit(acceptance_id="accept_volume", base_snapshot_id=root_snapshot.selection_snapshot_id, operation_key="series_001:volume:001:accept", role_artifact_ids={"volume.contract": volume.artifact_id}))
+    second_volume = _artifact(repo, design_run, artifact_type="pnca.volume.contract", logical_key="pnca.volume.contract.series_001.002", payload={"contract_id": "volume_002", "volume_ordinal": 2}, input_artifact_ids=(series.artifact_id,))
+    second_volume_snapshot = repo.commit_pnca_volume_acceptance(slug="series_001", acceptance=VolumeAcceptanceCommit(acceptance_id="accept_volume_002", base_snapshot_id=volume_snapshot.selection_snapshot_id, operation_key="series_001:volume:002:accept", role_artifact_ids={"volume.contract": second_volume.artifact_id}))
+    chapter = _artifact(repo, design_run, artifact_type="pnca.chapter.contract", logical_key="pnca.chapter.contract.volume_002.001", payload={"contract_id": "chapter_001", "parent_volume_contract_id": "volume_002", "chapter_ordinal": 1}, input_artifact_ids=(second_volume.artifact_id,))
+
+    snapshot = repo.commit_pnca_chapter_acceptance(slug="series_001", acceptance=ChapterAcceptanceCommit(acceptance_id="accept_chapter", base_snapshot_id=second_volume_snapshot.selection_snapshot_id, operation_key="series_001:volume:002:chapter:001:accept", role_artifact_ids={"chapter.contract": chapter.artifact_id}))
+
+    assert snapshot.base_snapshot_id == second_volume_snapshot.selection_snapshot_id
+    assert snapshot.slots["volume.contract.002"] == second_volume.artifact_id
+    assert snapshot.slots["chapter.contract.002.001"] == chapter.artifact_id
+
 
 def test_acceptance_rejects_frontier_digest_that_is_not_the_exact_base_snapshot_frontier(
     tmp_path: Path,

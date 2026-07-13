@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from novel_forge.pnca.contracts import SeriesContract, VolumePurpose
+from types import SimpleNamespace
+
+from novel_forge.pnca.contracts import ChapterContract, SeriesContract, VolumePurpose
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.runtime import RunRepository
@@ -64,3 +66,38 @@ def test_bootstrap_series_authors_then_selects_pnca_root(tmp_path) -> None:
 
     assert result.selection_snapshot_id == repo.current_snapshot_id("series_001")
     assert result.slots["pnca.series.contract.series_001"] == contract_artifact.artifact_id
+
+
+def test_accept_chapter_delegates_to_parent_pinned_repository_transaction() -> None:
+    captured: dict[str, object] = {}
+
+    class FakeRepository:
+        @staticmethod
+        def commit_pnca_chapter_acceptance(*, slug, acceptance):
+            captured.update({"slug": slug, "acceptance": acceptance})
+            return SimpleNamespace(selection_snapshot_id="sel_chapter")
+
+    chapter = ChapterContract(
+        contract_id="chapter_001",
+        parent_volume_contract_id="volume_002",
+        chapter_ordinal=1,
+        scene_slots=(),
+    )
+    authored = AuthoredContract(
+        artifact=SimpleNamespace(artifact_id="art_chapter"),
+        contract=chapter,
+    )
+
+    result = PNCAWorkflow(repository=FakeRepository(), contract_author=object()).accept_chapter(
+        slug="series_001",
+        authored=authored,
+        base_snapshot_id="sel_volume",
+        volume_ordinal=2,
+    )
+
+    assert result.selection_snapshot_id == "sel_chapter"
+    assert captured["slug"] == "series_001"
+    acceptance = captured["acceptance"]
+    assert acceptance.base_snapshot_id == "sel_volume"
+    assert acceptance.role_artifact_ids == {"chapter.contract": "art_chapter"}
+    assert acceptance.operation_key == "series_001:volume:002:chapter:001:accept"

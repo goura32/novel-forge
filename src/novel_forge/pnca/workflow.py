@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any, cast
 
 from novel_forge.pnca.contracts import (
+    ChapterAcceptanceCommit,
+    ChapterContract,
     SeriesAcceptanceCommit,
     SeriesContract,
     VolumeAcceptanceCommit,
@@ -72,6 +74,35 @@ class PNCAWorkflow:
                 base_snapshot_id=base_snapshot_id,
                 operation_key=f"{slug}:volume:{contract.volume_ordinal:03d}:accept",
                 role_artifact_ids={"volume.contract": authored.artifact.artifact_id},
+            ),
+        )
+
+    def author_chapter(
+        self, *, run: RunHandle, parent: AuthoredContract[VolumeContract], request: ArtifactReference, scope_id: str
+    ) -> AuthoredContract[ChapterContract]:
+        return cast(
+            AuthoredContract[ChapterContract],
+            self.contract_author.author_chapter(run=run, parent=parent, request=request, scope_id=scope_id),
+        )
+
+    def accept_chapter(
+        self,
+        *,
+        slug: str,
+        authored: AuthoredContract[ChapterContract],
+        base_snapshot_id: str,
+        volume_ordinal: int,
+    ) -> SelectionSnapshot:
+        contract = authored.contract
+        return self.repository.commit_pnca_chapter_acceptance(
+            slug=slug,
+            acceptance=ChapterAcceptanceCommit(
+                acceptance_id=f"accept_{contract.contract_id}",
+                base_snapshot_id=base_snapshot_id,
+                operation_key=(
+                    f"{slug}:volume:{volume_ordinal:03d}:chapter:{contract.chapter_ordinal:03d}:accept"
+                ),
+                role_artifact_ids={"chapter.contract": authored.artifact.artifact_id},
             ),
         )
 
