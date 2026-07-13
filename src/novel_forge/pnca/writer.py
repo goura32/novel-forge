@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from novel_forge.pnca.contracts import DraftAudit, WriterView
+from novel_forge.pnca.contracts import DraftAudit, WriterView, WriterViewReview
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.pnca.validation import PNCAStructuralError, validate_writer_view
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository
@@ -19,8 +19,9 @@ class RenderedDraft:
 class PNCARenderer:
     """Persist a WriterView and its prose draft without a summary handoff."""
 
-    def __init__(self, repository: RunRepository) -> None:
+    def __init__(self, repository: RunRepository, *, max_writer_view_review_count: int = 3) -> None:
         self.repository = repository
+        self.max_writer_view_review_count = max_writer_view_review_count
 
     def render(
         self,
@@ -32,6 +33,7 @@ class PNCARenderer:
         executor: PNCATaskExecutor,
         scope_id: str,
     ) -> RenderedDraft:
+        view = self._review_writer_view(view=view, executor=executor, scope_id=scope_id)
         validate_writer_view(view)
         writer_attempt = self.repository.start_attempt(
             run, task_id="pnca.scene.writer_view", phase="write", reason="compile writer view"
@@ -66,6 +68,41 @@ class PNCARenderer:
             input_artifact_ids=(writer_view.artifact_id,),
         )
         return RenderedDraft(writer_view=writer_view, draft=draft)
+
+    def _review_writer_view(
+        self, *, view: WriterView, executor: PNCATaskExecutor, scope_id: str
+    ) -> WriterView:
+        """Resolve contradictory authoring constraints before prose generation."""
+        current = view
+        for review_cycle in range(self.max_writer_view_review_count):
+            review = WriterViewReview.model_validate(
+                executor.execute(
+                    task_id="pnca.writer_view.review",
+                    artifacts={"writer.view": current.model_dump(mode="json")},
+                    input_artifact_ids=(),
+                    scope_id=f"{scope_id}.writer-view.review.{review_cycle + 1}",
+                )
+            )
+            if not review.issues:
+                return current
+            if review_cycle + 1 >= self.max_writer_view_review_count:
+                break
+            revised = executor.execute(
+                task_id="pnca.writer_view.revise",
+                artifacts={
+                    "writer.view": current.model_dump(mode="json"),
+                    "writer.view.review": review.model_dump(mode="json"),
+                },
+                input_artifact_ids=(),
+                scope_id=f"{scope_id}.writer-view.revise.{review_cycle + 1}",
+            )
+            if not isinstance(revised, dict) or not isinstance(revised.get("writer_view"), dict):
+                raise PNCAStructuralError("WriterView revision output requires a writer_view object")
+            current = WriterView.model_validate(revised["writer_view"])
+            validate_writer_view(current)
+        raise PNCAStructuralError(
+            f"writer view remains contradictory after {self.max_writer_view_review_count} review cycles for {scope_id}"
+        )
 
     def audit(
         self,

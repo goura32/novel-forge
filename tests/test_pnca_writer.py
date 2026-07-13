@@ -18,12 +18,26 @@ def test_renderer_passes_only_writer_view_and_persists_draft(tmp_path) -> None:
     observed = {}
 
     def provider(task_id, projection, operation_key):
+        if task_id == "pnca.writer_view.review":
+            return {"issues": []}
         observed["task_id"] = task_id
         observed["projection"] = projection
         observed["operation_key"] = operation_key
         return {"content": "夜明け前、リナは塔へ向かった。"}
 
     registry = PNCATaskRegistry(specs=(
+        TaskSpec(
+            task_id="pnca.writer_view.review",
+            task_kind="audit",
+            input_bindings=(InputBinding(role="writer.view", variable="writer_view"),),
+            output=ArtifactSpec(role="writer.view.review", artifact_type="pnca.writer_view.review", logical_key_template="pnca.writer_view.review.{scope_id}"),
+            prompt_digest="sha256:prompt",
+            schema_digest="sha256:schema",
+            model_profile="test",
+            max_input_bytes=4096,
+            max_output_bytes=4096,
+            idempotency_scope="writer-view-review",
+        ),
         TaskSpec(
             task_id="pnca.scene.render",
             task_kind="render",
@@ -60,3 +74,38 @@ def test_renderer_passes_only_writer_view_and_persists_draft(tmp_path) -> None:
     assert set(observed["projection"]) == {"writer_view"}
     assert "canon" not in str(observed["projection"])
     assert repo.read_payload(rendered.draft) == {"content": "夜明け前、リナは塔へ向かった。"}
+
+
+def test_renderer_revises_writer_view_before_prose_render(tmp_path) -> None:
+    calls: list[str] = []
+
+    def provider(task_id, projection, operation_key):
+        calls.append(task_id)
+        if task_id == "pnca.writer_view.review":
+            if len([call for call in calls if call == task_id]) == 1:
+                return {"issues": [{"field": "end_constraints", "severity": "critical", "description": "POV外の内面を要求している", "suggestion": "POVが見える動作だけにする"}]}
+            return {"issues": []}
+        if task_id == "pnca.writer_view.revise":
+            return {"writer_view": {"start_context": {"pov": "リナ"}, "narrative_contract": {"goal": "塔へ行く"}, "end_constraints": {"visible_end": "リナが塔の扉に手を置く"}, "presentation_constraints": {"voice": "三人称限定"}, "required_beats": ["リナが塔の扉に手を置く"]}}
+        assert task_id == "pnca.scene.render"
+        return {"content": "リナは塔の扉に手を置いた。"}
+
+    registry = PNCATaskRegistry(specs=(
+        TaskSpec(task_id="pnca.writer_view.review", task_kind="audit", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="writer.view.review", artifact_type="pnca.writer_view.review", logical_key_template="review.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-review"),
+        TaskSpec(task_id="pnca.writer_view.revise", task_kind="authoring", input_bindings=(InputBinding(role="writer.view", variable="writer_view"), InputBinding(role="writer.view.review", variable="issues")), output=ArtifactSpec(role="writer.view.revised", artifact_type="pnca.writer_view", logical_key_template="revise.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-revise"),
+        TaskSpec(task_id="pnca.scene.render", task_kind="render", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="scene.draft", artifact_type="pnca.scene_draft", logical_key_template="draft.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="scene-render"),
+    ))
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+
+    rendered = PNCARenderer(repo).render(
+        run=run,
+        scene_contract_artifact_id="art_scene_contract",
+        scene_contract_digest="sha256:scene",
+        view=WriterView(end_constraints={"invalid": "相手が内心で受け入れる"}),
+        executor=PNCATaskExecutor(registry=registry, provider=provider),
+        scope_id="scene_001",
+    )
+
+    assert calls == ["pnca.writer_view.review", "pnca.writer_view.revise", "pnca.writer_view.review", "pnca.scene.render"]
+    assert repo.read_payload(rendered.writer_view)["end_constraints"] == {"visible_end": "リナが塔の扉に手を置く"}

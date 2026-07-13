@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "description": "レビュー指摘を反映した完全な WriterView を返す。",
+  "required": ["writer_view"],
+  "properties": {
+    "writer_view": {
+      "type": "object",
+      "description": "本文 writer に渡せる唯一の改訂済み authoring surface。",
+      "required": ["start_context", "narrative_contract", "end_constraints", "presentation_constraints", "required_beats"],
+      "properties": {
+        "start_context": {"type": "object", "description": "固定 POV を含む scene 開始時の状況。"},
+        "narrative_contract": {"type": "object", "description": "この一 scene が果たす本文上の役割。"},
+        "end_constraints": {"type": "object", "description": "最後の beat と一致する、POV が直接観測できる終了状態。"},
+        "presentation_constraints": {"type": "object", "description": "限定 POV と自然な本文表現を両立する presentation 制約。"},
+        "required_beats": {
+          "type": "array",
+          "description": "本文内で順番に達成する、直接観測可能な2〜4個の出来事。",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "anyOf": [
+              {"type": "string", "description": "一つの具体的な行為・台詞・反応。"},
+              {
+                "type": "object",
+                "description": "一つの具体的な行為・台詞・反応を記録する object。",
+                "required": ["description"],
+                "properties": {"description": {"type": "string", "description": "POV が知覚する一つの具体的出来事。"}}
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

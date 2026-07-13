@@ -141,6 +141,8 @@ class FakeExecutor:
         self._repo = repository
 
     def execute(self, *, task_id: str, scope_id: str, artifacts: dict[str, Any], input_artifact_ids: tuple[str, ...]) -> Any:
+        if task_id == "pnca.writer_view.review":
+            return {"issues": []}
         if task_id == "pnca.scene.render":
             return {"content": "シーンの本文。約500字の自然な日本語で書く。"}
         if task_id == "pnca.draft.audit":

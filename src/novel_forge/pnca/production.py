@@ -109,6 +109,8 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
         "pnca.volume.contract": ("pnca_volume_contract.md", "pnca_volume_contract.json"),
         "pnca.chapter.contract": ("pnca_chapter_contract.md", "pnca_chapter_contract.json"),
         "pnca.scene.contract": ("pnca_scene_contract.md", "pnca_scene_contract.json"),
+        "pnca.writer_view.review": ("pnca_writer_view_review.md", "review_issues.json"),
+        "pnca.writer_view.revise": ("pnca_writer_view_revise.md", "pnca_writer_view_revise.json"),
         "pnca.scene.render": ("pnca_scene_render.md", "pnca_scene_render.json"),
         "pnca.scene.revise": ("pnca_scene_revise.md", "pnca_scene_revise.json"),
         "pnca.draft.audit": ("pnca_draft_audit.md", "pnca_draft_audit.json"),
@@ -129,7 +131,12 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
         variables: dict[str, str] = {
             "schema": _build_simplified_schema(schema),
         }
-        if task_id == "pnca.scene.render":
+        if task_id == "pnca.writer_view.review":
+            variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
+        elif task_id == "pnca.writer_view.revise":
+            variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
+            variables["issues"] = json.dumps(projection["issues"], ensure_ascii=False)
+        elif task_id == "pnca.scene.render":
             variables["start_context"] = json.dumps(projection["writer_view"]["start_context"], ensure_ascii=False)
             variables["narrative_contract"] = json.dumps(projection["writer_view"]["narrative_contract"], ensure_ascii=False)
             variables["end_constraints"] = json.dumps(projection["writer_view"]["end_constraints"], ensure_ascii=False)

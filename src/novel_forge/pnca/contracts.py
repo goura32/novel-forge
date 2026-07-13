@@ -389,6 +389,21 @@ class ChapterAcceptanceCommit(BaseModel):
         return self
 
 
+class WriterViewReviewIssue(BaseModel):
+    """One actionable pre-render finding against a scene WriterView."""
+
+    field: str = Field(min_length=1)
+    severity: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    suggestion: str = Field(min_length=1)
+
+
+class WriterViewReview(BaseModel):
+    """A bounded review result that either accepts or requests a WriterView revision."""
+
+    issues: tuple[WriterViewReviewIssue, ...]
+
+
 class DraftAuditIssue(BaseModel):
     """A typed, publication-gating finding against one rendered scene."""
 
