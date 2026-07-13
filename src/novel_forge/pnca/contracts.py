@@ -192,6 +192,7 @@ class VolumeContract(BaseModel):
     contract_id: str = Field(min_length=1)
     parent_series_contract_id: str = Field(min_length=1)
     volume_ordinal: int = Field(ge=1)
+    purpose: str = Field(default="", min_length=0)
     admission_allowances: tuple[AdmissionAllowance, ...] = ()
 
     @model_validator(mode="after")
@@ -208,6 +209,7 @@ class ChapterContract(BaseModel):
     contract_id: str = Field(min_length=1)
     parent_volume_contract_id: str = Field(min_length=1)
     chapter_ordinal: int = Field(ge=1)
+    volume_purpose: str = Field(default="", min_length=0)
     scene_slots: tuple[SceneSlot, ...]
 
     @model_validator(mode="after")

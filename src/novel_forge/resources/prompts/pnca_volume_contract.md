@@ -13,6 +13,7 @@
 - `parent_series_contract_id` は入力 parent の `contract_id` と完全一致させる。
 - `volume_ordinal` は入力 request の `volume_ordinal` と完全一致させる。
 - parent の同じ ordinal の `volume_purposes` を、その巻が担う唯一の目的として守る。
+- `purpose` は parent の同じ ordinal の `volume_purposes[].purpose` を一字も変えずにそのまま出力する。この値は後続の Chapter / Scene に渡される達成責務である。
 - `admission_allowances` は、この巻で追加が必要な補助 entity に限定する。不要なら空配列にする。
 - chapter 構成、scene beats、scene-level Canon patch、本文は出力しない。
 - 不自然な英語、簡体字、ハングルを混在させず、自然な日本語で書く。

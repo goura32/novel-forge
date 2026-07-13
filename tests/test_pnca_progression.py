@@ -110,8 +110,10 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
     assert isinstance(series.contract, SeriesContract)
     assert volume.artifact.manifest.input_artifact_ids == (series.artifact.artifact_id, volume_request.artifact_id)
     assert isinstance(volume.contract, VolumeContract)
+    assert volume.contract.purpose == "呪いの受諾"
     assert chapter.artifact.manifest.input_artifact_ids == (volume.artifact.artifact_id, chapter_request.artifact_id)
     assert isinstance(chapter.contract, ChapterContract)
+    assert chapter.contract.volume_purpose == "呪いの受諾"
 
 
 

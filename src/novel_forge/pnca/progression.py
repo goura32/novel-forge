@@ -108,6 +108,7 @@ class PNCAContractAuthor:
             raise RuntimeContractError("volume request requires a positive volume_ordinal")
         if volume_ordinal not in {item.ordinal for item in parent.contract.volume_purposes}:
             raise RuntimeContractError("volume request ordinal is not allocated by its parent SeriesContract")
+        purpose = next(item.purpose for item in parent.contract.volume_purposes if item.ordinal == volume_ordinal)
         authored = self._author(
             run=run,
             task_id="pnca.volume.contract",
@@ -119,6 +120,7 @@ class PNCAContractAuthor:
             binding_override={
                 "parent_series_contract_id": parent.contract.contract_id,
                 "volume_ordinal": volume_ordinal,
+                "purpose": purpose,
             },
         )
         if authored.contract.parent_series_contract_id != parent.contract.contract_id:
@@ -150,6 +152,7 @@ class PNCAContractAuthor:
             binding_override={
                 "parent_volume_contract_id": parent.contract.contract_id,
                 "chapter_ordinal": chapter_ordinal,
+                "volume_purpose": parent.contract.purpose,
             },
         )
         if authored.contract.parent_volume_contract_id != parent.contract.contract_id:

@@ -4,6 +4,7 @@
     "contract_id",
     "parent_volume_contract_id",
     "chapter_ordinal",
+    "volume_purpose",
     "scene_slots"
   ],
   "properties": {
@@ -19,6 +20,10 @@
       "type": "integer",
       "minimum": 1,
       "description": "入力 chapter request の chapter_ordinal と完全一致する章番号。"
+    },
+    "volume_purpose": {
+      "type": "string",
+      "description": "親 Volume Contract の purpose と完全一致する、この章が寄与する巻の達成責務。空文字にはしない。"
     },
     "scene_slots": {
       "type": "array",

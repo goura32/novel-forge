@@ -3,7 +3,8 @@
   "required": [
     "contract_id",
     "parent_series_contract_id",
-    "volume_ordinal"
+    "volume_ordinal",
+    "purpose"
   ],
   "properties": {
     "contract_id": {
@@ -18,6 +19,10 @@
       "type": "integer",
       "minimum": 1,
       "description": "入力 volume request の volume_ordinal と完全一致する巻番号。"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "親 Series Contract の同じ volume_ordinal にある purpose と完全一致する、この巻の達成責務。空文字にはしない。"
     },
     "admission_allowances": {
       "type": "array",

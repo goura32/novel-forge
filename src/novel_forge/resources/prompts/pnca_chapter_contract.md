@@ -12,6 +12,7 @@
 
 - `parent_volume_contract_id` は入力 parent の `contract_id` と完全一致させる。
 - `chapter_ordinal` は入力 request の `chapter_ordinal` と完全一致させる。
+- `volume_purpose` は parent の `purpose` を一字も変えずにそのまま出力する。Scene Contract はこの達成責務に直接寄与しなければならない。
 - `scene_slots` は空にせず、`ordinal` を 1 から昇順・重複なしにする。
 - `slot_id` は Chapter 内で一意な stable ID にする。
 - `allowed_admission_allowance_ids` には parent の `admission_allowances` に存在する ID だけを入れる。不要なら空配列にする。
