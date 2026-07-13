@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import novel_forge.pnca.workflow as workflow_module
 from novel_forge.pnca.contracts import (
     AcceptanceCommit,
     ChapterContract,
@@ -204,4 +205,104 @@ def test_accept_scene_delegates_complete_commit_and_exact_frontier_binding() -> 
         "slug": "series_001",
         "acceptance": acceptance,
         "frontier_binding": binding,
+    }
+
+
+def test_build_scene_acceptance_assembles_complete_role_group(monkeypatch) -> None:
+    prepared_structure = SimpleNamespace(
+        role_artifact_ids={
+            "scene.contract": "art_scene",
+            "parent.requirement_ledger": "art_parent_ledger",
+            "accepted.requirement_ledger": "art_accepted_ledger",
+            "scene.slot_binding": "art_slot",
+            "canon.frontier.output": "art_frontier",
+        }
+    )
+    prepared_audit = SimpleNamespace(
+        batch=SimpleNamespace(artifact_id="art_audit"),
+        synthesis=SimpleNamespace(artifact_id="art_review"),
+    )
+
+    class FakeStructure:
+        def __init__(self, *, repository):
+            self.repository = repository
+
+        def prepare(self, **kwargs):
+            return prepared_structure
+
+    class FakeAudit:
+        def __init__(self, *, repository):
+            self.repository = repository
+
+        def run_structural_audit(self, **kwargs):
+            return prepared_audit
+
+    monkeypatch.setattr(workflow_module, "PNCASceneStructurePreparer", FakeStructure)
+    monkeypatch.setattr(workflow_module, "PNCASceneAuditSynthesizer", FakeAudit)
+
+    workflow = PNCAWorkflow(repository=object(), contract_author=object())
+    acceptance = workflow.build_scene_acceptance(
+        slug="series_001",
+        run=SimpleNamespace(run_id="run_001"),
+        scene=SimpleNamespace(contract=SimpleNamespace(contract_id="scene_contract_001")),
+        parent_chapter=SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_chapter")),
+        parent_volume=SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_volume")),
+        frontier_binding=FrontierBinding(
+            input_snapshot_id="sel_chapter",
+            frontier_artifact_id="art_frontier",
+            frontier_digest="sha256:frontier",
+            lineage_root_digest="sha256:seed",
+        ),
+        base_snapshot_id="sel_chapter",
+    )
+
+    assert acceptance.canon_effect == "none"
+    assert acceptance.base_snapshot_id == "sel_chapter"
+    assert acceptance.operation_key == "series_001:scene:scene_contract_001:accept"
+    assert acceptance.role_artifact_ids == {
+        "scene.contract": "art_scene",
+        "parent.requirement_ledger": "art_parent_ledger",
+        "accepted.requirement_ledger": "art_accepted_ledger",
+        "audit.batch": "art_audit",
+        "review.synthesis": "art_review",
+        "scene.slot_binding": "art_slot",
+        "canon.frontier.output": "art_frontier",
+    }
+
+
+def test_prepare_scene_structure_delegates_only_pinned_contracts(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    prepared = SimpleNamespace(role_artifact_ids={"scene.contract": "art_scene"})
+
+    class FakePreparer:
+        def __init__(self, *, repository) -> None:
+            captured["repository"] = repository
+
+        def prepare(self, **kwargs):
+            captured.update(kwargs)
+            return prepared
+
+    monkeypatch.setattr(workflow_module, "PNCASceneStructurePreparer", FakePreparer)
+    repository = object()
+    run = SimpleNamespace(run_id="run_001")
+    scene = SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_scene"))
+    chapter = SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_chapter"))
+    volume = SimpleNamespace(artifact=SimpleNamespace(artifact_id="art_volume"))
+
+    result = PNCAWorkflow(repository=repository, contract_author=object()).prepare_scene_structure(
+        slug="series_001",
+        run=run,
+        scene=scene,
+        parent_chapter=chapter,
+        parent_volume=volume,
+    )
+
+    assert result is prepared
+    assert captured == {
+        "repository": repository,
+        "slug": "series_001",
+        "run": run,
+        "scene": scene,
+        "parent_chapter": chapter,
+        "parent_volume": volume,
     }

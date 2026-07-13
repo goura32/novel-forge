@@ -16,10 +16,16 @@ from rich.table import Table
 from novel_forge.canon.store import BibleFactory
 from novel_forge.config import RuntimeConfig
 from novel_forge.logging_config import get_logger
-from novel_forge.pnca.contracts import SeriesContract, VolumeContract
+from novel_forge.pnca.contracts import (
+    ChapterContract,
+    FrontierBinding,
+    SeriesContract,
+    VolumeContract,
+)
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
     stage_chapter_request,
+    stage_scene_request,
     stage_series_request,
     stage_volume_request,
 )
@@ -174,6 +180,19 @@ def _selected_volume_contract(
     return AuthoredContract(artifact=artifact, contract=VolumeContract.model_validate(repo.read_payload(artifact)))
 
 
+def _selected_chapter_contract(
+    repo: RunRepository, slug: str, snapshot_id: str, volume_ordinal: int, chapter_ordinal: int
+) -> AuthoredContract[ChapterContract]:
+    slot = f"chapter.contract.{volume_ordinal:03d}.{chapter_ordinal:03d}"
+    snapshot = repo.load_snapshot(slug, snapshot_id)
+    try:
+        artifact_id = snapshot.slots[slot]
+    except KeyError as exc:
+        raise RuntimeContractError(f"selected snapshot is missing required Chapter Contract: {slot}") from exc
+    artifact = repo.verify_artifact(artifact_id)
+    return AuthoredContract(artifact=artifact, contract=ChapterContract.model_validate(repo.read_payload(artifact)))
+
+
 def _make_workflow(
     repo: RunRepository,
     run: RunHandle,
@@ -310,6 +329,7 @@ def plan(
 def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number (0=all)"),
     chapter: int = typer.Option(0, "--chapter", "-C", min=0, help="Chapter number (0=author Volume Contract)"),
+    scene: int = typer.Option(0, "--scene", "-S", min=0, help="Scene number (0=author Chapter Contract)"),
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
@@ -328,6 +348,57 @@ def design(
     run = repo.create_run(command="design", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=snapshot_id)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design", wait=wait_lock):
         workflow = _make_pnca_workflow(repo, config, model)
+        if scene:
+            if volume < 1 or chapter < 1:
+                raise typer.BadParameter(
+                    "scene authoring requires --volume >= 1 and --chapter >= 1",
+                    param_hint="--volume/--chapter",
+                )
+            chapter_parent = _selected_chapter_contract(repo, series_dir.name, snapshot_id, volume, chapter)
+            base_snapshot = repo.load_snapshot(series_dir.name, snapshot_id)
+            frontier_id = base_snapshot.slots.get("canon.frontier")
+            if frontier_id is None:
+                raise RuntimeContractError("selected snapshot requires canon.frontier for scene authoring")
+            frontier = repo.verify_artifact(frontier_id)
+            lineage_root = frontier.manifest.canon_lineage_root_digest
+            if lineage_root is None:
+                raise RuntimeContractError("scene frontier artifact requires a canon lineage root digest")
+            request = stage_scene_request(
+                repository=repo,
+                run=run,
+                chapter_id=chapter_parent.contract.contract_id,
+                slot_id=f"scene_{scene:03d}",
+            )
+            scene_authored = workflow.author_scene(
+                run=run,
+                parent=chapter_parent,
+                request=request,
+                frontier=frontier,
+                frontier_binding=FrontierBinding(
+                    input_snapshot_id=snapshot_id,
+                    frontier_artifact_id=frontier.artifact_id,
+                    frontier_digest=frontier.manifest.content_digest,
+                    lineage_root_digest=lineage_root,
+                ),
+                scope_id=f"{series_dir.name}.volume.{volume:03d}.chapter.{chapter:03d}.scene.{scene:03d}",
+            )
+            acceptance = workflow.build_scene_acceptance(
+                slug=series_dir.name,
+                run=run,
+                scene=scene_authored,
+                parent_chapter=chapter_parent,
+                parent_volume=_selected_volume_contract(repo, series_dir.name, snapshot_id, volume),
+                frontier_binding=scene_authored.contract.frontier_binding,
+                base_snapshot_id=snapshot_id,
+            )
+            snapshot = repo.commit_pnca_acceptance(
+                slug=series_dir.name, acceptance=acceptance, frontier_binding=scene_authored.contract.frontier_binding
+            )
+            console.print(
+                f"[green]✓[/green] PNCA Scene {scene} in Chapter {chapter} Volume {volume} accepted "
+                f"(snapshot: {snapshot.selection_snapshot_id})"
+            )
+            return
         if chapter:
             if volume < 1:
                 raise typer.BadParameter("chapter authoring requires --volume >= 1", param_hint="--volume")

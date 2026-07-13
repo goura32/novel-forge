@@ -16,6 +16,8 @@ from novel_forge.pnca.contracts import (
     VolumeContract,
 )
 from novel_forge.pnca.progression import AuthoredContract
+from novel_forge.pnca.scene_audit import PNCASceneAuditSynthesizer
+from novel_forge.pnca.scene_preparation import PNCASceneStructurePreparer, PreparedSceneStructure
 from novel_forge.runtime import (
     ArtifactReference,
     RunHandle,
@@ -130,6 +132,63 @@ class PNCAWorkflow:
                 frontier_binding=frontier_binding,
                 scope_id=scope_id,
             ),
+        )
+
+    def prepare_scene_structure(
+        self,
+        *,
+        slug: str,
+        run: RunHandle,
+        scene: AuthoredContract[SceneContract],
+        parent_chapter: AuthoredContract[ChapterContract],
+        parent_volume: AuthoredContract[VolumeContract],
+    ) -> PreparedSceneStructure:
+        """Materialize deterministic scene roles before provider-backed audit synthesis."""
+        return PNCASceneStructurePreparer(repository=self.repository).prepare(
+            slug=slug,
+            run=run,
+            scene=scene,
+            parent_chapter=parent_chapter,
+            parent_volume=parent_volume,
+        )
+
+    def build_scene_acceptance(
+        self,
+        *,
+        slug: str,
+        run: RunHandle,
+        scene: AuthoredContract[SceneContract],
+        parent_chapter: AuthoredContract[ChapterContract],
+        parent_volume: AuthoredContract[VolumeContract],
+        frontier_binding: FrontierBinding,
+        base_snapshot_id: str,
+    ) -> AcceptanceCommit:
+        """Assemble every required role into one acceptance commit for a non-mutating scene."""
+        structure = PNCASceneStructurePreparer(repository=self.repository).prepare(
+            slug=slug,
+            run=run,
+            scene=scene,
+            parent_chapter=parent_chapter,
+            parent_volume=parent_volume,
+        )
+        audit = PNCASceneAuditSynthesizer(repository=self.repository).run_structural_audit(
+            run=run,
+            slug=slug,
+            scene=scene,
+            parent_chapter=parent_chapter,
+            parent_volume=parent_volume,
+        )
+        contract = scene.contract
+        return AcceptanceCommit(
+            acceptance_id=f"accept_{contract.contract_id}",
+            base_snapshot_id=base_snapshot_id,
+            operation_key=f"{slug}:scene:{contract.contract_id}:accept",
+            canon_effect="none",
+            role_artifact_ids={
+                **structure.role_artifact_ids,
+                "audit.batch": audit.batch.artifact_id,
+                "review.synthesis": audit.synthesis.artifact_id,
+            },
         )
 
     def accept_scene(

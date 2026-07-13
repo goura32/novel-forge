@@ -160,6 +160,60 @@ def test_design_command_delegates_to_pnca_chapter_authoring_from_selected_volume
         "scope_id": "series_a.volume.002.chapter.003",
     }
 
+
+def test_design_command_delegates_to_pnca_scene_authoring_from_selected_chapter(tmp_path: Path, monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+    chapter_parent = SimpleNamespace(
+        contract=SimpleNamespace(contract_id="chapter_003", scene_slots=(SimpleNamespace(slot_id="scene_001"),))
+    )
+    volume_parent = SimpleNamespace(contract=SimpleNamespace(contract_id="volume_002"))
+    request = SimpleNamespace(artifact_id="scene_request")
+    frontier = SimpleNamespace(
+        artifact_id="frontier_001",
+        manifest=SimpleNamespace(content_digest="sha256:f", canon_lineage_root_digest="sha256:seed"),
+    )
+
+    class FakePNCAWorkflow:
+        @staticmethod
+        def author_scene(*, run: Any, parent: Any, request: Any, frontier: Any, frontier_binding: Any, scope_id: str) -> Any:
+            captured.update(
+                {
+                    "input_snapshot_id": run.manifest.input_snapshot_id,
+                    "parent": parent,
+                    "request": request,
+                    "frontier": frontier,
+                    "scope_id": scope_id,
+                }
+            )
+            return SimpleNamespace(
+                contract=SimpleNamespace(contract_id="scene_001", frontier_binding=frontier_binding)
+            )
+
+        @staticmethod
+        def build_scene_acceptance(**kwargs: Any) -> Any:
+            captured["acceptance"] = kwargs
+            return SimpleNamespace(role_artifact_ids={})
+
+    monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
+    monkeypatch.setattr(cli, "_find_existing_series", lambda *_args: tmp_path / "series_a")
+    monkeypatch.setattr(RunRepository, "current_snapshot_id", lambda *_args: "snap_current")
+    monkeypatch.setattr(RunRepository, "load_snapshot", lambda *_args: SimpleNamespace(slots={"canon.frontier": "frontier_001"}))
+    monkeypatch.setattr(RunRepository, "verify_artifact", lambda *_args: frontier)
+    monkeypatch.setattr(cli, "_selected_chapter_contract", lambda *_args: chapter_parent, raising=False)
+    monkeypatch.setattr(cli, "_selected_volume_contract", lambda *_args: volume_parent, raising=False)
+    monkeypatch.setattr(cli, "stage_scene_request", lambda **_kwargs: request, raising=False)
+    monkeypatch.setattr(cli, "_make_pnca_workflow", lambda *_args: FakePNCAWorkflow())
+    monkeypatch.setattr(RunRepository, "commit_pnca_acceptance", lambda *_args, **_kwargs: SimpleNamespace(selection_snapshot_id="snap_after_scene"))
+
+    result = CliRunner().invoke(
+        cli.app,
+        ["design", "--workdir", str(tmp_path), "--series", "series_a", "--volume", "2", "--chapter", "3", "--scene", "1"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["scope_id"] == "series_a.volume.002.chapter.003.scene.001"
+    assert captured["acceptance"]["slug"] == "series_a"
+
 def _legacy_design_command_starts_from_current_selection_snapshot(tmp_path: Path, monkeypatch) -> None:
     repo = RunRepository(tmp_path)
     expected_snapshot_id = _bootstrap(repo, "series_a")

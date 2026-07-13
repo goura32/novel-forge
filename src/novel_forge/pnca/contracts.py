@@ -271,6 +271,23 @@ class OperationRecord(BaseModel):
         return self
 
 
+class SceneStructuralAudit(BaseModel):
+    """Provider-free structural audit evidence for one Scene Contract."""
+
+    scene_contract_id: str = Field(min_length=1)
+    checks: tuple[dict[str, Any], ...] = ()
+    passed: bool = True
+
+
+class SceneReviewSynthesis(BaseModel):
+    """Deterministic synthesis of a structural audit batch."""
+
+    scene_contract_id: str = Field(min_length=1)
+    audit_batch_artifact_id: str = Field(min_length=1)
+    observations: tuple[dict[str, Any], ...] = ()
+    passed: bool = True
+
+
 _REQUIRED_SCENE_ACCEPTANCE_ROLES = frozenset(
     {
         "scene.contract",
