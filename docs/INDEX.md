@@ -1,6 +1,6 @@
 # ドキュメント索引
 
-最終更新: 2026-07-12
+最終更新: 2026-07-13
 
 この索引にある「現行」文書を、利用・運用・実装の案内として扱います。過去の再設計案は履歴資料であり、live runtimeの説明には使いません。
 
@@ -15,11 +15,12 @@
 | 入力キーワードの作り方 | [KEYWORD_SELECTION_GUIDE](KEYWORD_SELECTION_GUIDE.md) |
 | 用語 | [GLOSSARY](GLOSSARY.md) |
 
-## 開発者: 現行runtime
+## 開発者: 現行runtimeと次期アーキテクチャ
 
 | 目的 | 文書 |
 |---|---|
 | immutable runtime、snapshot、Canon frontier | [ARCHITECTURE](dev/ARCHITECTURE.md) |
+| 次期の設計権限、段階的 contract、Canon / writer境界 | [PNCA](dev/PROGRESSIVE_NARRATIVE_CONTRACT_ARCHITECTURE.md) |
 | promptの役割・改善方針 | [PROMPTS](PROMPTS.md) |
 | prompt / schema / 実行経路 | [PROMPT_SCHEMA_MAP](PROMPT_SCHEMA_MAP.md) |
 | LLMのgeneration・review・revision境界 | [LLM_REVIEW_CONTRACT](dev/LLM_REVIEW_CONTRACT.md) |
