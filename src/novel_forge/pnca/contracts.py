@@ -104,6 +104,7 @@ class WriterView(BaseModel):
     narrative_contract: dict[str, Any] = Field(default_factory=dict)
     end_constraints: dict[str, Any] = Field(default_factory=dict)
     presentation_constraints: dict[str, Any] = Field(default_factory=dict)
+    required_beats: tuple[str, ...] = ()
 
 
 class SceneContract(BaseModel):

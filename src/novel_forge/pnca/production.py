@@ -136,6 +136,9 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
             variables["presentation_constraints"] = json.dumps(
                 projection["writer_view"]["presentation_constraints"], ensure_ascii=False
             )
+            variables["required_beats"] = json.dumps(
+                projection["writer_view"].get("required_beats", []), ensure_ascii=False
+            )
         elif task_id == "pnca.scene.revise":
             variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
             variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)

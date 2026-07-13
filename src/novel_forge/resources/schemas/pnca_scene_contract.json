@@ -35,7 +35,8 @@
         "start_context",
         "narrative_contract",
         "end_constraints",
-        "presentation_constraints"
+        "presentation_constraints",
+        "required_beats"
       ],
       "properties": {
         "start_context": {
@@ -53,6 +54,16 @@
         "presentation_constraints": {
           "type": "object",
           "description": "視点・語調などの本文 presentation 制約。"
+        },
+        "required_beats": {
+          "type": "array",
+          "description": "本文内で順序どおり観測できる必須の場面到達点。",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "description": "POV人物が観測可能な一つの行為・台詞・反応・到達点。"
+          }
         }
       }
     },

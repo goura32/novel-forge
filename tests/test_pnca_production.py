@@ -156,3 +156,31 @@ def test_production_executor_renders_only_registered_scene_projection() -> None:
     assert calls[0]["kind"] == "pnca.scene.contract"
     assert "chapter_001" in calls[0]["user_prompt"]
     assert '"event": "known"' in calls[0]["user_prompt"]
+
+
+def test_production_executor_passes_required_scene_beats_to_renderer() -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def complete_json(self, **kwargs):
+            calls.append(kwargs)
+            return {"content": "本文"}
+
+    executor = make_pnca_task_executor(client=FakeClient())
+    executor.execute(
+        task_id="pnca.scene.render",
+        scope_id="scene_001",
+        artifacts={
+            "writer.view": {
+                "start_context": {},
+                "narrative_contract": {},
+                "end_constraints": {},
+                "presentation_constraints": {},
+                "required_beats": ["エリナが契約を提案する", "公爵が条件付きで受諾する"],
+            }
+        },
+        input_artifact_ids=("art_view",),
+    )
+
+    assert '"エリナが契約を提案する"' in calls[0]["user_prompt"]
+    assert '"公爵が条件付きで受諾する"' in calls[0]["user_prompt"]
