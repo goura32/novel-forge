@@ -74,16 +74,46 @@ class PNCARenderer:
             input_artifact_ids=(scene_contract_artifact_id,),
             metadata={"scene_contract_digest": scene_contract_digest},
         )
-        result = executor.execute(
-            task_id="pnca.scene.render",
-            artifacts={"writer.view": view.model_dump(mode="json")},
-            input_artifact_ids=(writer_view.artifact_id,),
-            scope_id=scope_id,
-        )
-        content = result.get("content") if isinstance(result, dict) else None
-        if not isinstance(content, str) or not content.strip():
-            raise PNCAStructuralError("PNCA render output requires non-empty content")
-        coverage = _validate_draft_coverage(view=view, content=content, payload=result.get("coverage") if isinstance(result, dict) else None)
+        coverage: DraftCoverage | None = None
+        content: str | None = None
+        for render_cycle in range(3):
+            render_scope = scope_id if render_cycle == 0 else f"{scope_id}.coverage-retry.{render_cycle}"
+            result = executor.execute(
+                task_id="pnca.scene.render",
+                artifacts={"writer.view": view.model_dump(mode="json")},
+                input_artifact_ids=(writer_view.artifact_id,),
+                scope_id=render_scope,
+            )
+            candidate = result.get("content") if isinstance(result, dict) else None
+            try:
+                if not isinstance(candidate, str) or not candidate.strip():
+                    raise PNCAStructuralError("PNCA render output requires non-empty content")
+                coverage = _validate_draft_coverage(
+                    view=view,
+                    content=candidate,
+                    payload=result.get("coverage") if isinstance(result, dict) else None,
+                )
+            except PNCAStructuralError as exc:
+                rejected_attempt = self.repository.start_attempt(
+                    run,
+                    task_id="pnca.scene.render.validation",
+                    phase="write",
+                    reason="reject invalid prose obligation coverage",
+                )
+                self.repository.commit_artifact(
+                    rejected_attempt,
+                    artifact_type="pnca.scene_render.rejected",
+                    logical_key=f"pnca.scene_render.rejected.{scope_id}.{render_cycle + 1}",
+                    payload={"result": result, "error": str(exc)},
+                    payload_name="rejected_render.json",
+                    input_artifact_ids=(writer_view.artifact_id,),
+                )
+                if render_cycle == 2:
+                    raise
+                continue
+            content = candidate
+            break
+        assert content is not None and coverage is not None
         draft_attempt = self.repository.start_attempt(
             run, task_id="pnca.scene.render", phase="write", reason="render scene draft"
         )
