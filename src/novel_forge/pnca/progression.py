@@ -213,8 +213,8 @@ class PNCAContractAuthor:
         # Provider output is immutable evidence.  Structural failures are rejected
         # for retry/upstream handling; this boundary never repairs or truncates it.
         validate_writer_view(proposal.writer_view)
-        if parent.contract.is_terminal_volume and proposal.canon_effect != "mutates":
-            raise RuntimeContractError("terminal-volume scene must mutate Canon to implement the series final resolution")
+        if proposal.canon_effect != "mutates":
+            raise RuntimeContractError("every scene must mutate Canon with an observable forward state change")
         if proposal.requirement_dispositions:
             raise RuntimeContractError(
                 "SceneContract declares requirement dispositions but the accepted parent ledger is empty"

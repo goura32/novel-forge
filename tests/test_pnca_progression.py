@@ -236,7 +236,8 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         "pnca.scene.contract": {
             "contract_id": "scene_contract_001",
             "slot_id": "scene_001",
-            "canon_effect": "none",
+            "canon_effect": "mutates",
+            "canon_patch": {"scene_progress": "契約を受け入れた"},
         },
     }
     volume = VolumeContract(contract_id="volume_001", parent_series_contract_id="series_001", volume_ordinal=1, purpose="呪いを解き幸福へ至る")
