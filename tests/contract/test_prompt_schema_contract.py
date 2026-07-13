@@ -76,6 +76,15 @@ def test_all_prompt_templates_have_consistent_basic_structure() -> None:
     assert issues == {}
 
 
+
+def test_scene_contract_prompt_requires_object_writer_view_fields() -> None:
+    text = (PROMPTS_DIR / "pnca_scene_contract.md").read_text(encoding="utf-8")
+
+    assert "`writer_view` は object" in text
+    assert "`narrative_contract` は object" in text
+    assert "単一の文字列にしてはならない" in text
+
+
 def test_all_task_prompts_have_schema_placeholder() -> None:
     prompt_paths = [p for p in PROMPTS_DIR.glob("*.md") if p.name != "system.md"]
 
