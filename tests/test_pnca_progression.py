@@ -30,7 +30,7 @@ def _executor(outputs):
             task_id=task_id,
             task_kind="authoring",
             input_bindings=(
-                (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="canon.frontier", variable="frontier"))
+                (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="canon.frontier", variable="frontier"), InputBinding(role="scene.request", variable="request"))
                 if task_id == "pnca.scene.contract"
                 else (InputBinding(role="series.request", variable="request"),)
                 if task_id == "pnca.series.contract"
@@ -221,12 +221,6 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         "pnca.scene.contract": {
             "contract_id": "scene_contract_001",
             "slot_id": "scene_001",
-            "frontier_binding": {
-                "input_snapshot_id": "snap_001",
-                "frontier_artifact_id": frontier.artifact_id,
-                "frontier_digest": frontier.manifest.content_digest,
-                "lineage_root_digest": "sha256:root",
-            },
             "canon_effect": "none",
         },
     }
@@ -259,14 +253,26 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         lineage_root_digest="sha256:root",
     )
 
+    scene_request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="scene-request", phase="design", reason="test"),
+        artifact_type="pnca.scene.request",
+        logical_key="pnca.scene.request.chapter_001.scene_001",
+        payload={"slot_id": "scene_001"},
+        payload_name="request.json",
+    )
+
     scene = author.author_scene(
         run=run,
         parent=chapter,
-        slot_id="scene_001",
+        request=scene_request,
         frontier=frontier,
         frontier_binding=binding,
         scope_id="scene_001",
     )
 
-    assert scene.artifact.manifest.input_artifact_ids == (chapter.artifact.artifact_id, frontier.artifact_id)
+    assert scene.artifact.manifest.input_artifact_ids == (
+        chapter.artifact.artifact_id,
+        frontier.artifact_id,
+        scene_request.artifact_id,
+    )
     assert scene.contract.slot_id == "scene_001"

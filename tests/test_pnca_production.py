@@ -6,6 +6,7 @@ from novel_forge.pnca.contracts import SeriesContractProposal
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
     stage_chapter_request,
+    stage_scene_request,
     stage_series_request,
 )
 from novel_forge.runtime import RunRepository
@@ -45,6 +46,22 @@ def test_stage_chapter_request_persists_only_chapter_target_as_an_artifact(tmp_p
     assert request.manifest.artifact_type == "pnca.chapter.request"
     assert request.manifest.logical_key == "pnca.chapter.request.volume_001.002"
     assert repo.read_payload(request) == {"chapter_ordinal": 2}
+
+
+def test_stage_scene_request_persists_only_chapter_slot_as_an_artifact(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id="snap_001")
+
+    request = stage_scene_request(
+        repository=repo,
+        run=run,
+        chapter_id="chapter_001",
+        slot_id="scene_002",
+    )
+
+    assert request.manifest.artifact_type == "pnca.scene.request"
+    assert request.manifest.logical_key == "pnca.scene.request.chapter_001.scene_002"
+    assert repo.read_payload(request) == {"slot_id": "scene_002"}
 
 
 def test_series_proposal_rejects_an_unsafe_final_slug() -> None:
@@ -102,3 +119,39 @@ def test_production_executor_renders_only_registered_volume_projection() -> None
     assert calls[0]["kind"] == "pnca.volume.contract"
     assert "series_001" in calls[0]["user_prompt"]
     assert "volume_001" not in calls[0]["user_prompt"]
+
+
+def test_production_executor_renders_only_registered_scene_projection() -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def complete_json(self, **kwargs):
+            calls.append(kwargs)
+            return {
+                "contract_id": "scene_contract_001",
+                "slot_id": "scene_001",
+                "canon_effect": "none",
+                "writer_view": {
+                    "start_context": {},
+                    "narrative_contract": {},
+                    "end_constraints": {},
+                    "presentation_constraints": {},
+                },
+            }
+
+    executor = make_pnca_task_executor(client=FakeClient())
+    result = executor.execute(
+        task_id="pnca.scene.contract",
+        scope_id="scene_001",
+        artifacts={
+            "parent.contract": {"contract_id": "chapter_001", "scene_slots": [{"slot_id": "scene_001", "ordinal": 1}]},
+            "canon.frontier": {"events": [{"event": "known"}]},
+            "scene.request": {"slot_id": "scene_001"},
+        },
+        input_artifact_ids=("art_chapter", "art_frontier", "art_request"),
+    )
+
+    assert result["slot_id"] == "scene_001"
+    assert calls[0]["kind"] == "pnca.scene.contract"
+    assert "chapter_001" in calls[0]["user_prompt"]
+    assert '"event": "known"' in calls[0]["user_prompt"]

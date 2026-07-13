@@ -78,6 +78,29 @@ def stage_chapter_request(
         payload_name="request.json",
     )
 
+def stage_scene_request(
+    *,
+    repository: RunRepository,
+    run: RunHandle,
+    chapter_id: str,
+    slot_id: str,
+) -> ArtifactReference:
+    """Commit one Chapter-owned Scene slot as a provider-visible immutable input."""
+    attempt = repository.start_attempt(
+        run,
+        task_id="pnca.scene.request",
+        phase="design",
+        reason="stage immutable scene request",
+    )
+    return repository.commit_artifact(
+        attempt,
+        artifact_type="pnca.scene.request",
+        logical_key=f"pnca.scene.request.{chapter_id}.{slot_id}",
+        payload={"slot_id": slot_id},
+        payload_name="request.json",
+    )
+
+
 def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None) -> PNCATaskExecutor:
     """Build the production provider adapter from registered PNCA task resources."""
     prompt_manager = manager or PromptManager()
@@ -85,6 +108,7 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
         "pnca.series.contract": ("pnca_series_contract.md", "pnca_series_contract.json"),
         "pnca.volume.contract": ("pnca_volume_contract.md", "pnca_volume_contract.json"),
         "pnca.chapter.contract": ("pnca_chapter_contract.md", "pnca_chapter_contract.json"),
+        "pnca.scene.contract": ("pnca_scene_contract.md", "pnca_scene_contract.json"),
     }
     schemas = {
         task_id: json.loads(
@@ -103,8 +127,10 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
             "request": json.dumps(projection["request"], ensure_ascii=False),
             "schema": json.dumps(schema, ensure_ascii=False, indent=2),
         }
-        if task_id in {"pnca.volume.contract", "pnca.chapter.contract"}:
+        if task_id in {"pnca.volume.contract", "pnca.chapter.contract", "pnca.scene.contract"}:
             variables["parent"] = json.dumps(projection["parent"], ensure_ascii=False)
+        if task_id == "pnca.scene.contract":
+            variables["frontier"] = json.dumps(projection["frontier"], ensure_ascii=False)
         user_prompt = prompt_manager.render(prompt_name, variables)
         return client.complete_json(
             kind=task_id,

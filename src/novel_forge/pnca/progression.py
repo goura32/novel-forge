@@ -11,6 +11,7 @@ from novel_forge.pnca.contracts import (
     ChapterContract,
     FrontierBinding,
     SceneContract,
+    SceneContractProposal,
     SeriesContract,
     SeriesContractProposal,
     VolumeContract,
@@ -148,11 +149,15 @@ class PNCAContractAuthor:
         *,
         run: RunHandle,
         parent: AuthoredContract[ChapterContract],
-        slot_id: str,
+        request: ArtifactReference,
         frontier: ArtifactReference,
         frontier_binding: FrontierBinding,
         scope_id: str,
     ) -> AuthoredContract[SceneContract]:
+        request_payload = self.repository.read_payload(request)
+        slot_id = request_payload.get("slot_id") if isinstance(request_payload, dict) else None
+        if not isinstance(slot_id, str) or not slot_id:
+            raise RuntimeContractError("scene request requires a non-empty slot_id")
         if slot_id not in {slot.slot_id for slot in parent.contract.scene_slots}:
             raise RuntimeContractError("SceneContract slot is not allocated by its parent ChapterContract")
         if (
@@ -165,15 +170,18 @@ class PNCAContractAuthor:
             artifacts={
                 "parent.contract": parent.contract.model_dump(mode="json"),
                 "canon.frontier": self.repository.read_payload(frontier),
+                "scene.request": request_payload,
             },
-            input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id),
+            input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id, request.artifact_id),
             scope_id=scope_id,
         )
-        contract = SceneContract.model_validate(result)
-        if contract.slot_id != slot_id:
+        proposal = SceneContractProposal.model_validate(result)
+        if proposal.slot_id != slot_id:
             raise RuntimeContractError("SceneContract does not bind its allocated ChapterContract slot")
-        if contract.frontier_binding != frontier_binding:
-            raise RuntimeContractError("SceneContract does not preserve its exact input frontier binding")
+        contract = SceneContract(
+            **proposal.model_dump(mode="python"),
+            frontier_binding=frontier_binding,
+        )
         attempt = self.repository.start_attempt(
             run, task_id="pnca.scene.contract", phase="design", reason="author scene contract"
         )
@@ -183,7 +191,7 @@ class PNCAContractAuthor:
             logical_key=f"pnca.scene.contract.{scope_id}",
             payload=contract.model_dump(mode="json"),
             payload_name="contract.json",
-            input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id),
+            input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id, request.artifact_id),
         )
         return AuthoredContract(artifact=artifact, contract=contract)
 

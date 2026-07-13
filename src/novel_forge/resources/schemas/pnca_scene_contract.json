@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "required": ["contract_id", "slot_id", "canon_effect", "writer_view"],
+  "properties": {
+    "contract_id": {"type": "string", "description": "この Scene Contract proposal の stable ID。"},
+    "slot_id": {"type": "string", "description": "入力 scene request の slot_id と完全一致する Chapter-owned slot ID。"},
+    "canon_effect": {"type": "string", "enum": ["none", "mutates"], "description": "Canon を変更しない none、または patch を提案する mutates。"},
+    "canon_patch": {"type": "object", "description": "canon_effect が mutates のときだけ返す non-empty typed Canon patch payload。none のときは省略する。"},
+    "writer_view": {
+      "type": "object",
+      "description": "本文 writer に渡す唯一の authority surface。Canon/frontier/artifact ID を含めない。",
+      "required": ["start_context", "narrative_contract", "end_constraints", "presentation_constraints"],
+      "properties": {
+        "start_context": {"type": "object", "description": "scene 開始時の writer 向け状況。"},
+        "narrative_contract": {"type": "object", "description": "scene が本文で果たす narrative contract。"},
+        "end_constraints": {"type": "object", "description": "scene 終了時に本文が満たす制約。"},
+        "presentation_constraints": {"type": "object", "description": "視点・語調などの本文 presentation 制約。"}
+      }
+    },
+    "requirement_dispositions": {
+      "type": "array",
+      "description": "parent requirements を実装・維持・許可済み先送りのどれで扱うか。",
+      "items": {
+        "type": "object",
+        "description": "一つの parent requirement の disposition。",
+        "required": ["requirement_id", "disposition"],
+        "properties": {
+          "requirement_id": {"type": "string", "description": "parent requirement ID。"},
+          "disposition": {"type": "string", "enum": ["implemented", "preserved", "deferred"], "description": "この scene における扱い。"},
+          "defer_target_slot_id": {"type": "string", "description": "deferred のときだけ指定する descendant target slot。"}
+        }
+      }
+    },
+    "admission_consumptions": {
+      "type": "array",
+      "description": "parent slot が許可した Volume admission allowance の消費。",
+      "items": {
+        "type": "object",
+        "description": "一つの admission allowance consumption。",
+        "required": ["allowance_id", "entity_id", "kind"],
+        "properties": {
+          "allowance_id": {"type": "string", "description": "Volume-owned allowance ID。"},
+          "entity_id": {"type": "string", "description": "許可を消費する stable entity ID。"},
+          "kind": {"type": "string", "enum": ["character", "location", "artifact", "organization"], "description": "entity kind。"}
+        }
+      }
+    }
+  }
+}

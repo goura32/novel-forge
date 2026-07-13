@@ -127,6 +127,26 @@ class SceneContract(BaseModel):
         return self
 
 
+class SceneContractProposal(BaseModel):
+    """Provider output before repository injects exact frontier provenance."""
+
+    contract_id: str = Field(min_length=1)
+    slot_id: str = Field(min_length=1)
+    canon_effect: CanonEffect
+    canon_patch: dict[str, Any] | None = None
+    writer_view: WriterView = Field(default_factory=WriterView)
+    requirement_dispositions: tuple[RequirementDisposition, ...] = ()
+    admission_consumptions: tuple[AdmissionConsumption, ...] = ()
+
+    @model_validator(mode="after")
+    def _canon_effect_is_disjoint(self) -> SceneContractProposal:
+        if self.canon_effect == "none" and self.canon_patch is not None:
+            raise ValueError("canon_effect none must not include canon_patch")
+        if self.canon_effect == "mutates" and not self.canon_patch:
+            raise ValueError("canon_effect mutates requires a non-empty canon_patch")
+        return self
+
+
 class VolumePurpose(BaseModel):
     """One Series-owned one-line purpose for an ordered Volume."""
 
