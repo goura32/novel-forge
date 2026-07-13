@@ -260,6 +260,28 @@ class AcceptanceCommit(BaseModel):
         return self
 
 
+_REQUIRED_SERIES_ACCEPTANCE_ROLES = frozenset(
+    {"series.contract", "canon.seed", "canon.frontier.output"}
+)
+
+
+class SeriesAcceptanceCommit(BaseModel):
+    """The sole root transition that makes the PNCA Series Contract visible."""
+
+    acceptance_id: str = Field(min_length=1)
+    operation_key: str = Field(min_length=1)
+    role_artifact_ids: dict[str, str]
+
+    @model_validator(mode="after")
+    def _contains_complete_series_acceptance_group(self) -> SeriesAcceptanceCommit:
+        missing = _REQUIRED_SERIES_ACCEPTANCE_ROLES - self.role_artifact_ids.keys()
+        if missing:
+            raise ValueError(f"SeriesAcceptanceCommit missing required role(s): {sorted(missing)}")
+        if any(not artifact_id for artifact_id in self.role_artifact_ids.values()):
+            raise ValueError("SeriesAcceptanceCommit role artifact IDs must be non-empty")
+        return self
+
+
 class BundleSlotRecord(BaseModel):
     """One fully pinned topology row consumed by writer and export."""
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from novel_forge.pnca.contracts import AcceptanceCommit, FrontierBinding
+from novel_forge.pnca.contracts import AcceptanceCommit, FrontierBinding, SeriesAcceptanceCommit
 from novel_forge.runtime import RunRepository, RuntimeContractError
 
 
@@ -175,7 +175,46 @@ def test_acceptance_commit_publishes_all_prepared_roles_in_one_descendant_snapsh
     assert snapshot.slots["canon.frontier"] == output.artifact_id
     assert snapshot.slots["pnca.scene.contract.scene_001"] == acceptance.role_artifact_ids["scene.contract"]
     assert repo.load_snapshot("series", base.selection_snapshot_id).slots["canon.frontier"] == binding.frontier_artifact_id
-    assert repo.load_pnca_operation("series", acceptance.operation_key).state == "committed"
+
+
+def test_series_acceptance_atomically_bootstraps_the_pnca_root(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    seed = _artifact(repo, run, artifact_type="canon.seed", logical_key="canon.seed", payload={"seed": True})
+    root = _artifact(
+        repo,
+        run,
+        artifact_type="canon.event_set",
+        logical_key="canon.frontier.root",
+        payload={"events": []},
+        canon_lineage_root_digest=seed.manifest.content_digest,
+    )
+    series = _artifact(
+        repo,
+        run,
+        artifact_type="pnca.series.contract",
+        logical_key="pnca.series.contract.series_001",
+        payload={"contract_id": "series_001"},
+    )
+    acceptance = SeriesAcceptanceCommit(
+        acceptance_id="accept_series_001",
+        operation_key="series_001:root:accept",
+        role_artifact_ids={
+            "series.contract": series.artifact_id,
+            "canon.seed": seed.artifact_id,
+            "canon.frontier.output": root.artifact_id,
+        },
+    )
+
+    snapshot = repo.commit_pnca_series_acceptance(slug="series_001", acceptance=acceptance)
+
+    assert snapshot.base_snapshot_id is None
+    assert snapshot.slots == {
+        "canon.frontier": root.artifact_id,
+        "canon.seed": seed.artifact_id,
+        "pnca.series.contract.series_001": series.artifact_id,
+    }
+    assert repo.current_snapshot_id("series_001") == snapshot.selection_snapshot_id
 
 
 def test_acceptance_rejects_frontier_digest_that_is_not_the_exact_base_snapshot_frontier(

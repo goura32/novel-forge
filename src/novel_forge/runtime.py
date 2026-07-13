@@ -26,7 +26,12 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from novel_forge.pnca.contracts import AcceptanceCommit, FrontierBinding, OperationRecord
+from novel_forge.pnca.contracts import (
+    AcceptanceCommit,
+    FrontierBinding,
+    OperationRecord,
+    SeriesAcceptanceCommit,
+)
 
 FORMAT_VERSION = 1
 _DIR_MODE = 0o700
@@ -596,6 +601,58 @@ class RunRepository:
         _fsync_directory(ledger)
         return snapshot
 
+    def commit_pnca_series_acceptance(
+        self, *, slug: str, acceptance: SeriesAcceptanceCommit
+    ) -> SelectionSnapshot:
+        """Atomically select the PNCA root without a legacy snapshot transition."""
+        series = self.verify_artifact(acceptance.role_artifact_ids["series.contract"])
+        seed = self.verify_artifact(acceptance.role_artifact_ids["canon.seed"])
+        frontier = self.verify_artifact(acceptance.role_artifact_ids["canon.frontier.output"])
+        if series.manifest.artifact_type != "pnca.series.contract":
+            raise RuntimeContractError("PNCA series acceptance requires pnca.series.contract")
+        if seed.manifest.artifact_type != "canon.seed" or seed.manifest.logical_key != "canon.seed":
+            raise RuntimeContractError("PNCA series acceptance requires canon.seed")
+        if frontier.manifest.artifact_type != "canon.event_set" or not frontier.manifest.logical_key.startswith("canon.frontier.root"):
+            raise RuntimeContractError("PNCA series acceptance requires canon.frontier.root")
+        if frontier.manifest.canon_lineage_root_digest != seed.manifest.content_digest:
+            raise RuntimeContractError("PNCA root frontier must bind the selected canon.seed digest")
+        slots = {
+            series.manifest.logical_key: series.artifact_id,
+            "canon.seed": seed.artifact_id,
+            "canon.frontier": frontier.artifact_id,
+        }
+        self.verify_canon_snapshot(slots)
+        ledger = self.ledger_root(slug)
+        self.writer.mkdir(ledger)
+        snapshots = ledger / "snapshots"
+        self.writer.mkdir(snapshots)
+        snapshot_id = f"sel_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:6]}"
+        snapshot = SelectionSnapshot(
+            selection_snapshot_id=snapshot_id,
+            base_snapshot_id=None,
+            slots=dict(sorted(slots.items())),
+            slots_digest=digest_json(dict(sorted(slots.items()))),
+            created_at=utc_now(),
+        )
+        snapshot_path = snapshots / f"{snapshot_id}.json"
+        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        _fsync_directory(snapshots)
+        self._append_ledger_event(
+            slug,
+            "pnca.series.acceptance.committed",
+            {
+                "acceptance_id": acceptance.acceptance_id,
+                "selection_snapshot_id": snapshot_id,
+                "slots": snapshot.slots,
+                "slots_digest": snapshot.slots_digest,
+                "snapshot_path": str(snapshot_path.relative_to(self.series_root(slug))),
+                "snapshot_digest": snapshot_digest,
+                "acceptance": acceptance.model_dump(mode="json"),
+            },
+        )
+        _fsync_directory(ledger)
+        return snapshot
+
     def commit_pnca_acceptance(
         self,
         *,
@@ -754,7 +811,11 @@ class RunRepository:
         selected = [
             event.payload.get("selection_snapshot_id")
             for event in self._ledger_events(slug)
-            if event.event_type in {"selection.snapshot.created", "pnca.acceptance.committed"}
+            if event.event_type in {
+                "selection.snapshot.created",
+                "pnca.acceptance.committed",
+                "pnca.series.acceptance.committed",
+            }
         ]
         if not selected or not isinstance(selected[-1], str):
             raise FileNotFoundError(f"no selection snapshot found for series: {slug}")
@@ -764,7 +825,11 @@ class RunRepository:
         event = next(
             (
                 event for event in self._ledger_events(slug)
-                if event.event_type in {"selection.snapshot.created", "pnca.acceptance.committed"}
+                if event.event_type in {
+                "selection.snapshot.created",
+                "pnca.acceptance.committed",
+                "pnca.series.acceptance.committed",
+            }
                 and event.payload.get("selection_snapshot_id") == snapshot_id
             ),
             None,
