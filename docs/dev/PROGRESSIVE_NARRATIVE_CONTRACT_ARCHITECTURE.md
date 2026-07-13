@@ -413,8 +413,10 @@ candidate C0
 
 Each audit receives the same candidate digest, the same RequirementLedger, and its
 explicit review scope.  It returns requirement IDs, status, and evidence—not
-free-form replacement prose.  Deterministic validation remains a separate,
-pre-review gate:
+free-form replacement prose, `before`/`after` text, or a mandatory repair
+instruction.  An audit is an observation channel, not an author with authority to
+rewrite the candidate.  Deterministic validation remains a separate, pre-review
+gate:
 
 - schema and parent-reference validation;
 - parent requirement coverage / explicit deferment validation;
@@ -426,6 +428,38 @@ The runtime never silently removes no-op operations or repairs an authoring
 candidate.  A no-effect scene declares `canon_effect: "none"`; a malformed patch
 is a structural failure.
 
+### Audit disagreement is expected and remains unresolved evidence
+
+Independent audits can make conflicting observations about the same requirement, or
+can imply mutually incompatible ways to improve a candidate.  This is expected.  A
+candidate payload and every audit observation are LLM-produced competing evidence;
+the runtime has no semantic oracle that can declare either side correct.
+
+The assessment matrix therefore records claims separately:
+
+```jsonc
+{
+  "claim_id": "audit_2:req_scene_014_beat_02",
+  "candidate_digest": "…",
+  "requirement_id": "req_scene_014_beat_02",
+  "observation": "risk_observed",
+  "evidence": "…",
+  "audit_scope": "causal_consistency"
+}
+```
+
+When audits select the same `requirement_id` with incompatible observations, the
+runtime records an `AssessmentDisagreement` using those explicit claim IDs.  This is
+a mechanical comparison of typed IDs and enum values only; it does not inspect or
+fuzzy-match prose.  Disagreement is never resolved by majority vote, an extra LLM
+judge, confidence scores, or discarding the minority claim.
+
+For observations against different requirements that imply competing repairs, no
+runtime attempts to merge the natural-language rationale.  A later repair proposal
+must declare the claim IDs it treats as assumptions.  Any incompatible assumptions
+produce separate candidate branches rather than one prompt containing contradictory
+repair instructions.
+
 ### Candidate set and uncertainty-aware selection
 
 Candidates are immutable branches.  A repair never overwrites `C0`, and the three
@@ -434,22 +468,33 @@ audit outputs are never combined by majority vote into semantic truth.
 ```text
 C0 + assessment(C0)
   ├─ structurally valid, no observed contract risks → selected_without_observed_risks
-  ├─ local repair plan → C1                         → re-assess whole ledger
-  ├─ fresh generation → C2                          → re-assess whole ledger
-  └─ scope escalation                               → parent/sibling owner
+  ├─ repair hypothesis H1(claim IDs …) → C1          → re-assess whole ledger
+  ├─ repair hypothesis H2(conflicting IDs …) → C2    → re-assess whole ledger
+  ├─ fresh generation → C3                           → re-assess whole ledger
+  └─ scope escalation                                → parent/sibling owner
 ```
 
-A local repair plan is derived once from the complete three-audit matrix.  Its input
-contains all observed contract risks and all requirements the candidate currently
-appears to satisfy.  The resulting candidate is assessed against the *entire*
-ledger again, never only against the latest issue list.
+A repair proposal is not a merged instruction list.  It is one explicitly named
+hypothesis over a non-conflicting set of audit claim IDs.  Its candidate input
+contains that hypothesis, the full RequirementLedger, and the requirements the
+source candidate appears to satisfy.  Competing hypotheses create different branches;
+no LLM is asked to reconcile contradictory reviewer advice in one response.  Every
+resulting candidate is assessed against the *entire* ledger again, never only against
+the claims that motivated it.
 
-The selection record stores every candidate's requirement-state observations and
-all evidence.  A `satisfied → risk-observed` regression is never erased or hidden;
-it changes the candidate's explicit risk vector.  The policy compares these vectors
-without claiming that an LLM has proved either candidate semantically correct.  This
-uses explicit requirement IDs, not forbidden fuzzy matching, free-text issue
-deletion, or mechanical prose replacement.
+The selection record stores every candidate's requirement-state observations, all
+audit claims, every `AssessmentDisagreement`, the selected hypothesis if any, and the
+selection policy/rationale.  A `satisfied → risk-observed` regression is never erased
+or hidden; it changes the candidate's explicit risk vector.  This uses explicit
+requirement IDs, not forbidden fuzzy matching, free-text issue deletion, or
+mechanical prose replacement.
+
+No automatic selection claims semantic correctness.  When candidate branches differ
+only through unresolved LLM observations, `conservative` stops.  `best_effort` may
+select only through a policy pinned *before* the run—for example, retain the baseline
+candidate, prioritize a named user requirement class, or apply an explicit user choice.
+The record must say that the outcome is a policy choice among competing evidence, not
+that the chosen candidate or its reviews were proven right.
 
 There is no open-ended local repair loop.  The configured candidate budget bounds
 cost, not truth.  When it is exhausted:
@@ -459,10 +504,11 @@ cost, not truth.  When it is exhausted:
 - unresolved semantic observations follow the declared `conservative` or
   `best_effort` policy from the uncertainty section.
 
-Under `best_effort`, a selected candidate carries its complete risk vector as
-`selected_with_semantic_risks`.  Downstream prompts receive the selected contract,
-not the review claims.  The risks remain in snapshots, run status, and export
-manifest for audit; they never silently become Canon facts or revision instructions.
+Under `best_effort`, a selected candidate carries its complete risk vector and any
+`assessment_disagreement_ids` as `selected_with_semantic_risks`.  Downstream prompts
+receive the selected contract, not the review claims.  The risks and disagreements
+remain in snapshots, run status, and export manifest for audit; they never silently
+become Canon facts or revision instructions.
 
 ### Escalate to the owner that can actually resolve the problem
 
@@ -507,7 +553,8 @@ A selected scene is an atomic snapshot boundary:
 scene.contract
 scene.contract.requirement_ledger
 scene.contract.assessment_matrix
-scene.contract.acceptance
+scene.contract.assessment_disagreements
+scene.contract.acceptance  ← selection policy / hypothesis / rationale pinned
 canon.frontier  ← output of this exact scene contract
 ```
 
@@ -538,10 +585,11 @@ A prose recap may be created for people, search, and audit.  It is marked derive
 
 Export is a pure derivation from an explicit DesignBundle/snapshot.  It validates
 ordered topology, selected draft and assessment evidence, artifact/manifest digests,
-the bundle's pinned volume-end frontier replay, and the pinned semantic-risk / waiver
-policy.  A `selected_with_semantic_risks` export must expose those risks in its
-manifest; strict export may reject it when the selected release policy requires no
-open semantic risks.  Export never reads a current global frontier, creates a
+the bundle's pinned volume-end frontier replay, the pinned semantic-risk / waiver
+policy, and any assessment-disagreement IDs plus selection rationale.  A
+`selected_with_semantic_risks` export must expose those risks and disagreements in
+its manifest; strict export may reject it when the selected release policy requires
+no open semantic risks.  Export never reads a current global frontier, creates a
 selection snapshot, or mutates Canon.
 
 ## Implementation migration order
@@ -557,10 +605,10 @@ selection snapshot, or mutates Canon.
    free-form scene authors.
 5. Compile `writer_view`, replace `writer_context`, and remove summary as a
    forward input.
-6. Add RequirementLedger, fixed same-candidate three-audit assessment, immutable
-   risk vectors, policy-labelled `conservative` / `best_effort` selection, and
-   strict bundle-pinned export.  Delete generic cap-driven `review → revise`
-   advancement.
+6. Add RequirementLedger, fixed same-candidate three-audit assessment,
+   AssessmentDisagreement records, immutable risk vectors, hypothesis branches,
+   policy-labelled `conservative` / `best_effort` selection, and strict
+   bundle-pinned export.  Delete generic cap-driven `review → revise` advancement.
 7. Delete old DSL aliases, duplicate payload assembly, old task resources, and
    compatibility tests.  No compatibility shim remains.
 
@@ -578,6 +626,12 @@ selection snapshot, or mutates Canon.
   alter any later writer request.
 - Three review calls assess the same candidate digest and cannot observe one
   another's revision; their outputs never become semantic truth through voting.
+- Conflicting observations for the same requirement ID create an
+  `AssessmentDisagreement`; no majority vote, extra LLM judge, confidence score, or
+  minority-claim deletion resolves it.
+- Competing repair hypotheses create separate immutable candidate branches.  No
+  repair prompt receives contradictory reviewer instructions, and each branch pins
+  its assumed claim IDs.
 - A revision/fresh candidate is assessed against the complete RequirementLedger;
   a newly observed regression remains in its risk vector rather than disappearing.
 - Structural failure is never selectable.  At exhausted candidate budget,
