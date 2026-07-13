@@ -16,9 +16,10 @@ from rich.table import Table
 from novel_forge.canon.store import BibleFactory
 from novel_forge.config import RuntimeConfig
 from novel_forge.logging_config import get_logger
-from novel_forge.pnca.contracts import SeriesContract
+from novel_forge.pnca.contracts import SeriesContract, VolumeContract
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
+    stage_chapter_request,
     stage_series_request,
     stage_volume_request,
 )
@@ -159,6 +160,20 @@ def _selected_series_contract(repo: RunRepository, slug: str, snapshot_id: str) 
     artifact = repo.verify_artifact(matches[0])
     return AuthoredContract(artifact=artifact, contract=SeriesContract.model_validate(repo.read_payload(artifact)))
 
+
+def _selected_volume_contract(
+    repo: RunRepository, slug: str, snapshot_id: str, volume_ordinal: int
+) -> AuthoredContract[VolumeContract]:
+    slot = f"volume.contract.{volume_ordinal:03d}"
+    snapshot = repo.load_snapshot(slug, snapshot_id)
+    try:
+        artifact_id = snapshot.slots[slot]
+    except KeyError as exc:
+        raise RuntimeContractError(f"selected snapshot is missing required Volume Contract: {slot}") from exc
+    artifact = repo.verify_artifact(artifact_id)
+    return AuthoredContract(artifact=artifact, contract=VolumeContract.model_validate(repo.read_payload(artifact)))
+
+
 def _make_workflow(
     repo: RunRepository,
     run: RunHandle,
@@ -294,6 +309,7 @@ def plan(
 @app.command()
 def design(
     volume: int = typer.Option(1, "--volume", "-V", help="Volume number (0=all)"),
+    chapter: int = typer.Option(0, "--chapter", "-C", min=0, help="Chapter number (0=author Volume Contract)"),
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
@@ -311,16 +327,53 @@ def design(
     snapshot_id = repo.current_snapshot_id(series_dir.name)
     run = repo.create_run(command="design", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=snapshot_id)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design", wait=wait_lock):
-        parent = _selected_series_contract(repo, series_dir.name, snapshot_id)
-        purposes = {purpose.ordinal for purpose in parent.contract.volume_purposes}
+        workflow = _make_pnca_workflow(repo, config, model)
+        if chapter:
+            if volume < 1:
+                raise typer.BadParameter("chapter authoring requires --volume >= 1", param_hint="--volume")
+            volume_parent = _selected_volume_contract(repo, series_dir.name, snapshot_id, volume)
+            request = stage_chapter_request(
+                repository=repo,
+                run=run,
+                volume_id=volume_parent.contract.contract_id,
+                chapter_ordinal=chapter,
+            )
+            chapter_authored = workflow.author_chapter(
+                run=run,
+                parent=volume_parent,
+                request=request,
+                scope_id=f"{series_dir.name}.volume.{volume:03d}.chapter.{chapter:03d}",
+            )
+            snapshot = workflow.accept_chapter(
+                slug=series_dir.name,
+                authored=chapter_authored,
+                base_snapshot_id=snapshot_id,
+                volume_ordinal=volume,
+            )
+            console.print(
+                f"[green]✓[/green] PNCA Chapter {chapter} in Volume {volume} accepted "
+                f"(snapshot: {snapshot.selection_snapshot_id})"
+            )
+            return
+        series_parent = _selected_series_contract(repo, series_dir.name, snapshot_id)
+        purposes = {purpose.ordinal for purpose in series_parent.contract.volume_purposes}
         volumes = sorted(purposes) if volume == 0 else [volume]
         workflow = _make_pnca_workflow(repo, config, model)
         for ordinal in volumes:
             if ordinal not in purposes:
                 raise typer.BadParameter(f"not declared by Series Contract: volume {ordinal}", param_hint="--volume")
             request = stage_volume_request(repository=repo, run=run, series_id=series_dir.name, volume_ordinal=ordinal)
-            authored = workflow.author_volume(run=run, parent=parent, request=request, scope_id=f"{series_dir.name}.volume.{ordinal:03d}")
-            snapshot = workflow.accept_volume(slug=series_dir.name, authored=authored, base_snapshot_id=snapshot_id)
+            volume_authored = workflow.author_volume(
+                run=run,
+                parent=series_parent,
+                request=request,
+                scope_id=f"{series_dir.name}.volume.{ordinal:03d}",
+            )
+            snapshot = workflow.accept_volume(
+                slug=series_dir.name,
+                authored=volume_authored,
+                base_snapshot_id=snapshot_id,
+            )
             console.print(f"[green]✓[/green] PNCA Volume {ordinal} accepted (snapshot: {snapshot.selection_snapshot_id})")
 
 

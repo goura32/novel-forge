@@ -83,6 +83,83 @@ def test_design_command_delegates_to_pnca_volume_authoring(tmp_path: Path, monke
     assert captured == {"input_snapshot_id": "snap_current", "parent": parent, "request": request, "scope_id": "series_a.volume.001"}
 
 
+def test_selected_volume_contract_resolves_only_the_exact_selected_volume_slot() -> None:
+    artifact = SimpleNamespace(artifact_id="art_volume_002")
+
+    class FakeRepository:
+        @staticmethod
+        def load_snapshot(slug: str, snapshot_id: str) -> Any:
+            assert (slug, snapshot_id) == ("series_001", "sel_001")
+            return SimpleNamespace(slots={"volume.contract.002": artifact.artifact_id})
+
+        @staticmethod
+        def verify_artifact(artifact_id: str) -> Any:
+            assert artifact_id == artifact.artifact_id
+            return artifact
+
+        @staticmethod
+        def read_payload(received: Any) -> dict[str, Any]:
+            assert received is artifact
+            return {
+                "contract_id": "volume_002",
+                "parent_series_contract_id": "series_001",
+                "volume_ordinal": 2,
+            }
+
+    selected = cli._selected_volume_contract(FakeRepository(), "series_001", "sel_001", 2)
+
+    assert selected.artifact is artifact
+    assert selected.contract.contract_id == "volume_002"
+    assert selected.contract.volume_ordinal == 2
+
+
+
+def test_design_command_delegates_to_pnca_chapter_authoring_from_selected_volume(tmp_path: Path, monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+    parent = SimpleNamespace(contract=SimpleNamespace(contract_id="volume_002"))
+    request = SimpleNamespace(artifact_id="chapter_request")
+
+    class FakePNCAWorkflow:
+        @staticmethod
+        def author_volume(**_kwargs: Any) -> Any:
+            raise AssertionError("chapter mode must not re-author Volume Contract")
+
+        @staticmethod
+        def author_chapter(*, run: Any, parent: Any, request: Any, scope_id: str) -> Any:
+            captured.update(
+                {
+                    "input_snapshot_id": run.manifest.input_snapshot_id,
+                    "parent": parent,
+                    "request": request,
+                    "scope_id": scope_id,
+                }
+            )
+            return SimpleNamespace(contract=SimpleNamespace(contract_id="chapter_003", chapter_ordinal=3))
+
+        @staticmethod
+        def accept_chapter(**_kwargs: Any) -> Any:
+            return SimpleNamespace(selection_snapshot_id="snap_after_chapter")
+
+    monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
+    monkeypatch.setattr(cli, "_find_existing_series", lambda *_args: tmp_path / "series_a")
+    monkeypatch.setattr(RunRepository, "current_snapshot_id", lambda *_args: "snap_current")
+    monkeypatch.setattr(cli, "_selected_volume_contract", lambda *_args: parent, raising=False)
+    monkeypatch.setattr(cli, "stage_chapter_request", lambda **_kwargs: request, raising=False)
+    monkeypatch.setattr(cli, "_make_pnca_workflow", lambda *_args: FakePNCAWorkflow())
+
+    result = CliRunner().invoke(
+        cli.app,
+        ["design", "--workdir", str(tmp_path), "--series", "series_a", "--volume", "2", "--chapter", "3"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured == {
+        "input_snapshot_id": "snap_current",
+        "parent": parent,
+        "request": request,
+        "scope_id": "series_a.volume.002.chapter.003",
+    }
+
 def _legacy_design_command_starts_from_current_selection_snapshot(tmp_path: Path, monkeypatch) -> None:
     repo = RunRepository(tmp_path)
     expected_snapshot_id = _bootstrap(repo, "series_a")
