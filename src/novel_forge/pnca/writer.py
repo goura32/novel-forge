@@ -33,7 +33,13 @@ class PNCARenderer:
         executor: PNCATaskExecutor,
         scope_id: str,
     ) -> RenderedDraft:
-        view = self._review_writer_view(view=view, executor=executor, scope_id=scope_id)
+        view = self._review_writer_view(
+            run=run,
+            scene_contract_artifact_id=scene_contract_artifact_id,
+            view=view,
+            executor=executor,
+            scope_id=scope_id,
+        )
         validate_writer_view(view)
         writer_attempt = self.repository.start_attempt(
             run, task_id="pnca.scene.writer_view", phase="write", reason="compile writer view"
@@ -70,31 +76,65 @@ class PNCARenderer:
         return RenderedDraft(writer_view=writer_view, draft=draft)
 
     def _review_writer_view(
-        self, *, view: WriterView, executor: PNCATaskExecutor, scope_id: str
+        self,
+        *,
+        run: RunHandle,
+        scene_contract_artifact_id: str,
+        view: WriterView,
+        executor: PNCATaskExecutor,
+        scope_id: str,
     ) -> WriterView:
         """Resolve contradictory authoring constraints before prose generation."""
         current = view
         for review_cycle in range(self.max_writer_view_review_count):
+            review_attempt = self.repository.start_attempt(
+                run,
+                task_id="pnca.writer_view.review",
+                phase="write",
+                reason="review writer view before prose render",
+            )
             review = WriterViewReview.model_validate(
                 executor.execute(
                     task_id="pnca.writer_view.review",
                     artifacts={"writer.view": current.model_dump(mode="json")},
-                    input_artifact_ids=(),
+                    input_artifact_ids=(scene_contract_artifact_id,),
                     scope_id=f"{scope_id}.writer-view.review.{review_cycle + 1}",
                 )
+            )
+            review_artifact = self.repository.commit_artifact(
+                review_attempt,
+                artifact_type="pnca.writer_view.review",
+                logical_key=f"pnca.writer_view.review.{scope_id}.{review_cycle + 1}",
+                payload=review.model_dump(mode="json"),
+                payload_name="review.json",
+                input_artifact_ids=(scene_contract_artifact_id,),
             )
             if not review.issues:
                 return current
             if review_cycle + 1 >= self.max_writer_view_review_count:
                 break
+            revise_attempt = self.repository.start_attempt(
+                run,
+                task_id="pnca.writer_view.revise",
+                phase="write",
+                reason="revise writer view from pre-render review",
+            )
             revised = executor.execute(
                 task_id="pnca.writer_view.revise",
                 artifacts={
                     "writer.view": current.model_dump(mode="json"),
                     "writer.view.review": review.model_dump(mode="json"),
                 },
-                input_artifact_ids=(),
+                input_artifact_ids=(scene_contract_artifact_id, review_artifact.artifact_id),
                 scope_id=f"{scope_id}.writer-view.revise.{review_cycle + 1}",
+            )
+            self.repository.commit_artifact(
+                revise_attempt,
+                artifact_type="pnca.writer_view.revision",
+                logical_key=f"pnca.writer_view.revision.{scope_id}.{review_cycle + 1}",
+                payload=revised,
+                payload_name="writer_view_revision.json",
+                input_artifact_ids=(scene_contract_artifact_id, review_artifact.artifact_id),
             )
             if not isinstance(revised, dict) or not isinstance(revised.get("writer_view"), dict):
                 raise PNCAStructuralError("WriterView revision output requires a writer_view object")
