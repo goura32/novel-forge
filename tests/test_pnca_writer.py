@@ -111,7 +111,7 @@ def test_renderer_regenerates_when_obligation_coverage_is_invalid(tmp_path) -> N
     assert repo.read_payload(rendered.draft)["coverage"]["evidence"][0]["beat_index"] == 0
 
 
-def test_renderer_revises_writer_view_before_prose_render(tmp_path) -> None:
+def test_renderer_preserves_writer_view_review_as_observation_without_a_revision_loop(tmp_path) -> None:
     calls: list[str] = []
 
     def provider(task_id, projection, operation_key):
@@ -123,7 +123,7 @@ def test_renderer_revises_writer_view_before_prose_render(tmp_path) -> None:
         if task_id == "pnca.writer_view.revise":
             return {"writer_view": {"start_context": {"pov": "リナ"}, "narrative_contract": {"goal": "塔へ行く"}, "end_constraints": {"visible_end": "リナが塔の扉に手を置く"}, "presentation_constraints": {"voice": "三人称限定"}, "required_beats": ["リナが塔の扉に手を置く"]}}
         assert task_id == "pnca.scene.render"
-        return {"content": "リナは塔の扉に手を置いた。", "coverage": {"evidence": [{"obligation": "required_beat", "beat_index": 0, "draft_quote": "リナは塔の扉に手を置いた。"}, {"obligation": "end_constraint", "draft_quote": "リナは塔の扉に手を置いた。"}]}}
+        return {"content": "リナは塔の扉に手を置いた。", "coverage": {"evidence": [{"obligation": "end_constraint", "draft_quote": "リナは塔の扉に手を置いた。"}]}}
 
     registry = PNCATaskRegistry(specs=(
         TaskSpec(task_id="pnca.writer_view.review", task_kind="audit", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="writer.view.review", artifact_type="pnca.writer_view.review", logical_key_template="review.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-review"),
@@ -142,5 +142,5 @@ def test_renderer_revises_writer_view_before_prose_render(tmp_path) -> None:
         scope_id="scene_001",
     )
 
-    assert calls == ["pnca.writer_view.review", "pnca.writer_view.revise", "pnca.writer_view.review", "pnca.scene.render"]
-    assert repo.read_payload(rendered.writer_view)["end_constraints"] == {"visible_end": "リナが塔の扉に手を置く"}
+    assert calls == ["pnca.writer_view.review", "pnca.scene.render"]
+    assert repo.read_payload(rendered.writer_view)["end_constraints"] == {"invalid": "相手が内心で受け入れる"}
