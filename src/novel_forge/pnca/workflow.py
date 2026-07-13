@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from novel_forge.pnca.contracts import SeriesAcceptanceCommit
-from novel_forge.runtime import RunHandle, RunRepository, RuntimeContractError, SelectionSnapshot
+from novel_forge.runtime import (
+    ArtifactReference,
+    RunHandle,
+    RunRepository,
+    RuntimeContractError,
+    SelectionSnapshot,
+)
 
 
 class PNCAWorkflow:
@@ -16,10 +22,10 @@ class PNCAWorkflow:
         self.contract_author = contract_author
 
     def bootstrap_series(
-        self, *, run: RunHandle, slug: str, scope_id: str
+        self, *, run: RunHandle, slug: str, scope_id: str, request: ArtifactReference
     ) -> SelectionSnapshot:
         """Author and atomically select the immutable PNCA Series root."""
-        authored = self.contract_author.author_series(run=run, scope_id=scope_id)
+        authored = self.contract_author.author_series(run=run, scope_id=scope_id, request=request)
         contract = authored.contract
         seed = self.repository.verify_artifact(contract.canon_seed_artifact_id)
         frontier = self.repository.verify_artifact(contract.root_frontier_artifact_id)

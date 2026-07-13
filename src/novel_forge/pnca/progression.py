@@ -34,12 +34,14 @@ class PNCAContractAuthor:
         self.repository = repository
         self.executor = executor
 
-    def author_series(self, *, run: RunHandle, scope_id: str) -> AuthoredContract[SeriesContract]:
+    def author_series(
+        self, *, run: RunHandle, scope_id: str, request: ArtifactReference
+    ) -> AuthoredContract[SeriesContract]:
         """Materialize provider seed data before pinning a final SeriesContract."""
         result = self.executor.execute(
             task_id="pnca.series.contract",
-            artifacts={},
-            input_artifact_ids=(),
+            artifacts={"series.request": self.repository.read_payload(request)},
+            input_artifact_ids=(request.artifact_id,),
             scope_id=scope_id,
         )
         proposal = SeriesContractProposal.model_validate(result)
@@ -79,7 +81,7 @@ class PNCAContractAuthor:
             logical_key=f"pnca.series.contract.{scope_id}",
             payload=contract.model_dump(mode="json"),
             payload_name="contract.json",
-            input_artifact_ids=(seed.artifact_id, frontier.artifact_id),
+            input_artifact_ids=(request.artifact_id, seed.artifact_id, frontier.artifact_id),
         )
         return AuthoredContract(artifact=artifact, contract=contract)
 

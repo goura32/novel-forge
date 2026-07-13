@@ -31,9 +31,9 @@ def _executor(outputs):
             input_bindings=(
                 (InputBinding(role="parent.contract", variable="parent"), InputBinding(role="canon.frontier", variable="frontier"))
                 if task_id == "pnca.scene.contract"
+                else (InputBinding(role="series.request", variable="request"),)
+                if task_id == "pnca.series.contract"
                 else (InputBinding(role="parent.contract", variable="parent"),)
-                if task_id != "pnca.series.contract"
-                else ()
             ),
             output=ArtifactSpec(role=task_id, artifact_type="pnca.contract", logical_key_template=f"{task_id}.{{scope_id}}"),
             prompt_digest="sha256:prompt",
@@ -70,7 +70,14 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
     }
     author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
 
-    series = author.author_series(run=run, scope_id="series_001")
+    request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="request", phase="plan", reason="test"),
+        artifact_type="pnca.series.request",
+        logical_key="pnca.series.request.series_001",
+        payload={"slug": "series_001"},
+        payload_name="request.json",
+    )
+    series = author.author_series(run=run, scope_id="series_001", request=request)
     volume = author.author_volume(run=run, parent=series, scope_id="volume_001")
     chapter = author.author_chapter(run=run, parent=volume, scope_id="chapter_001")
 
@@ -97,7 +104,14 @@ def test_series_authoring_materializes_seed_and_root_frontier_before_contract(tm
         ),
     )
 
-    series = author.author_series(run=run, scope_id="series_001")
+    request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="request", phase="plan", reason="test"),
+        artifact_type="pnca.series.request",
+        logical_key="pnca.series.request.series_001",
+        payload={"slug": "series_001"},
+        payload_name="request.json",
+    )
+    series = author.author_series(run=run, scope_id="series_001", request=request)
 
     assert isinstance(SeriesContractProposal(contract_id="series_001", canon_seed={"seed": True}), SeriesContractProposal)
     seed = repo.verify_artifact(series.contract.canon_seed_artifact_id)
@@ -106,7 +120,7 @@ def test_series_authoring_materializes_seed_and_root_frontier_before_contract(tm
     assert frontier.manifest.logical_key == "canon.frontier.root"
     assert frontier.manifest.canon_lineage_root_digest == seed.manifest.content_digest
     assert series.contract.root_frontier_digest == frontier.manifest.content_digest
-    assert series.artifact.manifest.input_artifact_ids == (seed.artifact_id, frontier.artifact_id)
+    assert series.artifact.manifest.input_artifact_ids == (request.artifact_id, seed.artifact_id, frontier.artifact_id)
 
 
 def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> None:

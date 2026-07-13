@@ -41,16 +41,27 @@ def test_bootstrap_series_authors_then_selects_pnca_root(tmp_path) -> None:
         input_artifact_ids=(seed.artifact_id, frontier.artifact_id),
     )
 
+    request = repo.commit_artifact(
+        repo.start_attempt(run, task_id="request", phase="plan", reason="test"),
+        artifact_type="pnca.series.request",
+        logical_key="pnca.series.request.series_001",
+        payload={"slug": "series_001"},
+        payload_name="request.json",
+    )
+
     class FakeAuthor:
-        def author_series(self, *, run, scope_id):
+        def author_series(self, *, run, scope_id, request):
             assert run is not None
             assert scope_id == "series_001"
+            assert request.artifact_id == request_artifact.artifact_id
             return AuthoredContract(artifact=contract_artifact, contract=contract)
 
+    request_artifact = request
     result = PNCAWorkflow(repository=repo, contract_author=FakeAuthor()).bootstrap_series(
         run=run,
         slug="series_001",
         scope_id="series_001",
+        request=request_artifact,
     )
 
     assert result.selection_snapshot_id == repo.current_snapshot_id("series_001")
