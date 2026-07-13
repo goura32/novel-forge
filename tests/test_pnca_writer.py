@@ -14,12 +14,24 @@ from novel_forge.pnca.writer import PNCARenderer
 from novel_forge.runtime import RunRepository
 
 
+def _coverage_spec() -> TaskSpec:
+    return TaskSpec(
+        task_id="pnca.scene.coverage", task_kind="audit",
+        input_bindings=(InputBinding(role="writer.view", variable="writer_view"), InputBinding(role="scene.draft", variable="draft")),
+        output=ArtifactSpec(role="scene.coverage", artifact_type="pnca.draft_coverage", logical_key_template="coverage.{scope_id}"),
+        prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test",
+        max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="scene-coverage",
+    )
+
+
 def test_renderer_passes_only_writer_view_and_persists_draft(tmp_path) -> None:
     observed = {}
 
     def provider(task_id, projection, operation_key):
         if task_id == "pnca.writer_view.review":
             return {"issues": []}
+        if task_id == "pnca.scene.coverage":
+            return {"evidence": [{"obligation": "end_constraint", "draft_quote": "リナは塔へ向かった。"}]}
         observed["task_id"] = task_id
         observed["projection"] = projection
         observed["operation_key"] = operation_key
@@ -50,6 +62,7 @@ def test_renderer_passes_only_writer_view_and_persists_draft(tmp_path) -> None:
             max_output_bytes=4096,
             idempotency_scope="scene",
         ),
+        _coverage_spec(),
     ))
     executor = PNCATaskExecutor(registry=registry, provider=provider)
     repo = RunRepository(tmp_path)
@@ -80,20 +93,24 @@ def test_renderer_passes_only_writer_view_and_persists_draft(tmp_path) -> None:
 
 
 def test_renderer_regenerates_when_obligation_coverage_is_invalid(tmp_path) -> None:
-    render_calls = 0
+    coverage_calls = 0
 
     def provider(task_id, projection, operation_key):
-        nonlocal render_calls
+        nonlocal coverage_calls
         if task_id == "pnca.writer_view.review":
             return {"issues": []}
-        render_calls += 1
-        if render_calls == 1:
+        if task_id == "pnca.scene.render":
             return {"content": "リナは塔の扉に手を置いた。"}
-        return {"content": "リナは塔の扉に手を置いた。", "coverage": {"evidence": [{"obligation": "required_beat", "beat_index": 0, "draft_quote": "リナは塔の扉に手を置いた。"}, {"obligation": "end_constraint", "draft_quote": "リナは塔の扉に手を置いた。"}]}}
+        assert task_id == "pnca.scene.coverage"
+        coverage_calls += 1
+        if coverage_calls == 1:
+            return {"evidence": []}
+        return {"evidence": [{"obligation": "required_beat", "beat_index": 0, "draft_quote": "リナは塔の扉に手を置いた。"}, {"obligation": "end_constraint", "draft_quote": "リナは塔の扉に手を置いた。"}]}
 
     registry = PNCATaskRegistry(specs=(
         TaskSpec(task_id="pnca.writer_view.review", task_kind="audit", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="writer.view.review", artifact_type="pnca.writer_view.review", logical_key_template="review.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-review"),
         TaskSpec(task_id="pnca.scene.render", task_kind="render", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="scene.draft", artifact_type="pnca.scene_draft", logical_key_template="draft.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="scene-render"),
+        _coverage_spec(),
     ))
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)
@@ -107,7 +124,7 @@ def test_renderer_regenerates_when_obligation_coverage_is_invalid(tmp_path) -> N
         scope_id="scene_coverage",
     )
 
-    assert render_calls == 2
+    assert coverage_calls == 2
     assert repo.read_payload(rendered.draft)["coverage"]["evidence"][0]["beat_index"] == 0
 
 
@@ -122,13 +139,16 @@ def test_renderer_preserves_writer_view_review_as_observation_without_a_revision
             return {"issues": []}
         if task_id == "pnca.writer_view.revise":
             return {"writer_view": {"start_context": {"pov": "リナ"}, "narrative_contract": {"goal": "塔へ行く"}, "end_constraints": {"visible_end": "リナが塔の扉に手を置く"}, "presentation_constraints": {"voice": "三人称限定"}, "required_beats": ["リナが塔の扉に手を置く"]}}
-        assert task_id == "pnca.scene.render"
-        return {"content": "リナは塔の扉に手を置いた。", "coverage": {"evidence": [{"obligation": "end_constraint", "draft_quote": "リナは塔の扉に手を置いた。"}]}}
+        if task_id == "pnca.scene.render":
+            return {"content": "リナは塔の扉に手を置いた。"}
+        assert task_id == "pnca.scene.coverage"
+        return {"evidence": [{"obligation": "end_constraint", "draft_quote": "リナは塔の扉に手を置いた。"}]}
 
     registry = PNCATaskRegistry(specs=(
         TaskSpec(task_id="pnca.writer_view.review", task_kind="audit", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="writer.view.review", artifact_type="pnca.writer_view.review", logical_key_template="review.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-review"),
         TaskSpec(task_id="pnca.writer_view.revise", task_kind="authoring", input_bindings=(InputBinding(role="writer.view", variable="writer_view"), InputBinding(role="writer.view.review", variable="issues")), output=ArtifactSpec(role="writer.view.revised", artifact_type="pnca.writer_view", logical_key_template="revise.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-revise"),
         TaskSpec(task_id="pnca.scene.render", task_kind="render", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="scene.draft", artifact_type="pnca.scene_draft", logical_key_template="draft.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="scene-render"),
+        _coverage_spec(),
     ))
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)
@@ -142,5 +162,5 @@ def test_renderer_preserves_writer_view_review_as_observation_without_a_revision
         scope_id="scene_001",
     )
 
-    assert calls == ["pnca.writer_view.review", "pnca.scene.render"]
+    assert calls == ["pnca.writer_view.review", "pnca.scene.render", "pnca.scene.coverage"]
     assert repo.read_payload(rendered.writer_view)["end_constraints"] == {"invalid": "相手が内心で受け入れる"}

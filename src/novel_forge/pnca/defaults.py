@@ -144,6 +144,19 @@ def default_pnca_task_registry() -> PNCATaskRegistry:
                 idempotency_scope="scene-render",
             ),
             TaskSpec(
+                task_id="pnca.scene.coverage",
+                task_kind="audit",
+                input_bindings=(
+                    InputBinding(role="writer.view", variable="writer_view"),
+                    InputBinding(role="scene.draft", variable="draft"),
+                ),
+                output=ArtifactSpec(role="scene.coverage", artifact_type="pnca.draft_coverage", logical_key_template="pnca.scene_coverage.{scope_id}"),
+                prompt_digest=_resource_digest("prompts", "pnca_scene_coverage.md"),
+                schema_digest=_resource_digest("schemas", "pnca_scene_coverage.json"),
+                model_profile="default", max_input_bytes=65_536, max_output_bytes=16_384,
+                idempotency_scope="scene-coverage",
+            ),
+            TaskSpec(
                 task_id="pnca.scene.revise",
                 task_kind="render",
                 input_bindings=(

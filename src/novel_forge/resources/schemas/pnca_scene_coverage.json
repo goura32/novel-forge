@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneCoverageOutput",
+  "type": "object",
+  "required": ["evidence"],
+  "properties": {
+    "evidence": {
+      "type": "array",
+      "description": "固定済み本文から抽出した obligation の完全一致引用。少なくとも一件返す。",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "description": "一つの義務と固定済み本文内の完全一致引用の組。",
+        "required": ["obligation", "draft_quote"],
+        "properties": {
+          "obligation": {"type": "string", "enum": ["required_beat", "end_constraint"], "description": "固定済み本文で完了を証明する WriterView 義務の種類。"},
+          "beat_index": {"type": "integer", "minimum": 0, "description": "required_beat のゼロ始まり index。"},
+          "draft_quote": {"type": "string", "description": "固定済み content 内の完全一致文字列。"}
+        }
+      }
+    }
+  }
+}

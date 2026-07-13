@@ -147,7 +147,9 @@ class FakeExecutor:
         if task_id == "pnca.writer_view.review":
             return {"issues": []}
         if task_id == "pnca.scene.render":
-            return {"content": "シーンの本文。約500字の自然な日本語で書く。", "coverage": {"evidence": []}}
+            return {"content": "シーンの本文。約500字の自然な日本語で書く。"}
+        if task_id == "pnca.scene.coverage":
+            return {"evidence": []}
         if task_id == "pnca.draft.audit":
             return {"issues": self._audit_issues}
         raise AssertionError(f"unexpected task_id: {task_id}")
