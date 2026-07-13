@@ -38,6 +38,24 @@ def stage_series_request(
     )
 
 
+def stage_volume_request(
+    *,
+    repository: RunRepository,
+    run: RunHandle,
+    series_id: str,
+    volume_ordinal: int,
+) -> ArtifactReference:
+    """Commit one CLI volume target as a provider-visible immutable input."""
+    attempt = repository.start_attempt(run, task_id="pnca.volume.request", phase="design", reason="stage immutable volume request")
+    return repository.commit_artifact(
+        attempt,
+        artifact_type="pnca.volume.request",
+        logical_key=f"pnca.volume.request.{series_id}.{volume_ordinal:03d}",
+        payload={"volume_ordinal": volume_ordinal},
+        payload_name="request.json",
+    )
+
+
 def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None) -> PNCATaskExecutor:
     """Build the production provider adapter from registered PNCA task resources."""
     prompt_manager = manager or PromptManager()

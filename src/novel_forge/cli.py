@@ -16,8 +16,13 @@ from rich.table import Table
 from novel_forge.canon.store import BibleFactory
 from novel_forge.config import RuntimeConfig
 from novel_forge.logging_config import get_logger
-from novel_forge.pnca.production import make_pnca_task_executor, stage_series_request
-from novel_forge.pnca.progression import PNCAContractAuthor
+from novel_forge.pnca.contracts import SeriesContract
+from novel_forge.pnca.production import (
+    make_pnca_task_executor,
+    stage_series_request,
+    stage_volume_request,
+)
+from novel_forge.pnca.progression import AuthoredContract, PNCAContractAuthor
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
@@ -144,6 +149,15 @@ def _selected_payload(repo: RunRepository, slug: str, snapshot_id: str, slot: st
         raise RuntimeContractError(f"selected artifact payload must be an object: {slot}")
     return payload
 
+
+
+def _selected_series_contract(repo: RunRepository, slug: str, snapshot_id: str) -> AuthoredContract[SeriesContract]:
+    snapshot = repo.load_snapshot(slug, snapshot_id)
+    matches = [artifact_id for slot, artifact_id in snapshot.slots.items() if slot.startswith("pnca.series.contract.")]
+    if len(matches) != 1:
+        raise RuntimeContractError("selected snapshot requires exactly one PNCA Series Contract")
+    artifact = repo.verify_artifact(matches[0])
+    return AuthoredContract(artifact=artifact, contract=SeriesContract.model_validate(repo.read_payload(artifact)))
 
 def _make_workflow(
     repo: RunRepository,
@@ -288,29 +302,26 @@ def design(
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
-    """Generate a volume design (chapter/scene structure) and publish it."""
+    """Author and accept one bounded PNCA Volume Contract."""
     config = RuntimeConfig.load()
     resolved_workdir = config.resolve_workdir(workdir)
     repo = RunRepository(resolved_workdir)
     manager = RunManager(repo)
     series_dir = _find_existing_series(resolved_workdir, series)
     snapshot_id = repo.current_snapshot_id(series_dir.name)
-    run = repo.create_run(
-        command="design",
-        model=model or config.llm.model,
-        verbose=_resolve_verbose(config, verbose),
-        input_snapshot_id=snapshot_id,
-    )
+    run = repo.create_run(command="design", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=snapshot_id)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design", wait=wait_lock):
-        workflow = _make_workflow(
-            repo, run, series_dir.name, config, model, max_review_count, max_summary_review_count, verbose
-        )
-        plan = _selected_payload(repo, series_dir.name, snapshot_id, "plan.series")
-        total_vol = len(plan.get("planned_volumes", [])) or 2
-        volumes = range(1, total_vol + 1) if volume == 0 else range(volume, volume + 1)
-        for v in volumes:
-            snapshot = workflow.generate_volume_design(volume=v, plan=plan)
-            console.print(f"[green]✓[/green] Volume {v} design generated (snapshot: {snapshot.selection_snapshot_id})")
+        parent = _selected_series_contract(repo, series_dir.name, snapshot_id)
+        purposes = {purpose.ordinal for purpose in parent.contract.volume_purposes}
+        volumes = sorted(purposes) if volume == 0 else [volume]
+        workflow = _make_pnca_workflow(repo, config, model)
+        for ordinal in volumes:
+            if ordinal not in purposes:
+                raise typer.BadParameter(f"not declared by Series Contract: volume {ordinal}", param_hint="--volume")
+            request = stage_volume_request(repository=repo, run=run, series_id=series_dir.name, volume_ordinal=ordinal)
+            authored = workflow.author_volume(run=run, parent=parent, request=request, scope_id=f"{series_dir.name}.volume.{ordinal:03d}")
+            snapshot = workflow.accept_volume(slug=series_dir.name, authored=authored, base_snapshot_id=snapshot_id)
+            console.print(f"[green]✓[/green] PNCA Volume {ordinal} accepted (snapshot: {snapshot.selection_snapshot_id})")
 
 
 @app.command()

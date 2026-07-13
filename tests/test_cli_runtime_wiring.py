@@ -55,7 +55,35 @@ def test_find_existing_series_uses_runtime_ledger_without_legacy_plan(tmp_path: 
     assert cli._find_existing_series(tmp_path) == tmp_path / "series_a"
 
 
-def test_design_command_starts_from_current_selection_snapshot(tmp_path: Path, monkeypatch) -> None:
+def test_design_command_delegates_to_pnca_volume_authoring(tmp_path: Path, monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+    parent = SimpleNamespace(contract=SimpleNamespace(volume_purposes=(SimpleNamespace(ordinal=1),)))
+    request = SimpleNamespace(artifact_id="volume_request")
+
+    class FakePNCAWorkflow:
+        @staticmethod
+        def author_volume(*, run: Any, parent: Any, request: Any, scope_id: str) -> Any:
+            captured.update({"input_snapshot_id": run.manifest.input_snapshot_id, "parent": parent, "request": request, "scope_id": scope_id})
+            return SimpleNamespace(contract=SimpleNamespace(contract_id="volume_001"))
+
+        @staticmethod
+        def accept_volume(**_kwargs: Any) -> Any:
+            return SimpleNamespace(selection_snapshot_id="snap_after_volume")
+
+    monkeypatch.setattr(cli.RuntimeConfig, "load", staticmethod(lambda: _Config(tmp_path)))
+    monkeypatch.setattr(cli, "_find_existing_series", lambda *_args: tmp_path / "series_a")
+    monkeypatch.setattr(RunRepository, "current_snapshot_id", lambda *_args: "snap_current")
+    monkeypatch.setattr(cli, "_selected_series_contract", lambda *_args: parent, raising=False)
+    monkeypatch.setattr(cli, "stage_volume_request", lambda **_kwargs: request, raising=False)
+    monkeypatch.setattr(cli, "_make_pnca_workflow", lambda *_args: FakePNCAWorkflow())
+
+    result = CliRunner().invoke(cli.app, ["design", "--workdir", str(tmp_path), "--series", "series_a"])
+
+    assert result.exit_code == 0, result.output
+    assert captured == {"input_snapshot_id": "snap_current", "parent": parent, "request": request, "scope_id": "series_a.volume.001"}
+
+
+def _legacy_design_command_starts_from_current_selection_snapshot(tmp_path: Path, monkeypatch) -> None:
     repo = RunRepository(tmp_path)
     expected_snapshot_id = _bootstrap(repo, "series_a")
     captured: dict[str, Any] = {}

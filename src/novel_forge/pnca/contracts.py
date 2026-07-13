@@ -305,6 +305,23 @@ class SeriesAcceptanceCommit(BaseModel):
         return self
 
 
+class VolumeAcceptanceCommit(BaseModel):
+    """Atomic selection transition for one parent-pinned Volume Contract."""
+
+    acceptance_id: str = Field(min_length=1)
+    base_snapshot_id: str = Field(min_length=1)
+    operation_key: str = Field(min_length=1)
+    role_artifact_ids: dict[str, str]
+
+    @model_validator(mode="after")
+    def _contains_volume_contract(self) -> VolumeAcceptanceCommit:
+        if set(self.role_artifact_ids) != {"volume.contract"}:
+            raise ValueError("VolumeAcceptanceCommit requires exactly volume.contract")
+        if not self.role_artifact_ids["volume.contract"]:
+            raise ValueError("VolumeAcceptanceCommit volume.contract artifact ID must be non-empty")
+        return self
+
+
 class BundleSlotRecord(BaseModel):
     """One fully pinned topology row consumed by writer and export."""
 

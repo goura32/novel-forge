@@ -31,6 +31,7 @@ from novel_forge.pnca.contracts import (
     FrontierBinding,
     OperationRecord,
     SeriesAcceptanceCommit,
+    VolumeAcceptanceCommit,
 )
 
 FORMAT_VERSION = 1
@@ -653,6 +654,39 @@ class RunRepository:
         _fsync_directory(ledger)
         return snapshot
 
+    def commit_pnca_volume_acceptance(self, *, slug: str, acceptance: VolumeAcceptanceCommit) -> SelectionSnapshot:
+        """Atomically publish one Volume Contract against its selected Series parent."""
+        base = self.load_snapshot(slug, acceptance.base_snapshot_id)
+        parent_id = next((artifact_id for key, artifact_id in base.slots.items() if key.startswith("pnca.series.contract.")), None)
+        if parent_id is None:
+            raise RuntimeContractError("Volume acceptance base snapshot requires series.contract")
+        volume = self.verify_artifact(acceptance.role_artifact_ids["volume.contract"])
+        if volume.manifest.artifact_type != "pnca.volume.contract":
+            raise RuntimeContractError("Volume acceptance requires pnca.volume.contract")
+        if parent_id not in volume.manifest.input_artifact_ids:
+            raise RuntimeContractError("Volume acceptance requires exact selected Series Contract input")
+        payload = self.read_payload(volume)
+        ordinal = payload.get("volume_ordinal") if isinstance(payload, dict) else None
+        if not isinstance(ordinal, int) or ordinal < 1:
+            raise RuntimeContractError("Volume acceptance requires a positive volume_ordinal")
+        slot = f"volume.contract.{ordinal:03d}"
+        if slot in base.slots:
+            raise RuntimeContractError("Volume acceptance must not overwrite an existing selected slot")
+        slots = dict(base.slots)
+        slots[slot] = volume.artifact_id
+        self.verify_canon_snapshot(slots)
+        ledger = self.ledger_root(slug)
+        self.writer.mkdir(ledger)
+        snapshots = ledger / "snapshots"
+        self.writer.mkdir(snapshots)
+        snapshot_id = f"sel_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:6]}"
+        snapshot = SelectionSnapshot(selection_snapshot_id=snapshot_id, base_snapshot_id=acceptance.base_snapshot_id, slots=dict(sorted(slots.items())), slots_digest=digest_json(dict(sorted(slots.items()))), created_at=utc_now())
+        snapshot_path = snapshots / f"{snapshot_id}.json"
+        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        self._append_ledger_event(slug, "pnca.volume.acceptance.committed", {"acceptance_id": acceptance.acceptance_id, "selection_snapshot_id": snapshot_id, "base_snapshot_id": acceptance.base_snapshot_id, "slots": snapshot.slots, "slots_digest": snapshot.slots_digest, "snapshot_path": str(snapshot_path.relative_to(self.series_root(slug))), "snapshot_digest": snapshot_digest, "acceptance": acceptance.model_dump(mode="json")})
+        _fsync_directory(ledger)
+        return snapshot
+
     def commit_pnca_acceptance(
         self,
         *,
@@ -815,6 +849,7 @@ class RunRepository:
                 "selection.snapshot.created",
                 "pnca.acceptance.committed",
                 "pnca.series.acceptance.committed",
+                "pnca.volume.acceptance.committed",
             }
         ]
         if not selected or not isinstance(selected[-1], str):
@@ -829,6 +864,7 @@ class RunRepository:
                 "selection.snapshot.created",
                 "pnca.acceptance.committed",
                 "pnca.series.acceptance.committed",
+                "pnca.volume.acceptance.committed",
             }
                 and event.payload.get("selection_snapshot_id") == snapshot_id
             ),

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from novel_forge.pnca.contracts import SeriesAcceptanceCommit, SeriesContract
+from novel_forge.pnca.contracts import (
+    SeriesAcceptanceCommit,
+    SeriesContract,
+    VolumeAcceptanceCommit,
+    VolumeContract,
+)
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.runtime import (
     ArtifactReference,
@@ -50,6 +55,24 @@ class PNCAWorkflow:
         return self.repository.commit_pnca_series_acceptance(
             slug=contract.contract_id,
             acceptance=acceptance,
+        )
+
+
+    def author_volume(
+        self, *, run: RunHandle, parent: AuthoredContract[SeriesContract], request: ArtifactReference, scope_id: str
+    ) -> AuthoredContract[VolumeContract]:
+        return cast(AuthoredContract[VolumeContract], self.contract_author.author_volume(run=run, parent=parent, request=request, scope_id=scope_id))
+
+    def accept_volume(self, *, slug: str, authored: AuthoredContract[VolumeContract], base_snapshot_id: str) -> SelectionSnapshot:
+        contract = authored.contract
+        return self.repository.commit_pnca_volume_acceptance(
+            slug=slug,
+            acceptance=VolumeAcceptanceCommit(
+                acceptance_id=f"accept_{contract.contract_id}",
+                base_snapshot_id=base_snapshot_id,
+                operation_key=f"{slug}:volume:{contract.volume_ordinal:03d}:accept",
+                role_artifact_ids={"volume.contract": authored.artifact.artifact_id},
+            ),
         )
 
     def bootstrap_series(
