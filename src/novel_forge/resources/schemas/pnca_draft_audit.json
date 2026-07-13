@@ -19,12 +19,12 @@
         "properties": {
           "severity": {
             "type": "string",
-            "description": "重大度。blocker は required_beat、end_constraint、language_contamination の明白な違反だけに用いる。",
+            "description": "重大度。blocker は required_beat、end_constraint、限定 POV の明白な事実断定、language_contamination の明白な違反だけに用いる。",
             "enum": ["blocker", "major", "minor"]
           },
           "constraint_kind": {
             "type": "string",
-            "description": "違反した制約の種別。quality と pov_fact は blocker にしてはならない。",
+            "description": "違反した制約の種別。quality は blocker にしてはならない。pov_fact を blocker にするのは、POV人物が知り得ない他者の未発話の感情・意図・記憶・画面外事実を草稿が断定する場合だけ。",
             "enum": ["required_beat", "end_constraint", "pov_fact", "language_contamination", "quality"]
           },
           "writer_view_field": {

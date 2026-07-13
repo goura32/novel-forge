@@ -419,7 +419,7 @@ class DraftAuditIssue(BaseModel):
 
     @model_validator(mode="after")
     def _blockers_are_limited_to_hard_contract_failures(self) -> DraftAuditIssue:
-        hard_kinds = {"required_beat", "end_constraint", "language_contamination"}
+        hard_kinds = {"required_beat", "end_constraint", "pov_fact", "language_contamination"}
         if self.severity == "blocker" and self.constraint_kind not in hard_kinds:
             raise ValueError("blocker severity is reserved for hard contract failures")
         return self

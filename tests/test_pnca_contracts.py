@@ -102,6 +102,23 @@ def test_draft_audit_rejects_a_blocker_without_hard_contract_evidence() -> None:
         )
 
 
+def test_draft_audit_accepts_a_grounded_pov_blocker() -> None:
+    audit = DraftAudit.model_validate(
+        {
+            "issues": [
+                {
+                    "severity": "blocker",
+                    "constraint_kind": "pov_fact",
+                    "writer_view_field": "presentation_constraints",
+                    "draft_quote": "公爵は彼女を愛していた。",
+                    "detail": "POV人物が知り得ない未発話の内面を断定している。",
+                }
+            ]
+        }
+    )
+    assert audit.issues[0].severity == "blocker"
+
+
 def test_writer_view_preserves_string_beats_when_provider_uses_compact_form() -> None:
     view = WriterView(required_beats=("リナが鍵穴に手を伸ばす",))
 

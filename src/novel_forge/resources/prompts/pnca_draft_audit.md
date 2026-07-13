@@ -11,7 +11,7 @@
 - `detail` は違反箇所と根拠を具体的に記述する。
 - 限定 POV 違反は、POV人物が知り得ない他者の未発話の感情・意図・記憶・画面外の事実を断定した箇所だけに限る。POV人物から見える表情・眉・姿勢・動作、聞こえる声や音、自身の身体反応・感情・場内の解釈は有効な限定 POV 表現であり、推測上の危険だけで issue にしない。
 - issue ごとに `constraint_kind`、根拠となる `writer_view_field`、草稿本文からの完全一致 `draft_quote` を必ず出す。引用が草稿内に存在しない、または WriterView field を特定できない場合は issue を出さない。
-- `blocker` は `required_beat`、`end_constraint`、`language_contamination` の明白な違反だけに使う。`quality` と `pov_fact` は blocker にしてはならない。
+- `blocker` は `required_beat`、`end_constraint`、限定 POV の明白な事実断定、または `language_contamination` の実際の違反だけに限る。`pov_fact` を blocker にするには、引用が POV人物の知り得ない他者の未発話の感情・意図・記憶・画面外事実を断定していなければならない。品質上の提案、解釈の揺れ、可視の表情や動作からの場内解釈は `major` 以下にする。
 
 ## 入力情報
 ### WriterView
