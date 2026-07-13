@@ -92,6 +92,13 @@ def test_pnca_scene_prompts_require_completed_observable_beats() -> None:
     assert "未完の準備・試行・直前で終わらせない" in revise
 
 
+def test_pnca_scene_render_forbids_omniscient_third_party_claims() -> None:
+    render = (PROMPTS_DIR / "pnca_scene_render.md").read_text(encoding="utf-8")
+
+    assert "第三者の感情・意図・評価・関係性を事実として断定しない" in render
+    assert "見える表情や動作も、内面の証明にはしない" in render
+
+
 def test_prompts_do_not_use_ok_ng_examples() -> None:
     forbidden_fragments = [
         "OK例",
