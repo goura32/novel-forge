@@ -405,12 +405,22 @@ class WriterViewReview(BaseModel):
 
 
 class DraftAuditIssue(BaseModel):
-    """A typed, publication-gating finding against one rendered scene."""
+    """A grounded finding against one rendered scene."""
 
     model_config = ConfigDict(extra="forbid")
 
     severity: Literal["blocker", "major", "minor"]
+    constraint_kind: Literal["required_beat", "end_constraint", "pov_fact", "language_contamination", "quality"]
+    writer_view_field: str = Field(min_length=1)
+    draft_quote: str = Field(min_length=1)
     detail: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _blockers_are_limited_to_hard_contract_failures(self) -> DraftAuditIssue:
+        hard_kinds = {"required_beat", "end_constraint", "language_contamination"}
+        if self.severity == "blocker" and self.constraint_kind not in hard_kinds:
+            raise ValueError("blocker severity is reserved for hard contract failures")
+        return self
 
 
 class DraftAudit(BaseModel):

@@ -4,28 +4,40 @@
   "type": "object",
   "properties": {
     "issues": {
-      "description": "Draft の不備リスト。空リストは承認を意味する。各要素は severity と detail を持つ。",
+      "description": "草稿の根拠付き不備リスト。空リストは承認を意味する。",
       "type": "array",
       "items": {
         "type": "object",
-        "description": "単一の指摘。severity で重大度を、detail で違反箇所と根拠を具体的に示す。",
+        "description": "一つの WriterView 制約と草稿中の引用に結び付く audit finding。",
         "required": [
           "severity",
+          "constraint_kind",
+          "writer_view_field",
+          "draft_quote",
           "detail"
         ],
         "properties": {
           "severity": {
             "type": "string",
-            "description": "指摘の重大度。blocker は出版不能、major は読者体験を損なう、minor は軽微な不備を示す。",
-            "enum": [
-              "blocker",
-              "major",
-              "minor"
-            ]
+            "description": "重大度。blocker は required_beat、end_constraint、language_contamination の明白な違反だけに用いる。",
+            "enum": ["blocker", "major", "minor"]
+          },
+          "constraint_kind": {
+            "type": "string",
+            "description": "違反した制約の種別。quality と pov_fact は blocker にしてはならない。",
+            "enum": ["required_beat", "end_constraint", "pov_fact", "language_contamination", "quality"]
+          },
+          "writer_view_field": {
+            "type": "string",
+            "description": "根拠となる WriterView の JSON field path。例: end_constraints.state。"
+          },
+          "draft_quote": {
+            "type": "string",
+            "description": "違反を示す草稿からの完全一致引用。推測や言い換えではなく、草稿本文に現れる文字列。"
           },
           "detail": {
             "type": "string",
-            "description": "違反箇所と根拠を具体的に記述する。WriterView のどの制約に反しているかを明示する。"
+            "description": "引用と WriterView field の間にある具体的な違反根拠。"
           }
         }
       }

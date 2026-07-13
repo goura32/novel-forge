@@ -14,6 +14,7 @@ from novel_forge.pnca.contracts import (
     CandidatePolicy,
     ChapterContract,
     DesignBundle,
+    DraftAudit,
     FrontierBinding,
     OperationRecord,
     ParentRequirementLedger,
@@ -80,6 +81,25 @@ def test_writer_view_exposes_required_observable_beats_to_the_writer() -> None:
 
     assert view.model_dump()["narrative_contract"]["goal"] == "鍵を探す"
     assert view.required_beats[0].description == "リナが鍵穴に手を伸ばす"
+
+
+
+
+def test_draft_audit_rejects_a_blocker_without_hard_contract_evidence() -> None:
+    with pytest.raises(ValidationError, match="blocker"):
+        DraftAudit.model_validate(
+            {
+                "issues": [
+                    {
+                        "severity": "blocker",
+                        "constraint_kind": "quality",
+                        "writer_view_field": "narrative_contract.purpose",
+                        "draft_quote": "雪は静かに降っていた。",
+                        "detail": "背景説明が不足している。",
+                    }
+                ]
+            }
+        )
 
 
 def test_writer_view_preserves_string_beats_when_provider_uses_compact_form() -> None:
