@@ -365,7 +365,7 @@ def design(
                     frontier_digest=frontier.manifest.content_digest,
                     lineage_root_digest=lineage_root,
                 ),
-                scope_id=f"{series_dir.name}.{volume:03d}.{chapter:03d}.{scene:03d}",
+                scope_id=f"{series_dir.name}.{volume:03d}.{chapter:03d}.{scene_slot.slot_id}",
                 admission_allowances=volume_parent.contract.admission_allowances,
                 scene_slot=scene_slot,
                 previously_consumed=previously_consumed,
