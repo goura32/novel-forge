@@ -5,8 +5,11 @@ from __future__ import annotations
 from typing import Any, cast
 
 from novel_forge.pnca.contracts import (
+    AcceptanceCommit,
     ChapterAcceptanceCommit,
     ChapterContract,
+    FrontierBinding,
+    SceneContract,
     SeriesAcceptanceCommit,
     SeriesContract,
     VolumeAcceptanceCommit,
@@ -104,6 +107,43 @@ class PNCAWorkflow:
                 ),
                 role_artifact_ids={"chapter.contract": authored.artifact.artifact_id},
             ),
+        )
+
+    def author_scene(
+        self,
+        *,
+        run: RunHandle,
+        parent: AuthoredContract[ChapterContract],
+        request: ArtifactReference,
+        frontier: ArtifactReference,
+        frontier_binding: FrontierBinding,
+        scope_id: str,
+    ) -> AuthoredContract[SceneContract]:
+        """Author one scene from only the pinned Chapter, frontier, and request."""
+        return cast(
+            AuthoredContract[SceneContract],
+            self.contract_author.author_scene(
+                run=run,
+                parent=parent,
+                request=request,
+                frontier=frontier,
+                frontier_binding=frontier_binding,
+                scope_id=scope_id,
+            ),
+        )
+
+    def accept_scene(
+        self,
+        *,
+        slug: str,
+        acceptance: AcceptanceCommit,
+        frontier_binding: FrontierBinding,
+    ) -> SelectionSnapshot:
+        """Publish a complete validated scene acceptance without recomposing its roles."""
+        return self.repository.commit_pnca_acceptance(
+            slug=slug,
+            acceptance=acceptance,
+            frontier_binding=frontier_binding,
         )
 
     def bootstrap_series(

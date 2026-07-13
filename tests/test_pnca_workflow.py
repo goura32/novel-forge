@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from novel_forge.pnca.contracts import ChapterContract, SeriesContract, VolumePurpose
+from novel_forge.pnca.contracts import (
+    AcceptanceCommit,
+    ChapterContract,
+    FrontierBinding,
+    SeriesContract,
+    VolumePurpose,
+)
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.runtime import RunRepository
@@ -101,3 +107,101 @@ def test_accept_chapter_delegates_to_parent_pinned_repository_transaction() -> N
     assert acceptance.base_snapshot_id == "sel_volume"
     assert acceptance.role_artifact_ids == {"chapter.contract": "art_chapter"}
     assert acceptance.operation_key == "series_001:volume:002:chapter:001:accept"
+
+
+def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> None:
+    captured: dict[str, object] = {}
+
+    class FakeAuthor:
+        @staticmethod
+        def author_scene(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(contract=SimpleNamespace(contract_id="scene_001"))
+
+    parent = AuthoredContract(
+        artifact=SimpleNamespace(artifact_id="art_chapter"),
+        contract=ChapterContract(
+            contract_id="chapter_001",
+            parent_volume_contract_id="volume_001",
+            chapter_ordinal=1,
+            scene_slots=(),
+        ),
+    )
+    request = SimpleNamespace(artifact_id="art_request")
+    frontier = SimpleNamespace(artifact_id="art_frontier")
+    binding = FrontierBinding(
+        input_snapshot_id="sel_chapter",
+        frontier_artifact_id="art_frontier",
+        frontier_digest="sha256:frontier",
+        lineage_root_digest="sha256:seed",
+    )
+
+    result = PNCAWorkflow(repository=object(), contract_author=FakeAuthor()).author_scene(
+        run=SimpleNamespace(run_id="run_001"),
+        parent=parent,
+        request=request,
+        frontier=frontier,
+        frontier_binding=binding,
+        scope_id="scene_001",
+    )
+
+    assert result.contract.contract_id == "scene_001"
+    assert captured == {
+        "run": SimpleNamespace(run_id="run_001"),
+        "parent": parent,
+        "request": request,
+        "frontier": frontier,
+        "frontier_binding": binding,
+        "scope_id": "scene_001",
+    }
+
+
+def test_accept_scene_delegates_complete_commit_and_exact_frontier_binding() -> None:
+    captured: dict[str, object] = {}
+
+    class FakeRepository:
+        @staticmethod
+        def commit_pnca_acceptance(*, slug, acceptance, frontier_binding):
+            captured.update(
+                {
+                    "slug": slug,
+                    "acceptance": acceptance,
+                    "frontier_binding": frontier_binding,
+                }
+            )
+            return SimpleNamespace(selection_snapshot_id="sel_scene")
+
+    acceptance = AcceptanceCommit(
+        acceptance_id="accept_scene_001",
+        base_snapshot_id="sel_chapter",
+        operation_key="series_001:scene:scene_001:accept",
+        canon_effect="none",
+        role_artifact_ids={
+            "scene.contract": "art_scene",
+            "parent.requirement_ledger": "art_parent_ledger",
+            "accepted.requirement_ledger": "art_accepted_ledger",
+            "audit.batch": "art_audits",
+            "review.synthesis": "art_review",
+            "scene.slot_binding": "art_slot",
+            "canon.frontier.output": "art_frontier",
+        },
+    )
+    binding = FrontierBinding(
+        input_snapshot_id="sel_chapter",
+        frontier_artifact_id="art_frontier",
+        frontier_digest="sha256:frontier",
+        lineage_root_digest="sha256:seed",
+    )
+
+    result = PNCAWorkflow(repository=FakeRepository(), contract_author=object()).accept_scene(
+        slug="series_001",
+        acceptance=acceptance,
+        frontier_binding=binding,
+    )
+
+    assert result.selection_snapshot_id == "sel_scene"
+    assert captured == {
+        "slug": "series_001",
+        "acceptance": acceptance,
+        "frontier_binding": binding,
+    }
