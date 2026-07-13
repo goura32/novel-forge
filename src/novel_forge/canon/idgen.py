@@ -62,7 +62,7 @@ class StableIdGenerator:
         known = self._known_map(existing_events)
         created: dict[str, str] = {}
 
-        seen_creation_keys: set[str] = set()
+        seen_creation_keys: set[tuple[str, str]] = set()
         for field_name, kind in PATCH_CREATE_KIND.items():
             ops = getattr(patch, field_name)
             creates = getattr(ops, "create", [])
@@ -70,12 +70,13 @@ class StableIdGenerator:
             next_seq = self._max_seq_for_prefix(existing, prefix) + 1
             for create in creates:
                 ck = create.creation_key
-                if ck in seen_creation_keys:
+                identity = (kind, ck)
+                if identity in seen_creation_keys:
                     raise ValueError(
-                        f"creation_key '{ck}' is duplicated in source {source.scene_id}; "
-                        "creation keys are source-unique across entity kinds"
+                        f"creation_key '{ck}' is duplicated for kind '{kind}' "
+                        f"in source {source.scene_id}"
                     )
-                seen_creation_keys.add(ck)
+                seen_creation_keys.add(identity)
                 cache_key = f"{source.scene_id}|{kind}|{ck}"
                 if cache_key in known:
                     eid = known[cache_key]

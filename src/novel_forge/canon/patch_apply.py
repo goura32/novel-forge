@@ -88,22 +88,28 @@ def _ref(o: Any) -> EntityRef:
 def _resolve_ref(ref: Any, created_map: dict[str, str]) -> EntityRef:
     """Resolve a patch reference (EntityRef or CreationRef) to a concrete EntityRef.
 
-    A ``CreationRef`` (``{creation_key}``) must have been assigned a stable ID
-    in ``created_map`` (key ``<kind>:<creation_key>`` or bare ``creation_key``);
-    references can only point at existing Canon IDs or entities created in the
-    same patch (§3.4 / §6.1).
+    A ``CreationRef`` (``{kind, creation_key}``) must have been assigned a
+    stable ID in ``created_map`` under its exact ``<kind>:<creation_key>``
+    identity. References can only point at existing Canon IDs or entities
+    created in the same patch (§3.4 / §6.1).
     """
     if isinstance(ref, CreationRef):
-        key = ref.creation_key
-        for candidate in (f"{key}", f"character:{key}", f"location:{key}"):
-            if candidate in created_map:
-                entity_id = created_map[candidate]
-                prefix = entity_id.split("_", 1)[0]
-                kind = cast(EntityKind, KIND_BY_PREFIX.get(prefix, prefix))
-                return EntityRef(kind=kind, id=entity_id)
-        raise PatchValidationError(
-            f"creation_key '{ref.creation_key}' referenced before/without a matching create"
-        )
+        key = f"{ref.kind}:{ref.creation_key}"
+        try:
+            entity_id = created_map[key]
+        except KeyError as exc:
+            raise PatchValidationError(
+                f"{ref.kind} creation_key '{ref.creation_key}' referenced "
+                "before/without a matching create"
+            ) from exc
+        prefix = entity_id.split("_", 1)[0]
+        actual_kind = cast(EntityKind, KIND_BY_PREFIX.get(prefix, prefix))
+        if actual_kind != ref.kind:
+            raise PatchValidationError(
+                f"creation_key '{ref.creation_key}' resolved as {actual_kind}, "
+                f"not declared kind {ref.kind}"
+            )
+        return EntityRef(kind=ref.kind, id=entity_id)
     return _ref(ref)
 
 

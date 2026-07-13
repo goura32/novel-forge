@@ -121,14 +121,16 @@ class EntityRef(BaseModel):
 
 
 class CreationRef(BaseModel):
-    """Reference to an entity created within the *same* patch (§3.4)."""
+    """Typed reference to an entity created within the *same* patch (§3.4)."""
 
     model_config = ConfigDict(extra="forbid")
 
+    kind: EntityKind
     creation_key: str
 
 
-# §3.4 typed reference: ``{id}`` (existing) or ``{creation_key}`` (new).
+# §3.4 typed reference: ``{kind, id}`` (existing) or
+# ``{kind, creation_key}`` (same-patch create).
 ChangeRef = EntityRef | CreationRef
 
 

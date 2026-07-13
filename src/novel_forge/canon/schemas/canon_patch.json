@@ -719,14 +719,33 @@
     },
     "CreationRef": {
       "additionalProperties": false,
-      "description": "Reference to an entity created within the *same* patch (§3.4).",
+      "description": "Typed reference to an entity created within the *same* patch (§3.4).",
       "properties": {
         "creation_key": {
           "title": "Creation Key",
           "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "character",
+            "collective",
+            "location",
+            "artifact",
+            "knowledge",
+            "relationship",
+            "foreshadowing",
+            "subplot",
+            "deadline",
+            "world_rule",
+            "glossary",
+            "series"
+          ],
+          "title": "Kind",
+          "type": "string"
         }
       },
       "required": [
+        "kind",
         "creation_key"
       ],
       "title": "CreationRef",

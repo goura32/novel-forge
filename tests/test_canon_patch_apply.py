@@ -201,6 +201,29 @@ def test_character_state_update_requires_a_location_ref() -> None:
         )
 
 
+def test_same_patch_reference_requires_its_entity_kind() -> None:
+    with pytest.raises(ValidationError, match="kind"):
+        CanonPatch(
+            locations={
+                "create": [
+                    {
+                        "creation_key": "sleeping_theater",
+                        "name": "眠る劇場",
+                        "kind": "theater",
+                    }
+                ]
+            },
+            characters={
+                "state_updates": [
+                    {
+                        "character": er("character", "char_001"),
+                        "current_location": {"creation_key": "sleeping_theater"},
+                    }
+                ]
+            },
+        )
+
+
 def test_character_state_update_can_reference_same_patch_location() -> None:
     canon = _base_canon()
     patch = CanonPatch(
@@ -217,7 +240,7 @@ def test_character_state_update_can_reference_same_patch_location() -> None:
             "state_updates": [
                 {
                     "character": er("character", "char_001"),
-                    "current_location": {"creation_key": "sleeping_theater"},
+                    "current_location": {"kind": "location", "creation_key": "sleeping_theater"},
                 }
             ]
         },

@@ -450,18 +450,21 @@ def test_identical_segment_replacement_is_a_noop(tmp_path: Path):
     assert store.events_path.read_bytes() == before
 
 
-def test_creation_key_is_unique_across_entity_kinds():
-    with pytest.raises(ValueError, match="source-unique"):
-        run_v2_pipeline(
-            SERIES_PLAN,
-            [{
-                "context_scope": _BASIC_SCOPE,
-                "patch": _make_patch(
-                    characters={"create": [{"creation_key": "same", "identity": {"kind": "named", "display_name": "A"}, "importance": "minor", "tracking_level": "continuity", "narrative_function": "x", "continuity_card": {"current_state": "x"}}], "state_updates": [], "promote": [], "identity_reveals": []},
-                    locations={"create": [{"creation_key": "same", "name": "B", "kind": "facility", "current_state": "x"}], "state_updates": []},
-                ),
-            }],
-        )
+def test_creation_key_identity_is_kind_scoped_across_entity_kinds():
+    result = run_v2_pipeline(
+        SERIES_PLAN,
+        [{
+            "context_scope": _BASIC_SCOPE,
+            "patch": _make_patch(
+                characters={"create": [{"creation_key": "same", "identity": {"kind": "named", "display_name": "A"}, "importance": "minor", "tracking_level": "continuity", "narrative_function": "x", "continuity_card": {"current_state": "x"}}], "state_updates": [], "promote": [], "identity_reveals": []},
+                locations={"create": [{"creation_key": "same", "name": "B", "kind": "facility", "current_state": "x"}], "state_updates": []},
+            ),
+        }],
+    )
+
+    created = result["events"][0].created_entity_ids
+    assert created["character:same"].startswith("char_")
+    assert created["location:same"].startswith("loc_")
 def test_fake_llm_e2e_core_scenarios():
     result = run_v2_pipeline(SERIES_PLAN, [
         {
