@@ -310,44 +310,203 @@ A deterministic transition packet derived from the prior accepted Scene Contract
 and Canon frontier may supply an approved continuity boundary.  It never derives
 facts from a draft.
 
-## Acceptance, review, and snapshots
+## Acceptance, convergent review, and snapshots
 
-### Deterministic preflight comes first
+### Root cause: a review/revise loop has no convergence guarantee
 
-Before narrative review, every candidate undergoes the checks appropriate to its
-layer:
+A serial `candidate → review → revise → review` loop is not a quality system.  It
+mutates one current candidate repeatedly and assumes the next revision will retain
+all previously repaired properties.  A reviewer can instead flag a different
+problem, the revise step can regress a previously satisfied requirement, and the
+next reviewer can correctly flag that regression.  More cycles only repeat the
+state transition:
+
+```text
+repair A → regress B → repair B → regress A
+```
+
+A review count cap does not resolve this contradiction.  Selecting the final
+candidate merely hides it; handing that candidate to a later stage spreads an
+unresolved design defect.  PNCA therefore has **no generic review/revise loop**.
+It replaces it with a bounded candidate process whose unresolved state is explicit.
+
+### LLM uncertainty is a permanent architectural condition
+
+Generation, revision, and review are all probabilistic LLM observations.  This is
+true for every model size and does not disappear through more review rounds,
+majority vote, reviewer self-reported confidence, or a stronger model.  PNCA must
+therefore never treat an LLM review result as proof that a semantic requirement is
+true or false.
+
+Only structural checks are authoritative facts:
+
+- schema / typed-reference validity;
+- provenance, digest, and frontier lineage;
+- deterministic Canon patch simulation and replay;
+- explicit topology and requirement-ID membership.
+
+Narrative completeness, causal clarity, reader comprehension, style, and whether a
+beat is adequately realized in prose are **uncertain observations**.  They remain
+valuable evidence, but they are not transformed into deterministic truth by review
+repetition.
+
+Every selection policy must declare how it handles such observations:
+
+| Policy | Semantic risks after fixed candidate budget | Status |
+|---|---|---|
+| `conservative` | Stop at the owner scope for an explicit human decision. | `needs_decision` |
+| `best_effort` | Select the policy-best candidate and preserve every unresolved risk. | `selected_with_semantic_risks` |
+
+Both policies reject structural failures.  Neither labels unresolved semantic risks
+as `passed`, and neither feeds an LLM's risk claim into later prompts as a new story
+fact or mandatory correction.
+
+### Requirement ledger is created before candidate generation
+
+Every contract has an immutable `RequirementLedger` compiled from its parent
+contracts and its own explicit acceptance conditions.  It is a finite, typed choice
+list, not free-text issue history:
+
+```jsonc
+{
+  "requirement_id": "req_scene_014_beat_02",
+  "owner_scope": "scene_contract",
+  "class": "hard",
+  "statement": "Ren enters the theatre despite Suzu's objection.",
+  "verification_mode": "prose_evidence",
+  "allowed_next_owner": null
+}
+```
+
+A reviewer may report a risk against an existing `requirement_id` and supply
+grounded evidence.  It may not turn a newly invented taste, detail, or alternative
+plot into a hard requirement after generation.  The report is an observation, not
+proof that the requirement is violated.
+
+A newly discovered concern is still preserved; it is classified as one of:
+
+| Classification | Meaning | Effect |
+|---|---|---|
+| `observed_contract_risk` | LLM evidence suggests an existing requirement may be missing or contradicted. | Candidate risk vector changes; policy decides selection or repair. |
+| `structural_failure` | Schema, typed reference, lineage, or deterministic simulation fails. | Candidate invalid. |
+| `scope_escalation` | The problem may be real but its predeclared owner is a parent/sibling contract, not the current artifact. | Do not revise locally; return to named owner. |
+| `editorial_note` | A grounded reader-facing improvement outside the ledger. | Immutable evidence only; never blocks Canon or selection. |
+
+This does **not** suppress correct issues.  It prevents an unbounded stream of
+subjective after-the-fact criteria from masquerading as a contract failure.  Every
+reported issue remains in evidence; only explicit contractual obligations may enter
+the candidate risk vector.
+
+### Fixed three-audit assessment, not three revision cycles
+
+The requested three reviews are three independent, same-candidate assessments.  No
+review sees a candidate modified in response to a previous review.
+
+```text
+candidate C0
+  ├─ audit 1: parent requirement coverage and scope
+  ├─ audit 2: internal causal / disclosure consistency
+  └─ audit 3: renderability or draft compliance
+          ↓
+  immutable assessment matrix for C0
+```
+
+Each audit receives the same candidate digest, the same RequirementLedger, and its
+explicit review scope.  It returns requirement IDs, status, and evidence—not
+free-form replacement prose.  Deterministic validation remains a separate,
+pre-review gate:
 
 - schema and parent-reference validation;
-- parent requirement coverage / deferment validation;
+- parent requirement coverage / explicit deferment validation;
 - Canon input-frontier lineage validation;
 - for scenes: complete typed-ref resolution, stable-ID minting, dependency-DAG
   patch simulation, post-state assertion, and frontier replay.
 
 The runtime never silently removes no-op operations or repairs an authoring
 candidate.  A no-effect scene declares `canon_effect: "none"`; a malformed patch
-returns as a specific validation failure for revision.
+is a structural failure.
 
-### Compliance is fail-closed; editorial feedback is separate
+### Candidate set and uncertainty-aware selection
+
+Candidates are immutable branches.  A repair never overwrites `C0`, and the three
+audit outputs are never combined by majority vote into semantic truth.
+
+```text
+C0 + assessment(C0)
+  ├─ structurally valid, no observed contract risks → selected_without_observed_risks
+  ├─ local repair plan → C1                         → re-assess whole ledger
+  ├─ fresh generation → C2                          → re-assess whole ledger
+  └─ scope escalation                               → parent/sibling owner
+```
+
+A local repair plan is derived once from the complete three-audit matrix.  Its input
+contains all observed contract risks and all requirements the candidate currently
+appears to satisfy.  The resulting candidate is assessed against the *entire*
+ledger again, never only against the latest issue list.
+
+The selection record stores every candidate's requirement-state observations and
+all evidence.  A `satisfied → risk-observed` regression is never erased or hidden;
+it changes the candidate's explicit risk vector.  The policy compares these vectors
+without claiming that an LLM has proved either candidate semantically correct.  This
+uses explicit requirement IDs, not forbidden fuzzy matching, free-text issue
+deletion, or mechanical prose replacement.
+
+There is no open-ended local repair loop.  The configured candidate budget bounds
+cost, not truth.  When it is exhausted:
+
+- structural failure means no candidate is selectable;
+- an owner-scope conflict emits an immutable `scope_escalation`;
+- unresolved semantic observations follow the declared `conservative` or
+  `best_effort` policy from the uncertainty section.
+
+Under `best_effort`, a selected candidate carries its complete risk vector as
+`selected_with_semantic_risks`.  Downstream prompts receive the selected contract,
+not the review claims.  The risks remain in snapshots, run status, and export
+manifest for audit; they never silently become Canon facts or revision instructions.
+
+### Escalate to the owner that can actually resolve the problem
+
+A review selects a requirement ID; its `owner_scope` is predeclared in the
+RequirementLedger.  The runtime therefore does not trust a reviewer's free-text
+claim about which layer should change.  A real scope escalation becomes an explicit
+design decision, not another local rewrite.
+
+| Failure source | Correct owner | Forbidden response |
+|---|---|---|
+| Missing scene beat or prose evidence | Scene Contract / draft renderer | Alter Series or Canon silently |
+| Incompatible SceneSlot obligations | Chapter Contract | Keep rewriting the scene indefinitely |
+| Impossible chapter outcome or admission | Volume Contract | Invent an unapproved Canon fact |
+| Series invariant, ending, or world-rule conflict | Series Contract | Patch it inside a scene |
+| Schema, reference, digest, or frontier defect | Candidate generation / deterministic layer | Human narrative waiver |
+
+Changing an accepted parent creates a new parent artifact and invalidates descendants
+by digest.  The affected scope is then designed again from that new authority.
+This is deliberate backtracking, not a hidden retry loop.  When `best_effort`
+permits risk carrying, only the immutable risk evidence propagates for audit—not a
+new story fact, Canon mutation, or next-prompt instruction.
+
+### Structural gates are fail-closed; semantic review is uncertainty-aware
 
 | Finding | Selection result |
 |---|---|
 | Parse/schema/typed-reference failure | candidate invalid |
-| Parent-contract or frontier failure | candidate invalid |
-| Scene/draft compliance blocker | revise, regenerate, or stop unselected |
-| Editorial preference | optional evidence; not an authority gate |
+| Provenance or frontier failure | candidate invalid |
+| Deterministic parent-requirement membership failure | candidate invalid or predeclared scope escalation |
+| LLM-observed ledger risk | repair branch, `conservative` decision, or `best_effort` risk-carrying selection |
+| Editorial preference | immutable optional evidence; not an authority gate |
 
-At a review limit, a fully compliant prior candidate may be selected.  If none
-exists, the unit is `needs_decision`; an issue-bearing candidate is never labelled
-`passed`.  An explicit human waiver may cover a narrative blocker only when the
-release policy permits it; structural, lineage, digest, and typed-reference
-failures are never waivable.
+A human waiver may cover a named narrative requirement only when release policy
+permits it and the waiver becomes a new explicit acceptance input.  Structural,
+lineage, digest, and typed-reference failures are never waivable.  A waiver is not
+an implicit “continue after review cap” switch, and a `best_effort` selection is
+never relabelled `passed`.
 
 A selected scene is an atomic snapshot boundary:
 
 ```text
 scene.contract
-scene.contract.final_review
-scene.contract.patch_review
+scene.contract.requirement_ledger
+scene.contract.assessment_matrix
 scene.contract.acceptance
 canon.frontier  ← output of this exact scene contract
 ```
@@ -363,10 +522,12 @@ After all scene contracts for a target volume are accepted, the runtime creates 
 placement topology, parent contracts, and the volume-end Canon frontier checkpoint.
 It does not duplicate full scene payloads.
 
-Render begins only from an accepted frozen bundle.  Every draft is checked against
-its contract requirement IDs and evidence spans.  A draft that omits a required
-beat, contradicts the start/end state, leaks a forbidden fact, or creates an
-unplanned durable fact cannot be selected.
+Render begins only from an accepted frozen bundle.  Every draft is assessed against
+its contract requirement IDs and evidence claims.  A deterministic structural
+violation cannot be selected.  A model-observed omission, contradiction,
+disclosure concern, or unplanned-durable-fact concern enters the draft's semantic
+risk vector and follows the selected `conservative` or `best_effort` policy; it is
+never silently converted into a passing result.
 
 A prose recap may be created for people, search, and audit.  It is marked derived:
 
@@ -376,10 +537,12 @@ A prose recap may be created for people, search, and audit.  It is marked derive
 - never a substitute for required-beat evidence.
 
 Export is a pure derivation from an explicit DesignBundle/snapshot.  It validates
-ordered topology, selected draft and compliance evidence, artifact/manifest
-digests, the bundle's pinned volume-end frontier replay, and waiver policy.  It
-never reads a current global frontier, creates a selection snapshot, or mutates
-Canon.
+ordered topology, selected draft and assessment evidence, artifact/manifest digests,
+the bundle's pinned volume-end frontier replay, and the pinned semantic-risk / waiver
+policy.  A `selected_with_semantic_risks` export must expose those risks in its
+manifest; strict export may reject it when the selected release policy requires no
+open semantic risks.  Export never reads a current global frontier, creates a
+selection snapshot, or mutates Canon.
 
 ## Implementation migration order
 
@@ -394,7 +557,10 @@ Canon.
    free-form scene authors.
 5. Compile `writer_view`, replace `writer_context`, and remove summary as a
    forward input.
-6. Add fail-closed contract compliance reviews and strict bundle-pinned export.
+6. Add RequirementLedger, fixed same-candidate three-audit assessment, immutable
+   risk vectors, policy-labelled `conservative` / `best_effort` selection, and
+   strict bundle-pinned export.  Delete generic cap-driven `review → revise`
+   advancement.
 7. Delete old DSL aliases, duplicate payload assembly, old task resources, and
    compatibility tests.  No compatibility shim remains.
 
@@ -410,8 +576,14 @@ Canon.
   `(kind, creation_key)` within one source fails before review.
 - Writer input contains only one compiled writer view; altering a summary cannot
   alter any later writer request.
-- Draft selection fails at every review limit when requirement evidence is missing
-  or contradicted.
+- Three review calls assess the same candidate digest and cannot observe one
+  another's revision; their outputs never become semantic truth through voting.
+- A revision/fresh candidate is assessed against the complete RequirementLedger;
+  a newly observed regression remains in its risk vector rather than disappearing.
+- Structural failure is never selectable.  At exhausted candidate budget,
+  `conservative` yields `needs_decision`, while `best_effort` yields
+  `selected_with_semantic_risks` with all evidence pinned and no risk claim injected
+  into downstream prompts.
 - A selected Scene Contract and its output frontier always appear in the same
   selection snapshot.
 - Export rejects missing/duplicated scene slots, unreviewed drafts, digest mismatch,
