@@ -148,8 +148,13 @@ def make_pnca_task_executor(*, client: Any, manager: PromptManager | None = None
                 projection["writer_view"].get("required_beats", []), ensure_ascii=False
             )
         elif task_id == "pnca.scene.coverage":
-            variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
+            writer_view = projection["writer_view"]
+            variables["writer_view"] = json.dumps(writer_view, ensure_ascii=False)
             variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)
+            variables["obligations"] = json.dumps({
+                "required_beat_indexes": list(range(len(writer_view.get("required_beats", [])))),
+                "requires_end_constraint": bool(writer_view.get("end_constraints")),
+            }, ensure_ascii=False)
         elif task_id == "pnca.scene.revise":
             variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
             variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)

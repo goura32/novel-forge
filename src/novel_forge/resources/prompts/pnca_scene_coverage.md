@@ -10,13 +10,17 @@
 
 ## 実行指示
 
-`draft.content` を句点（`。`、`！`、`？`）単位で、先頭からゼロ始まりに分割した文の `sentence_index` を返す。本文の文言を出力してはいけない。各 `required_beats` を完了した文を `beat_index` とともに一件ずつ選ぶ。`end_constraints` が空でなければ、終了状態を示す文を `end_constraint` として一件選ぶ。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
+`obligations.required_beat_indexes` にある **すべての index を一回ずつ** `required_beat` として出力する。`end_constraint` は required beat の代わりではなく、`obligations.requires_end_constraint` が true のときに追加で一回出力する。`draft.content` を句点（`。`、`！`、`？`）単位で、先頭からゼロ始まりに分割した文の `sentence_index` を返す。本文の文言を出力してはいけない。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
 
 ## 入力情報
 
 ### WriterView
 
 {writer_view}
+
+### Required obligations
+
+{obligations}
 
 ### Fixed draft
 
