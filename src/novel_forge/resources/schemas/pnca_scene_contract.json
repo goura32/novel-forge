@@ -58,7 +58,7 @@
         "required_beats": {
           "type": "array",
           "description": "本文内で順序どおり観測できる必須の場面到達点。",
-          "minItems": 2,
+          "minItems": 1,
           "maxItems": 4,
           "items": {
             "anyOf": [
