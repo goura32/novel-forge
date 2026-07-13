@@ -352,13 +352,13 @@ repetition.
 
 Every selection policy must declare how it handles such observations:
 
-| Policy | Semantic risks after fixed candidate budget | Status |
+| Policy | Semantic observations after fixed candidate budget | Status |
 |---|---|---|
 | `conservative` | Stop at the owner scope for an explicit human decision. | `needs_decision` |
-| `best_effort` | Select the policy-best candidate and preserve every unresolved risk. | `selected_with_semantic_risks` |
+| `best_effort` | A selection-synthesis LLM recommends from every candidate and all raw audit/synthesis artifacts under the pinned policy. | `selected_with_semantic_observations` |
 
-Both policies reject structural failures.  Neither labels unresolved semantic risks
-as `passed`, and neither feeds an LLM's risk claim into later prompts as a new story
+Both policies reject structural failures.  Neither labels unresolved semantic observations
+as `passed`, and neither feeds an LLM's observation into later prompts as a new story
 fact or mandatory correction.
 
 ### Requirement ledger is created before candidate generation
@@ -387,15 +387,15 @@ A newly discovered concern is still preserved; it is classified as one of:
 
 | Classification | Meaning | Effect |
 |---|---|---|
-| `observed_contract_risk` | LLM evidence suggests an existing requirement may be missing or contradicted. | Candidate risk vector changes; policy decides selection or repair. |
+| `observed_contract_risk` | LLM evidence suggests an existing requirement may be missing or contradicted. | Preserve it in the raw audit batch; ReviewSynthesis and policy decide the next LLM action. |
 | `structural_failure` | Schema, typed reference, lineage, or deterministic simulation fails. | Candidate invalid. |
 | `scope_escalation` | The problem may be real but its predeclared owner is a parent/sibling contract, not the current artifact. | Do not revise locally; return to named owner. |
 | `editorial_note` | A grounded reader-facing improvement outside the ledger. | Immutable evidence only; never blocks Canon or selection. |
 
 This does **not** suppress correct issues.  It prevents an unbounded stream of
 subjective after-the-fact criteria from masquerading as a contract failure.  Every
-reported issue remains in evidence; only explicit contractual obligations may enter
-the candidate risk vector.
+reported issue remains in the raw audit evidence; only explicit contractual
+obligations may be selected by an audit through the RequirementLedger.
 
 ### Fixed three-audit assessment, not three revision cycles
 
@@ -428,87 +428,80 @@ The runtime never silently removes no-op operations or repairs an authoring
 candidate.  A no-effect scene declares `canon_effect: "none"`; a malformed patch
 is a structural failure.
 
-### Audit disagreement is expected and remains unresolved evidence
+### ReviewSynthesis receives every audit artifact verbatim
 
-Independent audits can make conflicting observations about the same requirement, or
-can imply mutually incompatible ways to improve a candidate.  This is expected.  A
-candidate payload and every audit observation are LLM-produced competing evidence;
-the runtime has no semantic oracle that can declare either side correct.
+Independent audits can disagree, misread the candidate, or imply incompatible
+improvements.  This is expected.  A candidate payload and every audit artifact are
+LLM-produced evidence; the runtime has no semantic oracle that can decide which is
+correct.
 
-The assessment matrix therefore records claims separately:
+The runtime therefore does **not** detect, classify, vote on, or merge semantic
+conflicts between audit outputs.  Comparing matching requirement IDs or enum values
+cannot establish whether their free-text evidence, interpretations, or proposed
+changes actually conflict.  It preserves the complete raw audit artifacts in a
+stable order and passes all of them, unchanged, to a dedicated `ReviewSynthesis` LLM:
 
-```jsonc
-{
-  "claim_id": "audit_2:req_scene_014_beat_02",
-  "candidate_digest": "…",
-  "requirement_id": "req_scene_014_beat_02",
-  "observation": "risk_observed",
-  "evidence": "…",
-  "audit_scope": "causal_consistency"
-}
+```text
+candidate C0 + RequirementLedger + raw audit 1 + raw audit 2 + raw audit 3
+                                      ↓
+                           ReviewSynthesis (LLM artifact)
+                                      ↓
+C0 + RequirementLedger + all raw audits + synthesis → revision LLM → C1
 ```
 
-When audits select the same `requirement_id` with incompatible observations, the
-runtime records an `AssessmentDisagreement` using those explicit claim IDs.  This is
-a mechanical comparison of typed IDs and enum values only; it does not inspect or
-fuzzy-match prose.  Disagreement is never resolved by majority vote, an extra LLM
-judge, confidence scores, or discarding the minority claim.
+`ReviewSynthesis` may organize the full set of observations, explain tensions it
+perceives, identify which requirements appear implicated, and prepare a coherent
+revision context.  It may not make an audit artifact disappear, relabel an audit as
+false, or turn its own interpretation into a deterministic result.  The source
+candidate and every raw audit remain first-class inputs to the revision LLM and
+immutable evidence in the run record.
 
-For observations against different requirements that imply competing repairs, no
-runtime attempts to merge the natural-language rationale.  A later repair proposal
-must declare the claim IDs it treats as assumptions.  Any incompatible assumptions
-produce separate candidate branches rather than one prompt containing contradictory
-repair instructions.
+The only machine interpretation at this boundary is structural: validate the audit
+artifact schema and provenance, preserve all artifacts, and inject the complete
+ordered batch.  There is no semantic disagreement detector, majority vote,
+confidence gate, free-text merge, fuzzy matching, or mechanical prose replacement.
 
 ### Candidate set and uncertainty-aware selection
 
-Candidates are immutable branches.  A repair never overwrites `C0`, and the three
-audit outputs are never combined by majority vote into semantic truth.
+Candidates are immutable branches.  A revision never overwrites `C0`, and neither a
+synthesis nor a later audit establishes semantic truth.
 
 ```text
-C0 + assessment(C0)
-  ├─ structurally valid, no observed contract risks → selected_without_observed_risks
-  ├─ repair hypothesis H1(claim IDs …) → C1          → re-assess whole ledger
-  ├─ repair hypothesis H2(conflicting IDs …) → C2    → re-assess whole ledger
-  ├─ fresh generation → C3                           → re-assess whole ledger
-  └─ scope escalation                                → parent/sibling owner
+C0 + raw audits + ReviewSynthesis S0 → revision → C1
+C1 + raw audits + ReviewSynthesis S1 → revision → C2
+fresh generation                      → C3
 ```
 
-A repair proposal is not a merged instruction list.  It is one explicitly named
-hypothesis over a non-conflicting set of audit claim IDs.  Its candidate input
-contains that hypothesis, the full RequirementLedger, and the requirements the
-source candidate appears to satisfy.  Competing hypotheses create different branches;
-no LLM is asked to reconcile contradictory reviewer advice in one response.  Every
-resulting candidate is assessed against the *entire* ledger again, never only against
-the claims that motivated it.
+Each revision receives the source candidate, the complete RequirementLedger, **all**
+raw audit artifacts for that candidate, and the associated `ReviewSynthesis`.  It is
+never given a mechanically filtered issue list or a runtime-generated conflict
+classification.  Every resulting candidate is re-assessed against the full ledger
+with a fresh complete audit batch and synthesis artifact.
 
-The selection record stores every candidate's requirement-state observations, all
-audit claims, every `AssessmentDisagreement`, the selected hypothesis if any, and the
-selection policy/rationale.  A `satisfied → risk-observed` regression is never erased
-or hidden; it changes the candidate's explicit risk vector.  This uses explicit
-requirement IDs, not forbidden fuzzy matching, free-text issue deletion, or
-mechanical prose replacement.
+The selection record stores every candidate, its complete raw audit batch, each
+synthesis artifact, and the policy/rationale used for the operational outcome.  No
+raw issue is erased because a synthesis did not mention it, and no candidate is
+considered semantically proven correct because a synthesis preferred it.
 
-No automatic selection claims semantic correctness.  When candidate branches differ
-only through unresolved LLM observations, `conservative` stops.  `best_effort` may
-select only through a policy pinned *before* the run—for example, retain the baseline
-candidate, prioritize a named user requirement class, or apply an explicit user choice.
-The record must say that the outcome is a policy choice among competing evidence, not
-that the chosen candidate or its reviews were proven right.
+At a bounded candidate budget, `conservative` returns `needs_decision` when semantic
+observations remain.  Under `best_effort`, a final **selection-synthesis LLM**
+receives every candidate, all raw audits, all ReviewSynthesis artifacts, and the
+policy pinned before the run.  It returns a recommendation and rationale.  The
+runtime records that policy-directed recommendation as
+`selected_with_semantic_observations`; it does not claim the selected candidate or
+the selection-synthesis LLM is semantically correct.
 
 There is no open-ended local repair loop.  The configured candidate budget bounds
 cost, not truth.  When it is exhausted:
 
 - structural failure means no candidate is selectable;
-- an owner-scope conflict emits an immutable `scope_escalation`;
+- an owner-scope conflict is preserved for the authoritative owner to consider;
 - unresolved semantic observations follow the declared `conservative` or
-  `best_effort` policy from the uncertainty section.
+  `best_effort` policy.
 
-Under `best_effort`, a selected candidate carries its complete risk vector and any
-`assessment_disagreement_ids` as `selected_with_semantic_risks`.  Downstream prompts
-receive the selected contract, not the review claims.  The risks and disagreements
-remain in snapshots, run status, and export manifest for audit; they never silently
-become Canon facts or revision instructions.
+Under `best_effort`, downstream prompts receive the selected contract, not audit
+claims as story facts or mechanical revision instructions.  The complete audits and
+syntheses remain in snapshots, run status, and export manifest for audit.
 
 ### Escalate to the owner that can actually resolve the problem
 
@@ -538,7 +531,7 @@ new story fact, Canon mutation, or next-prompt instruction.
 | Parse/schema/typed-reference failure | candidate invalid |
 | Provenance or frontier failure | candidate invalid |
 | Deterministic parent-requirement membership failure | candidate invalid or predeclared scope escalation |
-| LLM-observed ledger risk | repair branch, `conservative` decision, or `best_effort` risk-carrying selection |
+| LLM-observed ledger risk | full raw-audit batch → `ReviewSynthesis` → revision, `conservative` decision, or `best_effort` selection-synthesis |
 | Editorial preference | immutable optional evidence; not an authority gate |
 
 A human waiver may cover a named narrative requirement only when release policy
@@ -552,9 +545,9 @@ A selected scene is an atomic snapshot boundary:
 ```text
 scene.contract
 scene.contract.requirement_ledger
-scene.contract.assessment_matrix
-scene.contract.assessment_disagreements
-scene.contract.acceptance  ← selection policy / hypothesis / rationale pinned
+scene.contract.raw_audits
+scene.contract.review_synthesis
+scene.contract.acceptance  ← selection policy / selection-synthesis rationale pinned
 canon.frontier  ← output of this exact scene contract
 ```
 
@@ -572,9 +565,10 @@ It does not duplicate full scene payloads.
 Render begins only from an accepted frozen bundle.  Every draft is assessed against
 its contract requirement IDs and evidence claims.  A deterministic structural
 violation cannot be selected.  A model-observed omission, contradiction,
-disclosure concern, or unplanned-durable-fact concern enters the draft's semantic
-risk vector and follows the selected `conservative` or `best_effort` policy; it is
-never silently converted into a passing result.
+disclosure concern, or unplanned-durable-fact concern is preserved in the draft's
+complete raw audit batch and passed unchanged to `ReviewSynthesis`; it follows the
+selected `conservative` or `best_effort` policy and is never silently converted into
+a passing result.
 
 A prose recap may be created for people, search, and audit.  It is marked derived:
 
@@ -585,12 +579,12 @@ A prose recap may be created for people, search, and audit.  It is marked derive
 
 Export is a pure derivation from an explicit DesignBundle/snapshot.  It validates
 ordered topology, selected draft and assessment evidence, artifact/manifest digests,
-the bundle's pinned volume-end frontier replay, the pinned semantic-risk / waiver
-policy, and any assessment-disagreement IDs plus selection rationale.  A
-`selected_with_semantic_risks` export must expose those risks and disagreements in
-its manifest; strict export may reject it when the selected release policy requires
-no open semantic risks.  Export never reads a current global frontier, creates a
-selection snapshot, or mutates Canon.
+the bundle's pinned volume-end frontier replay, the pinned semantic-observation /
+waiver policy, and the complete raw audits, ReviewSynthesis artifacts, and
+selection-synthesis rationale.  A `selected_with_semantic_observations` export must
+expose those artifacts in its manifest; strict export may reject it when the selected
+release policy requires no open semantic observations.  Export never reads a current
+global frontier, creates a selection snapshot, or mutates Canon.
 
 ## Implementation migration order
 
@@ -605,10 +599,10 @@ selection snapshot, or mutates Canon.
    free-form scene authors.
 5. Compile `writer_view`, replace `writer_context`, and remove summary as a
    forward input.
-6. Add RequirementLedger, fixed same-candidate three-audit assessment,
-   AssessmentDisagreement records, immutable risk vectors, hypothesis branches,
-   policy-labelled `conservative` / `best_effort` selection, and strict
-   bundle-pinned export.  Delete generic cap-driven `review → revise` advancement.
+6. Add RequirementLedger, fixed same-candidate three-audit collection, immutable
+   raw-audit artifacts, ReviewSynthesis and selection-synthesis tasks, policy-labelled
+   `conservative` / `best_effort` outcomes, and strict bundle-pinned export.  Delete
+   generic cap-driven `review → revise` advancement.
 7. Delete old DSL aliases, duplicate payload assembly, old task resources, and
    compatibility tests.  No compatibility shim remains.
 
@@ -625,19 +619,21 @@ selection snapshot, or mutates Canon.
 - Writer input contains only one compiled writer view; altering a summary cannot
   alter any later writer request.
 - Three review calls assess the same candidate digest and cannot observe one
-  another's revision; their outputs never become semantic truth through voting.
-- Conflicting observations for the same requirement ID create an
-  `AssessmentDisagreement`; no majority vote, extra LLM judge, confidence score, or
-  minority-claim deletion resolves it.
-- Competing repair hypotheses create separate immutable candidate branches.  No
-  repair prompt receives contradictory reviewer instructions, and each branch pins
-  its assumed claim IDs.
-- A revision/fresh candidate is assessed against the complete RequirementLedger;
-  a newly observed regression remains in its risk vector rather than disappearing.
+  another's revision; their raw artifacts are preserved in full and never become
+  semantic truth through voting.
+- ReviewSynthesis receives the candidate, RequirementLedger, and every raw audit
+  artifact verbatim.  The runtime does not detect, classify, vote on, merge, or
+  delete semantic conflicts between audit outputs.
+- Each revision receives the complete raw audit batch and ReviewSynthesis, not a
+  mechanically filtered issue list.  A later selection-synthesis receives every
+  candidate and all of their raw audits/syntheses.
+- A revision/fresh candidate is assessed against the complete RequirementLedger with
+  a new full audit batch and ReviewSynthesis; earlier raw audit artifacts remain
+  preserved even when a later synthesis does not repeat an observation.
 - Structural failure is never selectable.  At exhausted candidate budget,
   `conservative` yields `needs_decision`, while `best_effort` yields
-  `selected_with_semantic_risks` with all evidence pinned and no risk claim injected
-  into downstream prompts.
+  `selected_with_semantic_observations` with complete audit/synthesis evidence pinned
+  and no audit claim injected into downstream prompts.
 - A selected Scene Contract and its output frontier always appear in the same
   selection snapshot.
 - Export rejects missing/duplicated scene slots, unreviewed drafts, digest mismatch,
