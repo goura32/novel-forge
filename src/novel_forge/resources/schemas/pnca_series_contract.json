@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["contract_id", "canon_seed"],
+  "required": ["contract_id", "canon_seed", "volume_purposes"],
   "properties": {
     "contract_id": {
       "type": "string",
@@ -9,6 +9,20 @@
     "canon_seed": {
       "type": "object",
       "description": "空でないシリーズ開始時点の Canon。series ID、title、logline、初期 entity/state を含む JSON object。"
+    },
+    "volume_purposes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "各巻の one-line purpose。ordinal は 1 から昇順・重複なし。章や scene beats は書かない。",
+      "items": {
+        "type": "object",
+        "description": "一巻分の purpose record。ordinal と purpose を必ず含める。",
+        "required": ["ordinal", "purpose"],
+        "properties": {
+          "ordinal": {"type": "integer", "minimum": 1, "description": "シリーズ内での巻番号。1 からの昇順で重複させない。"},
+          "purpose": {"type": "string", "description": "その巻がシリーズ全体で果たす一文の役割。章、scene、具体的 beat、Canon patch は書かない。"}
+        }
+      }
     }
   }
 }

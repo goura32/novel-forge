@@ -23,6 +23,7 @@ from novel_forge.pnca.contracts import (
     SceneSlot,
     SeriesContract,
     VolumeContract,
+    VolumePurpose,
     WriterView,
 )
 from novel_forge.pnca.validation import (
@@ -237,6 +238,7 @@ def test_progressive_contracts_preserve_parent_identity_and_slot_topology() -> N
         canon_seed_artifact_id="art_seed",
         root_frontier_artifact_id="art_frontier_root",
         root_frontier_digest="sha256:root",
+        volume_purposes=(VolumePurpose(ordinal=1, purpose="導入"),),
     )
     volume = VolumeContract(
         contract_id="volume_001",

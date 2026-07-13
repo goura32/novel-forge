@@ -71,6 +71,7 @@ class PNCAContractAuthor:
             canon_seed_artifact_id=seed.artifact_id,
             root_frontier_artifact_id=frontier.artifact_id,
             root_frontier_digest=frontier.manifest.content_digest,
+            volume_purposes=proposal.volume_purposes,
         )
         contract_attempt = self.repository.start_attempt(
             run, task_id="pnca.series.contract", phase="plan", reason="pin finalized series contract"

@@ -8,6 +8,7 @@ from novel_forge.pnca.contracts import (
     SeriesContract,
     SeriesContractProposal,
     VolumeContract,
+    VolumePurpose,
 )
 from novel_forge.pnca.progression import AuthoredContract, PNCAContractAuthor
 from novel_forge.pnca.registry import (
@@ -55,6 +56,7 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
         "pnca.series.contract": {
             "contract_id": "series_001",
             "canon_seed": {"schema_version": 2, "series": {"id": "series_001"}},
+            "volume_purposes": [{"ordinal": 1, "purpose": "呪いの受諾"}],
         },
         "pnca.volume.contract": {
             "contract_id": "volume_001",
@@ -99,6 +101,7 @@ def test_series_authoring_materializes_seed_and_root_frontier_before_contract(tm
                 "pnca.series.contract": {
                     "contract_id": "series_001",
                     "canon_seed": {"schema_version": 2, "series": {"id": "series_001"}},
+                    "volume_purposes": [{"ordinal": 1, "purpose": "魔女が月灯りの呪いを引き受ける"}],
                 }
             }
         ),
@@ -113,13 +116,22 @@ def test_series_authoring_materializes_seed_and_root_frontier_before_contract(tm
     )
     series = author.author_series(run=run, scope_id="series_001", request=request)
 
-    assert isinstance(SeriesContractProposal(contract_id="series_001", canon_seed={"seed": True}), SeriesContractProposal)
+    assert isinstance(
+        SeriesContractProposal(
+            contract_id="series_001",
+            canon_seed={"seed": True},
+            volume_purposes=(VolumePurpose(ordinal=1, purpose="呪いの受諾"),),
+        ),
+        SeriesContractProposal,
+    )
     seed = repo.verify_artifact(series.contract.canon_seed_artifact_id)
     frontier = repo.verify_artifact(series.contract.root_frontier_artifact_id)
     assert seed.manifest.artifact_type == "canon.seed"
     assert frontier.manifest.logical_key == "canon.frontier.root"
     assert frontier.manifest.canon_lineage_root_digest == seed.manifest.content_digest
     assert series.contract.root_frontier_digest == frontier.manifest.content_digest
+    assert series.contract.volume_purposes[0].purpose == "魔女が月灯りの呪いを引き受ける"
+    assert repo.read_payload(series.artifact)["volume_purposes"] == [{"ordinal": 1, "purpose": "魔女が月灯りの呪いを引き受ける"}]
     assert series.artifact.manifest.input_artifact_ids == (request.artifact_id, seed.artifact_id, frontier.artifact_id)
 
 

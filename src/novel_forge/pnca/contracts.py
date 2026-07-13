@@ -127,11 +127,26 @@ class SceneContract(BaseModel):
         return self
 
 
+class VolumePurpose(BaseModel):
+    """One Series-owned one-line purpose for an ordered Volume."""
+
+    ordinal: int = Field(ge=1)
+    purpose: str = Field(min_length=1)
+
+
 class SeriesContractProposal(BaseModel):
     """Provider output before repository-created Canon artifacts are pinned."""
 
     contract_id: str = Field(min_length=1, pattern=r"^[a-z0-9_]{1,40}$")
     canon_seed: dict[str, Any] = Field(min_length=1)
+    volume_purposes: tuple[VolumePurpose, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _volume_purposes_are_ordered(self) -> SeriesContractProposal:
+        ordinals = [item.ordinal for item in self.volume_purposes]
+        if ordinals != sorted(ordinals) or len(ordinals) != len(set(ordinals)):
+            raise ValueError("SeriesContractProposal volume purposes must have unique increasing ordinals")
+        return self
 
 
 class SeriesContract(BaseModel):
@@ -141,6 +156,7 @@ class SeriesContract(BaseModel):
     canon_seed_artifact_id: str = Field(min_length=1)
     root_frontier_artifact_id: str = Field(min_length=1)
     root_frontier_digest: str = Field(min_length=1)
+    volume_purposes: tuple[VolumePurpose, ...] = Field(min_length=1)
 
 
 class VolumeContract(BaseModel):

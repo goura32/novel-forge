@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from novel_forge.pnca.contracts import SeriesContract
+from novel_forge.pnca.contracts import SeriesContract, VolumePurpose
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.runtime import RunRepository
@@ -31,6 +31,7 @@ def test_bootstrap_series_authors_then_selects_pnca_root(tmp_path) -> None:
         canon_seed_artifact_id=seed.artifact_id,
         root_frontier_artifact_id=frontier.artifact_id,
         root_frontier_digest=frontier.manifest.content_digest,
+        volume_purposes=(VolumePurpose(ordinal=1, purpose="呪いの受諾"),),
     )
     contract_artifact = repo.commit_artifact(
         repo.start_attempt(run, task_id="series", phase="plan", reason="test"),

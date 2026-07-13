@@ -12,6 +12,7 @@
 
 - `contract_id` は最終 series slug として `[a-z0-9_]{1,40}` に完全一致する、request 内の既存 slug と重複しない stable ID を設計する。
 - `canon_seed` は series ID、title、logline、初期 entity と state を含む JSON object にする。
+- `volume_purposes` は各巻につき一つの短い目的を `ordinal` の昇順で列挙する。シリーズ全体の進行上その巻が果たす役割だけを書き、chapter、scene、具体的な beat、Canon patch は書かない。
 - 不自然な英語、簡体字、ハングルを混在させず、自然な日本語で書く。
 - 空の object や未定義の仮名を出力しない。
 
