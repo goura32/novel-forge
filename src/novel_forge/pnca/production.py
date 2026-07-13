@@ -18,7 +18,7 @@ def stage_series_request(
     *,
     repository: RunRepository,
     run: RunHandle,
-    slug: str,
+    request_id: str,
     keywords: str,
     existing_slugs: tuple[str, ...],
 ) -> ArtifactReference:
@@ -32,8 +32,8 @@ def stage_series_request(
     return repository.commit_artifact(
         attempt,
         artifact_type="pnca.series.request",
-        logical_key=f"pnca.series.request.{slug}",
-        payload={"slug": slug, "keywords": keywords, "existing_slugs": list(existing_slugs)},
+        logical_key=f"pnca.series.request.{request_id}",
+        payload={"keywords": keywords, "existing_slugs": list(existing_slugs)},
         payload_name="request.json",
     )
 

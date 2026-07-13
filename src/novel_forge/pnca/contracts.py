@@ -130,7 +130,7 @@ class SceneContract(BaseModel):
 class SeriesContractProposal(BaseModel):
     """Provider output before repository-created Canon artifacts are pinned."""
 
-    contract_id: str = Field(min_length=1)
+    contract_id: str = Field(min_length=1, pattern=r"^[a-z0-9_]{1,40}$")
     canon_seed: dict[str, Any] = Field(min_length=1)
 
 

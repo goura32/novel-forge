@@ -4,7 +4,7 @@
   "properties": {
     "contract_id": {
       "type": "string",
-      "description": "Series request の slug と完全一致する空でない stable ID。"
+      "description": "最終 series slug。`^[a-z0-9_]{1,40}$` に一致し、request の existing_slugs と重複しない stable ID。"
     },
     "canon_seed": {
       "type": "object",

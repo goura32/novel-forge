@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+from novel_forge.pnca.contracts import SeriesContractProposal
 from novel_forge.pnca.production import make_pnca_task_executor, stage_series_request
 from novel_forge.runtime import RunRepository
 
@@ -11,18 +14,22 @@ def test_stage_series_request_persists_only_cli_intent_as_an_artifact(tmp_path) 
     request = stage_series_request(
         repository=repo,
         run=run,
-        slug="moon_lantern",
+        request_id=run.manifest.run_id,
         keywords="月灯りの魔女",
         existing_slugs=("old_series",),
     )
 
     assert request.manifest.artifact_type == "pnca.series.request"
-    assert request.manifest.logical_key == "pnca.series.request.moon_lantern"
+    assert request.manifest.logical_key == f"pnca.series.request.{run.manifest.run_id}"
     assert repo.read_payload(request) == {
-        "slug": "moon_lantern",
         "keywords": "月灯りの魔女",
         "existing_slugs": ["old_series"],
     }
+
+
+def test_series_proposal_rejects_an_unsafe_final_slug() -> None:
+    with pytest.raises(ValueError, match="string_pattern_mismatch"):
+        SeriesContractProposal(contract_id="../escape", canon_seed={"series": {"id": "escape"}})
 
 
 def test_production_executor_renders_only_registered_request_projection() -> None:

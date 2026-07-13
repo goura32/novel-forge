@@ -10,7 +10,7 @@
 
 ## 実行指示
 
-- `contract_id` は request の `slug` と完全に一致させる。
+- `contract_id` は最終 series slug として `[a-z0-9_]{1,40}` に完全一致する、request 内の既存 slug と重複しない stable ID を設計する。
 - `canon_seed` は series ID、title、logline、初期 entity と state を含む JSON object にする。
 - 不自然な英語、簡体字、ハングルを混在させず、自然な日本語で書く。
 - 空の object や未定義の仮名を出力しない。
