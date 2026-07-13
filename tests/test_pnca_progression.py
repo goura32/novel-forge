@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from novel_forge.pnca.contracts import (
+    AdmissionAllowance,
     ChapterContract,
     FrontierBinding,
     SeriesContract,
@@ -21,8 +22,10 @@ from novel_forge.pnca.registry import (
 from novel_forge.runtime import RunRepository
 
 
-def _executor(outputs):
+def _executor(outputs, projections: list[dict] | None = None):
     def provider(task_id, projection, operation_key):
+        if projections is not None:
+            projections.append(projection)
         return outputs[task_id]
 
     specs = tuple(
@@ -77,7 +80,9 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
             "contract_id": "chapter_001",
             "parent_volume_contract_id": "volume_001",
             "chapter_ordinal": 1,
-            "scene_slots": [{"slot_id": "scene_001", "ordinal": 1}],
+            "scene_slots": [
+                {"slot_id": "scene_001", "ordinal": 1, "allowed_admission_allowance_ids": ["allow_artifact"]}
+            ],
         },
     }
     author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
@@ -231,7 +236,9 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
             "contract_id": "chapter_001",
             "parent_volume_contract_id": "volume_001",
             "chapter_ordinal": 1,
-            "scene_slots": [{"slot_id": "scene_001", "ordinal": 1}],
+            "scene_slots": [
+                {"slot_id": "scene_001", "ordinal": 1, "allowed_admission_allowance_ids": ["allow_artifact"]}
+            ],
         },
         "pnca.scene.contract": {
             "contract_id": "scene_contract_001",
@@ -240,7 +247,16 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
             "canon_patch": {"scene_progress": "契約を受け入れた"},
         },
     }
-    volume = VolumeContract(contract_id="volume_001", parent_series_contract_id="series_001", volume_ordinal=1, purpose="呪いを解き幸福へ至る")
+    volume = VolumeContract(
+        contract_id="volume_001",
+        parent_series_contract_id="series_001",
+        volume_ordinal=1,
+        purpose="呪いを解き幸福へ至る",
+        admission_allowances=(
+            AdmissionAllowance(allowance_id="allow_character", kind="character", max_count=1),
+            AdmissionAllowance(allowance_id="allow_artifact", kind="artifact", max_count=1),
+        ),
+    )
     volume_artifact = repo.commit_artifact(
         repo.start_attempt(run, task_id="volume", phase="design", reason="test"),
         artifact_type="pnca.volume.contract",
@@ -255,7 +271,8 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         payload={"chapter_ordinal": 1},
         payload_name="request.json",
     )
-    author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
+    projections: list[dict] = []
+    author = PNCAContractAuthor(repository=repo, executor=_executor(outputs, projections))
     chapter = author.author_chapter(
         run=run,
         parent=AuthoredContract(artifact=volume_artifact, contract=volume),
@@ -284,6 +301,8 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         frontier=frontier,
         frontier_binding=binding,
         scope_id="scene_001",
+        admission_allowances=volume.admission_allowances,
+        scene_slot=chapter.contract.scene_slots[0],
     )
 
     assert scene.artifact.manifest.input_artifact_ids == (
@@ -293,3 +312,6 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
     )
     assert scene.contract.slot_id == "scene_001"
     assert scene.contract.writer_view.narrative_contract["parent_volume_purpose"] == "呪いを解き幸福へ至る"
+    assert projections[-1]["admission_allowances"] == [
+        {"allowance_id": "allow_artifact", "kind": "artifact", "max_count": 1}
+    ]
