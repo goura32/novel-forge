@@ -10,7 +10,7 @@
 
 ## 実行指示
 
-`draft.content` から文字列をそのままコピーして `draft_quote` に入れる。各 `required_beats` を完了した本文内の箇所を、ゼロ始まりの `beat_index` とともに一件ずつ返す。`end_constraints` が空でなければ、終了状態を示す本文内の箇所を `end_constraint` として一件返す。引用が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
+`draft.content` を句点（`。`、`！`、`？`）単位で、先頭からゼロ始まりに分割した文の `sentence_index` を返す。本文の文言を出力してはいけない。各 `required_beats` を完了した文を `beat_index` とともに一件ずつ選ぶ。`end_constraints` が空でなければ、終了状態を示す文を `end_constraint` として一件選ぶ。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
 
 ## 入力情報
 

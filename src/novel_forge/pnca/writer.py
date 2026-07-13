@@ -37,6 +37,40 @@ def _validate_draft_coverage(*, view: WriterView, content: str, payload: object)
     return coverage
 
 
+def _sentences(content: str) -> tuple[str, ...]:
+    """Return non-empty Japanese sentence spans exactly as they occur in the draft."""
+    spans: list[str] = []
+    start = 0
+    for index, char in enumerate(content):
+        if char in "。！？":
+            candidate = content[start:index + 1].strip()
+            if candidate:
+                spans.append(candidate)
+            start = index + 1
+    trailing = content[start:].strip()
+    if trailing:
+        spans.append(trailing)
+    return tuple(spans)
+
+
+def _coverage_from_selection(*, payload: object, content: str) -> object:
+    """Turn model-selected sentence indices into exact immutable draft quotes."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("evidence"), list):
+        return payload
+    sentences = _sentences(content)
+    evidence: list[object] = []
+    for item in payload["evidence"]:
+        if not isinstance(item, dict) or not isinstance(item.get("sentence_index"), int):
+            evidence.append(item)
+            continue
+        sentence_index = item["sentence_index"]
+        if not 0 <= sentence_index < len(sentences):
+            evidence.append(item)
+            continue
+        evidence.append({key: value for key, value in item.items() if key != "sentence_index"} | {"draft_quote": sentences[sentence_index]})
+    return {"evidence": evidence}
+
+
 class PNCARenderer:
     """Persist a WriterView and its prose draft without a summary handoff."""
 
@@ -95,7 +129,10 @@ class PNCARenderer:
                 scope_id=f"{scope_id}.coverage.{coverage_cycle + 1}",
             )
             try:
-                coverage = _validate_draft_coverage(view=view, content=content, payload=coverage_result)
+                coverage = _validate_draft_coverage(
+                    view=view, content=content,
+                    payload=_coverage_from_selection(payload=coverage_result, content=content),
+                )
                 break
             except PNCAStructuralError as exc:
                 rejected_attempt = self.repository.start_attempt(
