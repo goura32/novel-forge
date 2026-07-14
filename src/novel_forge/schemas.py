@@ -85,6 +85,38 @@ def coerce_array_fields(data: dict, schema: dict) -> dict:
     return data
 
 
+def _coerce_audit_issues(data: dict, schema: dict) -> dict:
+    """Drop malformed non-object elements from audit-style ``issues`` arrays.
+
+    Local LLMs occasionally emit stray empty strings (e.g. ``{"issues": ["", {...}]}``)
+    inside an array whose items must be objects. jsonschema rejects the whole payload
+    and aborts the run, so we sanitize elements that cannot satisfy an object-typed
+    item schema before validation.
+    """
+    if not isinstance(data, dict) or not isinstance(schema, dict):
+        return data
+    for key, prop_schema in schema.get("properties", {}).items():
+        if key not in data:
+            continue
+        item_schema = prop_schema.get("items", {}) if isinstance(prop_schema, dict) else {}
+        is_object_array = (
+            prop_schema.get("type") == "array"
+            and isinstance(item_schema, dict)
+            and item_schema.get("type") == "object"
+        )
+        if is_object_array and isinstance(data[key], list):
+            cleaned = [el for el in data[key] if isinstance(el, dict) and el]
+            if len(cleaned) != len(data[key]):
+                _log.warning(
+                    "Sanitized %d malformed non-object element(s) from array field '%s'",
+                    len(data[key]) - len(cleaned),
+                    key,
+                )
+                data[key] = cleaned
+        _coerce_audit_issues(data[key], prop_schema)
+    return data
+
+
 def _coerce_enum_prefixes_in_container(data: Any, schema: dict[str, Any]) -> None:
     """Coerce enum strings like ``導入：説明`` to ``導入`` when safe."""
     if isinstance(data, dict):
@@ -119,6 +151,7 @@ def validate_data(name: str, schema: dict[str, Any], data: dict[str, Any]) -> li
     # Apply pre-validation coercion for common LLM output quirks.
     # This mutates data intentionally, matching validate(name, data) behavior.
     coerce_array_fields(data, schema)
+    _coerce_audit_issues(data, schema)
     _coerce_enum_prefixes_in_container(data, schema)
     errors = _validate_with_schema(schema, data)
     if name == "series_plan_concept":

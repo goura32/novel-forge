@@ -14,6 +14,8 @@
 - `blocker` は `required_beat`、`end_constraint`、限定 POV の明白な事実断定、または `language_contamination` の実際の違反だけに限る。`pov_fact` を blocker にするには、引用が POV人物の知り得ない他者の未発話の感情・意図・記憶・画面外事実を断定していなければならない。品質上の提案、解釈の揺れ、可視の表情や動作からの場内解釈は `major` 以下にする。
 - `language_contamination` では、本文の日本語小説として不自然な簡体字・中国語の語法、混入したラテン文字、名前の文字種崩れを、実際の完全一致引用がある場合だけ指摘する。WriterView に個別の言語 field がなければ `presentation_constraints` を根拠 field とする。
 
+- `issues` は必ず「各要素が完全な object」の配列にする。空文字列 `""`、空リスト `[]` の入れ子、重複した空エントリを要素に含めてはならない。指摘がない場合は `{"issues": []}` を返す（要素ゼロの配列）。指摘が1件でも各要素は `severity`・`constraint_kind`・`writer_view_field`・`draft_quote`・`detail` の5フィールドを持つ object でなければならない。
+
 ## 入力情報
 ### WriterView
 {writer_view}
