@@ -30,6 +30,19 @@ def _validate_draft_coverage(*, view: WriterView, content: str, payload: object,
     We still verify the obligation *structure* (correct beats/end_constraint, no duplicates)
     but only warn when a quote drifts from the draft instead of raising.
     """
+    # Local LLMs occasionally emit null/missing ``beat_index`` or ``draft_quote`` in
+    # the coverage payload. Coerce null ``beat_index`` to its positional index (evidence
+    # is emitted in obligation order) and null ``draft_quote`` to empty so validation can
+    # run; the structure checks below still catch genuinely missing/duplicate obligations.
+    if isinstance(payload, dict):
+        evidence = payload.get("evidence")
+        if isinstance(evidence, list):
+            for idx, item in enumerate(evidence):
+                if isinstance(item, dict):
+                    if item.get("beat_index") is None:
+                        item["beat_index"] = idx
+                    if item.get("draft_quote") is None:
+                        item["draft_quote"] = ""
     try:
         coverage = DraftCoverage.model_validate(payload)
     except ValueError as exc:
