@@ -2,27 +2,6 @@
   "type": "object",
   "required": ["content"],
   "properties": {
-    "content": {"type": "string", "description": "監査指摘をすべて解消した改訂済みの日本語scene本文。"},
-    "coverage": {
-      "type": "object",
-      "description": "本文には含めない検証用の obligation evidence。各 required beat と end constraint を本文内で完了したことを完全一致引用で示す。",
-      "required": ["evidence"],
-      "properties": {
-        "evidence": {
-          "type": "array",
-          "description": "要件ごとの完了証拠。WriterView に必須義務がない場合だけ空配列にする。",
-          "items": {
-            "type": "object",
-            "description": "一つの required beat または end constraint を本文で完了した証拠。",
-            "required": ["obligation", "draft_quote"],
-            "properties": {
-              "obligation": {"type": "string", "enum": ["required_beat", "end_constraint"], "description": "証明する WriterView 義務の種類。"},
-              "beat_index": {"type": "integer", "minimum": 0, "description": "required_beat のゼロ始まり index。end_constraint には出力しない。"},
-              "draft_quote": {"type": "string", "description": "この obligation の完了を示す content 内の完全一致引用。"}
-            }
-          }
-        }
-      }
-    }
+    "content": {"type": "string", "description": "監査指摘をすべて解消した改訂済みの日本語scene本文。"}
   }
 }
