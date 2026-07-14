@@ -10,7 +10,7 @@
 
 ## 実行指示
 
-`obligations.required_beat_indexes` にある **すべての index を漏れなく、かつ余分に出さずに、厳密に一回ずつ** `required_beat` として出力する（例: indexes=[0,1,2] なら required_beat を正確に3つ、index 0/1/2 各1つずつ出力。2つや4つは不可）。`end_constraint` は required beat の代わりではなく、`obligations.requires_end_constraint` が true のときに追加で**厳密に一回だけ**出力する（0回でも2回以上でもなく、必ず1回）。各 obligation の `draft_quote` は本文内の該当箇所を「完全一致」で引用し、paraphrase や要約は禁止。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
+各 obligation を独立に審査する。本文内に、その obligation の要求する行為・発話・到達状態が完了していることを直接証明する一文がある場合だけ、その obligation の evidence を厳密に一回出力する。要求の一部だけに触れた文、近接する別の行為、主語や語句だけが似た文は証拠にしてはならない。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。不足したevidenceはpublication gateが拒否するため、required beatやend constraintの件数を埋める目的で無関係な `sentence_index` を出力してはならない。`obligations.requires_end_constraint` が true のときも、終端状態を直接証明できる場合だけ `end_constraint` を一回出力する。
 
 ### evidence のフィールドルール（厳守）
 - `required_beat` の evidence には、**その beat のゼロ始まり index を `beat_index` に整数で必ず入れる**（例: 3番目の required beat なら `beat_index: 2`）。`beat_index` を省略・null にしてはならない。

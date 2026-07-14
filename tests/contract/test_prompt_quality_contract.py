@@ -114,6 +114,13 @@ def test_pnca_writer_prompts_require_final_japanese_only_self_review() -> None:
         assert expected in (PROMPTS_DIR / prompt_name).read_text(encoding="utf-8")
 
 
+def test_pnca_coverage_does_not_force_evidence_for_an_unproven_obligation() -> None:
+    coverage = (PROMPTS_DIR / "pnca_scene_coverage.md").read_text(encoding="utf-8")
+
+    assert "要求の一部だけに触れた文、近接する別の行為、主語や語句だけが似た文は証拠にしてはならない" in coverage
+    assert "件数を埋める目的で無関係な `sentence_index` を出力してはならない" in coverage
+
+
 def test_pnca_scene_render_forbids_omniscient_third_party_claims() -> None:
     render = (PROMPTS_DIR / "pnca_scene_render.md").read_text(encoding="utf-8")
 
