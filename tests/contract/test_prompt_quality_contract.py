@@ -93,6 +93,7 @@ def test_pnca_scene_prompts_require_completed_observable_beats() -> None:
     assert "Current draft.coverage.evidence[].draft_quote" in revise
     assert "一字も変更・削除・言い換えしてはならない" in revise
     assert "`constraint_kind` が `pov_fact` の場合は誤検出として維持してはならない" in revise
+    assert "主観表現を付けても、他者の内心・意図という結論を残してはならない" in revise
     assert "そのissueの `draft_quote` が本文に残っていないことを確認する" in revise
 
 
