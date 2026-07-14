@@ -23,6 +23,7 @@ from novel_forge.pnca.contracts import (
     RequirementDisposition,
     RequirementEntry,
     SceneContract,
+    SceneContractProposal,
     SceneSlot,
     SeriesContract,
     SeriesContractProposal,
@@ -82,6 +83,21 @@ def test_series_proposal_rejects_seed_without_two_named_protagonists() -> None:
                 "world_state": {"curse": "月光で発作が起きる"},
             },
             volume_purposes=(VolumePurpose(ordinal=1, purpose="政略結婚を受け入れる"),),
+        )
+
+
+def test_scene_proposal_rejects_pov_character_alias_in_writer_view() -> None:
+    with pytest.raises(ValidationError, match="canonical `pov`"):
+        SceneContractProposal(
+            contract_id="scene_001_proposal",
+            canon_effect="none",
+            writer_view=WriterView(
+                start_context={"pov_character": "凛花"},
+                narrative_contract={"goal": "朔夜の反応を観察する"},
+                end_constraints={"pov_character": "凛花"},
+                presentation_constraints={"pov_character": "凛花", "tone": "抑制的"},
+                required_beats=("凛花が朔夜の指先の震えを見る",),
+            ),
         )
 
 

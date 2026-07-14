@@ -260,6 +260,13 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
             "slot_id": "provider_wrong_slot",
             "canon_effect": "mutates",
             "canon_patch": {"scene_progress": "契約を受け入れた"},
+            "writer_view": {
+                "start_context": {"pov": "リナ"},
+                "narrative_contract": {"goal": "契約を受け入れる"},
+                "end_constraints": {"pov": "リナ"},
+                "presentation_constraints": {"pov": "リナ", "tone": "抑制的"},
+                "required_beats": ["リナが契約書に署名する"],
+            },
         },
     }
     volume = VolumeContract(
@@ -369,6 +376,13 @@ def test_scene_admission_kind_is_derived_from_allowance_not_provider_output(tmp_
             "contract_id": "scene_contract_001",
             "canon_effect": "mutates",
             "canon_patch": {"new_character": "許可された新人物"},
+            "writer_view": {
+                "start_context": {"pov": "リナ"},
+                "narrative_contract": {"goal": "新人物と対面する"},
+                "end_constraints": {"pov": "リナ"},
+                "presentation_constraints": {"pov": "リナ", "tone": "警戒的"},
+                "required_beats": ["リナが新人物の名乗りを聞く"],
+            },
             "admission_consumptions": [
                 {"allowance_id": "allow_character", "entity_id": "char_new_001"}
             ],

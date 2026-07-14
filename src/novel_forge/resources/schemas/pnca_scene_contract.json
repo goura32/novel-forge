@@ -41,7 +41,14 @@
       "properties": {
         "start_context": {
           "type": "object",
-          "description": "scene 開始時の writer 向け状況。"
+          "description": "scene 開始時の writer 向け状況。POVの表示名は必ずcanonical key `pov`へ入れる。",
+          "required": ["pov"],
+          "properties": {
+            "pov": {
+              "type": "string",
+              "description": "本文の視点人物の表示名。presentation_constraintsとend_constraintsのpovと完全一致する。"
+            }
+          }
         },
         "narrative_contract": {
           "type": "object",
@@ -49,11 +56,25 @@
         },
         "end_constraints": {
           "type": "object",
-          "description": "scene 終了時に本文が満たす制約。"
+          "description": "scene 終了時に本文が満たす制約。POVの表示名は必ずcanonical key `pov`へ入れる。",
+          "required": ["pov"],
+          "properties": {
+            "pov": {
+              "type": "string",
+              "description": "本文の視点人物の表示名。start_contextとpresentation_constraintsのpovと完全一致する。"
+            }
+          }
         },
         "presentation_constraints": {
           "type": "object",
-          "description": "視点・語調などの本文 presentation 制約。"
+          "description": "視点・語調などの本文 presentation 制約。POVの表示名は必ずcanonical key `pov`へ入れる。",
+          "required": ["pov"],
+          "properties": {
+            "pov": {
+              "type": "string",
+              "description": "本文の視点人物の表示名。start_contextとend_constraintsのpovと完全一致する。"
+            }
+          }
         },
         "required_beats": {
           "type": "array",

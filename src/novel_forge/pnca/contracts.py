@@ -139,6 +139,26 @@ class SceneContract(BaseModel):
         return self
 
 
+def _validate_writer_view_pov(view: WriterView) -> None:
+    """Reject writer-facing POV aliases before a Scene Contract is accepted."""
+
+    contexts = {
+        "start_context": view.start_context,
+        "presentation_constraints": view.presentation_constraints,
+        "end_constraints": view.end_constraints,
+    }
+    povs: list[str] = []
+    for field_name, context in contexts.items():
+        if "pov_character" in context:
+            raise ValueError(f"{field_name} must use canonical `pov`, not `pov_character`")
+        pov = context.get("pov")
+        if not isinstance(pov, str) or not pov.strip():
+            raise ValueError(f"{field_name} requires a non-empty canonical `pov`")
+        povs.append(pov.strip())
+    if len(set(povs)) != 1:
+        raise ValueError("writer_view canonical `pov` must match across all contexts")
+
+
 class SceneContractProposal(BaseModel):
     """Provider output before repository injects exact frontier provenance."""
 
@@ -155,6 +175,7 @@ class SceneContractProposal(BaseModel):
             raise ValueError("canon_effect none must not include canon_patch")
         if self.canon_effect == "mutates" and not self.canon_patch:
             raise ValueError("canon_effect mutates requires a non-empty canon_patch")
+        _validate_writer_view_pov(self.writer_view)
         return self
 
 
