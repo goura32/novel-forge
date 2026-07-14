@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from importlib import resources
-from typing import Any
+from typing import Any, cast
 
 from novel_forge.pnca.defaults import default_pnca_task_registry
 from novel_forge.pnca.registry import PNCATaskExecutor
@@ -196,6 +196,9 @@ def make_pnca_task_executor(
         user_prompt = prompt_manager.render(prompt_name, variables)
         call_client = client
         evidence_attempt = None
+        capture_factory = getattr(client, "with_capture", None)
+        if repository is not None and run is not None and not callable(capture_factory):
+            raise TypeError("production PNCA client must support attempt-scoped capture")
         if repository is not None and run is not None:
             evidence_attempt = repository.start_attempt(
                 run,
@@ -203,10 +206,12 @@ def make_pnca_task_executor(
                 phase=_phase_for_task(task_id),
                 reason="capture one provider request, response, parse, and validation result",
             )
-            if not hasattr(client, "with_capture"):
-                raise TypeError("production PNCA client must support attempt-scoped capture")
-            call_client = client.with_capture(AttemptCapture(repository, evidence_attempt, verbose=run.manifest.verbose))
         try:
+            if evidence_attempt is not None:
+                assert callable(capture_factory)
+                assert repository is not None
+                assert run is not None
+                call_client = cast(Any, capture_factory(AttemptCapture(repository, evidence_attempt, verbose=run.manifest.verbose)))
             result = call_client.complete_json(
                 kind=task_id,
                 system_prompt=_SYSTEM_PROMPT,

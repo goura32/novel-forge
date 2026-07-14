@@ -99,6 +99,44 @@ def test_production_executor_renders_only_registered_request_projection() -> Non
     assert "月灯りの魔女" in calls[0]["user_prompt"]
 
 
+def test_production_executor_rejects_client_without_capture_before_creating_attempt(tmp_path) -> None:
+    class IncompatibleClient:
+        def complete_json(self, **kwargs):
+            raise AssertionError("must not call provider")
+
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    executor = make_pnca_task_executor(client=IncompatibleClient(), repository=repo, run=run)
+    with pytest.raises(TypeError, match="attempt-scoped capture"):
+        executor.execute(
+            task_id="pnca.series.contract",
+            scope_id="moon_lantern",
+            artifacts={"series.request": {"slug": "moon_lantern", "keywords": "月灯りの魔女", "existing_slugs": []}},
+            input_artifact_ids=("art_request",),
+        )
+    assert list((run.path / "attempts").iterdir()) == []
+
+
+def test_production_executor_marks_capture_setup_failure_terminal(tmp_path) -> None:
+    class BrokenCaptureClient:
+        def with_capture(self, capture):
+            raise RuntimeError("capture setup failed")
+
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    executor = make_pnca_task_executor(client=BrokenCaptureClient(), repository=repo, run=run)
+    with pytest.raises(RuntimeError, match="capture setup failed"):
+        executor.execute(
+            task_id="pnca.series.contract",
+            scope_id="moon_lantern",
+            artifacts={"series.request": {"slug": "moon_lantern", "keywords": "月灯りの魔女", "existing_slugs": []}},
+            input_artifact_ids=("art_request",),
+        )
+    attempts = list((run.path / "attempts").iterdir())
+    assert len(attempts) == 1
+    assert (attempts[0] / "error.json").is_file()
+
+
 def test_production_executor_captures_one_terminal_llm_attempt(tmp_path) -> None:
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)

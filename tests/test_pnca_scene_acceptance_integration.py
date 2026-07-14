@@ -18,7 +18,7 @@ from novel_forge.pnca.contracts import (
 from novel_forge.pnca.export import PNCAExporter
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
-from novel_forge.runtime import RunRepository
+from novel_forge.runtime import RunRepository, RuntimeContractError
 
 
 def _artifact(repo, run, *, artifact_type, logical_key, payload, **manifest_kwargs):
@@ -227,6 +227,12 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: l
     assert accepted.slots["pnca.scene.contract.series_001.001.001.scene_001"] == scene.artifact_id
 
     workflow = PNCAWorkflow(repository=repo, contract_author=object())
+    if audit_issues:
+        with pytest.raises(RuntimeContractError, match="unresolved blocker audit issues"):
+            workflow.write_volume(slug=slug, run=run, volume=1, executor=FakeExecutor(repo, audit_issues=audit_issues))
+        assert "pnca.design_bundle.series_001.001" not in repo.load_snapshot(slug, repo.current_snapshot_id(slug)).slots
+        return
+
     bundle = workflow.write_volume(slug=slug, run=run, volume=1, executor=FakeExecutor(repo, audit_issues=audit_issues))
     assert bundle.bundle_id == "series_001.volume.001"
     assert len(bundle.slots) == 1

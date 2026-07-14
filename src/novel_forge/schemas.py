@@ -85,49 +85,6 @@ def coerce_array_fields(data: dict, schema: dict) -> dict:
     return data
 
 
-def _coerce_audit_issues(data: dict, schema: dict) -> dict:
-    """Drop malformed elements from object-typed array fields (e.g. audit/review issues).
-
-    Local LLMs occasionally emit stray empty strings (``{"issues": ["", {...}]}``) or
-    partial objects missing required properties (``{"issues": [{...no 'suggestion'...}]}``)
-    inside an array whose items must be objects. jsonschema rejects the whole payload and
-    aborts the run, so we sanitize elements that cannot satisfy the item schema before
-    validation. Elements missing any of the item schema's ``required`` properties are
-    dropped (with a warning) rather than crashing the pipeline.
-    """
-    if not isinstance(data, dict) or not isinstance(schema, dict):
-        return data
-    for key, prop_schema in schema.get("properties", {}).items():
-        if key not in data:
-            continue
-        if not isinstance(prop_schema, dict):
-            continue
-        item_schema = prop_schema.get("items", {})
-        is_object_array = (
-            prop_schema.get("type") == "array"
-            and isinstance(item_schema, dict)
-            and item_schema.get("type") == "object"
-        )
-        if is_object_array and isinstance(data[key], list):
-            required = set(item_schema.get("required", []))
-            cleaned = []
-            dropped = 0
-            for el in data[key]:
-                if isinstance(el, dict) and el and (not required or required.issubset(el.keys())):
-                    cleaned.append(el)
-                else:
-                    dropped += 1
-            if dropped:
-                _log.warning(
-                    "Sanitized %d malformed element(s) from array field '%s'",
-                    dropped,
-                    key,
-                )
-                data[key] = cleaned
-        _coerce_audit_issues(data[key], prop_schema)
-    return data
-
-
 def _coerce_enum_prefixes_in_container(data: Any, schema: dict[str, Any]) -> None:
     """Coerce enum strings like ``導入：説明`` to ``導入`` when safe."""
     if isinstance(data, dict):
@@ -159,10 +116,8 @@ def validate(name: str, data: dict[str, Any]) -> list[str]:
 
 def validate_data(name: str, schema: dict[str, Any], data: dict[str, Any]) -> list[str]:
     """Validate data against an already loaded schema."""
-    # Apply pre-validation coercion for common LLM output quirks.
-    # This mutates data intentionally, matching validate(name, data) behavior.
-    coerce_array_fields(data, schema)
-    _coerce_audit_issues(data, schema)
+    # Invalid provider shapes must reach JSON Schema validation unchanged so evidence is
+    # never silently discarded or converted into an apparently valid empty value.
     _coerce_enum_prefixes_in_container(data, schema)
     errors = _validate_with_schema(schema, data)
     if name == "series_plan_concept":

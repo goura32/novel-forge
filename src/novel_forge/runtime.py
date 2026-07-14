@@ -422,6 +422,15 @@ class RunRepository:
         self._append_run_event(run.path, "attempt.created", {"attempt_id": attempt_id, "task_id": task_id})
         return AttemptHandle(manifest=manifest, path=path)
 
+    @staticmethod
+    def _attempt_is_terminal(attempt: AttemptHandle) -> bool:
+        """Return whether an attempt has an immutable success or failure marker."""
+        return (
+            any(attempt.path.glob("artifact-ready.*.json"))
+            or (attempt.path / "completion.json").exists()
+            or (attempt.path / "error.json").exists()
+        )
+
     def commit_artifact(
         self,
         attempt: AttemptHandle,
@@ -442,7 +451,7 @@ class RunRepository:
         quality_status: Literal["passed", "review_limit_reached", "review_error"] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> ArtifactReference:
-        if any(attempt.path.glob("artifact-ready.*.json")) or (attempt.path / "error.json").exists():
+        if self._attempt_is_terminal(attempt):
             raise RuntimeContractError("attempt already reached a terminal state")
         if quality_status == "review_error":
             raise RuntimeContractError("review_error candidates must not be committed as ready artifacts")
@@ -513,7 +522,7 @@ class RunRepository:
         domain artifact.  It still needs an explicit terminal record so an interrupted
         provider call can be distinguished from a completed one during investigation.
         """
-        if any(attempt.path.glob("artifact-ready.*.json")) or (attempt.path / "error.json").exists():
+        if self._attempt_is_terminal(attempt):
             raise RuntimeContractError("attempt already reached a terminal state")
         completion = {
             "format_version": FORMAT_VERSION,
@@ -576,7 +585,7 @@ class RunRepository:
         http_status: int | None = None,
         detail: str | None = None,
     ) -> None:
-        if any(attempt.path.glob("artifact-ready.*.json")) or (attempt.path / "error.json").exists():
+        if self._attempt_is_terminal(attempt):
             raise RuntimeContractError("attempt already reached a terminal state")
         run = attempt.path.parent.parent
         verbose = self._read_run(run).verbose

@@ -22,6 +22,10 @@
 | reviseで旧coverageを無条件継承 | 改訂で quotation が消えても、旧draftの証拠が残る | 改訂本文に対して inherited coverage の全 quote を再照合する |
 | `AttemptCapture` があるだけで本番呼出しへ未接続 | RAW出力「常時保存」という文書と実態が不一致。障害時の根拠を失う | provider呼出し前に evidence attempt を作り、request/response/parse/validation/終端状態を保存する |
 | `complete` 合成CLI | run・lock・snapshotの境界が曖昧で、失敗工程だけの監査／再実行ができない | CLIから削除。個別の plan/design/write/export を標準にする |
+| malformed audit issue をschema検証前にdrop | blockerを含む evidence が「問題なし」へ変わり、監査根拠が失われる | 配列・issueの破損を補正しない。元payloadのままschema validation failureにする |
+| 2回改訂後も残る blocker をbundle化 | hard contract failure をexportへ通す | 未解決 blocker は `RuntimeContractError` で停止しbundle snapshotを作らない |
+| evidence-only attempt の `completion.json` を終端扱いしない | 完了後にartifact追加・failure化でき、attempt不変性が壊れる | completionもterminal markerとして全write経路で拒否する |
+| capture非対応clientの検査がattempt作成後 | terminal recordのない孤児attemptが残る | capabilityを作成前に検査し、capture setup失敗は `error.json` で終端化する |
 
 ## あえて採用しなかった対応
 

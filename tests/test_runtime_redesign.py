@@ -13,6 +13,7 @@ from novel_forge.runtime import (
     LockHeldError,
     RunManager,
     RunRepository,
+    RuntimeContractError,
     SeriesSlugExistsError,
 )
 from novel_forge.task_registry import DEFAULT_TASK_REGISTRY
@@ -88,6 +89,18 @@ def test_evidence_attempt_and_progress_are_terminal_and_durable(tmp_path: Path) 
     assert events[-1]["event_type"] == "progress"
     assert events[-1]["payload"]["current"] == 2
     assert events[-1]["payload"]["total"] == 5
+    with pytest.raises(RuntimeContractError, match="terminal"):
+        repo.succeed_attempt(attempt, reason="duplicate")
+    with pytest.raises(RuntimeContractError, match="terminal"):
+        repo.commit_artifact(
+            attempt,
+            artifact_type="pnca.scene.draft",
+            logical_key="forbidden.after.completion",
+            payload={"content": "must not write"},
+            payload_name="payload.json",
+        )
+    with pytest.raises(RuntimeContractError, match="terminal"):
+        repo.fail_attempt(attempt, error_code="LATE_FAILURE", retryable=False)
 
 
 def test_failure_attempt_has_safe_error_and_no_ready_marker(tmp_path: Path) -> None:

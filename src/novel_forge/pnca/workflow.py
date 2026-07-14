@@ -461,6 +461,13 @@ class PNCAWorkflow:
                     )
                     audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
                     revise_cycle += 1
+                blockers = [issue for issue in audit_payload.issues if issue.severity == "blocker"]
+                if blockers:
+                    fields = ", ".join(sorted({f"{issue.constraint_kind}:{issue.writer_view_field}" for issue in blockers}))
+                    raise RuntimeContractError(
+                        f"unresolved blocker audit issues after {revise_cycle} revision attempts "
+                        f"for {scope_id}: {fields}"
+                    )
                 slots.append(
                     BundleSlotRecord(
                         volume_ordinal=volume,

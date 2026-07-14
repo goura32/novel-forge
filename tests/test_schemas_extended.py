@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-
 import pytest
 from fixtures.factories import design_volume_data, plan_concept_data
 
-from novel_forge.schemas import get_schema, list_schemas, validate, validate_or_raise
+from novel_forge.schemas import get_schema, list_schemas, validate, validate_data, validate_or_raise
 
 # ── list_schemas ────────────────────────────────────────────────────────
 
@@ -83,14 +81,36 @@ class TestValidate:
         errors = validate("plan_concept", data)
         assert errors == []
 
-    def test_object_for_array_field_logs_warning(self, caplog):
+    def test_object_for_array_field_is_rejected_without_coercion(self):
         data = plan_concept_data()
         data["themes"] = {"unexpected": "object"}
 
-        with caplog.at_level(logging.WARNING, logger="novel_forge.schemas"):
-            validate("plan_concept", data)
+        errors = validate("plan_concept", data)
 
-        assert "Coerced schema array field 'themes' from object to []" in caplog.text
+        assert errors
+        assert data["themes"] == {"unexpected": "object"}
+
+    def test_malformed_audit_issue_is_rejected_without_dropping_evidence(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["severity", "detail"],
+                        "properties": {"severity": {"type": "string"}, "detail": {"type": "string"}},
+                    },
+                }
+            },
+            "required": ["issues"],
+        }
+        data = {"issues": [{"severity": "blocker"}]}
+
+        errors = validate_data("audit", schema, data)
+
+        assert errors
+        assert data == {"issues": [{"severity": "blocker"}]}
 
     def test_wrong_type_string_for_array(self):
         data = {
