@@ -506,6 +506,67 @@ class RunRepository:
         )
         return ArtifactReference(artifact_id, attempt.manifest.attempt_id, attempt.path, manifest)
 
+    def succeed_attempt(self, attempt: AttemptHandle, *, reason: str) -> None:
+        """Close an evidence-only attempt that intentionally produces no artifact.
+
+        LLM transport/parsing evidence is immutable under ``attempt/llm`` but is not a
+        domain artifact.  It still needs an explicit terminal record so an interrupted
+        provider call can be distinguished from a completed one during investigation.
+        """
+        if any(attempt.path.glob("artifact-ready.*.json")) or (attempt.path / "error.json").exists():
+            raise RuntimeContractError("attempt already reached a terminal state")
+        completion = {
+            "format_version": FORMAT_VERSION,
+            "record_type": "attempt_completion",
+            "reason": reason,
+            "ended_at": utc_now(),
+            "validation_outcome": "passed",
+        }
+        self.writer.write_json(attempt.path / "completion.json", completion)
+        _fsync_directory(attempt.path)
+        self._append_run_event(
+            attempt.path.parent.parent,
+            "attempt.succeeded",
+            {
+                "attempt_id": attempt.manifest.attempt_id,
+                "ended_at": completion["ended_at"],
+                "reason": reason,
+                "validation_outcome": "passed",
+                "retryable": False,
+            },
+        )
+
+    def record_progress(
+        self,
+        run: RunHandle,
+        *,
+        phase: str,
+        unit: str,
+        current: int,
+        total: int,
+        scope_id: str,
+    ) -> None:
+        """Append durable, human-readable progress for a bounded orchestration loop."""
+        if total < 1 or not 1 <= current <= total:
+            raise ValueError("progress requires 1 <= current <= total")
+        print(
+            f"[PROGRESS] phase={phase} unit={unit} {current}/{total} scope={scope_id}",
+            file=sys.stderr,
+            flush=True,
+        )
+        self._append_run_event(
+            run.path,
+            "progress",
+            {
+                "phase": phase,
+                "unit": unit,
+                "current": current,
+                "total": total,
+                "scope_id": scope_id,
+                "timestamp": utc_now(),
+            },
+        )
+
     def fail_attempt(
         self,
         attempt: AttemptHandle,
@@ -1198,7 +1259,7 @@ class RunRepository:
         ]
         if missing:
             raise RuntimeContractError(
-                "complete verbose capture required for llm diff; missing: " + ", ".join(missing)
+                "complete attempt-scoped capture required for llm diff; missing: " + ", ".join(missing)
             )
         output: list[str] = []
         for relative in required:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-
 from dataclasses import dataclass
 
 from novel_forge.pnca.contracts import DraftAudit, DraftCoverage, WriterView, WriterViewReview
@@ -20,32 +19,14 @@ class RenderedDraft:
     draft: ArtifactReference
 
 
-def _validate_draft_coverage(*, view: WriterView, content: str, payload: object, strict: bool = True) -> DraftCoverage:
-    """Accept proof for the WriterView's mandatory obligations.
+def _validate_draft_coverage(*, view: WriterView, content: str, payload: object) -> DraftCoverage:
+    """Validate mandatory WriterView proof without manufacturing missing evidence.
 
-    ``strict=True`` (render path): the authoritative publication gate. Every required
-    beat and end constraint must be proven by a verbatim quote present in the draft.
-    ``strict=False`` (revise path): the render path already proved coverage; revise only
-    fixes audit issues and must not re-open the contract or abort on local-LLM rewording.
-    We still verify the obligation *structure* (correct beats/end_constraint, no duplicates)
-    but only warn when a quote drifts from the draft instead of raising.
+    Every required beat and end constraint must have exactly one verbatim quote in the
+    concrete draft.  The runtime never infers a ``beat_index`` from list position or a
+    quote from nearby prose: such inference would convert an LLM failure into a false
+    publication proof.
     """
-    # Local LLMs occasionally emit null/missing ``beat_index`` or ``draft_quote`` in
-    # the coverage payload. Coerce null ``beat_index`` to its positional index (evidence
-    # is emitted in obligation order) and null ``draft_quote`` to empty so validation can
-    # run; the structure checks below still catch genuinely missing/duplicate obligations.
-    if isinstance(payload, dict):
-        evidence = payload.get("evidence")
-        if isinstance(evidence, list):
-            beat_seq = 0
-            for item in evidence:
-                if isinstance(item, dict):
-                    if item.get("obligation") == "required_beat":
-                        if item.get("beat_index") is None:
-                            item["beat_index"] = beat_seq
-                        beat_seq += 1
-                    if item.get("draft_quote") is None:
-                        item["draft_quote"] = ""
     try:
         coverage = DraftCoverage.model_validate(payload)
     except ValueError as exc:
@@ -60,20 +41,14 @@ def _validate_draft_coverage(*, view: WriterView, content: str, payload: object,
         raise PNCAStructuralError("PNCA render coverage must prove the end_constraint exactly once when present")
     if len(coverage.evidence) != len(required_indexes) + end_count:
         raise PNCAStructuralError("PNCA render coverage must not duplicate obligations")
-    _punct = "　 \u3000。、，！？「」『』（）()：:；;\n\r\t"
-    def _norm(text: str) -> str:
-        return "".join(ch for ch in text if ch not in _punct)
-    missing = [
-        item for item in coverage.evidence
-        if _norm(item.draft_quote) not in _norm(content)
-    ]
+    punctuation = "　 \u3000。、，！？「」『』（）()：:；;\n\r\t"
+
+    def normalize(text: str) -> str:
+        return "".join(ch for ch in text if ch not in punctuation)
+
+    missing = [item for item in coverage.evidence if normalize(item.draft_quote) not in normalize(content)]
     if missing:
-        if strict:
-            raise PNCAStructuralError("PNCA render coverage quotes must occur verbatim in the draft")
-        _log.warning(
-            "Revise coverage drift on %d quote(s); accepting revise (render gate already proved coverage)",
-            len(missing),
-        )
+        raise PNCAStructuralError("PNCA render coverage quotes must occur verbatim in the draft")
     return coverage
 
 
@@ -294,27 +269,11 @@ class PNCARenderer:
         content = result.get("content") if isinstance(result, dict) else None
         if not isinstance(content, str) or not content.strip():
             raise PNCAStructuralError("PNCA revision output requires non-empty content")
-        # Revise must NOT re-open the coverage contract (render is authoritative). The
-        # revise LLM frequently mis-reports ``beat_index``/coverage structure, so we
-        # inherit the render-validated coverage from the original draft instead of
-        # trusting the revise output's self-reported coverage.
+        # Coverage originates only from the render gate.  A revised draft may not
+        # retain a stale quote: validate the inherited proof against the new content.
         original_payload = self.repository.read_payload(draft)
         original_coverage = original_payload.get("coverage") if isinstance(original_payload, dict) else None
-        if original_coverage:
-            try:
-                coverage = DraftCoverage.model_validate(original_coverage)
-            except ValueError:
-                coverage = _validate_draft_coverage(
-                    view=writer_view, content=content,
-                    payload=result.get("coverage") if isinstance(result, dict) else None,
-                    strict=False,
-                )
-        else:
-            coverage = _validate_draft_coverage(
-                view=writer_view, content=content,
-                payload=result.get("coverage") if isinstance(result, dict) else None,
-                strict=False,
-            )
+        coverage = _validate_draft_coverage(view=writer_view, content=content, payload=original_coverage)
         attempt = self.repository.start_attempt(run, task_id="pnca.scene.revise", phase="write", reason="resolve draft audit issues")
         return self.repository.commit_artifact(
             attempt, artifact_type="pnca.scene_draft", logical_key=f"pnca.scene_draft.revised.{scope_id}",

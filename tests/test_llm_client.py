@@ -11,6 +11,7 @@ from novel_forge.llm_client import (
     LLMClient,
     LLMError,
     LLMTransportError,
+    SchemaEchoError,
     SchemaValidationError,
     load_config,
 )
@@ -137,6 +138,13 @@ class TestCompleteJson:
             client = LLMClient(api_url="http://localhost:11434/api/chat")
             with pytest.raises(LLMError):
                 client.complete_json("test_kind", "sys", "usr")
+    def test_field_schema_echo_is_rejected_not_coerced_to_empty_string(self):
+        full_json = json.dumps({"content": {"type": "string", "required": True}})
+        mock_resp = _make_streaming_response(_ndjson_response(full_json))
+        with patch("novel_forge.llm_client.httpx.stream", return_value=mock_resp):
+            client = LLMClient(api_url="http://localhost:11434/api/chat")
+            with pytest.raises(SchemaEchoError, match="field schema"):
+                client.complete_json("pnca.scene.revise", "sys", "usr")
 
 
 # ── complete_json — transport failure propagation ──────────────────────

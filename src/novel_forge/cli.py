@@ -195,11 +195,17 @@ def _make_pnca_workflow(
     repo: RunRepository,
     config: RuntimeConfig,
     model: str | None,
+    run,
 ) -> PNCAWorkflow:
-    """Build the production PNCA root-authoring boundary."""
+    """Build the production PNCA root-authoring boundary with immutable LLM evidence."""
     author = PNCAContractAuthor(
         repository=repo,
-        executor=make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager()),
+        executor=make_pnca_task_executor(
+            client=_make_pnca_client(config, model),
+            manager=PromptManager(),
+            repository=repo,
+            run=run,
+        ),
     )
     return PNCAWorkflow(
         repository=repo,
@@ -282,7 +288,7 @@ def plan(
             existing_slugs=existing,
             volume_count=volumes,
         )
-        workflow = _make_pnca_workflow(repo, config, model)
+        workflow = _make_pnca_workflow(repo, config, model, run)
         authored = workflow.author_series(run=run, scope_id=run.manifest.run_id, request=request)
         slug = authored.contract.contract_id
         series_lock = manager.promote_plan_to_series(
@@ -320,7 +326,7 @@ def design(
     snapshot_id = repo.current_snapshot_id(series_dir.name)
     run = repo.create_run(command="design", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=snapshot_id)
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="design", wait=wait_lock):
-        workflow = _make_pnca_workflow(repo, config, model)
+        workflow = _make_pnca_workflow(repo, config, model, run)
         if scene:
             if volume < 1 or chapter < 1:
                 raise typer.BadParameter(
@@ -419,7 +425,7 @@ def design(
         series_parent = _selected_series_contract(repo, series_dir.name, snapshot_id)
         purposes = {purpose.ordinal for purpose in series_parent.contract.volume_purposes}
         volumes = sorted(purposes) if volume == 0 else [volume]
-        workflow = _make_pnca_workflow(repo, config, model)
+        workflow = _make_pnca_workflow(repo, config, model, run)
         for ordinal in volumes:
             if ordinal not in purposes:
                 raise typer.BadParameter(f"not declared by Series Contract: volume {ordinal}", param_hint="--volume")
@@ -463,8 +469,10 @@ def write(
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write", wait=wait_lock):
-        workflow = _make_pnca_workflow(repo, config, model)
-        executor = make_pnca_task_executor(client=_make_pnca_client(config, model))
+        workflow = _make_pnca_workflow(repo, config, model, run)
+        executor = make_pnca_task_executor(
+            client=_make_pnca_client(config, model), repository=repo, run=run
+        )
         bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
         console.print(f"[green]✓[/green] Volume {volume} written and frozen (bundle: {bundle.bundle_id})")
 
@@ -496,7 +504,7 @@ def export(
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="export", wait=wait_lock):
-        workflow = _make_pnca_workflow(repo, config, model)
+        workflow = _make_pnca_workflow(repo, config, model, run)
         bundle = workflow.load_selected_bundle(slug=series_dir.name, volume=volume)
         exporter = PNCAExporter(repository=repo)
         manuscript = exporter.export(run=run, bundle=bundle, format=export_format)
@@ -549,8 +557,10 @@ def resume(
         input_snapshot_id=snapshot_id,
     )
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume", wait=wait_lock):
-        workflow = _make_pnca_workflow(repo, config, model)
-        executor = make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager())
+        workflow = _make_pnca_workflow(repo, config, model, run)
+        executor = make_pnca_task_executor(
+            client=_make_pnca_client(config, model), manager=PromptManager(), repository=repo, run=run
+        )
         # Resume by running write/export for the requested volume (plan/design already exist).
         console.print(f"[yellow]▶[/yellow] Resuming volume {volume} (write + export)")
         bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
@@ -559,69 +569,6 @@ def resume(
         console.print(f"[green]✓[/green] Resumed: {manuscript.artifact.artifact_id}")
 
 
-@app.command()
-def complete(
-    keywords: str = typer.Argument(..., help="Series keywords"),
-    workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
-    model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    volume: int = typer.Option(1, "--volume", "-V", help="Volume number"),
-    volumes: int = typer.Option(3, "--volumes", min=1, help="Exact number of series volumes"),
-    chapters: int = typer.Option(3, "--chapters", "-C", help="Number of chapters to design in the volume"),
-    verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
-    wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
-):
-    """Run the full pipeline: plan → design → write → export."""
-    if chapters < 1:
-        raise typer.BadParameter("chapters must be >= 1")
-    config = RuntimeConfig.load()
-    resolved_workdir = config.resolve_workdir(workdir)
-    repo = RunRepository(resolved_workdir)
-    manager = RunManager(repo)
-    run = repo.create_run(command="plan", model=model or config.llm.model, verbose=_resolve_verbose(config, verbose), input_snapshot_id=None)
-    workspace_lock = manager.acquire(scope="workspace", run=run, phase="complete", wait=wait_lock)
-    series_lock = None
-    try:
-        workflow = _make_pnca_workflow(repo, config, model)
-        executor = make_pnca_task_executor(client=_make_pnca_client(config, model), manager=PromptManager())
-        console.print("[bold]Step 1/4: Plan[/bold]")
-        existing = tuple(_existing_series_slugs(resolved_workdir))
-        request = stage_series_request(
-            repository=repo,
-            run=run,
-            request_id=run.manifest.run_id,
-            keywords=keywords,
-            existing_slugs=existing,
-            volume_count=volumes,
-        )
-        authored = workflow.author_series(run=run, scope_id=run.manifest.run_id, request=request)
-        slug = authored.contract.contract_id
-        series_lock = manager.promote_plan_to_series(workspace_lock=workspace_lock, run=run, slug=slug)
-        snapshot = workflow.accept_series(authored=authored)
-        console.print(f"[green]✓[/green] PNCA Series root accepted (slug: {slug})")
-
-        console.print(f"[bold]Step 2/4: Design (vol {volume}, {chapters} chapters)[/bold]")
-        workflow.design_volume_full(
-            slug=slug,
-            run=run,
-            parent=authored,
-            volume_ordinal=volume,
-            base_snapshot_id=snapshot.selection_snapshot_id,
-            chapters=chapters,
-        )
-        console.print(f"[green]✓[/green] Design vol {volume} ({chapters} chapters)")
-
-        console.print(f"[bold]Step 3/4: Write (vol {volume})[/bold]")
-        bundle = workflow.write_volume(slug=slug, run=run, volume=volume, executor=executor)
-        console.print(f"[green]✓[/green] Write vol {volume} (bundle: {bundle.bundle_id})")
-
-        console.print(f"[bold]Step 4/4: Export (vol {volume})[/bold]")
-        exporter = PNCAExporter(repository=repo)
-        manuscript = exporter.export(run=run, bundle=bundle, format="markdown")
-        console.print(f"[green]✓[/green] Export vol {volume}: {manuscript.artifact.artifact_id}")
-    finally:
-        if series_lock is not None:
-            series_lock.release()
-        workspace_lock.release()
 @app.command()
 def doctor(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),

@@ -33,8 +33,7 @@ uv run novel-forge export -w <workdir> -s <series-slug> -V 1
 # 読者向けMarkdown原稿
 uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 
-# 新規シリーズを一括実行（JSON exportまで）
-uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
+# 各工程は別runとして実行する。失敗時は該当工程だけを調査・再実行できる
 ```
 
 `plan` は series slug と最初のselection snapshotを作ります。以後の `design` / `write` / `export` / `resume` では `-s <series-slug>` を指定します。
@@ -47,7 +46,6 @@ uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
 | `design` | 巻・章・scene設計を生成し、Canon frontierを更新 |
 | `write` | scene草稿・レビュー・改稿・continuity summaryを生成 |
 | `export` | snapshotをpinしたJSONまたはMarkdown manuscript artifactを出力 |
-| `complete` | `plan → design → write → export` を新規シリーズに対して実行 |
 | `resume` / `status` | 中断地点からの再開 / 現在のselection状態の表示 |
 | `doctor` / `list` | Ollama接続診断 / workdir内シリーズ一覧 |
 | `runs` / `run` / `attempt` | run・attemptの読み取り専用監査 |

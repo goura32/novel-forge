@@ -1,34 +1,36 @@
-# ドキュメント索引
+# NovelForge ドキュメント
 
-最終更新: 2026-07-13
+## はじめに
 
-この索引にある「現行」文書を、利用・運用・実装の案内として扱います。過去の再設計案は履歴資料であり、live runtimeの説明には使いません。
-
-## 利用者・運用者
-
-| 目的 | 文書 |
+| 読むもの | 目的 |
 |---|---|
-| 導入と最短実行 | [README](../README.md) |
-| 基本操作と成果物 | [USER_GUIDE](USER_GUIDE.md) |
-| CLI引数と出力 | [CLI_REFERENCE](CLI_REFERENCE.md) |
-| 中断、LLM evidence、接続障害 | [OPERATIONS](OPERATIONS.md) |
-| 入力キーワードの作り方 | [KEYWORD_SELECTION_GUIDE](KEYWORD_SELECTION_GUIDE.md) |
-| 用語 | [GLOSSARY](GLOSSARY.md) |
+| [README](../README.md) | インストール、PNCA-only の概要、最短の実行例 |
+| [USER_GUIDE.md](USER_GUIDE.md) | series / volume / snapshot / artifact の利用方法 |
+| [OPERATIONS.md](OPERATIONS.md) | 本番の個別工程フロー、進捗、復旧、LLM evidence の調査 |
+| [CLI_REFERENCE.md](CLI_REFERENCE.md) | 全公開 CLI の引数と読み取り／変更区分 |
 
-## 開発者: 現行runtimeと次期アーキテクチャ
+## 設計と契約
 
-| 目的 | 文書 |
+| 読むもの | 目的 |
 |---|---|
-| immutable runtime、snapshot、Canon frontier | [ARCHITECTURE](dev/ARCHITECTURE.md) |
-| 次期の設計権限、段階的 contract、Canon / writer境界 | [PNCA](dev/PROGRESSIVE_NARRATIVE_CONTRACT_ARCHITECTURE.md) |
-| promptの役割・改善方針 | [PROMPTS](PROMPTS.md) |
-| prompt / schema / 実行経路 | [PROMPT_SCHEMA_MAP](PROMPT_SCHEMA_MAP.md) |
-| LLMのgeneration・review・revision境界 | [LLM_REVIEW_CONTRACT](dev/LLM_REVIEW_CONTRACT.md) |
-| LLM出力の機械処理を最小に保つ設計原則 | [DESIGN_PRINCIPLES](dev/DESIGN_PRINCIPLES.md) |
-| JSON Schemaの変更と検証 | [schema_maintenance](dev/schema_maintenance.md) |
-| attempt-scoped LLM evidence形式 | [raw_log_format](dev/raw_log_format.md) |
-| Ollama接続・payload・retry契約 | [OLLAMA_API](dev/OLLAMA_API.md) |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | immutable runtime、PNCA workflow、artifact境界 |
+| [PROMPT_SCHEMA_MAP.md](PROMPT_SCHEMA_MAP.md) | 各PNCA taskの prompt / schema / validator 対応 |
+| [PROMPTS.md](PROMPTS.md) | prompt編集時の責務と検証方法 |
+| [schemas.md](schemas.md) | runtime record と artifact schema の規約 |
 
-## 履歴資料
+## 調査・開発
 
-[Runtime Artifact Retention Redesign](dev/RUNTIME_ARTIFACT_RETENTION_REDESIGN.md) と [Series Bible Schema Redesign](dev/SERIES_BIBLE_SCHEMA_REDESIGN.md) は、採用済みの破壊的再設計に関する設計記録です。現在のCLI・artifactパス・設定・LLM evidenceの説明には、上記の現行runtime文書と実装を使用してください。
+| 読むもの | 目的 |
+|---|---|
+| [dev/raw_log_format.md](dev/raw_log_format.md) | attempt-scoped LLM evidence のファイル形式 |
+| [dev/2026-07-14-pnca-audit.md](dev/2026-07-14-pnca-audit.md) | 7:30以降の変更の監査、誤解・失敗と是正方針 |
+| [dev/acceptance.md](dev/acceptance.md) | acceptance / snapshot の開発時チェック |
+| [../AGENTS.md](../AGENTS.md) | リポジトリ作業ルール |
+
+## 読む順序
+
+- **利用者**: README → USER_GUIDE → OPERATIONS → CLI_REFERENCE
+- **障害調査**: OPERATIONS → raw_log_format → run / attempt / llm diff
+- **実装変更**: ARCHITECTURE → PROMPT_SCHEMA_MAP → schemas → audit記録 → tests
+
+legacy互換・旧mutable stateの文書は置かず、現行PNCA contract と immutable runtime を唯一の仕様とします。

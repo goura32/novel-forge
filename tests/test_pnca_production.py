@@ -99,6 +99,45 @@ def test_production_executor_renders_only_registered_request_projection() -> Non
     assert "月灯りの魔女" in calls[0]["user_prompt"]
 
 
+def test_production_executor_captures_one_terminal_llm_attempt(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+
+    class CapturingFakeClient:
+        def __init__(self) -> None:
+            self.capture = None
+
+        def with_capture(self, capture):
+            self.capture = capture
+            return self
+
+        def complete_json(self, **kwargs):
+            assert self.capture is not None
+            payload = {"model": "fake", "messages": [{"role": "user", "content": kwargs["user_prompt"]}]}
+            value = {"contract_id": "moon_lantern", "canon_seed": {"series": {"id": "moon_lantern"}}}
+            self.capture.request(payload)
+            self.capture.response_ndjson([{"message": {"content": "{}"}}])
+            self.capture.response_content("{}")
+            self.capture.parsed(value)
+            self.capture.validation({"outcome": "passed"})
+            return value
+
+    executor = make_pnca_task_executor(client=CapturingFakeClient(), repository=repo, run=run)
+    executor.execute(
+        task_id="pnca.series.contract",
+        scope_id="moon_lantern",
+        artifacts={"series.request": {"slug": "moon_lantern", "keywords": "月灯りの魔女", "existing_slugs": []}},
+        input_artifact_ids=("art_request",),
+    )
+    llm_attempts = list((run.path / "attempts").glob("*/llm/request.json"))
+    assert len(llm_attempts) == 1
+    attempt_path = llm_attempts[0].parent.parent
+    assert (attempt_path / "llm/response.ndjson").is_file()
+    assert (attempt_path / "llm/parsed.json").is_file()
+    assert (attempt_path / "llm/validation.json").is_file()
+    assert (attempt_path / "completion.json").is_file()
+
+
 def test_production_executor_renders_only_registered_volume_projection() -> None:
     calls: list[dict] = []
 

@@ -259,6 +259,14 @@ class PNCAWorkflow:
         current_snapshot_id = snapshot.selection_snapshot_id
 
         for chapter_ordinal in range(1, chapters + 1):
+            self.repository.record_progress(
+                run,
+                phase="design",
+                unit="chapter",
+                current=chapter_ordinal,
+                total=chapters,
+                scope_id=f"{slug}.volume.{volume_ordinal:03d}.chapter.{chapter_ordinal:03d}",
+            )
             chapter_request = stage_chapter_request(
                 repository=self.repository,
                 run=run,
@@ -289,7 +297,16 @@ class PNCAWorkflow:
                 raise RuntimeContractError("scene frontier artifact requires a canon lineage root digest")
 
             consumed_admissions: tuple[AdmissionConsumption, ...] = ()
-            for scene_slot in sorted(chapter_authored.contract.scene_slots, key=lambda s: s.ordinal):
+            scene_slots = sorted(chapter_authored.contract.scene_slots, key=lambda s: s.ordinal)
+            for scene_position, scene_slot in enumerate(scene_slots, start=1):
+                self.repository.record_progress(
+                    run,
+                    phase="design",
+                    unit="scene",
+                    current=scene_position,
+                    total=len(scene_slots),
+                    scope_id=f"{slug}.volume.{volume_ordinal:03d}.chapter.{chapter_ordinal:03d}.{scene_slot.slot_id}",
+                )
                 # The frontier artifact is stable per chapter; rebind its input
                 # snapshot to the snapshot each scene is accepted against so the
                 # acceptance commit's base snapshot matches the frontier binding.
@@ -368,6 +385,10 @@ class PNCAWorkflow:
         slots: list[BundleSlotRecord] = []
         chapter_prefix = f"pnca.chapter.contract.{slug}.{volume:03d}."
         scene_prefix = f"pnca.scene.contract.{slug}.{volume:03d}."
+        total_scenes = sum(1 for slot in snapshot.slots if slot.startswith(scene_prefix))
+        if total_scenes < 1:
+            raise RuntimeContractError(f"selected snapshot has no accepted scenes for Volume {volume}")
+        scene_position = 0
         for chapter_key, chapter_artifact_id in sorted(snapshot.slots.items()):
             if not chapter_key.startswith(chapter_prefix):
                 continue
@@ -379,9 +400,18 @@ class PNCAWorkflow:
                 )
                 if scene_artifact_id is None:
                     continue
+                scene_position += 1
+                scope_id = f"{slug}.volume.{volume:03d}.chapter.{chapter_contract.chapter_ordinal:03d}.scene.{scene_slot.slot_id}"
+                self.repository.record_progress(
+                    run,
+                    phase="write",
+                    unit="scene",
+                    current=scene_position,
+                    total=total_scenes,
+                    scope_id=scope_id,
+                )
                 scene_ref = self.repository.verify_artifact(scene_artifact_id)
                 scene_contract = SceneContract.model_validate(self.repository.read_payload(scene_ref))
-                scope_id = f"{slug}.volume.{volume:03d}.chapter.{chapter_contract.chapter_ordinal:03d}.scene.{scene_slot.slot_id}"
                 rendered = renderer.render(
                     run=run,
                     scene_contract_artifact_id=scene_ref.artifact_id,

@@ -71,14 +71,6 @@ uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 
 出力は `<workdir>/.novel-forge/runs/<run>/attempts/<attempt>/artifacts/` に保存されます。Markdownのpayload名は `export.volNN.manuscript.md` です。DOCX / EPUBは出力しません。
 
-## `complete`
-
-```bash
-uv run novel-forge complete -w <workdir> "keyword1 keyword2"
-```
-
-新規シリーズに対して `plan → design → write → export` を順に実行します。export形式はJSON既定です。
-
 ## `status` / `resume`
 
 ```bash

@@ -45,13 +45,7 @@ uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
 
 `write` と `export` は分離されています。`export` は草稿生成やauditを再実行せず、現在の選択snapshotの `pnca.design_bundle.<series>.<volume>` を検証して出力します。audit issueが一つでも未解決なら出力しません。
 
-全巻を設計する場合は `design -V 0` を使います。初回から新規シリーズを一括実行する場合は次のとおりです。
-
-```bash
-uv run novel-forge complete -w <workdir> "近未来東京 記憶探偵"
-```
-
-`complete` は `plan → design → write → export` を順に実行し、Markdown原稿 artifact まで作成します。
+全巻を設計する場合は `design -V 0` を使います。新規シリーズは `plan` を先に実行し、出力されたslugを後続の個別工程へ渡します。`complete` のような合成コマンドは使いません。
 
 ## 4. 成果物と証跡を確認する
 

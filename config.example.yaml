@@ -1,8 +1,8 @@
 # NovelForge example configuration.
 #
-# Copy this file to config.yaml or point NOVEL_FORGE_CONFIG at another path.
-# Runtime precedence: CLI options > config.yaml > built-in defaults.
-# OLLAMA_OPTIONS can overlay llm.ollama_options.
+# Copy this file to ~/.config/novel-forge/config.yaml.
+# NovelForge reads only that canonical runtime configuration path.
+# Runtime precedence: CLI options > canonical config > built-in defaults.
 
 quality:
   # Maximum generation attempts per phase/scene, including API and schema validation failures.
@@ -34,8 +34,10 @@ llm:
   # Passed to Ollama's options payload, except `think` which is sent as top-level `think`.
   ollama_options:
     think: false
-    temperature: 0.7
-    top_p: 0.9
+    temperature: 1.0
+    top_p: 0.95
+    top_k: 20
+    min_p: 0.0
 
 # Logging / output controls.
 ## `verbose` also enables LLM raw logs (transport, JSON payload, parse traces).

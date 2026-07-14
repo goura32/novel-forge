@@ -19,9 +19,14 @@ def test_status_is_read_only_and_inspection_commands_are_registered(tmp_path):
         assert command in help_result.output
 
 
-def test_side_effect_commands_expose_wait_lock_option(tmp_path):
+def test_side_effect_commands_expose_wait_lock_option_and_complete_is_removed(tmp_path):
     runner = CliRunner()
-    for command in ("plan", "design", "write", "export", "resume", "complete"):
+    for command in ("plan", "design", "write", "export", "resume"):
         result = runner.invoke(app, [command, "--help"])
         assert result.exit_code == 0, result.output
         assert "--wait-lock" in result.output, f"{command} must expose --wait-lock"
+    help_result = runner.invoke(app, ["--help"])
+    assert "│ complete" not in help_result.output
+    removed = runner.invoke(app, ["complete", "--help"])
+    assert removed.exit_code != 0
+    assert "No such command" in removed.output

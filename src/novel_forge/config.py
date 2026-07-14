@@ -26,7 +26,15 @@ class LLMConfig(BaseModel):
     model: str = "qwen3.6:35b-a3b-mtp-q4_K_M"
     ollama_host: str = "ws1.local:11434"
     timeout_seconds: int = Field(default=3600, ge=1)
-    ollama_options: dict[str, Any] = Field(default_factory=lambda: {"think": False})
+    ollama_options: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "think": False,
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 20,
+            "min_p": 0.0,
+        }
+    )
     num_predict: int = Field(default=-1, description="-1 = unlimited output (risk of runaway generation)")
     num_ctx: int = Field(default=262144, description="context window in tokens")
 

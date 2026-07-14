@@ -52,6 +52,10 @@ class SchemaValidationError(LLMError):
         self.absolute_path = absolute_path or []
 
 
+class SchemaEchoError(LLMError):
+    """The model returned JSON Schema syntax where a concrete value was required."""
+
+
 def _try_import_yaml():
     try:
         import yaml
@@ -146,6 +150,21 @@ class LLMClient:
     def set_retry_seed(self, seed: int) -> None:
         """Set the Ollama seed for a deterministic contract retry attempt."""
         self._ollama_options["seed"] = seed
+
+    def with_capture(self, capture: AttemptCapture) -> LLMClient:
+        """Return an isolated one-call client bound to one immutable attempt."""
+        return LLMClient(
+            api_url=self.api_url,
+            model=self.model,
+            timeout_seconds=self.timeout_seconds,
+            capture=capture,
+            phase=self.phase,
+            num_ctx=self.num_ctx,
+            num_predict=self.num_predict,
+            ollama_options=dict(self._ollama_options),
+            series_slug=self._series_slug,
+            volume=self._volume,
+        )
 
     def _detect_max_ctx(self) -> int:
         """Ollama /api/show からモデルの context_length を取得する。"""
@@ -249,40 +268,25 @@ class LLMClient:
         )
 
         call_start = time.time()
-        max_schema_echo_attempts = 3
-        parsed: dict[str, Any] | None = None
         try:
-            for attempt_idx in range(max_schema_echo_attempts):
-                if attempt_idx > 0:
-                    payload["options"]["seed"] = base_seed + seed_offset + attempt_idx * 7
-                    self._log.debug(
-                        "  [LLM RETRY schema-echo] kind=%s attempt=%d seed=%d%s",
-                        kind, attempt_idx + 1, payload["options"]["seed"], meta,
-                    )
-                raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload, kind)
-                self._log.debug(
-                    "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
-                    kind, chunk_count, total_bytes, time.time() - call_start, meta, done_reason,
-                )
-                self._capture_response(raw_text, raw)
-                parsed = parse_json_response(raw)
-                if not self._is_schema_echo(parsed):
-                    break
-                self._log.debug("  [LLM schema-echo detected] kind=%s attempt=%d", kind, attempt_idx + 1)
-            else:
-                raise LLMError("LLM returned schema structure instead of data")
-            assert parsed is not None  # parse_json_response always ran at least once
+            raw_text, raw, thinking, done_reason, chunk_count, total_bytes = self._call_api(payload, kind)
+            self._log.debug(
+                "  [LLM DONE] kind=%s chunks=%d bytes=%d elapsed=%.1fs%s done=%s",
+                kind, chunk_count, total_bytes, time.time() - call_start, meta, done_reason,
+            )
+            self._capture_response(raw_text, raw)
+            parsed = parse_json_response(raw)
+            if self._is_schema_echo(parsed):
+                raise SchemaEchoError("LLM returned a response schema instead of task data")
 
-            # Coerce field-level schema echoes (e.g. "content": {"type":"string",
-            # "required": true, ...}) where the model returns a *field schema* instead
-            # of the actual string value. Detect by the presence of "type" (a schema
-            # property), not "properties" (full-response echoes are caught earlier).
+            # A field-schema echo is invalid data. Never coerce it to an empty
+            # value: doing so can turn a failed prose/review generation into a
+            # superficially valid artifact.
             if isinstance(parsed, dict):
                 for key in ("content", "draft_quote", "suggestion", "description", "field"):
                     val = parsed.get(key)
                     if isinstance(val, dict) and "type" in val:
-                        self._log.warning("  [field-level schema echo] kind=%s field=%s coercing to empty string", kind, key)
-                        parsed[key] = ""
+                        raise SchemaEchoError(f"LLM returned a field schema for {key!r} instead of a concrete value")
 
             if schema:
                 if isinstance(parsed, dict) and "slug" in parsed:
@@ -293,6 +297,10 @@ class LLMClient:
                 self._capture.parsed(cast(dict[str, Any], parsed))
                 self._capture.validation({"outcome": "passed"})
             return cast(dict[str, Any], parsed)
+        except SchemaEchoError:
+            if self._capture is not None:
+                self._capture.validation({"outcome": "failed", "error_code": "SCHEMA_ECHO"})
+            raise
         except RuntimeError:
             raise
         except JsonParseError as e:

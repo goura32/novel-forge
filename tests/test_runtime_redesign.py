@@ -52,6 +52,13 @@ def test_runtime_config_uses_only_canonical_path_and_cli_workdir_wins(tmp_path: 
     config = RuntimeConfig.model_validate({"workspace": {"root": str(tmp_path / "configured")}})
     assert config.resolve_workdir(tmp_path / "cli") == (tmp_path / "cli").resolve()
     assert config.resolve_workdir(None) == (tmp_path / "configured").resolve()
+    assert RuntimeConfig().llm.ollama_options == {
+        "think": False,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+    }
     with pytest.raises(ValueError, match="作業フォルダが未設定"):
         RuntimeConfig().resolve_workdir(None)
 
@@ -67,6 +74,20 @@ def test_success_attempt_is_immutable_and_ready_before_succeeded(tmp_path: Path)
     assert repo.verify_artifact(artifact.artifact_id).artifact_id == artifact.artifact_id
     with pytest.raises(FileExistsError):
         repo.writer.write_text(artifact.path / f"artifact-ready.{artifact.artifact_id}.json", "again")
+
+
+def test_evidence_attempt_and_progress_are_terminal_and_durable(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    run = _run(repo)
+    attempt = repo.start_attempt(run, task_id="pnca.scene.render", phase="write", reason="LLM evidence")
+    repo.succeed_attempt(attempt, reason="llm_evidence_captured")
+    repo.record_progress(run, phase="write", unit="scene", current=2, total=5, scope_id="series.volume.001.scene.s02")
+    assert json.loads((attempt.path / "completion.json").read_text())["reason"] == "llm_evidence_captured"
+    events = [json.loads(line) for line in (run.path / "events.jsonl").read_text().splitlines()]
+    assert events[-2]["event_type"] == "attempt.succeeded"
+    assert events[-1]["event_type"] == "progress"
+    assert events[-1]["payload"]["current"] == 2
+    assert events[-1]["payload"]["total"] == 5
 
 
 def test_failure_attempt_has_safe_error_and_no_ready_marker(tmp_path: Path) -> None:
@@ -133,7 +154,7 @@ def test_nonverbose_capture_never_writes_raw_llm_body_and_diff_requires_capture(
     repo = RunRepository(tmp_path)
     first = repo.start_attempt(_run(repo), task_id="write.draft.generate", phase="write", reason="generation")
     second = repo.start_attempt(_run(repo), task_id="write.draft.generate", phase="write", reason="generation")
-    with pytest.raises(Exception, match="complete verbose capture"):
+    with pytest.raises(Exception, match="complete attempt-scoped capture"):
         repo.llm_diff(first.manifest.attempt_id, second.manifest.attempt_id)
     assert "metadata" in repo.llm_diff(first.manifest.attempt_id, second.manifest.attempt_id, metadata_only=True)
 
