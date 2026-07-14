@@ -90,6 +90,8 @@ def test_pnca_scene_prompts_require_completed_observable_beats() -> None:
 
     assert "準備・試行・直前で止めず" in render
     assert "未完の準備・試行・直前で終わらせない" in revise
+    assert "Current draft.coverage.evidence[].draft_quote" in revise
+    assert "一字も変更・削除・言い換えしてはならない" in revise
 
 
 def test_pnca_scene_render_forbids_omniscient_third_party_claims() -> None:

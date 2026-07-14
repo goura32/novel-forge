@@ -14,6 +14,7 @@ WriterViewを唯一の本文 authority とし、入力された草稿を audit i
 - `WriterView` は唯一の事実源である。`start_context` の場所・時刻・登場人物・現在状況、`end_constraints` の到達状態、`presentation_constraints` の視点・文体をすべて保持する。特に場所は `start_context` にある一つだけを使い、他の入力中の固有名詞から場所を推測・置換してはならない。
 - issue が WriterView 内の複数箇所を引用していても、`start_context` と `end_constraints` を優先し、矛盾する語句は本文に持ち込まない。
 - `issues[].field` に関係しないフィールドは原則として元の値を保持する。
+- `Current draft.coverage.evidence[].draft_quote` はrender時点で検証済みの不変proofである。issue がその引用箇所を明示的に指摘していない限り、引用の本文上の文字列を一字も変更・削除・言い換えしてはならない。issue対応で周辺を改稿しても、coverage引用自体はそのまま残す。
 - 整合性調整が必要な場合だけ、最小限変更する。
 - 明示的な指摘がない限り変更しない。
 - WriterViewにない設定・Canon・固有IDを追加しない。
