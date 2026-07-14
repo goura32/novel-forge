@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import re
+from contextlib import suppress
+
 import pytest
 
 from novel_forge.pnca.contracts import ChapterContract, SceneSlot, SeriesContractProposal
+from novel_forge.pnca.defaults import default_pnca_task_registry
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
     stage_chapter_request,
@@ -330,4 +334,46 @@ def test_production_executor_renders_protected_coverage_in_scene_revision_prompt
     )
 
     assert "保護引用" in calls[0]["user_prompt"]
-    assert "{protected_coverage}" not in calls[0]["user_prompt"]
+
+
+def test_every_production_pnca_prompt_renders_all_placeholders() -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def complete_json(self, **kwargs):
+            calls.append(kwargs)
+            return {}
+
+    writer_view = {
+        "start_context": {},
+        "narrative_contract": {},
+        "end_constraints": {},
+        "presentation_constraints": {},
+        "required_beats": [],
+    }
+    artifacts_by_role = {
+        "series.request": {"keywords": "x", "existing_slugs": []},
+        "parent.contract": {},
+        "volume.request": {"volume_ordinal": 1},
+        "chapter.request": {"chapter_ordinal": 1},
+        "canon.frontier": {},
+        "canon.projection": {},
+        "admission.allowances": [],
+        "scene.request": {"slot_id": "scene_001", "is_terminal_scene": False},
+        "writer.view": writer_view,
+        "writer.view.review": {"issues": []},
+        "scene.draft": {"content": "本文"},
+        "render.coverage": {"evidence": []},
+        "draft.audit": {"issues": []},
+    }
+    executor = make_pnca_task_executor(client=FakeClient())
+    registry = default_pnca_task_registry()
+
+    for task_id, spec in registry._by_id.items():
+        artifacts = {binding.role: artifacts_by_role[binding.role] for binding in spec.input_bindings}
+        with suppress(Exception):
+            executor.execute(task_id=task_id, scope_id="placeholder_probe", artifacts=artifacts, input_artifact_ids=())
+
+    assert len(calls) == len(registry._by_id)
+    for call in calls:
+        assert not re.search(r"\{[a-z_]+\}", call["user_prompt"])
