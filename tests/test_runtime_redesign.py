@@ -54,7 +54,7 @@ def test_runtime_config_uses_only_canonical_path_and_cli_workdir_wins(tmp_path: 
     assert config.resolve_workdir(tmp_path / "cli") == (tmp_path / "cli").resolve()
     assert config.resolve_workdir(None) == (tmp_path / "configured").resolve()
     assert RuntimeConfig().llm.ollama_options == {
-        "think": False,
+        "think": True,
         "temperature": 1.0,
         "top_p": 0.95,
         "top_k": 20,

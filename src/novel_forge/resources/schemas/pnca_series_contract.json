@@ -9,25 +9,125 @@
   "properties": {
     "contract_id": {
       "type": "string",
-      "description": "最終 series slug。`^[a-z0-9_]{1,40}$` に一致し、request の existing_slugs と重複しない stable ID。",
+      "description": "最終series slug。`^[a-z0-9_]{1,40}$`に一致し、requestのexisting_slugsと重複しないstable ID。",
       "pattern": "^[a-z0-9_]{1,40}$"
     },
     "canon_seed": {
       "type": "object",
-      "description": "空でないシリーズ開始時点の Canon。series ID、title、logline、初期 entity/state を含む JSON object。",
-      "minProperties": 1
+      "description": "後続sceneが最初から二人を個人として扱える開始Canon。抽象的な設定文だけで済ませない。",
+      "required": [
+        "series",
+        "protagonists",
+        "relationship",
+        "world_state"
+      ],
+      "properties": {
+        "series": {
+          "type": "object",
+          "description": "シリーズ自体の表示情報。",
+          "required": [
+            "title",
+            "logline"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "自然な日本語のシリーズ題名。"
+            },
+            "logline": {
+              "type": "string",
+              "description": "二人、呪い、政治的障害、恋愛の主軸を結ぶ開始時点の一文。"
+            }
+          }
+        },
+        "protagonists": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "最初のsceneから登場・会話・内面描写できる二人の主役。必ず二人だけを宣言する。",
+          "items": {
+            "type": "object",
+            "description": "一人の主役の開始時人物record。",
+            "required": [
+              "character_id",
+              "name",
+              "role",
+              "initial_state",
+              "voice"
+            ],
+            "properties": {
+              "character_id": {
+                "type": "string",
+                "pattern": "^character_[a-z0-9_]{1,40}$",
+                "description": "このCanon内で不変のASCII stable ID。"
+              },
+              "name": {
+                "type": "string",
+                "description": "自然な日本語表記の固有名。『主人公』『王子』『彼女』のような役名だけは不可。"
+              },
+              "role": {
+                "type": "string",
+                "description": "物語開始時の社会的立場・役割。"
+              },
+              "initial_state": {
+                "type": "string",
+                "description": "開始時に本人が置かれた具体的な制約・目的・秘密。"
+              },
+              "voice": {
+                "type": "string",
+                "description": "会話や内面の書き分けに使える口調・気質。"
+              }
+            }
+          }
+        },
+        "relationship": {
+          "type": "object",
+          "description": "protagonists二人だけを結ぶ開始時の関係record。",
+          "required": [
+            "relationship_id",
+            "participant_ids",
+            "initial_state"
+          ],
+          "properties": {
+            "relationship_id": {
+              "type": "string",
+              "pattern": "^relationship_[a-z0-9_]{1,40}$",
+              "description": "このCanon内で不変のASCII stable ID。"
+            },
+            "participant_ids": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "description": "protagonistsのcharacter_id二つを重複なくそのまま列挙する。",
+              "items": {
+                "type": "string",
+                "description": "protagonistsで宣言したcharacter_idの一つ。"
+              }
+            },
+            "initial_state": {
+              "type": "string",
+              "description": "二人の開始時の関係、力の非対称、互いに隠していることを含む具体的な状態。"
+            }
+          }
+        },
+        "world_state": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "呪い、鍵となるartifact、宮廷対立など、開始時から変わらない世界の制約をkey/valueで記す。"
+        }
+      }
     },
     "final_resolution": {
       "type": "string",
-      "description": "最終巻で必ず具体的に解決する、request に含まれる中心の呪い・鍵となる artifact・宮廷対立・二人の関係の到達状態を一文で結んだ最終解決契約。"
+      "description": "最終巻で必ず具体的に解決する、requestに含まれる中心の呪い・鍵となるartifact・宮廷対立・二人の関係の到達状態を一文で結んだ最終解決契約。"
     },
     "volume_purposes": {
       "type": "array",
       "minItems": 1,
-      "description": "各巻の one-line purpose。ordinal は 1 から昇順・重複なし。章や scene beats は書かない。",
+      "description": "各巻のone-line purpose。ordinalは1から昇順・重複なし。章やscene beatsは書かない。",
       "items": {
         "type": "object",
-        "description": "一巻分の purpose record。ordinal と purpose を必ず含める。",
+        "description": "一巻分のpurpose record。ordinalとpurposeを必ず含める。",
         "required": [
           "ordinal",
           "purpose"
@@ -36,11 +136,11 @@
           "ordinal": {
             "type": "integer",
             "minimum": 1,
-            "description": "シリーズ内での巻番号。1 からの昇順で重複させない。"
+            "description": "シリーズ内での巻番号。1からの昇順で重複させない。"
           },
           "purpose": {
             "type": "string",
-            "description": "その巻がシリーズ全体で果たす一文の役割。章、scene、具体的 beat、Canon patch は書かない。"
+            "description": "その巻がシリーズ全体で果たす一文の役割。章、scene、具体的なbeat、Canon patchは書かない。"
           }
         }
       }

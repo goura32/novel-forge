@@ -18,7 +18,7 @@ llm:
   num_predict: -1
   num_ctx: 262144
   ollama_options:
-    think: false
+    think: true
     temperature: 1.0
     top_p: 0.95
     top_k: 20

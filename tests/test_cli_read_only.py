@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from typer.testing import CliRunner
 
@@ -43,3 +45,18 @@ def test_side_effect_commands_expose_wait_lock_option_and_no_inert_review_overri
     removed = runner.invoke(app, ["complete", "--help"])
     assert removed.exit_code != 0
     assert "No such command" in removed.output
+
+
+def test_design_all_skips_already_selected_volumes() -> None:
+    snapshot = SimpleNamespace(
+        slots={
+            "pnca.series.contract.run_001": "art_series",
+            "pnca.volume.contract.series_001.001": "art_volume_001",
+        }
+    )
+
+    assert cli._pending_volume_ordinals(
+        snapshot=snapshot,
+        slug="series_001",
+        declared_ordinals={1, 2, 3},
+    ) == [2, 3]

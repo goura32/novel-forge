@@ -34,7 +34,7 @@ class LLMConfig(StrictConfigModel):
     timeout_seconds: int = Field(default=3600, ge=1)
     ollama_options: dict[str, Any] = Field(
         default_factory=lambda: {
-            "think": False,
+            "think": True,
             "temperature": 1.0,
             "top_p": 0.95,
             "top_k": 20,

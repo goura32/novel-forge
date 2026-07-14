@@ -77,7 +77,7 @@ class PNCAContractAuthor:
             seed_attempt,
             artifact_type="canon.seed",
             logical_key="canon.seed",
-            payload=proposal.canon_seed,
+            payload=proposal.canon_seed.model_dump(mode="json"),
             payload_name="canon_seed.json",
         )
         frontier_attempt = self.repository.start_attempt(

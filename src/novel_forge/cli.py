@@ -181,6 +181,15 @@ def _selected_volume_contract(
     return AuthoredContract(artifact=artifact, contract=VolumeContract.model_validate(repo.read_payload(artifact)))
 
 
+def _pending_volume_ordinals(*, snapshot, slug: str, declared_ordinals) -> builtins.list[int]:
+    """Return declared volumes that have no accepted contract in the current snapshot."""
+    return [
+        ordinal
+        for ordinal in sorted(declared_ordinals)
+        if f"pnca.volume.contract.{slug}.{ordinal:03d}" not in snapshot.slots
+    ]
+
+
 def _selected_chapter_contract(
     repo: RunRepository, slug: str, snapshot_id: str, volume_ordinal: int, chapter_ordinal: int
 ) -> AuthoredContract[ChapterContract]:
@@ -424,7 +433,16 @@ def design(
             return
         series_parent = _selected_series_contract(repo, series_dir.name, snapshot_id)
         purposes = {purpose.ordinal for purpose in series_parent.contract.volume_purposes}
-        volumes = sorted(purposes) if volume == 0 else [volume]
+        base_snapshot = repo.load_snapshot(series_dir.name, snapshot_id)
+        volumes = (
+            _pending_volume_ordinals(
+                snapshot=base_snapshot,
+                slug=series_dir.name,
+                declared_ordinals=purposes,
+            )
+            if volume == 0
+            else [volume]
+        )
         workflow = _make_pnca_workflow(repo, config, model, run)
         for ordinal in volumes:
             if ordinal not in purposes:
@@ -439,8 +457,9 @@ def design(
             snapshot = workflow.accept_volume(
                 slug=series_dir.name,
                 authored=volume_authored,
-                base_snapshot_id=snapshot_id,
+                base_snapshot_id=base_snapshot.selection_snapshot_id,
             )
+            base_snapshot = snapshot
             console.print(f"[green]✓[/green] PNCA Volume {ordinal} accepted (snapshot: {snapshot.selection_snapshot_id})")
 
 

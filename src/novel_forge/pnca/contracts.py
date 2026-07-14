@@ -165,11 +165,51 @@ class VolumePurpose(BaseModel):
     purpose: str = Field(min_length=1)
 
 
+class CanonSeedProtagonist(BaseModel):
+    """One named romance lead available from the first scene."""
+
+    character_id: str = Field(min_length=1, pattern=r"^character_[a-z0-9_]{1,40}$")
+    name: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+    initial_state: str = Field(min_length=1)
+    voice: str = Field(min_length=1)
+
+
+class CanonSeedRelationship(BaseModel):
+    """The opening relationship between the two declared protagonists."""
+
+    relationship_id: str = Field(min_length=1, pattern=r"^relationship_[a-z0-9_]{1,40}$")
+    participant_ids: tuple[str, str]
+    initial_state: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _participants_are_distinct(self) -> CanonSeedRelationship:
+        if self.participant_ids[0] == self.participant_ids[1]:
+            raise ValueError("relationship participant_ids must name two distinct protagonists")
+        return self
+
+
+class SeriesCanonSeed(BaseModel):
+    """The minimum named relationship state needed to author a romance series."""
+
+    series: dict[str, str] = Field(min_length=1)
+    protagonists: tuple[CanonSeedProtagonist, CanonSeedProtagonist]
+    relationship: CanonSeedRelationship
+    world_state: dict[str, str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _relationship_binds_exactly_the_declared_protagonists(self) -> SeriesCanonSeed:
+        protagonist_ids = {lead.character_id for lead in self.protagonists}
+        if set(self.relationship.participant_ids) != protagonist_ids:
+            raise ValueError("relationship participant_ids must match the declared protagonists")
+        return self
+
+
 class SeriesContractProposal(BaseModel):
     """Provider output before repository-created Canon artifacts are pinned."""
 
     contract_id: str = Field(min_length=1, pattern=r"^[a-z0-9_]{1,40}$")
-    canon_seed: dict[str, Any] = Field(min_length=1)
+    canon_seed: SeriesCanonSeed
     final_resolution: str = Field(default="", min_length=0)
     volume_purposes: tuple[VolumePurpose, ...] = Field(min_length=1)
 

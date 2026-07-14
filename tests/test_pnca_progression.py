@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from novel_forge.pnca.contracts import (
     AdmissionAllowance,
     ChapterContract,
     FrontierBinding,
+    SeriesCanonSeed,
     SeriesContract,
     SeriesContractProposal,
     VolumeContract,
@@ -62,13 +65,25 @@ def _executor(outputs, projections: list[dict] | None = None):
     return PNCATaskExecutor(registry=PNCATaskRegistry(specs=specs), provider=provider)
 
 
+def _romance_seed() -> dict[str, Any]:
+    return {
+        "series": {"title": "月灯りの花", "logline": "呪われた王子との政略結婚"},
+        "protagonists": [
+            {"character_id": "character_lina", "name": "リナ", "role": "伯爵令嬢", "initial_state": "政略結婚を命じられた", "voice": "率直で芯が強い"},
+            {"character_id": "character_ren", "name": "レン", "role": "呪われた王子", "initial_state": "呪いを隠している", "voice": "寡黙で丁寧"},
+        ],
+        "relationship": {"relationship_id": "relationship_lina_ren", "participant_ids": ["character_lina", "character_ren"], "initial_state": "政略結婚を前にした他人同士"},
+        "world_state": {"curse": "月灯りで王子の呪いが強まる", "court_conflict": "王位継承を巡る派閥対立"},
+    }
+
+
 def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None:
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)
     outputs = {
         "pnca.series.contract": {
             "contract_id": "series_001",
-            "canon_seed": {"schema_version": 2, "series": {"id": "series_001"}},
+            "canon_seed": _romance_seed(),
             "volume_purposes": [{"ordinal": 1, "purpose": "呪いの受諾"}],
         },
         "pnca.volume.contract": {
@@ -178,7 +193,7 @@ def test_volume_authoring_requires_a_pinned_volume_request(tmp_path) -> None:
             {
                 "pnca.series.contract": {
                     "contract_id": "series_001",
-                    "canon_seed": {"schema_version": 2, "series": {"id": "series_001"}},
+                    "canon_seed": _romance_seed(),
                     "volume_purposes": [{"ordinal": 1, "purpose": "魔女が月灯りの呪いを引き受ける"}],
                 }
             }
@@ -197,7 +212,7 @@ def test_volume_authoring_requires_a_pinned_volume_request(tmp_path) -> None:
     assert isinstance(
         SeriesContractProposal(
             contract_id="series_001",
-            canon_seed={"seed": True},
+            canon_seed=SeriesCanonSeed.model_validate(_romance_seed()),
             volume_purposes=(VolumePurpose(ordinal=1, purpose="呪いの受諾"),),
         ),
         SeriesContractProposal,

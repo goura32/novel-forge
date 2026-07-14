@@ -25,6 +25,7 @@ from novel_forge.pnca.contracts import (
     SceneContract,
     SceneSlot,
     SeriesContract,
+    SeriesContractProposal,
     VolumeContract,
     VolumePurpose,
     WriterView,
@@ -70,6 +71,18 @@ def _slots() -> tuple[SceneSlot, ...]:
         SceneSlot(slot_id="scene_001", ordinal=1, allowed_admission_allowance_ids=("allow_support",)),
         SceneSlot(slot_id="scene_002", ordinal=2),
     )
+
+
+def test_series_proposal_rejects_seed_without_two_named_protagonists() -> None:
+    with pytest.raises(ValidationError, match="protagonists"):
+        SeriesContractProposal(
+            contract_id="moon_flower",
+            canon_seed={
+                "series": {"title": "月影の花", "logline": "呪われた王子との政略結婚"},
+                "world_state": {"curse": "月光で発作が起きる"},
+            },
+            volume_purposes=(VolumePurpose(ordinal=1, purpose="政略結婚を受け入れる"),),
+        )
 
 
 def test_writer_view_exposes_required_observable_beats_to_the_writer() -> None:
