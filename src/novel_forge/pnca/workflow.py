@@ -25,6 +25,7 @@ from novel_forge.pnca.contracts import (
 from novel_forge.pnca.progression import AuthoredContract, expected_terminal_scene
 from novel_forge.pnca.scene_audit import PNCASceneAuditSynthesizer
 from novel_forge.pnca.scene_preparation import PNCASceneStructurePreparer, PreparedSceneStructure
+from novel_forge.pnca.validation import PNCAStructuralError
 from novel_forge.pnca.writer import PNCARenderer
 from novel_forge.runtime import (
     ArtifactReference,
@@ -475,17 +476,37 @@ class PNCAWorkflow:
                 # language_contamination / pov_fact / required_beat / end_constraint cannot ship.
                 # Revise the draft against the audit findings, then re-audit (bounded loop).
                 revise_cycle = 0
+                rerender_cycle = 0
                 while any(issue.severity == "blocker" for issue in audit_payload.issues) and revise_cycle < 2:
-                    revised = renderer.revise(
-                        run=run,
-                        writer_view=scene_contract.writer_view,
-                        writer_view_artifact_id=rendered.writer_view.artifact_id,
-                        draft=draft,
-                        audit=audit,
-                        executor=executor,
-                        scope_id=scope_id,
-                    )
-                    draft = revised
+                    try:
+                        revised = renderer.revise(
+                            run=run,
+                            writer_view=scene_contract.writer_view,
+                            writer_view_artifact_id=rendered.writer_view.artifact_id,
+                            draft=draft,
+                            audit=audit,
+                            executor=executor,
+                            scope_id=scope_id,
+                        )
+                    except PNCAStructuralError as exc:
+                        if (
+                            str(exc) != "PNCA render coverage quotes must occur verbatim in the draft"
+                            or rerender_cycle >= 2
+                        ):
+                            raise
+                        draft = renderer.rerender_for_audit(
+                            run=run,
+                            writer_view=rendered.writer_view,
+                            view=scene_contract.writer_view,
+                            draft=draft,
+                            audit=audit,
+                            executor=executor,
+                            scope_id=f"{scope_id}.rerender.{rerender_cycle + 1}",
+                        )
+                        rerender_cycle += 1
+                    else:
+                        draft = revised
+                        revise_cycle += 1
                     audit = renderer.audit(
                         run=run,
                         scene_contract_artifact_id=scene_ref.artifact_id,
@@ -496,7 +517,6 @@ class PNCAWorkflow:
                         scope_id=scope_id,
                     )
                     audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
-                    revise_cycle += 1
                 blockers = [issue for issue in audit_payload.issues if issue.severity == "blocker"]
                 if blockers:
                     fields = ", ".join(sorted({f"{issue.constraint_kind}:{issue.writer_view_field}" for issue in blockers}))
