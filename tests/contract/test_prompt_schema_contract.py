@@ -83,6 +83,8 @@ def test_scene_contract_prompt_requires_object_writer_view_fields() -> None:
     assert "`writer_view` は object" in text
     assert "`narrative_contract` は object" in text
     assert "単一の文字列にしてはならない" in text
+    assert "`安抚` は書かず" in text
+    assert "「慰める」「安心させる」" in text
 
 
 def test_all_task_prompts_have_schema_placeholder() -> None:
