@@ -29,7 +29,11 @@ from novel_forge.pnca.production import (
     stage_series_request,
     stage_volume_request,
 )
-from novel_forge.pnca.progression import AuthoredContract, PNCAContractAuthor
+from novel_forge.pnca.progression import (
+    AuthoredContract,
+    PNCAContractAuthor,
+    expected_terminal_scene,
+)
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.prompts import PromptManager
 from novel_forge.runtime import (
@@ -361,6 +365,9 @@ def design(
                 run=run,
                 chapter_id=chapter_parent.contract.contract_id,
                 slot_id=scene_slot.slot_id,
+                is_terminal_scene=expected_terminal_scene(
+                    parent=chapter_parent.contract, slot_id=scene_slot.slot_id
+                ),
             )
             scene_authored, _consumed = workflow.author_scene(
                 run=run,

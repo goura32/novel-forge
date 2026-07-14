@@ -22,7 +22,7 @@ from novel_forge.pnca.contracts import (
     VolumeAcceptanceCommit,
     VolumeContract,
 )
-from novel_forge.pnca.progression import AuthoredContract
+from novel_forge.pnca.progression import AuthoredContract, expected_terminal_scene
 from novel_forge.pnca.scene_audit import PNCASceneAuditSynthesizer
 from novel_forge.pnca.scene_preparation import PNCASceneStructurePreparer, PreparedSceneStructure
 from novel_forge.pnca.writer import PNCARenderer
@@ -321,9 +321,8 @@ class PNCAWorkflow:
                     run=run,
                     chapter_id=chapter_authored.contract.contract_id,
                     slot_id=scene_slot.slot_id,
-                    is_terminal_scene=(
-                        chapter_authored.contract.is_terminal_volume
-                        and scene_slot.ordinal == max(slot.ordinal for slot in chapter_authored.contract.scene_slots)
+                    is_terminal_scene=expected_terminal_scene(
+                        parent=chapter_authored.contract, slot_id=scene_slot.slot_id
                     ),
                 )
                 scene_authored, consumed_admissions = self.contract_author.author_scene(

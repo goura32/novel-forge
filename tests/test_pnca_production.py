@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from novel_forge.pnca.contracts import SeriesContractProposal
+from novel_forge.pnca.contracts import ChapterContract, SceneSlot, SeriesContractProposal
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
     stage_chapter_request,
     stage_scene_request,
     stage_series_request,
 )
+from novel_forge.pnca.progression import expected_terminal_scene
 from novel_forge.runtime import RunRepository
 
 
@@ -65,6 +66,22 @@ def test_stage_scene_request_persists_terminal_role_with_chapter_slot_as_an_arti
     assert request.manifest.artifact_type == "pnca.scene.request"
     assert request.manifest.logical_key == "pnca.scene.request.chapter_001.scene_002"
     assert repo.read_payload(request) == {"slot_id": "scene_002", "is_terminal_scene": True}
+
+
+def test_terminal_scene_role_is_derived_from_final_slot_of_terminal_volume() -> None:
+    parent = ChapterContract(
+        contract_id="chapter_003",
+        parent_volume_contract_id="volume_003",
+        chapter_ordinal=1,
+        is_terminal_volume=True,
+        scene_slots=(
+            SceneSlot(slot_id="scene_001", ordinal=1),
+            SceneSlot(slot_id="scene_002", ordinal=2),
+        ),
+    )
+
+    assert not expected_terminal_scene(parent=parent, slot_id="scene_001")
+    assert expected_terminal_scene(parent=parent, slot_id="scene_002")
 
 
 def test_series_proposal_rejects_an_unsafe_final_slug() -> None:

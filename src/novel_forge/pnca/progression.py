@@ -34,6 +34,15 @@ class AuthoredContract(Generic[ContractT]):  # noqa: UP046
     contract: ContractT
 
 
+def expected_terminal_scene(*, parent: ChapterContract, slot_id: str) -> bool:
+    """Derive a scene's terminal role solely from its accepted Chapter Contract."""
+    slots = parent.scene_slots
+    return parent.is_terminal_volume and any(
+        slot.slot_id == slot_id and slot.ordinal == max(item.ordinal for item in slots)
+        for slot in slots
+    )
+
+
 class PNCAContractAuthor:
     """Execute the Series→Volume→Chapter contract progression immutably."""
 
@@ -194,14 +203,8 @@ class PNCAContractAuthor:
             raise RuntimeContractError("scene request requires a non-empty slot_id")
         if slot_id not in {slot.slot_id for slot in parent.contract.scene_slots}:
             raise RuntimeContractError("SceneContract slot is not allocated by its parent ChapterContract")
-        expected_terminal_scene = (
-            parent.contract.is_terminal_volume
-            and any(
-                slot.slot_id == slot_id and slot.ordinal == max(item.ordinal for item in parent.contract.scene_slots)
-                for slot in parent.contract.scene_slots
-            )
-        )
-        if bool(request_payload.get("is_terminal_scene", False)) != expected_terminal_scene:
+        expected_terminal = expected_terminal_scene(parent=parent.contract, slot_id=slot_id)
+        if bool(request_payload.get("is_terminal_scene", False)) != expected_terminal:
             raise RuntimeContractError("scene request terminal role must match the allocated ChapterContract slot")
         if (
             frontier_binding.frontier_artifact_id != frontier.artifact_id
@@ -272,7 +275,7 @@ class PNCAContractAuthor:
         narrative_contract["parent_volume_purpose"] = parent.contract.volume_purpose
         narrative_contract["series_final_resolution"] = parent.contract.series_final_resolution
         end_constraints = dict(proposal.writer_view.end_constraints)
-        if expected_terminal_scene:
+        if expected_terminal:
             end_constraints["series_final_resolution"] = parent.contract.series_final_resolution
         writer_view = proposal.writer_view.model_copy(
             update={"narrative_contract": narrative_contract, "end_constraints": end_constraints}
