@@ -10,7 +10,7 @@
 
 ## 実行指示
 
-`obligations.required_beat_indexes` にある **すべての index を一回ずつ** `required_beat` として出力する。`end_constraint` は required beat の代わりではなく、`obligations.requires_end_constraint` が true のときに追加で一回出力する。`draft.content` を句点（`。`、`！`、`？`）単位で、先頭からゼロ始まりに分割した文の `sentence_index` を返す。本文の文言を出力してはいけない。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
+`obligations.required_beat_indexes` にある **すべての index を漏れなく、かつ余分に出さずに、厳密に一回ずつ** `required_beat` として出力する（例: indexes=[0,1,2] なら required_beat を正確に3つ、index 0/1/2 各1つずつ出力。2つや4つは不可）。`end_constraint` は required beat の代わりではなく、`obligations.requires_end_constraint` が true のときに追加で**厳密に一回だけ**出力する（0回でも2回以上でもなく、必ず1回）。各 obligation の `draft_quote` は本文内の該当箇所を「完全一致」で引用し、paraphrase や要約は禁止。根拠が見つからない義務は推測・要約・創作せず、その evidence を出力しない。
 
 ## 入力情報
 

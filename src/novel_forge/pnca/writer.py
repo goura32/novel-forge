@@ -118,7 +118,7 @@ class PNCARenderer:
         if not isinstance(content, str) or not content.strip():
             raise PNCAStructuralError("PNCA render output requires non-empty content")
         coverage: DraftCoverage | None = None
-        for coverage_cycle in range(3):
+        for coverage_cycle in range(5):
             coverage_result = executor.execute(
                 task_id="pnca.scene.coverage",
                 artifacts={
@@ -144,8 +144,18 @@ class PNCARenderer:
                     payload={"content": content, "result": coverage_result, "error": str(exc)},
                     payload_name="rejected_coverage.json", input_artifact_ids=(writer_view.artifact_id,),
                 )
-                if coverage_cycle == 2:
+                if coverage_cycle == 4:
                     raise
+                # Regenerate the draft so coverage can quote it verbatim on the next pass.
+                render_result = executor.execute(
+                    task_id="pnca.scene.render",
+                    artifacts={"writer.view": view.model_dump(mode="json")},
+                    input_artifact_ids=(writer_view.artifact_id,),
+                    scope_id=f"{scope_id}.render.{coverage_cycle + 2}",
+                )
+                content = render_result.get("content") if isinstance(render_result, dict) else None
+                if not isinstance(content, str) or not content.strip():
+                    raise PNCAStructuralError("PNCA render output requires non-empty content") from None
         assert coverage is not None
         draft_attempt = self.repository.start_attempt(
             run, task_id="pnca.scene.render", phase="write", reason="render scene draft"

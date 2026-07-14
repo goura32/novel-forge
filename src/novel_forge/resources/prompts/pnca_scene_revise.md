@@ -10,7 +10,7 @@ WriterViewを唯一の本文 authority とし、入力された草稿を audit i
 
 ## 実行指示
 
-- `issues` の各指摘を本文で解消する。
+- `issues` の各指摘を本文で解消する。ただし、指摘された `required_beat` や `end_constraint` が実際の本文内にすでに完了として書かれている場合（audit の誤検出の可能性）、その beat/constraint に対する無理な書き直しは行わず、本文を維持する。
 - `WriterView` は唯一の事実源である。`start_context` の場所・時刻・登場人物・現在状況、`end_constraints` の到達状態、`presentation_constraints` の視点・文体をすべて保持する。特に場所は `start_context` にある一つだけを使い、他の入力中の固有名詞から場所を推測・置換してはならない。
 - issue が WriterView 内の複数箇所を引用していても、`start_context` と `end_constraints` を優先し、矛盾する語句は本文に持ち込まない。
 - `issues[].field` に関係しないフィールドは原則として元の値を保持する。

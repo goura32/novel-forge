@@ -404,7 +404,33 @@ class PNCAWorkflow:
                 # WriterView obligation with a verbatim quote from this immutable draft. Draft audit
                 # is retained as review evidence, but its interpretive severity cannot re-open the
                 # contract or trigger an oscillating prose rewrite loop.
-                DraftAudit.model_validate(self.repository.read_payload(audit))
+                audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
+                # Hard contract failures (blocker severity) must be resolved before publication:
+                # language_contamination / pov_fact / required_beat / end_constraint cannot ship.
+                # Revise the draft against the audit findings, then re-audit (bounded loop).
+                revise_cycle = 0
+                while any(issue.severity == "blocker" for issue in audit_payload.issues) and revise_cycle < 2:
+                    revised = renderer.revise(
+                        run=run,
+                        writer_view=scene_contract.writer_view,
+                        writer_view_artifact_id=rendered.writer_view.artifact_id,
+                        draft=draft,
+                        audit=audit,
+                        executor=executor,
+                        scope_id=scope_id,
+                    )
+                    draft = revised
+                    audit = renderer.audit(
+                        run=run,
+                        scene_contract_artifact_id=scene_ref.artifact_id,
+                        writer_view=scene_contract.writer_view,
+                        writer_view_artifact_id=rendered.writer_view.artifact_id,
+                        draft=draft,
+                        executor=executor,
+                        scope_id=scope_id,
+                    )
+                    audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
+                    revise_cycle += 1
                 slots.append(
                     BundleSlotRecord(
                         volume_ordinal=volume,

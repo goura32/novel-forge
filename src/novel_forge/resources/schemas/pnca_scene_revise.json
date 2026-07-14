@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["content", "coverage"],
+  "required": ["content"],
   "properties": {
     "content": {"type": "string", "description": "監査指摘をすべて解消した改訂済みの日本語scene本文。"},
     "coverage": {

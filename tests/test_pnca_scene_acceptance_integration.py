@@ -152,6 +152,10 @@ class FakeExecutor:
             return {"evidence": []}
         if task_id == "pnca.draft.audit":
             return {"issues": self._audit_issues}
+        if task_id == "pnca.scene.revise":
+            # Revise returns the same draft content (stub); the audit blocker loop re-audits.
+            draft = artifacts.get("scene.draft", {})
+            return {"content": draft.get("content", "シーンの本文。約500字の自然な日本語で書く。"), "coverage": {"evidence": []}}
         raise AssertionError(f"unexpected task_id: {task_id}")
 
 
