@@ -104,6 +104,14 @@ def test_pnca_draft_audit_keeps_pov_uncertainty_and_nonexclusive_end_state_out_o
     assert "POV人物の疑問、可能性の列挙、不確かな期待、主観的な解釈・印象は外部事実の断定ではない" in audit
     assert "指定された観測可能な終端状態が草稿内で実現しているかだけを審査する" in audit
     assert "明示的な禁止に反していなければならない" in audit
+    assert "実在する混在語は必ず `language_contamination` / `blocker` にし" in audit
+    assert "入力の WriterView に実在するJSON field pathを一字も変えずにcopyする" in audit
+
+
+def test_pnca_writer_prompts_require_final_japanese_only_self_review() -> None:
+    expected = "出力直前に `content` 全体を読み直し、台詞・独白・地の文のいずれにも日本語以外の単語・語法・文字種が一つも残っていないことを自分で確認してから返す"
+    for prompt_name in ("pnca_scene_render.md", "pnca_scene_revise.md", "pnca_scene_rerender.md"):
+        assert expected in (PROMPTS_DIR / prompt_name).read_text(encoding="utf-8")
 
 
 def test_pnca_scene_render_forbids_omniscient_third_party_claims() -> None:
