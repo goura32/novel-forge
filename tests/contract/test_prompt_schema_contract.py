@@ -85,6 +85,8 @@ def test_scene_contract_prompt_requires_object_writer_view_fields() -> None:
     assert "単一の文字列にしてはならない" in text
     assert "`安抚` は書かず" in text
     assert "「慰める」「安心させる」" in text
+    assert "`### Admission allowances` が空配列 `[]`" in text
+    assert "過去巻・別slot・入力にない allowance IDを推測してはならない" in text
 
 
 def test_all_task_prompts_have_schema_placeholder() -> None:

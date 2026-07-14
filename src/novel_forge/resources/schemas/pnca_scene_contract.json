@@ -127,7 +127,7 @@
     },
     "admission_consumptions": {
       "type": "array",
-      "description": "parent slot が許可した Volume admission allowance の消費。各 item は allowance_id と entity_id を返す。kind は省略する（repository が allowance 定義から導出）。",
+      "description": "parent slot が許可した Volume admission allowance の消費。入力 allowance が空配列なら必ず空配列にし、過去巻・別slot・入力にない ID を返さない。各 item は allowance_id と entity_id を返す。kind は省略する（repository が allowance 定義から導出）。",
       "items": {
         "type": "object",
         "description": "一つの admission allowance consumption。",
