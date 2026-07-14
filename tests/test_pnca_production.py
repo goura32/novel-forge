@@ -282,3 +282,28 @@ def test_production_executor_passes_required_scene_beats_to_renderer() -> None:
 
     assert '"エリナが契約を提案する"' in calls[0]["user_prompt"]
     assert '"公爵が条件付きで受諾する"' in calls[0]["user_prompt"]
+
+
+def test_production_executor_renders_audited_rerender_prompt() -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def complete_json(self, **kwargs):
+            calls.append(kwargs)
+            return {"content": "修正後の本文"}
+
+    executor = make_pnca_task_executor(client=FakeClient())
+    executor.execute(
+        task_id="pnca.scene.rerender",
+        scope_id="scene_001",
+        artifacts={
+            "writer.view": {"start_context": {}, "narrative_contract": {}, "end_constraints": {}, "presentation_constraints": {}},
+            "scene.draft": {"content": "旧本文"},
+            "draft.audit": {"issues": [{"draft_quote": "旧本文", "severity": "blocker"}]},
+        },
+        input_artifact_ids=("art_view", "art_draft", "art_audit"),
+    )
+
+    assert calls[0]["kind"] == "pnca.scene.rerender"
+    assert "旧本文" in calls[0]["user_prompt"]
+    assert "blocker" in calls[0]["user_prompt"]

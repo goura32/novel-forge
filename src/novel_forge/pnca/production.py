@@ -135,6 +135,7 @@ def make_pnca_task_executor(
         "pnca.writer_view.review": ("pnca_writer_view_review.md", "review_issues.json"),
         "pnca.writer_view.revise": ("pnca_writer_view_revise.md", "pnca_writer_view_revise.json"),
         "pnca.scene.render": ("pnca_scene_render.md", "pnca_scene_render.json"),
+        "pnca.scene.rerender": ("pnca_scene_rerender.md", "pnca_scene_render.json"),
         "pnca.scene.coverage": ("pnca_scene_coverage.md", "pnca_scene_coverage.json"),
         "pnca.scene.revise": ("pnca_scene_revise.md", "pnca_scene_revise.json"),
         "pnca.draft.audit": ("pnca_draft_audit.md", "pnca_draft_audit.json"),
@@ -170,6 +171,10 @@ def make_pnca_task_executor(
             variables["required_beats"] = json.dumps(
                 projection["writer_view"].get("required_beats", []), ensure_ascii=False
             )
+        elif task_id == "pnca.scene.rerender":
+            variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
+            variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)
+            variables["issues"] = json.dumps(projection["issues"], ensure_ascii=False)
         elif task_id == "pnca.scene.coverage":
             writer_view = projection["writer_view"]
             variables["writer_view"] = json.dumps(writer_view, ensure_ascii=False)
