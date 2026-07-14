@@ -40,7 +40,9 @@ def _validate_export_coverage(*, view: WriterView, payload: object) -> str:
         raise RuntimeContractError("pinned draft coverage does not prove the end constraint")
     if len(coverage.evidence) != len(required_indexes) + end_count:
         raise RuntimeContractError("pinned draft coverage duplicates obligations")
-    if any(item.draft_quote not in content for item in coverage.evidence):
+    _punct = "　 \u3000。、，！？「」『』（）()：:；;\n\r\t"
+    _norm = lambda t: "".join(ch for ch in t if ch not in _punct)
+    if any(_norm(item.draft_quote) not in _norm(content) for item in coverage.evidence):
         raise RuntimeContractError("pinned draft coverage quote is not present in manuscript content")
     return content
 
