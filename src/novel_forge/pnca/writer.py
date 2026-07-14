@@ -185,6 +185,54 @@ class PNCARenderer:
         )
         return RenderedDraft(writer_view=writer_view, draft=draft)
 
+    def rerender_for_audit(
+        self,
+        *,
+        run: RunHandle,
+        writer_view: ArtifactReference,
+        view: WriterView,
+        draft: ArtifactReference,
+        audit: ArtifactReference,
+        executor: PNCATaskExecutor,
+        scope_id: str,
+    ) -> ArtifactReference:
+        """Create fresh prose and coverage when an audit blocks inherited coverage."""
+        result = executor.execute(
+            task_id="pnca.scene.rerender",
+            artifacts={
+                "writer.view": view.model_dump(mode="json"),
+                "scene.draft": self.repository.read_payload(draft),
+                "draft.audit": self.repository.read_payload(audit),
+            },
+            input_artifact_ids=(writer_view.artifact_id, draft.artifact_id, audit.artifact_id),
+            scope_id=scope_id,
+        )
+        content = result.get("content") if isinstance(result, dict) else None
+        if not isinstance(content, str) or not content.strip():
+            raise PNCAStructuralError("PNCA rerender output requires non-empty content")
+        coverage_result = executor.execute(
+            task_id="pnca.scene.coverage",
+            artifacts={"writer.view": view.model_dump(mode="json"), "scene.draft": {"content": content}},
+            input_artifact_ids=(writer_view.artifact_id,),
+            scope_id=f"{scope_id}.rerender.coverage",
+        )
+        coverage = _validate_draft_coverage(
+            view=view,
+            content=content,
+            payload=_coverage_from_selection(payload=coverage_result, content=content),
+        )
+        attempt = self.repository.start_attempt(
+            run, task_id="pnca.scene.rerender", phase="write", reason="rerender draft blocked by inherited coverage"
+        )
+        return self.repository.commit_artifact(
+            attempt,
+            artifact_type="pnca.scene_draft",
+            logical_key=f"pnca.scene_draft.rerendered.{scope_id}",
+            payload={"content": content, "coverage": coverage.model_dump(mode="json")},
+            payload_name="draft.json",
+            input_artifact_ids=(writer_view.artifact_id, draft.artifact_id, audit.artifact_id),
+        )
+
     def _review_writer_view(
         self,
         *,

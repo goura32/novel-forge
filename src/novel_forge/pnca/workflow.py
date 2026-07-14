@@ -35,6 +35,21 @@ from novel_forge.runtime import (
 )
 
 
+def _blocker_overlaps_render_coverage(*, audit: DraftAudit, draft_payload: object) -> bool:
+    """A coverage quote cannot be safely edited by revision; it requires a fresh render."""
+    if not isinstance(draft_payload, dict):
+        return False
+    coverage = draft_payload.get("coverage")
+    if not isinstance(coverage, dict) or not isinstance(coverage.get("evidence"), list):
+        return False
+    quotes = {
+        item.get("draft_quote")
+        for item in coverage["evidence"]
+        if isinstance(item, dict) and isinstance(item.get("draft_quote"), str)
+    }
+    return any(issue.severity == "blocker" and issue.draft_quote in quotes for issue in audit.issues)
+
+
 class PNCAWorkflow:
     """Public orchestration facade; it never reads mutable "latest" state."""
 
@@ -434,6 +449,28 @@ class PNCAWorkflow:
                 # is retained as review evidence, but its interpretive severity cannot re-open the
                 # contract or trigger an oscillating prose rewrite loop.
                 audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
+                if _blocker_overlaps_render_coverage(
+                    audit=audit_payload, draft_payload=self.repository.read_payload(draft)
+                ):
+                    draft = renderer.rerender_for_audit(
+                        run=run,
+                        writer_view=rendered.writer_view,
+                        view=scene_contract.writer_view,
+                        draft=draft,
+                        audit=audit,
+                        executor=executor,
+                        scope_id=scope_id,
+                    )
+                    audit = renderer.audit(
+                        run=run,
+                        scene_contract_artifact_id=scene_ref.artifact_id,
+                        writer_view=scene_contract.writer_view,
+                        writer_view_artifact_id=rendered.writer_view.artifact_id,
+                        draft=draft,
+                        executor=executor,
+                        scope_id=scope_id,
+                    )
+                    audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
                 # Hard contract failures (blocker severity) must be resolved before publication:
                 # language_contamination / pov_fact / required_beat / end_constraint cannot ship.
                 # Revise the draft against the audit findings, then re-audit (bounded loop).

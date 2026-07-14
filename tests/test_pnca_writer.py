@@ -164,3 +164,38 @@ def test_renderer_preserves_writer_view_review_as_observation_without_a_revision
 
     assert calls == ["pnca.writer_view.review", "pnca.scene.render", "pnca.scene.coverage"]
     assert repo.read_payload(rendered.writer_view)["end_constraints"] == {"invalid": "相手が内心で受け入れる"}
+
+
+def test_renderer_rerenders_blocked_coverage_as_a_new_immutable_draft(tmp_path) -> None:
+    projections: list[dict[str, object]] = []
+
+    def provider(task_id, projection, operation_key):
+        if task_id == "pnca.writer_view.review":
+            return {"issues": []}
+        if task_id == "pnca.scene.render":
+            return {"content": "リナは灰色の瞳を見た。"}
+        if task_id == "pnca.scene.rerender":
+            projections.append(projection)
+            return {"content": "リナは冷たい視線を受け止めた。"}
+        if task_id == "pnca.scene.coverage":
+            content = projection["draft"]["content"]
+            return {"evidence": [{"obligation": "end_constraint", "draft_quote": content}]}
+        raise AssertionError(task_id)
+
+    writer_view_spec = TaskSpec(task_id="pnca.writer_view.review", task_kind="audit", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="writer.view.review", artifact_type="pnca.writer_view.review", logical_key_template="review.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="writer-view-review")
+    render_spec = TaskSpec(task_id="pnca.scene.render", task_kind="render", input_bindings=(InputBinding(role="writer.view", variable="writer_view"),), output=ArtifactSpec(role="scene.draft", artifact_type="pnca.scene_draft", logical_key_template="draft.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="scene-render")
+    rerender_spec = TaskSpec(task_id="pnca.scene.rerender", task_kind="render", input_bindings=(InputBinding(role="writer.view", variable="writer_view"), InputBinding(role="scene.draft", variable="draft"), InputBinding(role="draft.audit", variable="issues")), output=ArtifactSpec(role="scene.draft.rerendered", artifact_type="pnca.scene_draft", logical_key_template="rerender.{scope_id}"), prompt_digest="sha256:prompt", schema_digest="sha256:schema", model_profile="test", max_input_bytes=4096, max_output_bytes=4096, idempotency_scope="scene-rerender")
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+    renderer = PNCARenderer(repo)
+    executor = PNCATaskExecutor(registry=PNCATaskRegistry(specs=(writer_view_spec, render_spec, rerender_spec, _coverage_spec())), provider=provider)
+    view = WriterView(end_constraints={"visible_end": "リナは冷たい視線を受け止めた。"})
+    rendered = renderer.render(run=run, scene_contract_artifact_id="art_scene", scene_contract_digest="sha256:scene", view=view, executor=executor, scope_id="scene_001")
+    audit_attempt = repo.start_attempt(run, task_id="pnca.draft.audit", phase="write", reason="test blocked coverage")
+    audit = repo.commit_artifact(audit_attempt, artifact_type="pnca.draft_audit", logical_key="audit.scene_001", payload={"issues": [{"draft_quote": "リナは灰色の瞳を見た。", "severity": "blocker"}]}, payload_name="audit.json")
+
+    rerendered = renderer.rerender_for_audit(run=run, writer_view=rendered.writer_view, view=view, draft=rendered.draft, audit=audit, executor=executor, scope_id="scene_001")
+
+    assert projections == [{"writer_view": view.model_dump(mode="json"), "draft": repo.read_payload(rendered.draft), "issues": repo.read_payload(audit)}]
+    assert rerendered.artifact_id != rendered.draft.artifact_id
+    assert repo.read_payload(rerendered) == {"content": "リナは冷たい視線を受け止めた。", "coverage": {"evidence": [{"obligation": "end_constraint", "beat_index": None, "draft_quote": "リナは冷たい視線を受け止めた。"}]}}
