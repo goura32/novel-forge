@@ -278,12 +278,27 @@ class PNCARenderer:
         content = result.get("content") if isinstance(result, dict) else None
         if not isinstance(content, str) or not content.strip():
             raise PNCAStructuralError("PNCA revision output requires non-empty content")
-        coverage = _validate_draft_coverage(
-            view=writer_view,
-            content=content,
-            payload=result.get("coverage") if isinstance(result, dict) else None,
-            strict=False,
-        )
+        # Revise must NOT re-open the coverage contract (render is authoritative). The
+        # revise LLM frequently mis-reports ``beat_index``/coverage structure, so we
+        # inherit the render-validated coverage from the original draft instead of
+        # trusting the revise output's self-reported coverage.
+        original_payload = self.repository.read_payload(draft)
+        original_coverage = original_payload.get("coverage") if isinstance(original_payload, dict) else None
+        if original_coverage:
+            try:
+                coverage = DraftCoverage.model_validate(original_coverage)
+            except ValueError:
+                coverage = _validate_draft_coverage(
+                    view=writer_view, content=content,
+                    payload=result.get("coverage") if isinstance(result, dict) else None,
+                    strict=False,
+                )
+        else:
+            coverage = _validate_draft_coverage(
+                view=writer_view, content=content,
+                payload=result.get("coverage") if isinstance(result, dict) else None,
+                strict=False,
+            )
         attempt = self.repository.start_attempt(run, task_id="pnca.scene.revise", phase="write", reason="resolve draft audit issues")
         return self.repository.commit_artifact(
             attempt, artifact_type="pnca.scene_draft", logical_key=f"pnca.scene_draft.revised.{scope_id}",
