@@ -96,11 +96,14 @@ def test_pnca_scene_prompts_require_completed_observable_beats() -> None:
     assert "そのissueの `draft_quote` が本文に残っていないことを確認する" in revise
 
 
-def test_pnca_draft_audit_keeps_direct_visual_observation_in_limited_pov() -> None:
+def test_pnca_draft_audit_keeps_pov_uncertainty_and_nonexclusive_end_state_out_of_blockers() -> None:
     audit = (PROMPTS_DIR / "pnca_draft_audit.md").read_text(encoding="utf-8")
 
     assert "瞳や髪の色" in audit
     assert "WriterView は直接観測できる感覚的詳細を一つずつ列挙する必要はない" in audit
+    assert "POV人物の疑問、可能性の列挙、不確かな期待、主観的な解釈・印象は外部事実の断定ではない" in audit
+    assert "指定された観測可能な終端状態が草稿内で実現しているかだけを審査する" in audit
+    assert "明示的な禁止に反していなければならない" in audit
 
 
 def test_pnca_scene_render_forbids_omniscient_third_party_claims() -> None:
