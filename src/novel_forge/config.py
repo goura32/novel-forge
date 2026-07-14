@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 try:
     import yaml
@@ -51,6 +51,28 @@ class QualityConfig(StrictConfigModel):
     max_generation_attempts: int = Field(default=3, ge=1)
 
 
+class NarrativeTopologyConfig(StrictConfigModel):
+    """Production-scale structural bounds pinned into immutable PNCA requests."""
+
+    min_chapters_per_volume: int = Field(default=10, ge=1)
+    max_chapters_per_volume: int = Field(default=14, ge=1)
+    min_scenes_per_chapter: int = Field(default=2, ge=1)
+    max_scenes_per_chapter: int = Field(default=5, ge=1)
+    min_scenes_per_volume: int = Field(default=32, ge=1)
+    max_scenes_per_volume: int = Field(default=45, ge=1)
+    max_five_scene_chapters_per_volume: int = Field(default=2, ge=0)
+
+    @model_validator(mode="after")
+    def _topology_bounds_are_ordered(self) -> NarrativeTopologyConfig:
+        if self.min_chapters_per_volume > self.max_chapters_per_volume:
+            raise ValueError("min_chapters_per_volume cannot exceed max_chapters_per_volume")
+        if self.min_scenes_per_chapter > self.max_scenes_per_chapter:
+            raise ValueError("min_scenes_per_chapter cannot exceed max_scenes_per_chapter")
+        if self.min_scenes_per_volume > self.max_scenes_per_volume:
+            raise ValueError("min_scenes_per_volume cannot exceed max_scenes_per_volume")
+        return self
+
+
 class LoggingConfig(StrictConfigModel):
     level: str = Field(default="DEBUG")
 
@@ -66,6 +88,7 @@ class RuntimeConfig(StrictConfigModel):
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     quality: QualityConfig = Field(default_factory=QualityConfig)
+    narrative: NarrativeTopologyConfig = Field(default_factory=NarrativeTopologyConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     verbose: bool = False
 

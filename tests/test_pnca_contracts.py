@@ -13,6 +13,7 @@ from novel_forge.pnca.contracts import (
     CandidatePlan,
     CandidatePolicy,
     ChapterContract,
+    ChapterPlan,
     DesignBundle,
     DraftAudit,
     FrontierBinding,
@@ -30,6 +31,7 @@ from novel_forge.pnca.contracts import (
     VolumeContract,
     VolumePurpose,
     WriterView,
+    validate_chapter_plan_topology,
 )
 from novel_forge.pnca.validation import (
     PNCAStructuralError,
@@ -349,6 +351,73 @@ def test_scene_rejects_duplicate_requirement_disposition() -> None:
             scene_slots=_slots(),
             admission_allowances=(),
             consumed_admissions=(),
+        )
+
+
+def test_chapter_contract_rejects_scene_count_outside_pinned_range() -> None:
+    with pytest.raises(ValidationError, match="scene slot count"):
+        ChapterContract(
+            contract_id="chapter_001",
+            parent_volume_contract_id="volume_001",
+            chapter_ordinal=1,
+            min_scene_slots=2,
+            max_scene_slots=3,
+            scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+        )
+
+
+def test_chapter_plan_permits_a_five_scene_turning_point() -> None:
+    plan = ChapterPlan(
+        ordinal=1,
+        chapter_purpose="王宮舞踏会で呪いの発動条件を確定する",
+        relationship_shift="互いを政略の道具と見なす姿勢から、危険を共有する共犯関係へ移る",
+        reader_pull="王子の記憶にある花園の扉を誰が開いたのか",
+        scene_count=5,
+    )
+    assert plan.scene_count == 5
+
+
+def test_chapter_plan_topology_rejects_more_than_two_five_scene_chapters() -> None:
+    plans = tuple(
+        ChapterPlan(
+            ordinal=ordinal,
+            chapter_purpose=f"第{ordinal}章の不可逆な変化",
+            relationship_shift=f"第{ordinal}章で関係が変わる",
+            reader_pull=f"第{ordinal}章末の次の問い",
+            scene_count=5 if ordinal <= 3 else 3,
+        )
+        for ordinal in range(1, 12)
+    )
+
+    with pytest.raises(ValueError, match="five-scene"):
+        validate_chapter_plan_topology(
+            plans,
+            min_chapters=10,
+            max_chapters=14,
+            min_scene_slots=2,
+            max_scene_slots=5,
+            min_total_scene_slots=32,
+            max_total_scene_slots=45,
+            max_five_scene_chapters=2,
+        )
+
+
+def test_volume_contract_rejects_chapter_plans_that_do_not_cover_its_topology() -> None:
+    with pytest.raises(ValidationError, match="chapter plans"):
+        VolumeContract(
+            contract_id="volume_001",
+            parent_series_contract_id="series_001",
+            volume_ordinal=1,
+            chapter_count=2,
+            chapter_plans=(
+                ChapterPlan(
+                    ordinal=1,
+                    chapter_purpose="婚約の条件を受け入れる",
+                    relationship_shift="互いを警戒する関係から、限定的な協力へ移る",
+                    reader_pull="条件の代償が次章で明かされる",
+                    scene_count=2,
+                ),
+            ),
         )
 
 

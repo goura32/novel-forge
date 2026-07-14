@@ -9,6 +9,7 @@ from novel_forge.pnca.contracts import (
     AcceptanceCommit,
     ChapterContract,
     FrontierBinding,
+    SceneSlot,
     SeriesContract,
     VolumePurpose,
 )
@@ -88,7 +89,7 @@ def test_accept_chapter_delegates_to_parent_pinned_repository_transaction() -> N
         contract_id="chapter_001",
         parent_volume_contract_id="volume_002",
         chapter_ordinal=1,
-        scene_slots=(),
+        scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
     )
     authored = AuthoredContract(
         artifact=SimpleNamespace(artifact_id="art_chapter"),
@@ -125,7 +126,7 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
             contract_id="chapter_001",
             parent_volume_contract_id="volume_001",
             chapter_ordinal=1,
-            scene_slots=(),
+            scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
         ),
     )
     request = SimpleNamespace(artifact_id="art_request")

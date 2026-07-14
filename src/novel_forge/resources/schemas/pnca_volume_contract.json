@@ -4,7 +4,8 @@
     "contract_id",
     "parent_series_contract_id",
     "volume_ordinal",
-    "purpose"
+    "purpose",
+    "chapter_plans"
   ],
   "properties": {
     "contract_id": {
@@ -23,6 +24,23 @@
     "purpose": {
       "type": "string",
       "description": "親 Series Contract の同じ volume_ordinal にある purpose と完全一致する、この巻の達成責務。空文字にはしない。"
+    },
+    "chapter_plans": {
+      "type": "array",
+      "description": "巻内の各章に一つずつ対応する、読者の継続意欲と恋愛関係の変化を設計した順序付き計画。章数はrequestが決める。",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "description": "一章分の創造的な配分。章固有の変化、関係変化、次章への引き、必要scene数をまとめる。",
+        "required": ["ordinal", "chapter_purpose", "relationship_shift", "reader_pull", "scene_count"],
+        "properties": {
+          "ordinal": {"type": "integer", "minimum": 1, "description": "巻内の章番号。1から連続させる。"},
+          "chapter_purpose": {"type": "string", "description": "この章だけが達成する具体的な物語上の変化。前章の反復にしない。"},
+          "relationship_shift": {"type": "string", "description": "二人の距離・信頼・力関係・欲望の認識が、章の前後でどう不可逆に変わるか。"},
+          "reader_pull": {"type": "string", "description": "章末に残す、次章で答えや選択を求める具体的な未解決事項。危機の反復ではなく緩急をつける。"},
+          "scene_count": {"type": "integer", "minimum": 2, "maximum": 5, "description": "この章に必要なscene数。通常は3〜4、余韻や短い転換は2、大きな転換だけは5を選ぶ。5は巻あたり最大2章。"}
+        }
+      }
     },
     "admission_allowances": {
       "type": "array",

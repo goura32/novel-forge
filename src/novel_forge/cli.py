@@ -408,11 +408,17 @@ def design(
             if volume < 1:
                 raise typer.BadParameter("chapter authoring requires --volume >= 1", param_hint="--volume")
             volume_parent = _selected_volume_contract(repo, series_dir.name, snapshot_id, volume)
+            chapter_plan = next((plan for plan in volume_parent.contract.chapter_plans if plan.ordinal == chapter), None)
+            if chapter_plan is None:
+                raise typer.BadParameter("selected Volume Contract has no plan for this chapter", param_hint="--chapter")
             request = stage_chapter_request(
                 repository=repo,
                 run=run,
                 volume_id=volume_parent.contract.contract_id,
                 chapter_ordinal=chapter,
+                min_scene_slots=config.narrative.min_scenes_per_chapter,
+                max_scene_slots=config.narrative.max_scenes_per_chapter,
+                scene_slot_count=chapter_plan.scene_count,
             )
             chapter_authored = workflow.author_chapter(
                 run=run,
@@ -447,7 +453,19 @@ def design(
         for ordinal in volumes:
             if ordinal not in purposes:
                 raise typer.BadParameter(f"not declared by Series Contract: volume {ordinal}", param_hint="--volume")
-            request = stage_volume_request(repository=repo, run=run, series_id=series_dir.name, volume_ordinal=ordinal)
+            request = stage_volume_request(
+                repository=repo,
+                run=run,
+                series_id=series_dir.name,
+                volume_ordinal=ordinal,
+                min_chapters=config.narrative.min_chapters_per_volume,
+                max_chapters=config.narrative.max_chapters_per_volume,
+                min_scene_slots=config.narrative.min_scenes_per_chapter,
+                max_scene_slots=config.narrative.max_scenes_per_chapter,
+                min_total_scene_slots=config.narrative.min_scenes_per_volume,
+                max_total_scene_slots=config.narrative.max_scenes_per_volume,
+                max_five_scene_chapters=config.narrative.max_five_scene_chapters_per_volume,
+            )
             volume_authored = workflow.author_volume(
                 run=run,
                 parent=series_parent,

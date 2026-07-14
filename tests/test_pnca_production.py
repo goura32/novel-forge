@@ -13,6 +13,7 @@ from novel_forge.pnca.production import (
     stage_chapter_request,
     stage_scene_request,
     stage_series_request,
+    stage_volume_request,
 )
 from novel_forge.pnca.progression import expected_terminal_scene
 from novel_forge.runtime import RunRepository
@@ -40,6 +41,36 @@ def test_stage_series_request_persists_only_cli_intent_as_an_artifact(tmp_path) 
     }
 
 
+def test_stage_volume_request_persists_full_topology_bounds_as_an_artifact(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id="snap_001")
+
+    request = stage_volume_request(
+        repository=repo,
+        run=run,
+        series_id="series_001",
+        volume_ordinal=1,
+        min_chapters=10,
+        max_chapters=14,
+        min_scene_slots=2,
+        max_scene_slots=5,
+        min_total_scene_slots=32,
+        max_total_scene_slots=45,
+        max_five_scene_chapters=2,
+    )
+
+    assert repo.read_payload(request) == {
+        "volume_ordinal": 1,
+        "min_chapters": 10,
+        "max_chapters": 14,
+        "min_scene_slots": 2,
+        "max_scene_slots": 5,
+        "min_total_scene_slots": 32,
+        "max_total_scene_slots": 45,
+        "max_five_scene_chapters": 2,
+    }
+
+
 def test_stage_chapter_request_persists_only_chapter_target_as_an_artifact(tmp_path) -> None:
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="design", model="fake", verbose=False, input_snapshot_id="snap_001")
@@ -49,11 +80,17 @@ def test_stage_chapter_request_persists_only_chapter_target_as_an_artifact(tmp_p
         run=run,
         volume_id="volume_001",
         chapter_ordinal=2,
+        min_scene_slots=2,
+        max_scene_slots=3,
     )
 
     assert request.manifest.artifact_type == "pnca.chapter.request"
     assert request.manifest.logical_key == "pnca.chapter.request.volume_001.002"
-    assert repo.read_payload(request) == {"chapter_ordinal": 2}
+    assert repo.read_payload(request) == {
+        "chapter_ordinal": 2,
+        "min_scene_slots": 2,
+        "max_scene_slots": 3,
+    }
 
 
 def test_stage_scene_request_persists_terminal_role_with_chapter_slot_as_an_artifact(tmp_path) -> None:

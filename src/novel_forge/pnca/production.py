@@ -51,14 +51,38 @@ def stage_volume_request(
     run: RunHandle,
     series_id: str,
     volume_ordinal: int,
+    min_chapters: int = 10,
+    max_chapters: int = 14,
+    min_scene_slots: int = 2,
+    max_scene_slots: int = 5,
+    min_total_scene_slots: int = 32,
+    max_total_scene_slots: int = 45,
+    max_five_scene_chapters: int = 2,
 ) -> ArtifactReference:
-    """Commit one CLI volume target as a provider-visible immutable input."""
+    """Commit one CLI volume target and its immutable topology bounds."""
+    if min_chapters < 1 or max_chapters < min_chapters:
+        raise ValueError("chapter bounds must satisfy 1 <= min <= max")
+    if min_scene_slots < 1 or max_scene_slots < min_scene_slots:
+        raise ValueError("scene slot bounds must satisfy 1 <= min <= max")
+    if min_total_scene_slots < 1 or max_total_scene_slots < min_total_scene_slots:
+        raise ValueError("volume scene bounds must satisfy 1 <= min <= max")
+    if max_five_scene_chapters < 0:
+        raise ValueError("max_five_scene_chapters must be >= 0")
     attempt = repository.start_attempt(run, task_id="pnca.volume.request", phase="design", reason="stage immutable volume request")
     return repository.commit_artifact(
         attempt,
         artifact_type="pnca.volume.request",
         logical_key=f"pnca.volume.request.{series_id}.{volume_ordinal:03d}",
-        payload={"volume_ordinal": volume_ordinal},
+        payload={
+            "volume_ordinal": volume_ordinal,
+            "min_chapters": min_chapters,
+            "max_chapters": max_chapters,
+            "min_scene_slots": min_scene_slots,
+            "max_scene_slots": max_scene_slots,
+            "min_total_scene_slots": min_total_scene_slots,
+            "max_total_scene_slots": max_total_scene_slots,
+            "max_five_scene_chapters": max_five_scene_chapters,
+        },
         payload_name="request.json",
     )
 
@@ -69,19 +93,33 @@ def stage_chapter_request(
     run: RunHandle,
     volume_id: str,
     chapter_ordinal: int,
+    min_scene_slots: int = 2,
+    max_scene_slots: int = 5,
+    scene_slot_count: int | None = None,
 ) -> ArtifactReference:
-    """Commit one CLI chapter target as a provider-visible immutable input."""
+    """Commit one CLI chapter target with bounded or selected scene topology."""
+    if min_scene_slots < 1 or max_scene_slots < min_scene_slots:
+        raise ValueError("scene slot bounds must satisfy 1 <= min <= max")
+    if scene_slot_count is not None and not min_scene_slots <= scene_slot_count <= max_scene_slots:
+        raise ValueError("scene_slot_count must fall inside the scene slot bounds")
     attempt = repository.start_attempt(
         run,
         task_id="pnca.chapter.request",
         phase="design",
         reason="stage immutable chapter request",
     )
+    payload: dict[str, int] = {
+        "chapter_ordinal": chapter_ordinal,
+        "min_scene_slots": min_scene_slots,
+        "max_scene_slots": max_scene_slots,
+    }
+    if scene_slot_count is not None:
+        payload["scene_slot_count"] = scene_slot_count
     return repository.commit_artifact(
         attempt,
         artifact_type="pnca.chapter.request",
         logical_key=f"pnca.chapter.request.{volume_id}.{chapter_ordinal:03d}",
-        payload={"chapter_ordinal": chapter_ordinal},
+        payload=payload,
         payload_name="request.json",
     )
 

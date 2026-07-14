@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
@@ -20,6 +20,7 @@ from novel_forge.pnca.contracts import (
     SeriesContract,
     SeriesContractProposal,
     VolumeContract,
+    validate_chapter_plan_topology,
 )
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.pnca.validation import validate_writer_view
@@ -123,11 +124,44 @@ class PNCAContractAuthor:
         """Author a requested Volume only from its pinned Series and request artifacts."""
         request_payload = self.repository.read_payload(request)
         volume_ordinal = request_payload.get("volume_ordinal") if isinstance(request_payload, dict) else None
+        min_chapters = request_payload.get("min_chapters") if isinstance(request_payload, dict) else None
+        max_chapters = request_payload.get("max_chapters") if isinstance(request_payload, dict) else None
+        min_scene_slots = request_payload.get("min_scene_slots") if isinstance(request_payload, dict) else None
+        max_scene_slots = request_payload.get("max_scene_slots") if isinstance(request_payload, dict) else None
+        min_total_scene_slots = request_payload.get("min_total_scene_slots") if isinstance(request_payload, dict) else None
+        max_total_scene_slots = request_payload.get("max_total_scene_slots") if isinstance(request_payload, dict) else None
+        max_five_scene_chapters = request_payload.get("max_five_scene_chapters") if isinstance(request_payload, dict) else None
         if not isinstance(volume_ordinal, int) or volume_ordinal < 1:
             raise RuntimeContractError("volume request requires a positive volume_ordinal")
+        if not isinstance(min_chapters, int) or not isinstance(max_chapters, int) or not 1 <= min_chapters <= max_chapters:
+            raise RuntimeContractError("volume request requires ordered positive chapter bounds")
+        if not isinstance(min_scene_slots, int) or not isinstance(max_scene_slots, int) or not 1 <= min_scene_slots <= max_scene_slots:
+            raise RuntimeContractError("volume request requires ordered positive scene slot bounds")
+        if (
+            not isinstance(min_total_scene_slots, int)
+            or not isinstance(max_total_scene_slots, int)
+            or not 1 <= min_total_scene_slots <= max_total_scene_slots
+            or not isinstance(max_five_scene_chapters, int)
+            or max_five_scene_chapters < 0
+        ):
+            raise RuntimeContractError("volume request requires valid total-scene and five-scene bounds")
         if volume_ordinal not in {item.ordinal for item in parent.contract.volume_purposes}:
             raise RuntimeContractError("volume request ordinal is not allocated by its parent SeriesContract")
         purpose = next(item.purpose for item in parent.contract.volume_purposes if item.ordinal == volume_ordinal)
+
+        def volume_binding(result: dict[str, Any]) -> dict[str, Any]:
+            chapter_plans = result.get("chapter_plans")
+            if not isinstance(chapter_plans, list):
+                raise RuntimeContractError("VolumeContract must return chapter_plans as an array")
+            return {
+                "parent_series_contract_id": parent.contract.contract_id,
+                "volume_ordinal": volume_ordinal,
+                "chapter_count": len(chapter_plans),
+                "purpose": purpose,
+                "series_final_resolution": parent.contract.final_resolution,
+                "is_terminal_volume": volume_ordinal == max(item.ordinal for item in parent.contract.volume_purposes),
+            }
+
         authored = self._author(
             run=run,
             task_id="pnca.volume.contract",
@@ -136,16 +170,23 @@ class PNCAContractAuthor:
             parent=parent,
             request=request,
             request_role="volume.request",
-            binding_override={
-                "parent_series_contract_id": parent.contract.contract_id,
-                "volume_ordinal": volume_ordinal,
-                "purpose": purpose,
-                "series_final_resolution": parent.contract.final_resolution,
-                "is_terminal_volume": volume_ordinal == max(item.ordinal for item in parent.contract.volume_purposes),
-            },
+            binding_override=volume_binding,
         )
         if authored.contract.parent_series_contract_id != parent.contract.contract_id:
             raise RuntimeContractError("VolumeContract does not bind its parent SeriesContract")
+        try:
+            validate_chapter_plan_topology(
+                authored.contract.chapter_plans,
+                min_chapters=min_chapters,
+                max_chapters=max_chapters,
+                min_scene_slots=min_scene_slots,
+                max_scene_slots=max_scene_slots,
+                min_total_scene_slots=min_total_scene_slots,
+                max_total_scene_slots=max_total_scene_slots,
+                max_five_scene_chapters=max_five_scene_chapters,
+            )
+        except ValueError as exc:
+            raise RuntimeContractError(str(exc)) from exc
         if authored.contract.volume_ordinal != volume_ordinal:
             raise RuntimeContractError("VolumeContract does not bind its requested volume ordinal")
         return authored
@@ -162,6 +203,18 @@ class PNCAContractAuthor:
         if not isinstance(request_payload, dict) or not isinstance(request_payload.get("chapter_ordinal"), int):
             raise RuntimeContractError("ChapterContract requires a chapter.request artifact with chapter_ordinal")
         chapter_ordinal = request_payload["chapter_ordinal"]
+        min_scene_slots = request_payload.get("min_scene_slots")
+        max_scene_slots = request_payload.get("max_scene_slots")
+        scene_slot_count = request_payload.get("scene_slot_count")
+        if not isinstance(min_scene_slots, int) or not isinstance(max_scene_slots, int) or not 1 <= min_scene_slots <= max_scene_slots:
+            raise RuntimeContractError("ChapterContract requires ordered positive scene slot bounds")
+        if scene_slot_count is not None and (not isinstance(scene_slot_count, int) or not min_scene_slots <= scene_slot_count <= max_scene_slots):
+            raise RuntimeContractError("ChapterContract selected scene count must be inside its request bounds")
+        if not 1 <= chapter_ordinal <= parent.contract.chapter_count:
+            raise RuntimeContractError("chapter request ordinal is outside its parent VolumeContract topology")
+        if isinstance(scene_slot_count, int):
+            min_scene_slots = scene_slot_count
+            max_scene_slots = scene_slot_count
         authored = self._author(
             run=run,
             task_id="pnca.chapter.contract",
@@ -176,6 +229,8 @@ class PNCAContractAuthor:
                 "volume_purpose": parent.contract.purpose,
                 "series_final_resolution": parent.contract.series_final_resolution,
                 "is_terminal_volume": parent.contract.is_terminal_volume,
+                "min_scene_slots": min_scene_slots,
+                "max_scene_slots": max_scene_slots,
             },
         )
         if authored.contract.parent_volume_contract_id != parent.contract.contract_id:
@@ -312,7 +367,7 @@ class PNCAContractAuthor:
         parent: AuthoredContract[Any] | None,
         request: ArtifactReference | None = None,
         request_role: str | None = None,
-        binding_override: dict[str, Any] | None = None,
+        binding_override: dict[str, Any] | Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> AuthoredContract[ContractT]:
         if (request is None) != (request_role is None):
             raise ValueError("request and request_role must be supplied together")
@@ -327,9 +382,11 @@ class PNCAContractAuthor:
             input_artifact_ids=input_ids,
             scope_id=scope_id,
         )
-        contract = model.model_validate(result)
-        if binding_override:
-            contract = contract.model_copy(update=binding_override)
+        if not isinstance(result, dict):
+            raise RuntimeContractError(f"{task_id} must return a JSON object")
+        overrides = binding_override(result) if callable(binding_override) else (binding_override or {})
+        bound_result = {**result, **overrides}
+        contract = model.model_validate(bound_result)
         attempt = self.repository.start_attempt(run, task_id=task_id, phase="design", reason="author progressive contract")
         artifact = self.repository.commit_artifact(
             attempt,

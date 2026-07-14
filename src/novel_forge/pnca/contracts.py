@@ -253,12 +253,48 @@ class SeriesContract(BaseModel):
     volume_purposes: tuple[VolumePurpose, ...] = Field(min_length=1)
 
 
+class ChapterPlan(BaseModel):
+    """Creative pacing plan for one explicitly allocated chapter."""
+
+    ordinal: int = Field(ge=1)
+    chapter_purpose: str = Field(min_length=1)
+    relationship_shift: str = Field(min_length=1)
+    reader_pull: str = Field(min_length=1)
+    scene_count: int = Field(ge=1, le=5)
+
+
+def validate_chapter_plan_topology(
+    plans: tuple[ChapterPlan, ...],
+    *,
+    min_chapters: int,
+    max_chapters: int,
+    min_scene_slots: int,
+    max_scene_slots: int,
+    min_total_scene_slots: int,
+    max_total_scene_slots: int,
+    max_five_scene_chapters: int,
+) -> None:
+    """Reject a creative chapter allocation outside its immutable volume bounds."""
+    chapter_count = len(plans)
+    if not min_chapters <= chapter_count <= max_chapters:
+        raise ValueError("chapter plan count is outside the requested range")
+    if any(not min_scene_slots <= plan.scene_count <= max_scene_slots for plan in plans):
+        raise ValueError("chapter plan scene count is outside the requested range")
+    total_scenes = sum(plan.scene_count for plan in plans)
+    if not min_total_scene_slots <= total_scenes <= max_total_scene_slots:
+        raise ValueError("chapter plan total scene count is outside the requested volume budget")
+    if sum(plan.scene_count == 5 for plan in plans) > max_five_scene_chapters:
+        raise ValueError("chapter plan exceeds the requested five-scene chapter cap")
+
+
 class VolumeContract(BaseModel):
     """A bounded volume contract owned by exactly one SeriesContract."""
 
     contract_id: str = Field(min_length=1)
     parent_series_contract_id: str = Field(min_length=1)
     volume_ordinal: int = Field(ge=1)
+    chapter_count: int = Field(default=1, ge=1)
+    chapter_plans: tuple[ChapterPlan, ...] = ()
     purpose: str = Field(default="", min_length=0)
     series_final_resolution: str = Field(default="", min_length=0)
     is_terminal_volume: bool = False
@@ -269,6 +305,10 @@ class VolumeContract(BaseModel):
         ids = [item.allowance_id for item in self.admission_allowances]
         if len(ids) != len(set(ids)):
             raise ValueError("VolumeContract admission allowance IDs must be unique")
+        if self.chapter_plans:
+            ordinals = [plan.ordinal for plan in self.chapter_plans]
+            if ordinals != list(range(1, self.chapter_count + 1)):
+                raise ValueError("VolumeContract chapter plans must cover each chapter ordinal exactly once")
         return self
 
 
@@ -281,10 +321,16 @@ class ChapterContract(BaseModel):
     volume_purpose: str = Field(default="", min_length=0)
     series_final_resolution: str = Field(default="", min_length=0)
     is_terminal_volume: bool = False
+    min_scene_slots: int = Field(default=1, ge=1)
+    max_scene_slots: int = Field(default=3, ge=1)
     scene_slots: tuple[SceneSlot, ...]
 
     @model_validator(mode="after")
     def _slots_are_strictly_increasing(self) -> ChapterContract:
+        if self.min_scene_slots > self.max_scene_slots:
+            raise ValueError("chapter scene slot bounds must satisfy min <= max")
+        if not self.min_scene_slots <= len(self.scene_slots) <= self.max_scene_slots:
+            raise ValueError("ChapterContract scene slot count is outside its pinned range")
         ordinals = [slot.ordinal for slot in self.scene_slots]
         if ordinals != sorted(ordinals) or len(ordinals) != len(set(ordinals)):
             raise ValueError("ChapterContract SceneSlot ordinals must be strictly increasing")

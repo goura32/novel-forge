@@ -64,6 +64,17 @@ def test_runtime_config_uses_only_canonical_path_and_cli_workdir_wins(tmp_path: 
         RuntimeConfig().resolve_workdir(None)
 
 
+def test_runtime_config_defaults_to_commercial_volume_topology() -> None:
+    topology = RuntimeConfig().narrative
+    assert topology.min_chapters_per_volume == 10
+    assert topology.max_chapters_per_volume == 14
+    assert topology.min_scenes_per_chapter == 2
+    assert topology.max_scenes_per_chapter == 5
+    assert topology.min_scenes_per_volume == 32
+    assert topology.max_scenes_per_volume == 45
+    assert topology.max_five_scene_chapters_per_volume == 2
+
+
 def test_runtime_config_rejects_retired_or_unknown_settings() -> None:
     config = RuntimeConfig.model_validate({"quality": {"max_generation_attempts": 4}})
     assert config.quality.max_generation_attempts == 4

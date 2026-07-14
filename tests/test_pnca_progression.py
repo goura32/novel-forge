@@ -90,6 +90,7 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
             "contract_id": "volume_001",
             "parent_series_contract_id": "series_001",
             "volume_ordinal": 1,
+            "chapter_plans": [{"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1}],
         },
         "pnca.chapter.contract": {
             "contract_id": "chapter_001",
@@ -114,7 +115,7 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
         repo.start_attempt(run, task_id="volume-request", phase="design", reason="test"),
         artifact_type="pnca.volume.request",
         logical_key="pnca.volume.request.001",
-        payload={"volume_ordinal": 1},
+        payload={"volume_ordinal": 1, "min_chapters": 1, "max_chapters": 1, "min_scene_slots": 1, "max_scene_slots": 1, "min_total_scene_slots": 1, "max_total_scene_slots": 1, "max_five_scene_chapters": 0},
         payload_name="request.json",
     )
     volume = author.author_volume(run=run, parent=series, request=volume_request, scope_id="volume_001")
@@ -122,7 +123,7 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
         repo.start_attempt(run, task_id="chapter-request", phase="design", reason="test"),
         artifact_type="pnca.chapter.request",
         logical_key="pnca.chapter.request.volume_001.001",
-        payload={"chapter_ordinal": 1},
+        payload={"chapter_ordinal": 1, "min_scene_slots": 1, "max_scene_slots": 1},
         payload_name="request.json",
     )
     chapter = author.author_chapter(run=run, parent=volume, request=chapter_request, scope_id="chapter_001")
@@ -159,7 +160,7 @@ def test_volume_authoring_requires_a_pinned_volume_request(tmp_path) -> None:
         repo.start_attempt(run, task_id="request", phase="design", reason="test"),
         artifact_type="pnca.volume.request",
         logical_key="pnca.volume.request.001",
-        payload={"volume_ordinal": 1},
+        payload={"volume_ordinal": 1, "min_chapters": 1, "max_chapters": 1, "min_scene_slots": 1, "max_scene_slots": 1, "min_total_scene_slots": 1, "max_total_scene_slots": 1, "max_five_scene_chapters": 0},
         payload_name="request.json",
     )
     author = PNCAContractAuthor(
@@ -170,6 +171,7 @@ def test_volume_authoring_requires_a_pinned_volume_request(tmp_path) -> None:
                     "contract_id": "volume_001",
                     "parent_series_contract_id": "series_001",
                     "volume_ordinal": 1,
+                "chapter_plans": [{"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1}],
                 }
             }
         ),
@@ -290,7 +292,7 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         repo.start_attempt(run, task_id="chapter-request", phase="design", reason="test"),
         artifact_type="pnca.chapter.request",
         logical_key="pnca.chapter.request.volume_001.001",
-        payload={"chapter_ordinal": 1},
+        payload={"chapter_ordinal": 1, "min_scene_slots": 1, "max_scene_slots": 1},
         payload_name="request.json",
     )
     projections: list[dict] = []
@@ -408,7 +410,7 @@ def test_scene_admission_kind_is_derived_from_allowance_not_provider_output(tmp_
         repo.start_attempt(run, task_id="chapter-request", phase="design", reason="test"),
         artifact_type="pnca.chapter.request",
         logical_key="pnca.chapter.request.volume_001.001",
-        payload={"chapter_ordinal": 1},
+        payload={"chapter_ordinal": 1, "min_scene_slots": 1, "max_scene_slots": 1},
         payload_name="request.json",
     )
     author = PNCAContractAuthor(repository=repo, executor=_executor(outputs))
