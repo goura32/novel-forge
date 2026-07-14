@@ -168,6 +168,41 @@ def test_snapshot_revalidates_snapshot_and_marker_hashes(tmp_path: Path) -> None
         repo.load_snapshot("series", snapshot.selection_snapshot_id)
 
 
+def test_snapshot_preserves_artifact_ids_for_domain_slots_named_secret(tmp_path: Path) -> None:
+    repo = RunRepository(tmp_path)
+    run = _run(repo)
+    seed = _artifact(repo, run, artifact_type="canon.seed", logical_key="canon.seed", payload={"seed": True})
+    root = _artifact(
+        repo,
+        run,
+        artifact_type="canon.event_set",
+        logical_key="canon.frontier.root",
+        payload={"events": []},
+        canon_lineage_root_digest=seed.manifest.content_digest,
+    )
+    secret_scene = _artifact(
+        repo,
+        run,
+        artifact_type="write.draft",
+        logical_key="write.scene.shared_secret_probe",
+        payload={"content": "x"},
+        canon_lineage_root_digest=seed.manifest.content_digest,
+        input_canon_frontier_digest=root.manifest.content_digest,
+    )
+
+    snapshot = repo.create_selection_snapshot(
+        slug="series",
+        slots={
+            "canon.seed": seed.artifact_id,
+            "canon.frontier": root.artifact_id,
+            secret_scene.manifest.logical_key: secret_scene.artifact_id,
+        },
+        reason="accepted",
+    )
+
+    assert repo.load_snapshot("series", snapshot.selection_snapshot_id).slots == snapshot.slots
+
+
 def test_canon_frontier_parent_chain_accepts_ancestor_and_rejects_branch(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     run = _run(repo)

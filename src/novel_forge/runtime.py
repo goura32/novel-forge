@@ -42,6 +42,10 @@ _SECRET_KEY = re.compile(
     r"(?:authorization|proxy-authorization|api[_-]?key|token|password|secret|connection[_-]?string)",
     re.IGNORECASE,
 )
+_SECRET_FIELD_NAME = re.compile(
+    r"^(?:authorization|proxy-authorization|api[_-]?key|token|password|secret|connection[_-]?string)$",
+    re.IGNORECASE,
+)
 _INLINE_AUTHORIZATION = re.compile(
     r"\b(?:proxy-)?authorization\s*[:=]\s*(?:bearer|basic)\s+[^\s,;]+",
     re.IGNORECASE,
@@ -117,7 +121,7 @@ def sanitize_for_storage(value: Any) -> Any:
                 if lowered == "thinking":
                     continue
                 result[str(key)] = sanitize_for_storage(item)
-            elif _SECRET_KEY.search(str(key)):
+            elif _SECRET_FIELD_NAME.fullmatch(str(key)):
                 result[str(key)] = "[REDACTED]"
             else:
                 result[str(key)] = sanitize_for_storage(item)
@@ -293,6 +297,10 @@ class ImmutableWriter:
 
     def write_json(self, path: Path, value: Any) -> str:
         return self.write_bytes(path, canonical_json(sanitize_for_storage(value)))
+
+    def write_exact_json(self, path: Path, value: Any) -> str:
+        """Persist a verified structural record without redacting its bindings."""
+        return self.write_bytes(path, canonical_json(value))
 
     def append_jsonl(self, path: Path, value: Any) -> str:
         _mkdir_private(path.parent)
@@ -669,7 +677,7 @@ class RunRepository:
             created_at=utc_now(),
         )
         snapshot_path = snapshots / f"{snapshot_id}.json"
-        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        snapshot_digest = self.writer.write_exact_json(snapshot_path, snapshot.model_dump())
         _fsync_directory(snapshots)
         self._append_ledger_event(
             slug,
@@ -721,7 +729,7 @@ class RunRepository:
             created_at=utc_now(),
         )
         snapshot_path = snapshots / f"{snapshot_id}.json"
-        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        snapshot_digest = self.writer.write_exact_json(snapshot_path, snapshot.model_dump())
         _fsync_directory(snapshots)
         self._append_ledger_event(
             slug,
@@ -768,7 +776,7 @@ class RunRepository:
         snapshot_id = f"sel_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:6]}"
         snapshot = SelectionSnapshot(selection_snapshot_id=snapshot_id, base_snapshot_id=acceptance.base_snapshot_id, slots=dict(sorted(slots.items())), slots_digest=digest_json(dict(sorted(slots.items()))), created_at=utc_now())
         snapshot_path = snapshots / f"{snapshot_id}.json"
-        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        snapshot_digest = self.writer.write_exact_json(snapshot_path, snapshot.model_dump())
         self._append_ledger_event(slug, "pnca.volume.acceptance.committed", {"acceptance_id": acceptance.acceptance_id, "selection_snapshot_id": snapshot_id, "base_snapshot_id": acceptance.base_snapshot_id, "slots": snapshot.slots, "slots_digest": snapshot.slots_digest, "snapshot_path": str(snapshot_path.relative_to(self.series_root(slug))), "snapshot_digest": snapshot_digest, "acceptance": acceptance.model_dump(mode="json")})
         _fsync_directory(ledger)
         return snapshot
@@ -833,7 +841,7 @@ class RunRepository:
             created_at=utc_now(),
         )
         snapshot_path = snapshots / f"{snapshot_id}.json"
-        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        snapshot_digest = self.writer.write_exact_json(snapshot_path, snapshot.model_dump())
         self._append_ledger_event(
             slug,
             "pnca.chapter.acceptance.committed",
@@ -976,7 +984,7 @@ class RunRepository:
             created_at=utc_now(),
         )
         snapshot_path = snapshots / f"{snapshot_id}.json"
-        snapshot_digest = self.writer.write_json(snapshot_path, snapshot.model_dump())
+        snapshot_digest = self.writer.write_exact_json(snapshot_path, snapshot.model_dump())
         _fsync_directory(snapshots)
         operation = OperationRecord(
             operation_key=acceptance.operation_key,
