@@ -186,6 +186,7 @@ def make_pnca_task_executor(
         elif task_id == "pnca.scene.revise":
             variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)
             variables["draft"] = json.dumps(projection["draft"], ensure_ascii=False)
+            variables["protected_coverage"] = json.dumps(projection["protected_coverage"], ensure_ascii=False)
             variables["issues"] = json.dumps(projection["issues"], ensure_ascii=False)
         elif task_id == "pnca.draft.audit":
             variables["writer_view"] = json.dumps(projection["writer_view"], ensure_ascii=False)

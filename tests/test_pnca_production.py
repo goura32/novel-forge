@@ -306,4 +306,28 @@ def test_production_executor_renders_audited_rerender_prompt() -> None:
 
     assert calls[0]["kind"] == "pnca.scene.rerender"
     assert "旧本文" in calls[0]["user_prompt"]
-    assert "blocker" in calls[0]["user_prompt"]
+
+
+def test_production_executor_renders_protected_coverage_in_scene_revision_prompt() -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def complete_json(self, **kwargs):
+            calls.append(kwargs)
+            return {"content": "改訂本文"}
+
+    executor = make_pnca_task_executor(client=FakeClient())
+    executor.execute(
+        task_id="pnca.scene.revise",
+        scope_id="scene_001",
+        artifacts={
+            "writer.view": {"start_context": {}, "narrative_contract": {}, "end_constraints": {}, "presentation_constraints": {}},
+            "scene.draft": {"content": "旧本文"},
+            "render.coverage": {"evidence": [{"draft_quote": "保護引用"}]},
+            "draft.audit": {"issues": [{"draft_quote": "別の引用", "severity": "blocker"}]},
+        },
+        input_artifact_ids=("art_view", "art_draft", "art_coverage", "art_audit"),
+    )
+
+    assert "保護引用" in calls[0]["user_prompt"]
+    assert "{protected_coverage}" not in calls[0]["user_prompt"]
