@@ -53,15 +53,16 @@ def _blocker_overlaps_render_coverage(*, audit: DraftAudit, draft_payload: objec
     return any(issue.severity == "blocker" and issue.draft_quote in quotes for issue in audit.issues)
 
 
+HARD_REVISE_CYCLE_LIMIT = 2
+QUALITY_POLISH_CYCLE_LIMIT = 1
+
+
 class PNCAWorkflow:
     """Public orchestration facade; it never reads mutable "latest" state."""
 
-    def __init__(
-        self, *, repository: RunRepository, contract_author: Any, max_review_count: int = 3
-    ) -> None:
+    def __init__(self, *, repository: RunRepository, contract_author: Any) -> None:
         self.repository = repository
         self.contract_author = contract_author
-        self.max_review_count = max_review_count
 
     def author_series(
         self, *, run: RunHandle, scope_id: str, request: ArtifactReference
@@ -481,11 +482,12 @@ class PNCAWorkflow:
                 polish_cycle = 0
                 rerender_cycle = 0
                 while (
-                    any(issue.severity == "blocker" for issue in audit_payload.issues) and hard_revise_cycle < 2
+                    any(issue.severity == "blocker" for issue in audit_payload.issues)
+                    and hard_revise_cycle < HARD_REVISE_CYCLE_LIMIT
                 ) or (
                     not any(issue.severity == "blocker" for issue in audit_payload.issues)
+                    and polish_cycle < QUALITY_POLISH_CYCLE_LIMIT
                     and any(issue.constraint_kind == "quality" for issue in audit_payload.issues)
-                    and polish_cycle < 1
                 ):
                     repairing_hard = any(issue.severity == "blocker" for issue in audit_payload.issues)
                     try:

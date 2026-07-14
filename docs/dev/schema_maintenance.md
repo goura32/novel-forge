@@ -1,34 +1,28 @@
-# Schema / Prompt変更時の検証
+# Schema 保守
 
-JSON Schema、prompt template、対応するPython実行経路のどれかを変更した場合は、三者を同じ変更単位で確認します。
+## 変更単位
 
-## 必須手順
+PNCA schemaを変えるときは、次を一つの変更として扱います。
 
-1. JSONを構文検査する。
-   ```bash
-   python -m json.tool src/novel_forge/resources/schemas/<name>.json >/dev/null
-   ```
-2. prompt placeholderを検査する。
-   ```bash
-   uv run python scripts/validate_prompts.py
-   ```
-3. 関連するcontract / unit testを実行する。
-   ```bash
-   uv run pytest tests/contract -q
-   ```
-4. 品質ゲートを実行する。
-   ```bash
-   uv run python scripts/check_dev_quality.py
-   ```
+1. `src/novel_forge/resources/schemas/<schema>.json`
+2. 対応prompt `src/novel_forge/resources/prompts/<prompt>.md`
+3. `pnca/defaults.py` のtask registry
+4. `pnca/production.py` のprompt variable projection
+5. Pydantic contract / validation / workflow
+6. task registry、production、contract、writer、exportの回帰テスト
 
-## ルール
+## 原則
 
-- Schemaは機械検証すべき構造・型・有限enum・必須の整合制約を定義する
-- Promptは各fieldに何を書くか、品質基準、工程責務を明示する
-- Reviewは対象artifactと前工程の根拠に基づくissueを出す。好み・根拠のない言い換えはissueにしない
-- Revisionはissueを反映するが、未指摘fieldを壊さない
-- `{schema}` は `PromptManager.render_task()` が対応Schemaから自動注入する。Python側で `schema` 変数を渡さない
-- 新taskはTaskRegistry、`workflow_task_runner._TASK_VARIABLES`、prompt、schema、runtime呼び出しを同時に追加する
-- schemaのdescriptionはcontract testが要求する十分な説明文を持たせ、必須field変更時はfixtureも更新する
+- output schemaはstrict contractとして扱う。未宣言fieldや必須field欠落をruntimeが推測・補完しない。
+- promptに`{schema}`を渡すことはproduction adapterの明示責務である。
+- schema mismatchは`quality.max_generation_attempts`まで別attemptで再生成する。初回を含む。
+- retryで救えない構造不整合、provenance不整合、Canon / frontier violationをdeferredにしない。
 
-Scene designのCanon patch、selection snapshot、frontier replayの境界を変更する場合は、関連するruntime E2E testを先に失敗させてから実装します。
+## 検証
+
+```bash
+uv run pytest -q tests/test_pnca_contracts.py tests/test_pnca_production.py tests/test_pnca_export.py
+uv run python scripts/check_dev_quality.py
+```
+
+schemaだけ、promptだけ、adapterだけを単独で変更してはいけません。

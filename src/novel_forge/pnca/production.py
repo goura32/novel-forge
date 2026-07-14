@@ -6,6 +6,7 @@ import json
 from importlib import resources
 from typing import Any, cast
 
+from novel_forge.llm_client import SchemaEchoError, SchemaValidationError
 from novel_forge.pnca.defaults import default_pnca_task_registry
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.prompts import PromptManager, _build_simplified_schema
@@ -122,8 +123,11 @@ def make_pnca_task_executor(
     manager: PromptManager | None = None,
     repository: RunRepository | None = None,
     run: RunHandle | None = None,
+    max_generation_attempts: int = 1,
 ) -> PNCATaskExecutor:
-    """Build the production adapter and capture every real LLM call as one attempt."""
+    """Build the production adapter with bounded retries for invalid LLM contract output."""
+    if max_generation_attempts < 1:
+        raise ValueError("max_generation_attempts must be >= 1")
     if (repository is None) != (run is None):
         raise ValueError("repository and run must be supplied together for production LLM evidence")
     prompt_manager = manager or PromptManager()
@@ -200,41 +204,52 @@ def make_pnca_task_executor(
                 variables["canon_projection"] = json.dumps(projection["canon_projection"], ensure_ascii=False)
                 variables["admission_allowances"] = json.dumps(projection["admission_allowances"], ensure_ascii=False)
         user_prompt = prompt_manager.render(prompt_name, variables)
-        call_client = client
-        evidence_attempt = None
         capture_factory = getattr(client, "with_capture", None)
         if repository is not None and run is not None and not callable(capture_factory):
             raise TypeError("production PNCA client must support attempt-scoped capture")
-        if repository is not None and run is not None:
-            evidence_attempt = repository.start_attempt(
-                run,
-                task_id=task_id,
-                phase=_phase_for_task(task_id),
-                reason="capture one provider request, response, parse, and validation result",
-            )
-        try:
-            if evidence_attempt is not None:
-                assert callable(capture_factory)
-                assert repository is not None
-                assert run is not None
-                call_client = cast(Any, capture_factory(AttemptCapture(repository, evidence_attempt, verbose=run.manifest.verbose)))
-            result = call_client.complete_json(
-                kind=task_id,
-                system_prompt=_SYSTEM_PROMPT,
-                user_prompt=user_prompt,
-                schema=schema,
-            )
-        except Exception as exc:
-            if evidence_attempt is not None and repository is not None:
-                repository.fail_attempt(
-                    evidence_attempt,
-                    error_code=type(exc).__name__.upper(),
-                    retryable=False,
-                    detail=str(exc),
+        for attempt_number in range(1, max_generation_attempts + 1):
+            call_client = client
+            evidence_attempt = None
+            if repository is not None and run is not None:
+                evidence_attempt = repository.start_attempt(
+                    run,
+                    task_id=task_id,
+                    phase=_phase_for_task(task_id),
+                    reason=(
+                        "capture one provider request, response, parse, and validation result "
+                        f"(generation attempt {attempt_number}/{max_generation_attempts})"
+                    ),
                 )
-            raise
-        if evidence_attempt is not None and repository is not None:
-            repository.succeed_attempt(evidence_attempt, reason="llm_evidence_captured")
-        return result
+            try:
+                if evidence_attempt is not None:
+                    assert callable(capture_factory)
+                    assert repository is not None
+                    assert run is not None
+                    call_client = cast(
+                        Any,
+                        capture_factory(AttemptCapture(repository, evidence_attempt, verbose=run.manifest.verbose)),
+                    )
+                result = call_client.complete_json(
+                    kind=task_id,
+                    system_prompt=_SYSTEM_PROMPT,
+                    user_prompt=user_prompt,
+                    schema=schema,
+                )
+            except Exception as exc:
+                retryable = isinstance(exc, (SchemaValidationError, SchemaEchoError))
+                if evidence_attempt is not None and repository is not None:
+                    repository.fail_attempt(
+                        evidence_attempt,
+                        error_code=type(exc).__name__.upper(),
+                        retryable=retryable and attempt_number < max_generation_attempts,
+                        detail=str(exc),
+                    )
+                if retryable and attempt_number < max_generation_attempts:
+                    continue
+                raise
+            if evidence_attempt is not None and repository is not None:
+                repository.succeed_attempt(evidence_attempt, reason="llm_evidence_captured")
+            return result
+        raise AssertionError("bounded generation retry loop exhausted without returning or raising")
 
     return PNCATaskExecutor(registry=default_pnca_task_registry(), provider=provider)

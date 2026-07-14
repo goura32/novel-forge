@@ -1,84 +1,64 @@
-# 使い方ガイド
+# NovelForge 利用ガイド
 
-NovelForge は Ollama を用いて、シリーズ小説を `plan → design → write → export` の順に制作します。工程間の入力はselection snapshotで固定され、成果物はimmutable artifactとして保存されます。
+## 事前設定
 
-## 1. 導入と接続確認
+`~/.config/novel-forge/config.yaml` を使います。作業フォルダは`workspace.root`または各コマンドの`--workdir`で指定します。
 
-```bash
-git clone https://github.com/goura32/novel-forge.git
-cd novel-forge
-uv venv --python 3.14 .venv
-uv pip install -e .
-
-mkdir -p ~/.config/novel-forge
-cp config.example.yaml ~/.config/novel-forge/config.yaml
-uv run novel-forge doctor
+```yaml
+quality:
+  max_generation_attempts: 3
 ```
 
-設定の正規パスは `~/.config/novel-forge/config.yaml` です。既定モデルは `qwen3.6:35b-a3b-mtp-q4_K_M` です。`doctor` が失敗した場合は、Ollamaの起動、モデル名、`llm.ollama_host` を確認してください。
+`max_generation_attempts`は、JSON/schema contract failure時の総生成回数です。初回を含み、transport errorはretryしません。未知・廃止キーは設定エラーです。
 
-## 2. 新規シリーズを作る
-
-```bash
-uv run novel-forge plan -w <workdir> "近未来東京 記憶探偵"
-```
-
-`plan` はseries slug、`plan.series` artifact、Canon seed、最初のselection snapshotを作成します。表示されたslugを後続コマンドの `-s <series-slug>` に使います。
-
-キーワードにはジャンル・主人公・舞台・対立・テーマを含めると設計が安定します。詳しくは [キーワード選定ガイド](KEYWORD_SELECTION_GUIDE.md) を参照してください。
-
-## 3. 巻を設計・執筆・出力する
+## 段階的な実行
 
 ```bash
-# Volume Contractを設計する
-uv run novel-forge design -w <workdir> -s <series-slug> -V 1
-
-# Chapter ContractとScene Contractまで設計する（例: 第1巻・第1章・scene 1）
-uv run novel-forge design -w <workdir> -s <series-slug> -V 1 --chapter 1 --scene 1
-
-# 本文を生成・監査し、選択snapshotに不変のDesignBundleをfreezeする
-uv run novel-forge write -w <workdir> -s <series-slug> -V 1
-
-# 既にfreeze済みのDesignBundleだけからMarkdown原稿を出力する（LLMは呼ばない）
-uv run novel-forge export -w <workdir> -s <series-slug> -V 1 --format markdown
+novel-forge plan -w <workdir> "近未来東京 記憶探偵"
+novel-forge design -w <workdir> -s <slug> -V 1
+novel-forge design -w <workdir> -s <slug> -V 1 -C 1
+novel-forge design -w <workdir> -s <slug> -V 1 -C 1 -S 1
+novel-forge write -w <workdir> -s <slug> -V 1
+novel-forge export -w <workdir> -s <slug> -V 1
 ```
 
-`write` と `export` は分離されています。`export` は草稿生成やauditを再実行せず、現在の選択snapshotの `pnca.design_bundle.<series>.<volume>` を検証して出力します。audit issueが一つでも未解決なら出力しません。
+`design -V 1`はVolume Contract、`-C 1`は既存Volume Contract配下のChapter Contract、`-S 1`は既存Chapter Contract配下のScene Contractを作ります。ChapterとSceneを一つのコマンドで作ることはできません。
 
-全巻を設計する場合は `design -V 0` を使います。新規シリーズは `plan` を先に実行し、出力されたslugを後続の個別工程へ渡します。`complete` のような合成コマンドは使いません。
+全巻のVolume Contractを作る場合は`design -V 0`を使います。ただしChapter / Sceneはそれぞれ個別にauthorしてacceptします。
 
-## 4. 成果物と証跡を確認する
+## 品質ゲート
 
-主な成果物は `<workdir>/.novel-forge/runs/<run>/attempts/<attempt>/artifacts/` に作成されます。
+writeは各sceneについて、次の順にartifactを作ります。
 
-| payload名 | 内容 |
+```text
+Scene Contract → WriterView → Draft → DraftAudit → QualityDisposition → DesignBundle
+```
+
+| finding | 結果 |
 |---|---|
-| `design_bundle.json` | 本文・WriterView・audit・output frontier をpinした不変のDesignBundle |
-| `manuscript.md` | DesignBundleから再現された読者向けMarkdown本文 |
+| `blocker` | 停止。最大2回のhard repair後も残ればbundleを作らない |
+| `constraint_kind != quality` | 停止。severityがmajor/minorでも進めない |
+| `quality` のmajor/minor | 固定1回polish後に残れば`deferred`として記録可能 |
 
-LLMを呼ぶattemptは同じattempt配下の `llm/` に、送信payload・生NDJSON・最終content・parse結果・validation結果を保存します。`--verbose` はコンソールログ量を変えるだけで、evidence保存の有無を変えません。
+`clean`はaudit issueがゼロであることを意味します。`deferred`は全残件をissue index・種類・severity・evidenceまで正確にpinします。
 
-```bash
-uv run novel-forge runs active -w <workdir>
-uv run novel-forge run show -w <workdir> <run-id>
-uv run novel-forge attempt show -w <workdir> <attempt-id>
-```
+## Export
 
-`export` は選択snapshotにpinされたDesignBundleの Scene Contract・WriterView・draft・audit・output frontier を型・digest・provenanceで検証してから出力します。DOCX / EPUBやKDP提出用メタデータは出力しないため、提出前の人による整形・確認は別途必要です。
-
-## 5. 中断から再開する
+exportはMarkdown専用です。
 
 ```bash
-uv run novel-forge status -w <workdir> -s <series-slug>
-uv run novel-forge resume -w <workdir> -s <series-slug>
+novel-forge export -w <workdir> -s <slug> -V 1 --format markdown
 ```
 
-同一シリーズに並行した変更系コマンドは実行できません。lock待機が必要な場合は `--wait-lock` を付けます。LLM contract errorやlockの対応は [OPERATIONS](OPERATIONS.md) を参照してください。
+exportはselected DesignBundleだけを読み、DraftAuditとQualityDispositionを再照合します。hard finding、non-quality finding、`clean`で隠されたissue、deferred findingの不一致があれば拒否します。
 
-## 6. 設定の優先順位
+## 再開と調査
 
-1. 各コマンドのCLI引数（例: `--workdir`、`--model`）
-2. `~/.config/novel-forge/config.yaml`
-3. built-in既定値
+```bash
+novel-forge resume -w <workdir> -s <slug> -V 1
+novel-forge status -w <workdir> -s <slug>
+novel-forge runs -w <workdir>
+novel-forge attempt -w <workdir> <attempt-id>
+```
 
-`--workdir` を省略した場合は、設定の `workspace.root` が必要です。設定例は [`config.example.yaml`](../config.example.yaml) にあります。
+`resume`は指定巻のwriteとexportを合成実行します。`complete`コマンドは存在しません。plan / designは明示的に完了させてからresumeしてください。

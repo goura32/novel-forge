@@ -1,73 +1,46 @@
-# NovelForge Architecture
+# 現行 PNCA Architecture
 
-最終更新: 2026-07-12
+## 状態
 
-## 正本と基本原則
+この文書は現行production pathの正本です。production rootは`PNCAWorkflow`、`PNCAContractAuthor`、`PNCATaskExecutor`、`PNCAExporter`です。旧`RuntimeWorkflow`、`workflow_runtime.py`、`workflow_task_runner.py`は現行pathではありません。
 
-現在のproduction pathは `RuntimeWorkflow` を中心とするimmutable runtimeです。固定の状態ファイル、時刻順の推測、live Canon storeは入力選択に使いません。
+## 境界
 
-- **selection snapshot** が各後続runの唯一の入力正本
-- **artifact** はappend-onlyで、ready markerとdigest検証を通過して初めて参照可能
-- **Canon frontier** はseedと選択済みCanon eventからreplayされる
-- LLMのgeneration、review、revisionはそれぞれ独立したattemptとevidenceを持つ
-
-## レイヤー
-
-| レイヤー | 主な実装 | 責務 |
+| 層 | 実装 | 責務 |
 |---|---|---|
-| CLI | `cli.py` | Typer command、設定・workdir解決、run / lockの開始 |
-| Workflow | `workflow_runtime.py` | snapshot入力、phase遷移、artifact公開、Canon frontier更新 |
-| LLM boundary | `workflow_task_runner.py`、`llm_client.py` | task IDからprompt / schemaを解決し、Ollamaを1回呼び出す |
-| Task resources | `task_registry.py`、`resources/prompts/`、`resources/schemas/` | task ID、prompt、JSON Schemaの対応を定義 |
-| Immutable repository | `runtime.py` | run、attempt、artifact、ready marker、ledger、snapshot、lock |
-| Canon | `canon/` | Canon seed、event、frontier replay、patch validation |
+| CLI | `cli.py` | run、lock、selected snapshotの取得、公開コマンド |
+| Contract authoring | `pnca/workflow.py` / `pnca/production.py` | Series / Volume / Chapter / Scene Contractのauthorとaccept |
+| Task registry | `pnca/defaults.py` / `pnca/registry.py` | task ID、prompt、schema、入力projection、出力境界 |
+| Writer | `pnca/writer.py` | WriterView、render、coverage、audit、revision |
+| Quality gate | `pnca/workflow.py` / `pnca/contracts.py` | hard failureとdeferred editorial debtの決定 |
+| Export | `pnca/export.py` | frozen bundleのprovenance・audit・dispositionを最終検証 |
+| Runtime | `runtime.py` | append-only run / attempt / artifact / snapshot / acceptance |
 
-## データフロー
-
-```text
-keywords
-  → plan.series generate → review → revise
-  → plan.series + canon.seed + canon.frontier.root
-  → selection snapshot
-  → design.volume / design.chapter / design.scene の generate → review → revise
-  → reviewed Canon event + updated frontier
-  → selection snapshot
-  → write.draft / write.summary の generate → review → revise
-  → selection snapshot
-  → export (json | markdown)
-```
-
-`plan`、`design.volume`、`design.chapter`、`design.scene`、`write.draft`、`write.summary` はそれぞれ `generate → review → revise` のbounded cycleを持ちます。reviewが空なら直ちに採用されます。上限到達時は、その時点の候補とfinal review evidenceを記録して後続へ進みます。scene designはdeterministic Canon patch reviewとCanon event公開も通ります。
-
-## 永続化レイアウト
+## Phase flow
 
 ```text
-<workdir>/.novel-forge/
-  ledger/<series-slug>/
-    events.jsonl
-    snapshots/<snapshot-id>.json
-  runs/<run-id>/
-    run.json
-    events.jsonl
-    attempts/<attempt-id>/
-      attempt.json
-      artifacts/
-      llm/
-      error.json                 # failure attemptのみ
+plan:   Series Contract → accept Series root
+ design: Volume Contract → accept
+         Chapter Contract → accept
+         Scene Contract + FrontierBinding → atomic scene acceptance
+ write:  Scene Contract → WriterView → Draft → DraftAudit → QualityDisposition → DesignBundle
+export:  frozen DesignBundle → Markdown manuscript artifact
 ```
 
-artifact payloadにはmanifestとready markerが対応します。選択snapshotはlogical keyからartifact IDを固定し、後続処理は「最新のファイル」ではなくその参照集合だけを読みます。
+Volume / Chapter / Sceneは別々のCLI invocationとacceptance boundaryです。Scene Contractは正確なbase snapshotとFrontierBindingをpinします。
 
-## LLM evidenceと失敗
+## LLM taskとretry
 
-LLMを呼んだattemptは `llm/request.json`、`response.ndjson`、`response.content.json`、`validation.json` を保存します。parseとSchema validationを通過した場合は `parsed.json` も保存します。
+PNCA taskはregistryでallow-listされます。JSON/schema contract failureは`quality.max_generation_attempts`の範囲で再生成し、各試行を別attemptとして保存します。初回も回数に含みます。transport failureはretryしません。
 
-JSON parse / Schema validationのcontract failureは `quality.max_retry_count` の範囲で別attemptとして再試行します。transport failureは自動再試行せず、`error.json` を残して停止します。詳細は [LLM evidence形式](raw_log_format.md) と [Ollama API契約](OLLAMA_API.md) を参照してください。
+## Reviewと進行
 
-## Canon境界
+- blockerは最大2回のhard repair後も残れば停止します。
+- `constraint_kind != quality`はseverityに関係なく停止します。
+- `quality`のmajor/minorだけは最大1回polish後、残れば`deferred`にできます。
+- `QualityDisposition`はwrite phaseでのみ作成され、DesignBundle slotにpinされます。
+- exportはDraftAuditとQualityDispositionを再照合します。hard finding、`clean`に隠れたissue、deferred findingの不一致は拒否します。
 
-scene designはLLMがCanon IDだけを参照するsmall update DSLを返し、runtimeがstrict CanonPatchへコンパイルしてからdeterministic reviewを行います。空またはno-opのpatch、存在しないID、frontier replayの不整合は拒否されます。writerへ渡すのはwriter-safe contextと直近summaryであり、raw Canon frontierやstable IDを直接渡しません。
+## Export
 
-## 運用上の回復
-
-`status` と `resume` はsnapshotとledgerを基に状態を判断します。変更系コマンドはworkspaceまたはseries lockで排他され、`--wait-lock` により待機できます。旧mutable状態ファイルや固定exportディレクトリは、現行runtimeの正本ではありません。
+export形式はMarkdownのみです。payload名は`manuscript.md`です。exportはselected/latest mutable Canon stateを読まず、bundle slotにpinされたcontract、view、draft、assessment、disposition、frontierだけを読む設計です。

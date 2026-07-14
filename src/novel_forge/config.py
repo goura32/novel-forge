@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 try:
     import yaml
@@ -18,11 +18,17 @@ except ImportError:  # pragma: no cover - project dependency, defensive only
     yaml = None
 
 
-class WorkspaceConfig(BaseModel):
+class StrictConfigModel(BaseModel):
+    """Reject misspelled or retired runtime settings instead of silently ignoring them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class WorkspaceConfig(StrictConfigModel):
     root: Path | None = None
 
 
-class LLMConfig(BaseModel):
+class LLMConfig(StrictConfigModel):
     model: str = "qwen3.6:35b-a3b-mtp-q4_K_M"
     ollama_host: str = "ws1.local:11434"
     timeout_seconds: int = Field(default=3600, ge=1)
@@ -39,17 +45,17 @@ class LLMConfig(BaseModel):
     num_ctx: int = Field(default=262144, description="context window in tokens")
 
 
-class QualityConfig(BaseModel):
-    max_retry_count: int = Field(default=7, ge=1)
-    max_review_count: int = Field(default=3, ge=1)
-    max_summary_review_count: int = Field(default=2, ge=1)
+class QualityConfig(StrictConfigModel):
+    """Bounded retries for invalid LLM contract outputs, including the first call."""
+
+    max_generation_attempts: int = Field(default=3, ge=1)
 
 
-class LoggingConfig(BaseModel):
+class LoggingConfig(StrictConfigModel):
     level: str = Field(default="DEBUG")
 
 
-class RuntimeConfig(BaseModel):
+class RuntimeConfig(StrictConfigModel):
     """The destructive-redesign configuration contract.
 
     ``load`` accepts a path only for tests.  Production callers must use the

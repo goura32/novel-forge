@@ -209,13 +209,10 @@ def _make_pnca_workflow(
             manager=PromptManager(),
             repository=repo,
             run=run,
+            max_generation_attempts=config.quality.max_generation_attempts,
         ),
     )
-    return PNCAWorkflow(
-        repository=repo,
-        contract_author=author,
-        max_review_count=config.quality.max_review_count,
-    )
+    return PNCAWorkflow(repository=repo, contract_author=author)
 
 
 def _make_pnca_client(config: RuntimeConfig, model: str | None):
@@ -266,8 +263,6 @@ def plan(
     keywords: str = typer.Argument(..., help="Series keywords"),
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
-    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     volumes: int | None = typer.Option(None, "--volumes", min=1, help="Exact number of series volumes"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
@@ -316,8 +311,6 @@ def design(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per phase"),
-    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
@@ -457,8 +450,6 @@ def write(
     workdir: Path | None = typer.Option(None, "--workdir", "-w", help="Working directory"),
     series: str = typer.Option(None, "--series", "-s", help="Series slug"),
     model: str | None = typer.Option(None, "--model", "-m", help="LLM model override"),
-    max_review_count: int | None = typer.Option(None, "--max-review-count", help="Max review cycles per scene"),
-    max_summary_review_count: int | None = typer.Option(None, "--max-summary-review-count", help="Max summary review cycles"),
     verbose: bool | None = typer.Option(None, "--verbose", "-v", help="Verbose output"),
     wait_lock: bool = typer.Option(False, "--wait-lock", help="Wait for the run lock instead of failing fast on contention"),
 ):
@@ -478,7 +469,10 @@ def write(
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="write", wait=wait_lock):
         workflow = _make_pnca_workflow(repo, config, model, run)
         executor = make_pnca_task_executor(
-            client=_make_pnca_client(config, model), repository=repo, run=run
+            client=_make_pnca_client(config, model),
+            repository=repo,
+            run=run,
+            max_generation_attempts=config.quality.max_generation_attempts,
         )
         bundle = workflow.write_volume(slug=series_dir.name, run=run, volume=volume, executor=executor)
         console.print(f"[green]✓[/green] Volume {volume} written and frozen (bundle: {bundle.bundle_id})")
@@ -566,7 +560,11 @@ def resume(
     with manager.side_effect_scope(scope=f"series-{series_dir.name}", run=run, phase="resume", wait=wait_lock):
         workflow = _make_pnca_workflow(repo, config, model, run)
         executor = make_pnca_task_executor(
-            client=_make_pnca_client(config, model), manager=PromptManager(), repository=repo, run=run
+            client=_make_pnca_client(config, model),
+            manager=PromptManager(),
+            repository=repo,
+            run=run,
+            max_generation_attempts=config.quality.max_generation_attempts,
         )
         # Resume by running write/export for the requested volume (plan/design already exist).
         console.print(f"[yellow]▶[/yellow] Resuming volume {volume} (write + export)")

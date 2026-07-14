@@ -64,6 +64,15 @@ def test_runtime_config_uses_only_canonical_path_and_cli_workdir_wins(tmp_path: 
         RuntimeConfig().resolve_workdir(None)
 
 
+def test_runtime_config_rejects_retired_or_unknown_settings() -> None:
+    config = RuntimeConfig.model_validate({"quality": {"max_generation_attempts": 4}})
+    assert config.quality.max_generation_attempts == 4
+    with pytest.raises(ValueError, match="max_review_count"):
+        RuntimeConfig.model_validate({"quality": {"max_review_count": 3}})
+    with pytest.raises(ValueError, match="transport_retries"):
+        RuntimeConfig.model_validate({"llm": {"transport_retries": 2}})
+
+
 def test_success_attempt_is_immutable_and_ready_before_succeeded(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     run = _run(repo)

@@ -1,37 +1,22 @@
 # NovelForge example configuration.
-#
 # Copy this file to ~/.config/novel-forge/config.yaml.
-# NovelForge reads only that canonical runtime configuration path.
-# Runtime precedence: CLI options > canonical config > built-in defaults.
+# NovelForge reads only this canonical path. Unknown or retired keys are errors.
+
+workspace:
+  # Set this or pass --workdir to each command.
+  root: "/path/to/novels"
 
 quality:
-  # Maximum generation attempts per phase/scene, including API and schema validation failures.
-  max_generation_count: 4
-
-  # Maximum review -> revision cycles.
-  max_review_count: 4
+  # Total LLM attempts for one task, including the first attempt.
+  # Only JSON/schema contract failures retry. Transport failures never retry.
+  max_generation_attempts: 3
 
 llm:
-  # Ollama model name.
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
-
-  # Maximum generated tokens. -1 means unlimited for Ollama models that support it.
-  num_predict: -1
-
-  # Context length. Adjust to the selected model and available VRAM/RAM.
-  num_ctx: 262144
-
-  # API timeout in seconds. Long-form generation can take a while on local models.
+  ollama_host: "ws1.local:11434"
   timeout_seconds: 3600
-
-  # Transport retry count for transient LLM API errors only.
-  # JSON/schema output failures are controlled by quality.max_generation_count.
-  transport_retries: 2
-
-  # Ollama host. Can also be provided with OLLAMA_HOST when not set here.
-  ollama_host: "localhost:11434"
-
-  # Passed to Ollama's options payload, except `think` which is sent as top-level `think`.
+  num_predict: -1
+  num_ctx: 262144
   ollama_options:
     think: false
     temperature: 1.0
@@ -39,5 +24,7 @@ llm:
     top_k: 20
     min_p: 0.0
 
-# Logging / output controls.
-## `verbose` also enables LLM raw logs (transport, JSON payload, parse traces).
+logging:
+  level: "INFO"
+
+verbose: false

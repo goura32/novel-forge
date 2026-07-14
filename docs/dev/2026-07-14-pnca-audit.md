@@ -29,11 +29,11 @@
 
 ## あえて採用しなかった対応
 
-### 簡体字のコード側ブラックリスト
+## 簡体字のコード側ブラックリスト
 
 `监护人` のような文字列を個別にrejectするのは、言語品質を網羅できず、保守対象を無限に増やします。本文が日本語であることは prompt の具体的な制約と review / revision の品質責務で扱います。Unicode blockだけで日本語漢字と簡体字を確実に区別することはできません。
 
-### LLM client内部での隠れたschema-echo再試行
+## LLM client内部での隠れたschema-echo再試行
 
 同一 attempt 内で複数 provider request を行うと、どの request が最終応答を生んだかが曖昧になり、固定名のRAWファイルを上書きし得ます。1 evidence attempt = 1 provider request を守り、再試行が必要なら orchestration が新しい attempt を明示的に作成します。
 

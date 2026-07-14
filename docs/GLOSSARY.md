@@ -1,54 +1,22 @@
-# NovelForge用語集
+# 用語集
 
-最終更新: 2026-07-12
-
-## A〜Z
-
-| 用語 | 説明 |
+| 用語 | 定義 |
 |---|---|
-| Artifact | immutable payload、manifest、ready markerからなる成果物。ready検証前のpayloadは参照しない |
-| Artifact manifest | artifact ID、logical key、payload path、digest、入力artifact、prompt/schema digestを記録するメタデータ |
-| Attempt | 1回のLLM呼び出しまたは決定論的処理の不変記録。`attempt.json` とeventで状態を追跡する |
-| Canon | Canon seedとactive Canon eventのreplayで得られる現在の設定・事実 |
-| Canon frontier | sceneごとの選択済みCanon eventを表すimmutable artifact。後続snapshotが参照する |
-| LLM evidence | LLM attempt配下のrequest、NDJSON response、content、parsed、validation記録 |
-| Selection snapshot | 後続runが読むlogical key → artifact IDの不変な入力集合 |
-
-## あ行
-
-| 用語 | 説明 |
-|---|---|
-| あらすじ (logline) | シリーズの核心を1〜2文で表す説明 |
-| 暗黙承認 | CLI上の人手承認ステップではなく、選択snapshotへ公開されたartifactだけが後続工程へ進むこと |
-
-## か行
-
-| 用語 | 説明 |
-|---|---|
-| 作業ディレクトリ (workdir) | `.novel-forge/` runtimeデータを置くルート。`--workdir` またはcanonical configの `workspace.root` で指定 |
-| 生成contract failure | JSON parse、Schema validation、task contractに失敗したLLM応答。retry上限内で別attemptとして再実行する |
-| シリーズ (series) | 複数巻からなる小説シリーズ。slugでledgerとsnapshotを区別する |
-| シリーズ企画 (`plan.series`) | title、logline、世界観、人物、各巻の前提を含む選択済みplan artifact |
-| スラグ (slug) | シリーズ識別子。英小文字・数字・アンダースコアで表す |
-
-## さ行
-
-| 用語 | 説明 |
-|---|---|
-| scene summary | 次sceneへ渡すcontinuity handoff。writer-safeな状態変化・未解決thread・次sceneへの引き継ぎを含む |
-| スキーマ (schema) | LLM出力の型・必須field・構造を検証するJSON Schema |
-
-## は行
-
-| 用語 | 説明 |
-|---|---|
-| 品質ゲート | review issue、Schema、deterministic contractを用い、未解決候補の選択を止める仕組み |
-| パイプライン | `plan → design → write → export` の一連の工程 |
-| 非LLM attempt | Canon適用、artifact commit、scene受理など、LLM requestを発行しない決定論的attempt |
-
-## ら行
-
-| 用語 | 説明 |
-|---|---|
-| リトライ (retry) | contract failure時に新しいattemptを作って生成を再実行すること。transport errorは自動retryしない |
-| ロック (lock) | workspaceまたはseries単位で変更系commandを排他する仕組み。`--wait-lock` で待機できる |
+| PNCA | Progressive Narrative Contract Architecture。契約を段階的にauthor・acceptするproduction path。 |
+| artifact | attemptからcommitされるimmutable payloadとmanifest。 |
+| run | 一つのCLI実行の監査単位。 |
+| attempt | 一回のLLM呼出しまたはdeterministic処理の証跡単位。retryごとに新規作成される。 |
+| Selection Snapshot | seriesの選択済みartifact slotをimmutableに記録する状態境界。 |
+| acceptance | materialized contractをselection snapshotへ原子的にpublishする操作。 |
+| FrontierBinding | Scene Contractが読むinput snapshot / Canon frontier / digestの組。 |
+| WriterView | Scene Contractをprose writerへ必要最小限に投影したartifact。 |
+| DraftAudit | scene draftに対するtyped issue集合。 |
+| QualityDisposition | write phaseのaudit residualを`clean`または`deferred`としてimmutableに決定するartifact。 |
+| clean | DraftAudit issueがゼロであるdisposition。残件を隠せない。 |
+| deferred | `quality`の`major`/`minor` residualだけを、audit issueとの完全対応つきで記録するdisposition。 |
+| non-waivable finding | blockerまたは`constraint_kind != quality`のissue。write / exportとも停止する。 |
+| editorial debt | deferredに記録できるquality residual。release前の人間判断対象。 |
+| DesignBundle | export対象のfrozen scene slot集合。contract、view、draft、audit、disposition、frontierをpinする。 |
+| generation attempt | LLMに一回送信する試行。`quality.max_generation_attempts`は初回を含む上限。 |
+| hard repair | blocker除去のためのrevision。最大2回。 |
+| quality polish | editorial qualityのためのrevision。最大1回。 |

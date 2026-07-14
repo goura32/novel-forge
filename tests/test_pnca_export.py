@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from novel_forge.pnca.contracts import BundleSlotRecord, DesignBundle
-from novel_forge.pnca.export import PNCAExporter
+from novel_forge.pnca.contracts import (
+    BundleSlotRecord,
+    DesignBundle,
+    DraftAudit,
+    QualityDisposition,
+    QualityDispositionFinding,
+)
+from novel_forge.pnca.export import PNCAExporter, _validate_audit_disposition
 from novel_forge.runtime import RunRepository, RuntimeContractError
 
 
@@ -19,6 +25,53 @@ def _artifact(repo: RunRepository, run, *, artifact_type: str, logical_key: str,
         payload_name=f"{logical_key.replace('.', '_')}.json",
         **kwargs,
     )
+
+
+
+def test_export_rejects_clean_hidden_quality_issue_and_mismatched_deferred_finding() -> None:
+    audit = DraftAudit.model_validate(
+        {
+            "issues": [
+                {
+                    "severity": "major",
+                    "constraint_kind": "quality",
+                    "writer_view_field": "presentation_constraints",
+                    "draft_quote": "リナは立ち止まった。",
+                    "detail": "情景描写が薄い",
+                }
+            ]
+        }
+    )
+    clean = QualityDisposition(
+        scope_id="series.volume.scene",
+        phase="write",
+        subject_artifact_id="draft_001",
+        review_artifact_ids=("audit_001",),
+        status="clean",
+    )
+    with pytest.raises(RuntimeContractError, match="clean quality disposition"):
+        _validate_audit_disposition(audit=audit, disposition=clean, assessment_id="audit_001")
+
+    mismatched = QualityDisposition(
+        scope_id="series.volume.scene",
+        phase="write",
+        subject_artifact_id="draft_001",
+        review_artifact_ids=("audit_001",),
+        status="deferred",
+        findings=(
+            QualityDispositionFinding(
+                review_artifact_id="audit_001",
+                issue_index=0,
+                severity="major",
+                constraint_kind="quality",
+                writer_view_field="presentation_constraints",
+                draft_quote="リナは立ち止まった。",
+                detail="別の説明",
+            ),
+        ),
+    )
+    with pytest.raises(RuntimeContractError, match="does not match"):
+        _validate_audit_disposition(audit=audit, disposition=mismatched, assessment_id="audit_001")
 
 
 def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
@@ -107,7 +160,13 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
     }
 
 
-def test_export_rejects_blocker_audit_and_missing_output_frontier(tmp_path) -> None:
+@pytest.mark.parametrize(
+    ("severity", "constraint_kind"),
+    (("blocker", "required_beat"), ("major", "end_constraint")),
+)
+def test_export_rejects_schema_valid_nonwaivable_audit_even_with_clean_disposition(
+    tmp_path, severity: str, constraint_kind: str
+) -> None:
     repo = RunRepository(tmp_path)
     run = repo.create_run(command="plan", model="fake", verbose=False)
     seed = _artifact(repo, run, artifact_type="canon.seed", logical_key="canon.seed", payload={"seed": True})
@@ -134,7 +193,7 @@ def test_export_rejects_blocker_audit_and_missing_output_frontier(tmp_path) -> N
         run,
         artifact_type="pnca.scene_draft",
         logical_key="pnca.scene_draft.s1",
-        payload={"content": "短い"},
+        payload={"content": "短い", "coverage": {"evidence": []}},
         input_artifact_ids=(view.artifact_id,),
     )
     assessment = _artifact(
@@ -142,7 +201,17 @@ def test_export_rejects_blocker_audit_and_missing_output_frontier(tmp_path) -> N
         run,
         artifact_type="pnca.draft_audit",
         logical_key="pnca.draft_audit.s1",
-        payload={"issues": [{"severity": "blocker", "detail": "本文長不足"}]},
+        payload={
+            "issues": [
+                {
+                    "severity": severity,
+                    "constraint_kind": constraint_kind,
+                    "writer_view_field": "required_beats",
+                    "draft_quote": "短い",
+                    "detail": "契約上の残件",
+                }
+            ]
+        },
         input_artifact_ids=(contract.artifact_id, view.artifact_id, draft.artifact_id),
     )
     disposition = _artifact(
@@ -178,5 +247,5 @@ def test_export_rejects_blocker_audit_and_missing_output_frontier(tmp_path) -> N
         ),
     )
 
-    with pytest.raises(RuntimeContractError, match="blocker"):
+    with pytest.raises(RuntimeContractError, match="non-waivable"):
         PNCAExporter(repo).export(run=run, bundle=bundle)

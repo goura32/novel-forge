@@ -110,7 +110,8 @@ def main(run_dir: str) -> int:
     # crash signals: caller passes log path via env or we skip
     log = os.environ.get("RUN_LOG")
     if log and os.path.exists(log):
-        txt = open(log, encoding="utf-8", errors="ignore").read()
+        with open(log, encoding="utf-8", errors="ignore") as log_file:
+            txt = log_file.read()
         crashes = sum(
             txt.count(s)
             for s in ["RuntimeContractError", "Traceback", "LLMError: schema"]

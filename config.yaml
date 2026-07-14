@@ -1,45 +1,27 @@
-# NovelForge 設定ファイル
-#
-# 環境変数 NOVEL_FORGE_CONFIG でパスを指定可能。
-# 未指定の場合はカレントディレクトリから親へ辿って自動検出。
-#
-# config.yaml が存在しない場合はコード内のデフォルト値が使用される。
-#
-# OLLAMA_OPTIONS 環境変数は config.yaml よりも優先される（オーバーレイ）。
+# Development template. Runtime reads only ~/.config/novel-forge/config.yaml.
+# Unknown or retired keys fail configuration validation.
 
-# 作業フォルダ（出力先のルート）
 workspace:
-  root: "/mnt/hdd/novel/"
+  root: "/mnt/hdd/novel"
 
-# 品質ゲート設定
 quality:
-  # 機械的contract（schema/JSON/ID）違反時の工程内リトライ上限
-  # 必須キー欠落やキー名タイポ等の LLM 出力揺らぎはシード値リトライで吸収するため、余裕を持たせる
-  max_retry_count: 7
-
-  # レビュー（レビュー→修正サイクル）の工程横断上限
-  max_review_count: 3
+  # Total LLM attempts including the first call. JSON/schema failures only.
+  max_generation_attempts: 3
 
 llm:
-  # モデル名
   model: "qwen3.6:35b-a3b-mtp-q4_K_M"
-
-  # 出力トークン数上限（-1 = 無制限 / レビュー等で暴走生成を防ぐため上限設定）
-  num_predict: 8192
-
-  # コンテキスト長（262144 = qwen3.6:35b の最大値）
-  num_ctx: 262144
-
-  # API タイムアウト（秒）
-  timeout_seconds: 3600
-
-  # Ollama ホスト（smoke 用に 127.0.0.1 を使用）
   ollama_host: "127.0.0.1:11434"
-
-  # Ollama サンプリングオプション
+  timeout_seconds: 3600
+  num_predict: -1
+  num_ctx: 262144
   ollama_options:
     think: false
     temperature: 1.0
     top_p: 0.95
     top_k: 20
     min_p: 0.0
+
+logging:
+  level: "INFO"
+
+verbose: false

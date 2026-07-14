@@ -22,6 +22,43 @@ class ExportedManuscript:
     content: str
 
 
+def _validate_audit_disposition(*, audit: DraftAudit, disposition: QualityDisposition, assessment_id: str) -> None:
+    """Reject any bundle whose final audit and progression disposition disagree.
+
+    Export is a defense-in-depth gate: it must not trust that a bundle was made
+    by the normal write workflow.  A hand-built or stale bundle cannot hide a
+    non-waivable issue behind a clean/deferred disposition.
+    """
+    non_waivable = [
+        issue for issue in audit.issues if issue.severity == "blocker" or issue.constraint_kind != "quality"
+    ]
+    if non_waivable:
+        kinds = ", ".join(sorted({issue.constraint_kind for issue in non_waivable}))
+        raise RuntimeContractError(f"bundle audit retains non-waivable findings: {kinds}")
+
+    if disposition.status == "clean":
+        if audit.issues:
+            raise RuntimeContractError("clean quality disposition cannot hide residual audit findings")
+        return
+
+    expected_indexes = set(range(len(audit.issues)))
+    finding_indexes = {finding.issue_index for finding in disposition.findings}
+    if finding_indexes != expected_indexes:
+        raise RuntimeContractError("deferred quality disposition must account for every residual audit finding")
+    for finding in disposition.findings:
+        if finding.review_artifact_id != assessment_id:
+            raise RuntimeContractError("deferred quality disposition must reference its pinned draft assessment")
+        issue = audit.issues[finding.issue_index]
+        if (
+            finding.severity != issue.severity
+            or finding.constraint_kind != issue.constraint_kind
+            or finding.writer_view_field != issue.writer_view_field
+            or finding.draft_quote != issue.draft_quote
+            or finding.detail != issue.detail
+        ):
+            raise RuntimeContractError("deferred quality disposition finding does not match its audit issue")
+
+
 def _validate_export_coverage(*, view: WriterView, payload: object) -> str:
     if not isinstance(payload, dict):
         raise RuntimeContractError("pinned draft has no structured payload")
@@ -135,9 +172,14 @@ class PNCAExporter:
         if not required_assessment_inputs.issubset(assessment.manifest.input_artifact_ids):
             raise RuntimeContractError("draft assessment must bind contract, writer view, and draft artifacts")
         try:
-            DraftAudit.model_validate(self.repository.read_payload(assessment))
+            audit = DraftAudit.model_validate(self.repository.read_payload(assessment))
         except ValueError as exc:
             raise RuntimeContractError(f"bundle draft assessment payload is invalid: {exc}") from exc
+        _validate_audit_disposition(
+            audit=audit,
+            disposition=quality_disposition,
+            assessment_id=assessment.artifact_id,
+        )
         try:
             writer_view = WriterView.model_validate(self.repository.read_payload(view))
         except ValueError as exc:

@@ -5,6 +5,7 @@ from contextlib import suppress
 
 import pytest
 
+from novel_forge.llm_client import LLMTransportError, SchemaValidationError
 from novel_forge.pnca.contracts import ChapterContract, SceneSlot, SeriesContractProposal
 from novel_forge.pnca.defaults import default_pnca_task_registry
 from novel_forge.pnca.production import (
@@ -195,6 +196,73 @@ def test_production_executor_captures_one_terminal_llm_attempt(tmp_path) -> None
     assert (attempt_path / "llm/parsed.json").is_file()
     assert (attempt_path / "llm/validation.json").is_file()
     assert (attempt_path / "completion.json").is_file()
+
+
+def test_production_executor_retries_only_schema_contract_failures(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+
+    class RetryingClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def with_capture(self, _capture):
+            return self
+
+        def complete_json(self, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise SchemaValidationError("missing required field")
+            return {"contract_id": "moon_lantern", "canon_seed": {"series": {"id": "moon_lantern"}}}
+
+    client = RetryingClient()
+    executor = make_pnca_task_executor(
+        client=client, repository=repo, run=run, max_generation_attempts=2
+    )
+    result = executor.execute(
+        task_id="pnca.series.contract",
+        scope_id="moon_lantern",
+        artifacts={"series.request": {"slug": "moon_lantern", "keywords": "月灯りの魔女", "existing_slugs": []}},
+        input_artifact_ids=("art_request",),
+    )
+
+    assert result["contract_id"] == "moon_lantern"
+    assert client.calls == 2
+    attempts = sorted((run.path / "attempts").iterdir())
+    assert len(attempts) == 2
+    assert (attempts[0] / "error.json").is_file()
+    assert (attempts[1] / "completion.json").is_file()
+
+
+def test_production_executor_never_retries_transport_failures(tmp_path) -> None:
+    repo = RunRepository(tmp_path)
+    run = repo.create_run(command="plan", model="fake", verbose=False)
+
+    class TransportFailingClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def with_capture(self, _capture):
+            return self
+
+        def complete_json(self, **_kwargs):
+            self.calls += 1
+            raise LLMTransportError("connection reset")
+
+    client = TransportFailingClient()
+    executor = make_pnca_task_executor(
+        client=client, repository=repo, run=run, max_generation_attempts=3
+    )
+    with pytest.raises(LLMTransportError, match="connection reset"):
+        executor.execute(
+            task_id="pnca.series.contract",
+            scope_id="moon_lantern",
+            artifacts={"series.request": {"slug": "moon_lantern", "keywords": "月灯りの魔女", "existing_slugs": []}},
+            input_artifact_ids=("art_request",),
+        )
+
+    assert client.calls == 1
+    assert len(list((run.path / "attempts").iterdir())) == 1
 
 
 def test_production_executor_renders_only_registered_volume_projection() -> None:
