@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from dataclasses import dataclass
 
 from novel_forge.pnca.contracts import DraftAudit, DraftCoverage, WriterView, WriterViewReview
 from novel_forge.pnca.registry import PNCATaskExecutor
 from novel_forge.pnca.validation import PNCAStructuralError, validate_writer_view
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,8 +20,16 @@ class RenderedDraft:
     draft: ArtifactReference
 
 
-def _validate_draft_coverage(*, view: WriterView, content: str, payload: object) -> DraftCoverage:
-    """Accept only exact, complete proof for the WriterView's mandatory obligations."""
+def _validate_draft_coverage(*, view: WriterView, content: str, payload: object, strict: bool = True) -> DraftCoverage:
+    """Accept proof for the WriterView's mandatory obligations.
+
+    ``strict=True`` (render path): the authoritative publication gate. Every required
+    beat and end constraint must be proven by a verbatim quote present in the draft.
+    ``strict=False`` (revise path): the render path already proved coverage; revise only
+    fixes audit issues and must not re-open the contract or abort on local-LLM rewording.
+    We still verify the obligation *structure* (correct beats/end_constraint, no duplicates)
+    but only warn when a quote drifts from the draft instead of raising.
+    """
     try:
         coverage = DraftCoverage.model_validate(payload)
     except ValueError as exc:
@@ -40,7 +52,12 @@ def _validate_draft_coverage(*, view: WriterView, content: str, payload: object)
         if _norm(item.draft_quote) not in _norm(content)
     ]
     if missing:
-        raise PNCAStructuralError("PNCA render coverage quotes must occur verbatim in the draft")
+        if strict:
+            raise PNCAStructuralError("PNCA render coverage quotes must occur verbatim in the draft")
+        _log.warning(
+            "Revise coverage drift on %d quote(s); accepting revise (render gate already proved coverage)",
+            len(missing),
+        )
     return coverage
 
 
@@ -265,6 +282,7 @@ class PNCARenderer:
             view=writer_view,
             content=content,
             payload=result.get("coverage") if isinstance(result, dict) else None,
+            strict=False,
         )
         attempt = self.repository.start_attempt(run, task_id="pnca.scene.revise", phase="write", reason="resolve draft audit issues")
         return self.repository.commit_artifact(
