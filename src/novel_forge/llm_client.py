@@ -273,6 +273,15 @@ class LLMClient:
                 raise LLMError("LLM returned schema structure instead of data")
             assert parsed is not None  # parse_json_response always ran at least once
 
+            # Coerce field-level schema echoes (e.g. "content": {"type":"string"...})
+            # for known string-typed fields in PNCA scene schemas.
+            if isinstance(parsed, dict):
+                for key in ("content", "draft_quote", "suggestion", "description", "field"):
+                    val = parsed.get(key)
+                    if isinstance(val, dict) and "type" in val and "properties" in val:
+                        self._log.warning("  [field-level schema echo] kind=%s field=%s coercing to empty string", kind, key)
+                        parsed[key] = ""
+
             if schema:
                 if isinstance(parsed, dict) and "slug" in parsed:
                     parsed["slug"] = re.sub(r"[^a-z0-9_]", "_", str(parsed["slug"]).lower())
