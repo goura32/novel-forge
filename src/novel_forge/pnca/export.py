@@ -10,6 +10,7 @@ from novel_forge.pnca.contracts import (
     DesignBundle,
     DraftAudit,
     DraftCoverage,
+    QualityDisposition,
     WriterView,
 )
 from novel_forge.runtime import ArtifactReference, RunHandle, RunRepository, RuntimeContractError
@@ -101,6 +102,7 @@ class PNCAExporter:
         view = self.repository.verify_artifact(slot.writer_view_artifact_id)
         draft = self.repository.verify_artifact(slot.draft_artifact_id)
         assessment = self.repository.verify_artifact(slot.draft_assessment_artifact_id)
+        disposition = self.repository.verify_artifact(slot.quality_disposition_artifact_id)
         output_frontier = self.repository.verify_artifact(slot.output_frontier_artifact_id)
         if contract.manifest.artifact_type != "pnca.scene.contract":
             raise RuntimeContractError("bundle scene contract artifact type is invalid")
@@ -116,6 +118,19 @@ class PNCAExporter:
             raise RuntimeContractError("draft must be derived from its pinned writer view")
         if assessment.manifest.artifact_type != "pnca.draft_audit":
             raise RuntimeContractError("bundle draft assessment artifact type is invalid")
+        if disposition.manifest.artifact_type != "pnca.quality_disposition":
+            raise RuntimeContractError("bundle quality disposition artifact type is invalid")
+        try:
+            quality_disposition = QualityDisposition.model_validate(self.repository.read_payload(disposition))
+        except ValueError as exc:
+            raise RuntimeContractError(f"bundle quality disposition payload is invalid: {exc}") from exc
+        if quality_disposition.phase != "write" or quality_disposition.subject_artifact_id != draft.artifact_id:
+            raise RuntimeContractError("bundle quality disposition must select its pinned draft")
+        if assessment.artifact_id not in quality_disposition.review_artifact_ids:
+            raise RuntimeContractError("bundle quality disposition must bind its pinned draft assessment")
+        required_disposition_inputs = {contract.artifact_id, view.artifact_id, draft.artifact_id, assessment.artifact_id}
+        if not required_disposition_inputs.issubset(disposition.manifest.input_artifact_ids):
+            raise RuntimeContractError("quality disposition must bind contract, writer view, draft, and assessment")
         required_assessment_inputs = {contract.artifact_id, view.artifact_id, draft.artifact_id}
         if not required_assessment_inputs.issubset(assessment.manifest.input_artifact_ids):
             raise RuntimeContractError("draft assessment must bind contract, writer view, and draft artifacts")
@@ -134,5 +149,6 @@ class PNCAExporter:
             view.artifact_id,
             draft.artifact_id,
             assessment.artifact_id,
+            disposition.artifact_id,
             output_frontier.artifact_id,
         }

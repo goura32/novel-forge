@@ -18,6 +18,8 @@ from novel_forge.pnca.contracts import (
     FrontierBinding,
     OperationRecord,
     ParentRequirementLedger,
+    QualityDisposition,
+    QualityDispositionFinding,
     RequirementDisposition,
     RequirementEntry,
     SceneContract,
@@ -117,6 +119,50 @@ def test_draft_audit_accepts_a_grounded_pov_blocker() -> None:
         }
     )
     assert audit.issues[0].severity == "blocker"
+
+
+def test_quality_disposition_allows_only_quality_findings_to_be_deferred() -> None:
+    disposition = QualityDisposition(
+        scope_id="series_001.volume.001.scene_001",
+        phase="write",
+        subject_artifact_id="art_draft",
+        review_artifact_ids=("art_audit",),
+        status="deferred",
+        findings=(
+            QualityDispositionFinding(
+                review_artifact_id="art_audit",
+                issue_index=0,
+                severity="minor",
+                constraint_kind="quality",
+                writer_view_field="narrative_contract.style",
+                draft_quote="雪は静かに降っていた。",
+                detail="語彙の反復。",
+            ),
+        ),
+    )
+    assert disposition.status == "deferred"
+
+
+def test_quality_disposition_rejects_deferred_hard_contract_finding() -> None:
+    with pytest.raises(ValidationError, match="quality"):
+        QualityDisposition(
+            scope_id="series_001.volume.001.scene_001",
+            phase="write",
+            subject_artifact_id="art_draft",
+            review_artifact_ids=("art_audit",),
+            status="deferred",
+            findings=(
+                QualityDispositionFinding(
+                    review_artifact_id="art_audit",
+                    issue_index=0,
+                    severity="major",
+                    constraint_kind="pov_fact",
+                    writer_view_field="presentation_constraints.pov",
+                    draft_quote="彼は恐れている。",
+                    detail="他者の内面断定。",
+                ),
+            ),
+        )
 
 
 def test_writer_view_preserves_string_beats_when_provider_uses_compact_form() -> None:
@@ -368,6 +414,7 @@ def test_design_bundle_rejects_duplicate_or_nonsequential_slot_topology() -> Non
         writer_view_artifact_id="art_view_001",
         draft_artifact_id="art_draft_001",
         draft_assessment_artifact_id="art_assessment_001",
+        quality_disposition_artifact_id="art_disposition_001",
         output_frontier_artifact_id="art_frontier_001",
     )
     with pytest.raises(ValidationError, match="unique"):

@@ -24,6 +24,7 @@
 |---|---|
 | [dev/raw_log_format.md](dev/raw_log_format.md) | attempt-scoped LLM evidence のファイル形式 |
 | [dev/2026-07-14-pnca-audit.md](dev/2026-07-14-pnca-audit.md) | 7:30以降の変更の監査、誤解・失敗と是正方針 |
+| [dev/QUALITY_DISPOSITION_POLICY.md](dev/QUALITY_DISPOSITION_POLICY.md) | hard failure / editorial debt の工程横断進行ポリシー |
 | [dev/acceptance.md](dev/acceptance.md) | acceptance / snapshot の開発時チェック |
 | [../AGENTS.md](../AGENTS.md) | リポジトリ作業ルール |
 

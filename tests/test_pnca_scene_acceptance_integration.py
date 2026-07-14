@@ -163,9 +163,10 @@ class FakeExecutor:
     "audit_issues",
     [
         [],
+        [{"severity": "major", "constraint_kind": "quality", "writer_view_field": "narrative_contract.style", "draft_quote": "シーンの本文", "detail": "語彙の反復"}],
         [{"severity": "blocker", "constraint_kind": "pov_fact", "writer_view_field": "presentation_constraints", "draft_quote": "シーンの本文", "detail": "可視の行為を誤ってPOV違反と評価した観察記録"}],
     ],
-    ids=["clean_audit", "editorial_blocker_does_not_replace_coverage"],
+    ids=["clean_audit", "deferred_editorial_quality", "non_waivable_blocker"],
 )
 def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: list[dict[str, str]]) -> None:
     repo = RunRepository(tmp_path)
@@ -227,8 +228,8 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: l
     assert accepted.slots["pnca.scene.contract.series_001.001.001.scene_001"] == scene.artifact_id
 
     workflow = PNCAWorkflow(repository=repo, contract_author=object())
-    if audit_issues:
-        with pytest.raises(RuntimeContractError, match="unresolved blocker audit issues"):
+    if any(issue["severity"] == "blocker" for issue in audit_issues):
+        with pytest.raises(RuntimeContractError, match="unresolved non-waivable audit issues"):
             workflow.write_volume(slug=slug, run=run, volume=1, executor=FakeExecutor(repo, audit_issues=audit_issues))
         assert "pnca.design_bundle.series_001.001" not in repo.load_snapshot(slug, repo.current_snapshot_id(slug)).slots
         return
@@ -241,6 +242,9 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: l
     assert slot.scene_contract_artifact_id == scene.artifact_id
     assert slot.draft_artifact_id
     assert slot.draft_assessment_artifact_id
+    disposition = repo.read_payload(repo.verify_artifact(slot.quality_disposition_artifact_id))
+    assert disposition["status"] == ("deferred" if audit_issues else "clean")
+    assert len(disposition["findings"]) == len(audit_issues)
     frozen = workflow.load_selected_bundle(slug=slug, volume=1)
     assert frozen == bundle
     frozen_snapshot = repo.load_snapshot(slug, repo.current_snapshot_id(slug))

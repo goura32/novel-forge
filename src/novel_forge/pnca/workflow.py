@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from novel_forge.pnca.contracts import (
     AcceptanceCommit,
@@ -15,6 +15,8 @@ from novel_forge.pnca.contracts import (
     DesignBundle,
     DraftAudit,
     FrontierBinding,
+    QualityDisposition,
+    QualityDispositionFinding,
     SceneContract,
     SceneSlot,
     SeriesAcceptanceCommit,
@@ -475,9 +477,17 @@ class PNCAWorkflow:
                 # Hard contract failures (blocker severity) must be resolved before publication:
                 # language_contamination / pov_fact / required_beat / end_constraint cannot ship.
                 # Revise the draft against the audit findings, then re-audit (bounded loop).
-                revise_cycle = 0
+                hard_revise_cycle = 0
+                polish_cycle = 0
                 rerender_cycle = 0
-                while any(issue.severity == "blocker" for issue in audit_payload.issues) and revise_cycle < 2:
+                while (
+                    any(issue.severity == "blocker" for issue in audit_payload.issues) and hard_revise_cycle < 2
+                ) or (
+                    not any(issue.severity == "blocker" for issue in audit_payload.issues)
+                    and any(issue.constraint_kind == "quality" for issue in audit_payload.issues)
+                    and polish_cycle < 1
+                ):
+                    repairing_hard = any(issue.severity == "blocker" for issue in audit_payload.issues)
                     try:
                         revised = renderer.revise(
                             run=run,
@@ -506,7 +516,10 @@ class PNCAWorkflow:
                         rerender_cycle += 1
                     else:
                         draft = revised
-                        revise_cycle += 1
+                        if repairing_hard:
+                            hard_revise_cycle += 1
+                        else:
+                            polish_cycle += 1
                     audit = renderer.audit(
                         run=run,
                         scene_contract_artifact_id=scene_ref.artifact_id,
@@ -518,12 +531,46 @@ class PNCAWorkflow:
                     )
                     audit_payload = DraftAudit.model_validate(self.repository.read_payload(audit))
                 blockers = [issue for issue in audit_payload.issues if issue.severity == "blocker"]
-                if blockers:
-                    fields = ", ".join(sorted({f"{issue.constraint_kind}:{issue.writer_view_field}" for issue in blockers}))
+                non_editorial = [issue for issue in audit_payload.issues if issue.constraint_kind != "quality"]
+                if blockers or non_editorial:
+                    fields = ", ".join(
+                        sorted({f"{issue.constraint_kind}:{issue.writer_view_field}" for issue in blockers or non_editorial})
+                    )
                     raise RuntimeContractError(
-                        f"unresolved blocker audit issues after {revise_cycle} revision attempts "
+                        f"unresolved non-waivable audit issues after {hard_revise_cycle} hard revision attempts "
                         f"for {scope_id}: {fields}"
                     )
+                findings = tuple(
+                    QualityDispositionFinding(
+                        review_artifact_id=audit.artifact_id,
+                        issue_index=index,
+                        severity=cast(Literal["major", "minor"], issue.severity),
+                        constraint_kind=cast(Literal["quality"], issue.constraint_kind),
+                        writer_view_field=issue.writer_view_field,
+                        draft_quote=issue.draft_quote,
+                        detail=issue.detail,
+                    )
+                    for index, issue in enumerate(audit_payload.issues)
+                )
+                disposition = QualityDisposition(
+                    scope_id=scope_id,
+                    phase="write",
+                    subject_artifact_id=draft.artifact_id,
+                    review_artifact_ids=(audit.artifact_id,),
+                    status="deferred" if findings else "clean",
+                    findings=findings,
+                )
+                disposition_attempt = self.repository.start_attempt(
+                    run, task_id="pnca.quality.disposition", phase="write", reason="record final quality disposition"
+                )
+                disposition_ref = self.repository.commit_artifact(
+                    disposition_attempt,
+                    artifact_type="pnca.quality_disposition",
+                    logical_key=f"pnca.quality_disposition.{scope_id}",
+                    payload=disposition.model_dump(mode="json"),
+                    payload_name="quality_disposition.json",
+                    input_artifact_ids=(scene_ref.artifact_id, rendered.writer_view.artifact_id, draft.artifact_id, audit.artifact_id),
+                )
                 slots.append(
                     BundleSlotRecord(
                         volume_ordinal=volume,
@@ -534,6 +581,7 @@ class PNCAWorkflow:
                         writer_view_artifact_id=rendered.writer_view.artifact_id,
                         draft_artifact_id=draft.artifact_id,
                         draft_assessment_artifact_id=audit.artifact_id,
+                        quality_disposition_artifact_id=disposition_ref.artifact_id,
                         output_frontier_artifact_id=scene_contract.frontier_binding.frontier_artifact_id,
                     )
                 )
@@ -559,6 +607,7 @@ class PNCAWorkflow:
                             slot.writer_view_artifact_id,
                             slot.draft_artifact_id,
                             slot.draft_assessment_artifact_id,
+                            slot.quality_disposition_artifact_id,
                             slot.output_frontier_artifact_id,
                         )
                     }

@@ -59,6 +59,21 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
         payload={"issues": []},
         input_artifact_ids=(contract.artifact_id, view.artifact_id, draft.artifact_id),
     )
+    disposition = _artifact(
+        repo,
+        run,
+        artifact_type="pnca.quality_disposition",
+        logical_key="pnca.quality_disposition.s1",
+        payload={
+            "scope_id": "series_001.volume.001.scene_001",
+            "phase": "write",
+            "subject_artifact_id": draft.artifact_id,
+            "review_artifact_ids": [assessment.artifact_id],
+            "status": "clean",
+            "findings": [],
+        },
+        input_artifact_ids=(contract.artifact_id, view.artifact_id, draft.artifact_id, assessment.artifact_id),
+    )
     bundle = DesignBundle(
         bundle_id="bundle_001",
         slots=(
@@ -71,6 +86,7 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
                 writer_view_artifact_id=view.artifact_id,
                 draft_artifact_id=draft.artifact_id,
                 draft_assessment_artifact_id=assessment.artifact_id,
+                quality_disposition_artifact_id=disposition.artifact_id,
                 output_frontier_artifact_id=frontier.artifact_id,
             ),
         ),
@@ -86,6 +102,7 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
         view.artifact_id,
         draft.artifact_id,
         assessment.artifact_id,
+        disposition.artifact_id,
         frontier.artifact_id,
     }
 
@@ -128,6 +145,21 @@ def test_export_rejects_blocker_audit_and_missing_output_frontier(tmp_path) -> N
         payload={"issues": [{"severity": "blocker", "detail": "本文長不足"}]},
         input_artifact_ids=(contract.artifact_id, view.artifact_id, draft.artifact_id),
     )
+    disposition = _artifact(
+        repo,
+        run,
+        artifact_type="pnca.quality_disposition",
+        logical_key="pnca.quality_disposition.s1",
+        payload={
+            "scope_id": "series_001.volume.001.scene_001",
+            "phase": "write",
+            "subject_artifact_id": draft.artifact_id,
+            "review_artifact_ids": [assessment.artifact_id],
+            "status": "clean",
+            "findings": [],
+        },
+        input_artifact_ids=(contract.artifact_id, view.artifact_id, draft.artifact_id, assessment.artifact_id),
+    )
     bundle = DesignBundle(
         bundle_id="bundle_001",
         slots=(
@@ -140,6 +172,7 @@ def test_export_rejects_blocker_audit_and_missing_output_frontier(tmp_path) -> N
                 writer_view_artifact_id=view.artifact_id,
                 draft_artifact_id=draft.artifact_id,
                 draft_assessment_artifact_id=assessment.artifact_id,
+                quality_disposition_artifact_id=disposition.artifact_id,
                 output_frontier_artifact_id=frontier.artifact_id,
             ),
         ),

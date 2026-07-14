@@ -442,6 +442,50 @@ class DraftCoverage(BaseModel):
     evidence: tuple[DraftObligationEvidence, ...]
 
 
+class QualityDispositionFinding(BaseModel):
+    """One residual review finding carried forward as editorial debt only."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    review_artifact_id: str = Field(min_length=1)
+    issue_index: int = Field(ge=0)
+    severity: Literal["major", "minor"]
+    constraint_kind: Literal["quality"]
+    writer_view_field: str = Field(min_length=1)
+    draft_quote: str = Field(min_length=1)
+    detail: str = Field(min_length=1)
+
+
+class QualityDisposition(BaseModel):
+    """Immutable progression decision for one phase candidate.
+
+    Only editorial quality findings may be deferred. Structural, provenance,
+    continuity, Canon, and reader-blocking failures are never representable as
+    a deferred disposition.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope_id: str = Field(min_length=1)
+    phase: Literal["plan", "design", "write", "export"]
+    subject_artifact_id: str = Field(min_length=1)
+    review_artifact_ids: tuple[str, ...]
+    status: Literal["clean", "deferred"]
+    findings: tuple[QualityDispositionFinding, ...] = ()
+
+    @model_validator(mode="after")
+    def _status_matches_findings(self) -> QualityDisposition:
+        if not self.review_artifact_ids:
+            raise ValueError("QualityDisposition requires review evidence")
+        if self.status == "clean" and self.findings:
+            raise ValueError("clean QualityDisposition must not contain deferred findings")
+        if self.status == "deferred" and not self.findings:
+            raise ValueError("deferred QualityDisposition requires editorial findings")
+        if any(finding.review_artifact_id not in self.review_artifact_ids for finding in self.findings):
+            raise ValueError("deferred finding must reference disposition review evidence")
+        return self
+
+
 class DraftAuditIssue(BaseModel):
     """A grounded finding against one rendered scene."""
 
@@ -480,6 +524,7 @@ class BundleSlotRecord(BaseModel):
     writer_view_artifact_id: str = Field(min_length=1)
     draft_artifact_id: str = Field(min_length=1)
     draft_assessment_artifact_id: str = Field(min_length=1)
+    quality_disposition_artifact_id: str = Field(min_length=1)
     output_frontier_artifact_id: str = Field(min_length=1)
 
 
