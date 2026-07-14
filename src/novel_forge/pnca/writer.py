@@ -37,10 +37,13 @@ def _validate_draft_coverage(*, view: WriterView, content: str, payload: object,
     if isinstance(payload, dict):
         evidence = payload.get("evidence")
         if isinstance(evidence, list):
-            for idx, item in enumerate(evidence):
+            beat_seq = 0
+            for item in evidence:
                 if isinstance(item, dict):
-                    if item.get("beat_index") is None:
-                        item["beat_index"] = idx
+                    if item.get("obligation") == "required_beat":
+                        if item.get("beat_index") is None:
+                            item["beat_index"] = beat_seq
+                        beat_seq += 1
                     if item.get("draft_quote") is None:
                         item["draft_quote"] = ""
     try:
