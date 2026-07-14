@@ -32,7 +32,14 @@ def _validate_draft_coverage(*, view: WriterView, content: str, payload: object)
         raise PNCAStructuralError("PNCA render coverage must prove the end_constraint exactly once when present")
     if len(coverage.evidence) != len(required_indexes) + end_count:
         raise PNCAStructuralError("PNCA render coverage must not duplicate obligations")
-    if any(item.draft_quote not in content for item in coverage.evidence):
+    _punct = "　 \u3000。、，！？「」『』（）()：:；;\n\r\t"
+    def _norm(text: str) -> str:
+        return "".join(ch for ch in text if ch not in _punct)
+    missing = [
+        item for item in coverage.evidence
+        if _norm(item.draft_quote) not in _norm(content)
+    ]
+    if missing:
         raise PNCAStructuralError("PNCA render coverage quotes must occur verbatim in the draft")
     return coverage
 
