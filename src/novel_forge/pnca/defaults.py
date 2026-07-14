@@ -163,6 +163,7 @@ def default_pnca_task_registry() -> PNCATaskRegistry:
                 input_bindings=(
                     InputBinding(role="writer.view", variable="writer_view"),
                     InputBinding(role="scene.draft", variable="draft"),
+                    InputBinding(role="render.coverage", variable="protected_coverage"),
                     InputBinding(role="draft.audit", variable="issues"),
                 ),
                 output=ArtifactSpec(role="scene.draft.revised", artifact_type="pnca.scene_draft", logical_key_template="pnca.scene_draft.revised.{scope_id}"),

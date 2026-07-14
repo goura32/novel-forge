@@ -32,6 +32,11 @@ WriterViewを唯一の本文 authority とし、入力された草稿を audit i
 ### Current draft
 {draft}
 
+### Protected render coverage (immutable)
+{protected_coverage}
+
+The quoted `draft_quote` strings in this coverage are protected verbatim text. Preserve every one in `content` unless an audit issue explicitly quotes that exact text.
+
 ### Audit issues
 {issues}
 

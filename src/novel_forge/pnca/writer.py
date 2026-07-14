@@ -261,9 +261,16 @@ class PNCARenderer:
         self, *, run: RunHandle, writer_view: WriterView, writer_view_artifact_id: str,
         draft: ArtifactReference, audit: ArtifactReference, executor: PNCATaskExecutor, scope_id: str
     ) -> ArtifactReference:
+        original_payload = self.repository.read_payload(draft)
+        original_coverage = original_payload.get("coverage") if isinstance(original_payload, dict) else None
         result = executor.execute(
             task_id="pnca.scene.revise",
-            artifacts={"writer.view": writer_view.model_dump(mode="json"), "scene.draft": self.repository.read_payload(draft), "draft.audit": self.repository.read_payload(audit)},
+            artifacts={
+                "writer.view": writer_view.model_dump(mode="json"),
+                "scene.draft": original_payload,
+                "render.coverage": original_coverage,
+                "draft.audit": self.repository.read_payload(audit),
+            },
             input_artifact_ids=(writer_view_artifact_id, draft.artifact_id, audit.artifact_id), scope_id=scope_id,
         )
         content = result.get("content") if isinstance(result, dict) else None
@@ -271,8 +278,6 @@ class PNCARenderer:
             raise PNCAStructuralError("PNCA revision output requires non-empty content")
         # Coverage originates only from the render gate.  A revised draft may not
         # retain a stale quote: validate the inherited proof against the new content.
-        original_payload = self.repository.read_payload(draft)
-        original_coverage = original_payload.get("coverage") if isinstance(original_payload, dict) else None
         coverage = _validate_draft_coverage(view=writer_view, content=content, payload=original_coverage)
         attempt = self.repository.start_attempt(run, task_id="pnca.scene.revise", phase="write", reason="resolve draft audit issues")
         return self.repository.commit_artifact(
