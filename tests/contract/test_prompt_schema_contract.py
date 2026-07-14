@@ -89,6 +89,13 @@ def test_scene_contract_prompt_requires_object_writer_view_fields() -> None:
     assert "過去巻・別slot・入力にない allowance IDを推測してはならない" in text
 
 
+def test_volume_contract_prompt_forbids_nonterminal_resolution() -> None:
+    text = (PROMPTS_DIR / "pnca_volume_contract.md").read_text(encoding="utf-8")
+
+    assert "最終巻以外では、Series Contractの`final_resolution`を実現・解決・完結させてはならない" in text
+    assert "最終巻以外の`reader_pull`に「終巻」「完結」「最終決着」を書いてはならない" in text
+
+
 def test_all_task_prompts_have_schema_placeholder() -> None:
     prompt_paths = [p for p in PROMPTS_DIR.glob("*.md") if p.name != "system.md"]
 

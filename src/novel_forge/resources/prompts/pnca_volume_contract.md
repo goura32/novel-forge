@@ -14,6 +14,8 @@
 - `volume_ordinal` は入力 request の `volume_ordinal` と完全一致させる。
 - parent の同じ ordinal の `volume_purposes` を、その巻が担う唯一の目的として守る。
 - `purpose` は parent の同じ ordinal の `volume_purposes[].purpose` を一字も変えずにそのまま出力する。この値は後続の Chapter / Scene に渡される達成責務である。
+- 最終巻以外では、Series Contractの`final_resolution`を実現・解決・完結させてはならない。選択された`purpose`が担う段階までだけを進め、後続巻の目的を先取りしない。
+- 最終巻以外の`reader_pull`に「終巻」「完結」「最終決着」を書いてはならない。reader pullは次の章または後続巻へ進む未解決の問い・選択・発見にする。
 - `chapter_plans` はrequestの章数範囲内で巻内の章ごとに一件ずつ作る。各章で`chapter_purpose`、`relationship_shift`、`reader_pull`を具体化し、同じ逡巡・同じ危機・同じ引きを繰り返さない。scene数は2〜5から選ぶ。2は余韻・静かな近接・短い発見、3〜4は標準的な変化、5は複数の不可逆変化が連鎖する大転換だけに使い、5 scenesの章は巻内で最大2章にする。全章のscene数合計もrequestの巻budget内に収める。対立だけで連打せず、近接・安心・発見・選択を緩急として配分する。
 - `admission_allowances` は、この巻で追加が必要な補助 entity に限定する。不要なら空配列にする。
 - chapter 構成、scene beats、scene-level Canon patch、本文は出力しない。
