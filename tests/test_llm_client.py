@@ -192,6 +192,17 @@ class TestCompleteJsonTransport:
 # ── complete_json — payload structure ──────────────────────────────────
 
 
+class TestThinkConfiguration:
+    def test_think_true_does_not_emit_a_warning(self) -> None:
+        with patch("novel_forge.llm_client.console.print") as print_mock:
+            LLMClient(
+                api_url="http://localhost:11434/api/chat",
+                ollama_options={"think": True},
+            )
+
+        print_mock.assert_not_called()
+
+
 class TestCompleteJsonPayload:
     def test_payload_contains_required_fields(self):
         """Payload should contain model, messages, format, think, options."""

@@ -141,12 +141,6 @@ class LLMClient:
         self._current_kind: str = ""
         self._call_sequence: int = 0
 
-        if self._ollama_options.get("think", False):
-            console.print(
-                "[yellow]⚠ think=True is enabled — qwen3.6 thinking models may return empty "
-                "content with format='json'. Consider think=False for production use.[/yellow]"
-            )
-
     def set_retry_seed(self, seed: int) -> None:
         """Set the Ollama seed for a deterministic contract retry attempt."""
         self._ollama_options["seed"] = seed
