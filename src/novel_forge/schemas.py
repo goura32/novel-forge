@@ -86,30 +86,41 @@ def coerce_array_fields(data: dict, schema: dict) -> dict:
 
 
 def _coerce_audit_issues(data: dict, schema: dict) -> dict:
-    """Drop malformed non-object elements from audit-style ``issues`` arrays.
+    """Drop malformed elements from object-typed array fields (e.g. audit/review issues).
 
-    Local LLMs occasionally emit stray empty strings (e.g. ``{"issues": ["", {...}]}``)
-    inside an array whose items must be objects. jsonschema rejects the whole payload
-    and aborts the run, so we sanitize elements that cannot satisfy an object-typed
-    item schema before validation.
+    Local LLMs occasionally emit stray empty strings (``{"issues": ["", {...}]}``) or
+    partial objects missing required properties (``{"issues": [{...no 'suggestion'...}]}``)
+    inside an array whose items must be objects. jsonschema rejects the whole payload and
+    aborts the run, so we sanitize elements that cannot satisfy the item schema before
+    validation. Elements missing any of the item schema's ``required`` properties are
+    dropped (with a warning) rather than crashing the pipeline.
     """
     if not isinstance(data, dict) or not isinstance(schema, dict):
         return data
     for key, prop_schema in schema.get("properties", {}).items():
         if key not in data:
             continue
-        item_schema = prop_schema.get("items", {}) if isinstance(prop_schema, dict) else {}
+        if not isinstance(prop_schema, dict):
+            continue
+        item_schema = prop_schema.get("items", {})
         is_object_array = (
             prop_schema.get("type") == "array"
             and isinstance(item_schema, dict)
             and item_schema.get("type") == "object"
         )
         if is_object_array and isinstance(data[key], list):
-            cleaned = [el for el in data[key] if isinstance(el, dict) and el]
-            if len(cleaned) != len(data[key]):
+            required = set(item_schema.get("required", []))
+            cleaned = []
+            dropped = 0
+            for el in data[key]:
+                if isinstance(el, dict) and el and (not required or required.issubset(el.keys())):
+                    cleaned.append(el)
+                else:
+                    dropped += 1
+            if dropped:
                 _log.warning(
-                    "Sanitized %d malformed non-object element(s) from array field '%s'",
-                    len(data[key]) - len(cleaned),
+                    "Sanitized %d malformed element(s) from array field '%s'",
+                    dropped,
                     key,
                 )
                 data[key] = cleaned
