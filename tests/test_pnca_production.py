@@ -6,7 +6,7 @@ from contextlib import suppress
 import pytest
 
 from novel_forge.llm_client import LLMTransportError, SchemaValidationError
-from novel_forge.pnca.contracts import ChapterContract, SceneSlot, SeriesContractProposal
+from novel_forge.pnca.contracts import ChapterContract, SeriesContractProposal
 from novel_forge.pnca.defaults import default_pnca_task_registry
 from novel_forge.pnca.production import (
     make_pnca_task_executor,
@@ -17,6 +17,7 @@ from novel_forge.pnca.production import (
 )
 from novel_forge.pnca.progression import expected_terminal_scene
 from novel_forge.runtime import RunRepository
+from tests.pnca_fixtures import chapter_plan, scene_slot
 
 
 def test_stage_series_request_persists_only_cli_intent_as_an_artifact(tmp_path) -> None:
@@ -116,9 +117,10 @@ def test_terminal_scene_role_is_derived_from_final_slot_of_terminal_volume() -> 
         parent_volume_contract_id="volume_003",
         chapter_ordinal=1,
         is_terminal_volume=True,
+        chapter_plan=chapter_plan(scene_count=2),
         scene_slots=(
-            SceneSlot(slot_id="scene_001", ordinal=1),
-            SceneSlot(slot_id="scene_002", ordinal=2),
+            scene_slot("scene_001", 1),
+            scene_slot("scene_002", 2),
         ),
     )
 

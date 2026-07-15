@@ -7,12 +7,12 @@ from novel_forge.pnca.contracts import (
     ChapterContract,
     FrontierBinding,
     SceneContract,
-    SceneSlot,
     VolumeContract,
 )
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.scene_preparation import PNCASceneStructurePreparer
 from novel_forge.runtime import RunRepository
+from tests.pnca_fixtures import chapter_plan, scene_slot, writer_view
 
 
 def _artifact(
@@ -35,7 +35,7 @@ def _artifact(
     )
 
 
-def test_prepare_non_mutating_scene_structure_pins_all_deterministic_roles(tmp_path: Path) -> None:
+def test_prepare_mutating_scene_structure_pins_all_deterministic_roles(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     root_run = repo.create_run(command="plan", model="fake", verbose=False)
     seed = _artifact(repo, root_run, artifact_type="canon.seed", logical_key="canon.seed", payload={"seed": True})
@@ -80,7 +80,7 @@ def test_prepare_non_mutating_scene_structure_pins_all_deterministic_roles(tmp_p
         contract_id="chapter_001",
         parent_volume_contract_id=volume_contract.contract_id,
         chapter_ordinal=1,
-        scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+        chapter_plan=chapter_plan(), scene_slots=(scene_slot(),),
     )
     chapter = _artifact(
         repo,
@@ -102,7 +102,13 @@ def test_prepare_non_mutating_scene_structure_pins_all_deterministic_roles(tmp_p
         contract_id="scene_contract_001",
         slot_id="scene_001",
         frontier_binding=binding,
-        canon_effect="none",
+        canon_effect="mutates",
+        canon_patch={
+            "entity_id": "character_lina", "state_key": "knowledge", "prior_value": "未確認",
+            "new_value": "確認済み", "cause_beat_index": 0,
+            "observable_consequence": "塔の扉の印を確認する",
+        },
+        writer_view=writer_view(),
     )
     scene = _artifact(
         repo,
@@ -123,7 +129,8 @@ def test_prepare_non_mutating_scene_structure_pins_all_deterministic_roles(tmp_p
         parent_volume=AuthoredContract(artifact=volume, contract=volume_contract),
     )
 
-    assert prepared.frontier_output.artifact_id == frontier.artifact_id
+    assert prepared.frontier_output.artifact_id != frontier.artifact_id
+    assert prepared.frontier_output.manifest.parent_frontier_artifact_id == frontier.artifact_id
     assert set(prepared.role_artifact_ids) == {
         "scene.contract",
         "parent.requirement_ledger",

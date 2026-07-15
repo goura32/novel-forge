@@ -49,6 +49,26 @@ def _binding() -> FrontierBinding:
     )
 
 
+def _mandate() -> dict[str, str]:
+    return {
+        "start_state": "呪いの手がかりは未確認",
+        "required_transition": "窓辺の痕跡を確かめる",
+        "end_state": "痕跡を確認して次の判断へ進む",
+        "relationship_contribution": "二人が危険を共有する",
+        "prohibited_repetition": "同じ手がかりを調べ直す",
+    }
+
+
+def _view() -> WriterView:
+    return WriterView(
+        start_context={"pov": "凛花", "location": "北廊下", "observable_start_state": "冷気が窓から流れる"},
+        narrative_contract={"goal": "呪いを調べる", "progression": "手がかりを確かめる", "obstacle": "侍従が妨げる", "remaining_uncertainty": "原因は未確定"},
+        end_constraints={"pov": "凛花", "final_state": "窓辺の痕跡を確認する"},
+        presentation_constraints={"pov": "凛花", "tone": "抑制的"},
+        required_beats=({"description": "凛花が窓を閉める"},),
+    )
+
+
 def _ledger() -> ParentRequirementLedger:
     return ParentRequirementLedger(
         owner_contract_id="chapter_001",
@@ -71,8 +91,8 @@ def _ledger() -> ParentRequirementLedger:
 
 def _slots() -> tuple[SceneSlot, ...]:
     return (
-        SceneSlot(slot_id="scene_001", ordinal=1, allowed_admission_allowance_ids=("allow_support",)),
-        SceneSlot(slot_id="scene_002", ordinal=2),
+        SceneSlot(slot_id="scene_001", ordinal=1, mandate=_mandate(), allowed_admission_allowance_ids=("allow_support",)),
+        SceneSlot(slot_id="scene_002", ordinal=2, mandate=_mandate()),
     )
 
 
@@ -94,21 +114,21 @@ def test_scene_proposal_rejects_pov_character_alias_in_writer_view() -> None:
             contract_id="scene_001_proposal",
             canon_effect="none",
             writer_view=WriterView(
-                start_context={"pov_character": "凛花"},
-                narrative_contract={"goal": "朔夜の反応を観察する"},
-                end_constraints={"pov_character": "凛花"},
-                presentation_constraints={"pov_character": "凛花", "tone": "抑制的"},
-                required_beats=("凛花が朔夜の指先の震えを見る",),
+                start_context={"pov": "凛花", "location": "回廊", "observable_start_state": "朔夜が窓を見る"},
+                narrative_contract={"goal": "朔夜の反応を観察する", "progression": "震えを見つける", "obstacle": "距離がある", "remaining_uncertainty": "理由は不明"},
+                end_constraints={"pov": "凛花", "final_state": "震えを確認する"},
+                presentation_constraints={"pov": "朔夜", "tone": "抑制的"},
+                required_beats=({"description": "凛花が朔夜の指先の震えを見る"},),
             ),
         )
 
 
 def test_writer_view_exposes_required_observable_beats_to_the_writer() -> None:
     view = WriterView(
-        start_context={"pov": "リナ"},
-        narrative_contract={"goal": "鍵を探す"},
-        end_constraints={"location": "塔"},
-        presentation_constraints={"pov": "三人称"},
+        start_context={"pov": "リナ", "location": "塔", "observable_start_state": "鍵穴が見える"},
+        narrative_contract={"goal": "鍵を探す", "progression": "鍵穴を調べる", "obstacle": "扉が固い", "remaining_uncertainty": "鍵の所在"},
+        end_constraints={"pov": "リナ", "final_state": "鍵穴に手を伸ばす"},
+        presentation_constraints={"pov": "リナ", "tone": "三人称"},
         required_beats=({"description": "リナが鍵穴に手を伸ばす"},),
     )
 
@@ -196,10 +216,19 @@ def test_quality_disposition_rejects_deferred_hard_contract_finding() -> None:
         )
 
 
-def test_writer_view_preserves_string_beats_when_provider_uses_compact_form() -> None:
-    view = WriterView(required_beats=("リナが鍵穴に手を伸ばす",))
+def test_writer_view_preserves_canonical_description_beats() -> None:
+    view = _view()
 
-    assert view.required_beats == ("リナが鍵穴に手を伸ばす",)
+    assert view.required_beats[0].description == "凛花が窓を閉める"
+
+    with pytest.raises(ValidationError, match="description"):
+        WriterView(
+            start_context={"pov": "凛花", "location": "北廊下", "observable_start_state": "冷気が窓から流れる"},
+            narrative_contract={"goal": "呪いを調べる", "progression": "手がかりを確かめる", "obstacle": "侍従が妨げる", "remaining_uncertainty": "原因は未確定"},
+            end_constraints={"pov": "凛花", "final_state": "窓辺の痕跡を確認する"},
+            presentation_constraints={"pov": "凛花", "tone": "抑制的"},
+            required_beats=({"beat": "旧aliasを通してはならない"},),
+        )
 
     with pytest.raises(PNCAStructuralError, match="forbidden writer input"):
         validate_writer_view(
@@ -214,7 +243,8 @@ def test_no_effect_scene_rejects_any_patch() -> None:
             slot_id="scene_001",
             frontier_binding=_binding(),
             canon_effect="none",
-            canon_patch={"characters": {"state_updates": [{"id": "char_001"}]}},
+            canon_patch={"entity_id": "character_001", "state_key": "status", "prior_value": "before", "new_value": "after", "cause_beat_index": 0, "observable_consequence": "変化が見える"},
+            writer_view=_view(),
         )
 
 
@@ -225,7 +255,7 @@ def test_mutating_scene_requires_a_nonempty_patch() -> None:
             slot_id="scene_001",
             frontier_binding=_binding(),
             canon_effect="mutates",
-            canon_patch={},
+            writer_view=_view(),
         )
 
 
@@ -236,6 +266,60 @@ def test_frontier_binding_rejects_blank_identity_fields() -> None:
             frontier_artifact_id="",
             frontier_digest="sha256:frontier-parent",
             lineage_root_digest="sha256:seed",
+        )
+
+
+def test_writer_view_rejects_missing_causal_scene_boundaries() -> None:
+    with pytest.raises(ValidationError, match="location"):
+        WriterView(
+            start_context={"pov": "凛花"},
+            narrative_contract={"goal": "呪いを調べる"},
+            end_constraints={"pov": "凛花"},
+            presentation_constraints={"pov": "凛花", "tone": "抑制的"},
+            required_beats=({"description": "凛花が窓を閉める"},),
+        )
+
+
+def test_scene_proposal_rejects_mutation_without_prior_state_cause_and_consequence() -> None:
+    with pytest.raises(ValidationError, match="prior_value"):
+        SceneContractProposal(
+            contract_id="scene_contract_001",
+            canon_effect="mutates",
+            canon_patch={"entity_id": "character_prince", "state_key": "curse"},
+            writer_view=WriterView(
+                start_context={"pov": "凛花", "location": "北廊下", "observable_start_state": "冷気が窓から流れる"},
+                narrative_contract={"goal": "呪いの条件を調べる", "progression": "調査を進める", "obstacle": "侍従が妨害する", "remaining_uncertainty": "原因は未確定"},
+                end_constraints={"pov": "凛花", "final_state": "窓を閉めた後の手首の色を確認する"},
+                presentation_constraints={"pov": "凛花", "tone": "抑制的"},
+                required_beats=({"description": "凛花が窓を閉める"},),
+            ),
+        )
+
+
+def test_scene_slot_requires_immutable_mandate_to_prevent_repeated_investigation() -> None:
+    with pytest.raises(ValidationError, match="mandate"):
+        SceneSlot(slot_id="scene_001", ordinal=1)
+
+
+def test_scene_structure_rejects_mutation_cause_outside_required_beats() -> None:
+    contract = SceneContract(
+        contract_id="scene_contract_001",
+        slot_id="scene_001",
+        frontier_binding=_binding(),
+        canon_effect="mutates",
+        canon_patch={
+            "entity_id": "character_prince", "state_key": "curse", "prior_value": "未確認",
+            "new_value": "確認済み", "cause_beat_index": 1,
+            "observable_consequence": "手首の痕が濃くなる",
+        },
+        writer_view=_view(),
+    )
+
+    with pytest.raises(PNCAStructuralError, match="cause_beat_index"):
+        validate_scene_structure(
+            contract=contract,
+            parent_ledger=ParentRequirementLedger(owner_contract_id="chapter_001", requirements=()),
+            scene_slots=_slots(), admission_allowances=(), consumed_admissions=(),
         )
 
 
@@ -257,6 +341,7 @@ def test_deferred_requirement_must_name_its_predeclared_later_slot() -> None:
         slot_id="scene_001",
         frontier_binding=_binding(),
         canon_effect="none",
+        writer_view=_view(),
         requirement_dispositions=(
             RequirementDisposition(
                 requirement_id="req_reveal",
@@ -282,6 +367,7 @@ def test_scene_rejects_unapproved_supporting_entity_admission() -> None:
         slot_id="scene_001",
         frontier_binding=_binding(),
         canon_effect="none",
+        writer_view=_view(),
         admission_consumptions=(
             AdmissionConsumption(
                 allowance_id="allow_unknown",
@@ -313,6 +399,7 @@ def test_scene_rejects_duplicate_admission_consumption_across_selected_slots() -
         slot_id="scene_001",
         frontier_binding=_binding(),
         canon_effect="none",
+        writer_view=_view(),
         admission_consumptions=(
             AdmissionConsumption(
                 allowance_id="allow_support",
@@ -338,6 +425,7 @@ def test_scene_rejects_duplicate_requirement_disposition() -> None:
         slot_id="scene_001",
         frontier_binding=_binding(),
         canon_effect="none",
+        writer_view=_view(),
         requirement_dispositions=(
             RequirementDisposition(requirement_id="req_entry", disposition="implemented"),
             RequirementDisposition(requirement_id="req_entry", disposition="preserved"),
@@ -362,7 +450,8 @@ def test_chapter_contract_rejects_scene_count_outside_pinned_range() -> None:
             chapter_ordinal=1,
             min_scene_slots=2,
             max_scene_slots=3,
-            scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+            chapter_plan=ChapterPlan(ordinal=1, chapter_purpose="試験", relationship_shift="変化", reader_pull="問い", scene_count=1),
+            scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1, mandate=_mandate()),),
         )
 
 
@@ -440,9 +529,10 @@ def test_progressive_contracts_preserve_parent_identity_and_slot_topology() -> N
             contract_id="chapter_001",
             parent_volume_contract_id=volume.contract_id,
             chapter_ordinal=1,
+            chapter_plan=ChapterPlan(ordinal=1, chapter_purpose="試験", relationship_shift="変化", reader_pull="問い", scene_count=2),
             scene_slots=(
-                SceneSlot(slot_id="scene_002", ordinal=2),
-                SceneSlot(slot_id="scene_001", ordinal=1),
+                SceneSlot(slot_id="scene_002", ordinal=2, mandate=_mandate()),
+                SceneSlot(slot_id="scene_001", ordinal=1, mandate=_mandate()),
             ),
         )
 

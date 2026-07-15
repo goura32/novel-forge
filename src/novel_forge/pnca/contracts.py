@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RequirementCardinality = Literal["exactly_once", "one_or_more", "preserve_until"]
 RequirementDispositionKind = Literal["implemented", "preserved", "deferred"]
@@ -92,18 +92,69 @@ class AdmissionConsumption(BaseModel):
     kind: Literal["character", "location", "artifact", "organization"] | None = None
 
 
+class SceneMandate(BaseModel):
+    """One Chapter-owned state transition that only its allocated slot may realize."""
+
+    start_state: str = Field(min_length=1)
+    required_transition: str = Field(min_length=1)
+    end_state: str = Field(min_length=1)
+    relationship_contribution: str = Field(min_length=1)
+    prohibited_repetition: str = Field(min_length=1)
+
+
 class SceneSlot(BaseModel):
     """One ordered placement allocated by an accepted Chapter Contract."""
 
     slot_id: str = Field(min_length=1)
     ordinal: int = Field(ge=1)
+    mandate: SceneMandate
     allowed_admission_allowance_ids: tuple[str, ...] = ()
 
 
 class SceneBeat(BaseModel):
     """One ordered, POV-observable beat that a scene prose draft must realize."""
 
-    description: str = Field(min_length=1, validation_alias=AliasChoices("description", "beat"))
+    description: str = Field(min_length=1)
+
+
+class StartContext(BaseModel):
+    """Writer-visible opening facts for one executable scene."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pov: str = Field(min_length=1)
+    location: str = Field(min_length=1)
+    observable_start_state: str = Field(min_length=1)
+
+
+class NarrativeContract(BaseModel):
+    """Causal scene purpose that must advance one parent-owned mandate."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    goal: str = Field(min_length=1)
+    progression: str = Field(min_length=1)
+    obstacle: str = Field(min_length=1)
+    remaining_uncertainty: str = Field(min_length=1)
+
+
+class EndConstraints(BaseModel):
+    """One POV-observable state reached by the final required beat."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pov: str = Field(min_length=1)
+    final_state: str = Field(min_length=1)
+    series_final_resolution: str | None = Field(default=None, min_length=1)
+
+
+class PresentationConstraints(BaseModel):
+    """Narration constraints that preserve the fixed POV surface."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pov: str = Field(min_length=1)
+    tone: str = Field(min_length=1)
 
 
 class WriterView(BaseModel):
@@ -111,11 +162,30 @@ class WriterView(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    start_context: dict[str, Any] = Field(default_factory=dict)
-    narrative_contract: dict[str, Any] = Field(default_factory=dict)
-    end_constraints: dict[str, Any] = Field(default_factory=dict)
-    presentation_constraints: dict[str, Any] = Field(default_factory=dict)
-    required_beats: tuple[SceneBeat | str, ...] = ()
+    start_context: StartContext
+    narrative_contract: NarrativeContract
+    end_constraints: EndConstraints
+    presentation_constraints: PresentationConstraints
+    required_beats: tuple[SceneBeat, ...] = Field(min_length=1)
+
+
+class CanonMutation(BaseModel):
+    """One evidence-bound, non-ambiguous Canon state transition."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entity_id: str = Field(min_length=1)
+    state_key: str = Field(min_length=1)
+    prior_value: str = Field(min_length=1)
+    new_value: str = Field(min_length=1)
+    cause_beat_index: int = Field(ge=0)
+    observable_consequence: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _must_change_state(self) -> CanonMutation:
+        if self.prior_value == self.new_value:
+            raise ValueError("CanonMutation prior_value and new_value must differ")
+        return self
 
 
 class SceneContract(BaseModel):
@@ -125,8 +195,8 @@ class SceneContract(BaseModel):
     slot_id: str = Field(min_length=1)
     frontier_binding: FrontierBinding
     canon_effect: CanonEffect
-    canon_patch: dict[str, Any] | None = None
-    writer_view: WriterView = Field(default_factory=WriterView)
+    canon_patch: CanonMutation | None = None
+    writer_view: WriterView
     requirement_dispositions: tuple[RequirementDisposition, ...] = ()
     admission_consumptions: tuple[AdmissionConsumption, ...] = ()
 
@@ -142,17 +212,14 @@ class SceneContract(BaseModel):
 def _validate_writer_view_pov(view: WriterView) -> None:
     """Reject writer-facing POV aliases before a Scene Contract is accepted."""
 
-    contexts = {
-        "start_context": view.start_context,
-        "presentation_constraints": view.presentation_constraints,
-        "end_constraints": view.end_constraints,
-    }
+    contexts = (
+        ("start_context", view.start_context.pov),
+        ("presentation_constraints", view.presentation_constraints.pov),
+        ("end_constraints", view.end_constraints.pov),
+    )
     povs: list[str] = []
-    for field_name, context in contexts.items():
-        if "pov_character" in context:
-            raise ValueError(f"{field_name} must use canonical `pov`, not `pov_character`")
-        pov = context.get("pov")
-        if not isinstance(pov, str) or not pov.strip():
+    for field_name, pov in contexts:
+        if not pov.strip():
             raise ValueError(f"{field_name} requires a non-empty canonical `pov`")
         povs.append(pov.strip())
     if len(set(povs)) != 1:
@@ -164,8 +231,8 @@ class SceneContractProposal(BaseModel):
 
     contract_id: str = Field(min_length=1)
     canon_effect: CanonEffect
-    canon_patch: dict[str, Any] | None = None
-    writer_view: WriterView = Field(default_factory=WriterView)
+    canon_patch: CanonMutation | None = None
+    writer_view: WriterView
     requirement_dispositions: tuple[RequirementDisposition, ...] = ()
     admission_consumptions: tuple[AdmissionConsumption, ...] = ()
 
@@ -318,6 +385,7 @@ class ChapterContract(BaseModel):
     contract_id: str = Field(min_length=1)
     parent_volume_contract_id: str = Field(min_length=1)
     chapter_ordinal: int = Field(ge=1)
+    chapter_plan: ChapterPlan
     volume_purpose: str = Field(default="", min_length=0)
     series_final_resolution: str = Field(default="", min_length=0)
     is_terminal_volume: bool = False

@@ -23,6 +23,7 @@ from novel_forge.pnca.registry import (
     TaskSpec,
 )
 from novel_forge.runtime import RunRepository
+from tests.pnca_fixtures import mandate
 
 
 def _executor(outputs, projections: list[dict] | None = None):
@@ -96,8 +97,9 @@ def test_progression_persists_parent_pinned_contract_artifacts(tmp_path) -> None
             "contract_id": "chapter_001",
             "parent_volume_contract_id": "volume_001",
             "chapter_ordinal": 1,
+            "chapter_plan": {"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1},
             "scene_slots": [
-                {"slot_id": "scene_001", "ordinal": 1, "allowed_admission_allowance_ids": ["allow_artifact"]}
+                {"slot_id": "scene_001", "ordinal": 1, "mandate": mandate().model_dump(), "allowed_admission_allowance_ids": ["allow_artifact"]}
             ],
         },
     }
@@ -253,21 +255,22 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
             "contract_id": "chapter_001",
             "parent_volume_contract_id": "volume_001",
             "chapter_ordinal": 1,
+            "chapter_plan": {"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1},
             "scene_slots": [
-                {"slot_id": "scene_001", "ordinal": 1, "allowed_admission_allowance_ids": ["allow_artifact"]}
+                {"slot_id": "scene_001", "ordinal": 1, "mandate": mandate().model_dump(), "allowed_admission_allowance_ids": ["allow_artifact"]}
             ],
         },
         "pnca.scene.contract": {
             "contract_id": "scene_contract_001",
             "slot_id": "provider_wrong_slot",
             "canon_effect": "mutates",
-            "canon_patch": {"scene_progress": "契約を受け入れた"},
+            "canon_patch": {"entity_id": "character_lina", "state_key": "contract", "prior_value": "未署名", "new_value": "署名済み", "cause_beat_index": 0, "observable_consequence": "署名が見える"},
             "writer_view": {
-                "start_context": {"pov": "リナ"},
-                "narrative_contract": {"goal": "契約を受け入れる"},
-                "end_constraints": {"pov": "リナ"},
+                "start_context": {"pov": "リナ", "location": "塔", "observable_start_state": "状況を観察する"},
+                "narrative_contract": {"goal": "契約を受け入れる", "progression": "署名する", "obstacle": "ためらい", "remaining_uncertainty": "代償"},
+                "end_constraints": {"pov": "リナ", "final_state": "状況を確認する", "series_final_resolution": "不正な早期最終解決"},
                 "presentation_constraints": {"pov": "リナ", "tone": "抑制的"},
-                "required_beats": ["リナが契約書に署名する"],
+                "required_beats": [{"description": "リナが契約書に署名する"}],
             },
         },
     }
@@ -275,6 +278,7 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         contract_id="volume_001",
         parent_series_contract_id="series_001",
         volume_ordinal=1,
+        chapter_plans=({"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1},),
         purpose="呪いを解き幸福へ至る",
         admission_allowances=(
             AdmissionAllowance(allowance_id="allow_character", kind="character", max_count=1),
@@ -335,7 +339,8 @@ def test_scene_authoring_requires_parent_slot_and_exact_frontier(tmp_path) -> No
         scene_request.artifact_id,
     )
     assert scene.contract.slot_id == "scene_001"
-    assert scene.contract.writer_view.narrative_contract["parent_volume_purpose"] == "呪いを解き幸福へ至る"
+    assert scene.contract.writer_view.narrative_contract.goal == "契約を受け入れる"
+    assert scene.contract.writer_view.end_constraints.series_final_resolution is None
     assert projections[-1]["admission_allowances"] == [
         {"allowance_id": "allow_artifact", "kind": "artifact", "max_count": 1}
     ]
@@ -370,20 +375,21 @@ def test_scene_admission_kind_is_derived_from_allowance_not_provider_output(tmp_
             "contract_id": "chapter_001",
             "parent_volume_contract_id": "volume_001",
             "chapter_ordinal": 1,
+            "chapter_plan": {"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1},
             "scene_slots": [
-                {"slot_id": "scene_001", "ordinal": 1, "allowed_admission_allowance_ids": ["allow_character"]}
+                {"slot_id": "scene_001", "ordinal": 1, "mandate": mandate().model_dump(), "allowed_admission_allowance_ids": ["allow_character"]}
             ],
         },
         "pnca.scene.contract": {
             "contract_id": "scene_contract_001",
             "canon_effect": "mutates",
-            "canon_patch": {"new_character": "許可された新人物"},
+            "canon_patch": {"entity_id": "character_lina", "state_key": "knowledge", "prior_value": "未対面", "new_value": "対面済み", "cause_beat_index": 0, "observable_consequence": "名乗りを聞く"},
             "writer_view": {
-                "start_context": {"pov": "リナ"},
-                "narrative_contract": {"goal": "新人物と対面する"},
-                "end_constraints": {"pov": "リナ"},
+                "start_context": {"pov": "リナ", "location": "塔", "observable_start_state": "状況を観察する"},
+                "narrative_contract": {"goal": "新人物と対面する", "progression": "名乗りを聞く", "obstacle": "警戒", "remaining_uncertainty": "目的"},
+                "end_constraints": {"pov": "リナ", "final_state": "状況を確認する"},
                 "presentation_constraints": {"pov": "リナ", "tone": "警戒的"},
-                "required_beats": ["リナが新人物の名乗りを聞く"],
+                "required_beats": [{"description": "リナが新人物の名乗りを聞く"}],
             },
             "admission_consumptions": [
                 {"allowance_id": "allow_character", "entity_id": "char_new_001"}
@@ -394,6 +400,7 @@ def test_scene_admission_kind_is_derived_from_allowance_not_provider_output(tmp_
         contract_id="volume_001",
         parent_series_contract_id="series_001",
         volume_ordinal=1,
+        chapter_plans=({"ordinal": 1, "chapter_purpose": "試験章", "relationship_shift": "試験上の変化", "reader_pull": "試験上の問い", "scene_count": 1},),
         purpose="許可された新人物を導入",
         admission_allowances=(
             AdmissionAllowance(allowance_id="allow_character", kind="character", max_count=1),

@@ -2,31 +2,22 @@
 
 ## 目的
 
-入力された Volume Contract と chapter request だけを根拠に、指定章の順序付き Scene slot topology を作る。
+入力 Volume Contract と chapter request から指定章の Scene slot topology を作る。
 
 ## 応答方針
 
-親 Volume Contract の authority を超える章目的、scene beats、Canon 事実、本文を作らない。Scene slot は後続 Scene Contract authoring の配置だけを定義する。
+親 Volume の `chapter_plans` から request ordinal と一致する immutable ChapterPlan が既に選択されている。chapter purpose、relationship shift、reader pull、scene_count を変更・再解釈せず、その scene_count と同数の slot を作る。
 
 ## 実行指示
 
-- `parent_volume_contract_id` は入力 parent の `contract_id` と完全一致させる。
-- `chapter_ordinal` は入力 request の `chapter_ordinal` と完全一致させる。
-- `volume_purpose` は parent の `purpose` を一字も変えずにそのまま出力する。Scene Contract はこの達成責務に直接寄与しなければならない。
-- `scene_slots` は空にせず、`ordinal` を 1 から昇順・重複なしにする。
-- `slot_id` は Chapter 内で一意な stable ID にする。
-- `allowed_admission_allowance_ids` には parent の `admission_allowances` に存在する ID だけを入れる。不要なら空配列にする。
-- scene-level goal / conflict / outcome / beats、Canon patch、writer input、本文は出力しない。
-- 不自然な英語、簡体字、ハングルを混在させず、自然な日本語で書く。
+各 `scene_slots` item は `slot_id`、一意で昇順の `ordinal`、`mandate` を必須にする。mandate は `start_state`、`required_transition`、`end_state`、`relationship_contribution`、`prohibited_repetition` を全て自然な日本語で具体化する。同じ調査、同じ対話、同じ到達状態を別 slot に反復してはならない。scene-level prose、Canon patch、writer view は出力しない。admission allowance ID は親に存在するものだけを使う。
 
 ## 入力情報
 
 ### parent
-
 {parent}
 
 ### request
-
 {request}
 
 ## 出力仕様

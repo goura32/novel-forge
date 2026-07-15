@@ -1,61 +1,22 @@
 {
   "type": "object",
-  "required": [
-    "contract_id",
-    "parent_volume_contract_id",
-    "chapter_ordinal",
-    "volume_purpose",
-    "scene_slots"
-  ],
+  "description": "親 Volume の固定 ChapterPlan を実行する章契約提案。",
+  "required": ["contract_id", "parent_volume_contract_id", "chapter_ordinal", "scene_slots"],
   "properties": {
-    "contract_id": {
-      "type": "string",
-      "description": "この Chapter Contract の stable ID。"
-    },
-    "parent_volume_contract_id": {
-      "type": "string",
-      "description": "入力 parent Volume Contract の contract_id と完全一致する stable ID。"
-    },
-    "chapter_ordinal": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "入力 chapter request の chapter_ordinal と完全一致する章番号。"
-    },
-    "volume_purpose": {
-      "type": "string",
-      "description": "親 Volume Contract の purpose と完全一致する、この章が寄与する巻の達成責務。空文字にはしない。"
-    },
-    "scene_slots": {
-      "type": "array",
-      "description": "この章に順序付きで割り当てる Scene Contract slot。一件以上必要。",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "description": "一つの順序付き Scene slot。slot_id、ordinal、許可された admission allowance ID を含む。",
-        "required": [
-          "slot_id",
-          "ordinal"
-        ],
-        "properties": {
-          "slot_id": {
-            "type": "string",
-            "description": "この Chapter 内で一意な stable scene slot ID。"
-          },
-          "ordinal": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "この Chapter 内で一意かつ昇順の scene 順序。"
-          },
-          "allowed_admission_allowance_ids": {
-            "type": "array",
-            "description": "この scene で使用を許可する parent Volume Contract の admission allowance ID。不要なら空配列。",
-            "items": {
-              "type": "string",
-              "description": "parent Volume Contract に存在する admission allowance ID。"
-            }
-          }
-        }
-      }
-    }
+    "contract_id": {"type": "string", "description": "この Chapter Contract を識別する安定ID。"},
+    "parent_volume_contract_id": {"type": "string", "description": "入力 parent Volume Contract と一致する安定ID。"},
+    "chapter_ordinal": {"type": "integer", "minimum": 1, "description": "親 Volume で選択済み ChapterPlan の章番号。"},
+    "scene_slots": {"type": "array", "minItems": 1, "description": "固定 ChapterPlan の scene_count と一致する順序付き slot 一覧。", "items": {"type": "object", "description": "一つの不変な scene placement と専有 mandate。", "required": ["slot_id", "ordinal", "mandate"], "properties": {
+      "slot_id": {"type": "string", "description": "Chapter 内で一意な安定した scene slot ID。"},
+      "ordinal": {"type": "integer", "minimum": 1, "description": "Chapter 内で一意かつ昇順の scene 順序。"},
+      "allowed_admission_allowance_ids": {"type": "array", "description": "この slot でだけ消費できる親 Volume allowance ID。", "items": {"type": "string", "description": "親 Volume に存在する認可済み allowance ID。"}},
+      "mandate": {"type": "object", "description": "この slot だけが実現する反復不能な場面状態遷移。", "required": ["start_state", "required_transition", "end_state", "relationship_contribution", "prohibited_repetition"], "properties": {
+        "start_state": {"type": "string", "description": "この slot 開始時に成立する具体的な状態。"},
+        "required_transition": {"type": "string", "description": "この slot が必ず実現する不可逆な変化。"},
+        "end_state": {"type": "string", "description": "transition 後に確定する具体的な終了状態。"},
+        "relationship_contribution": {"type": "string", "description": "主人公関係へ加える固有の変化または緊張。"},
+        "prohibited_repetition": {"type": "string", "description": "他 slot と重複して実行してはならない行為や到達。"}
+      }}
+    }}}
   }
 }

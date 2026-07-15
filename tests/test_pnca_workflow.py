@@ -9,13 +9,13 @@ from novel_forge.pnca.contracts import (
     AcceptanceCommit,
     ChapterContract,
     FrontierBinding,
-    SceneSlot,
     SeriesContract,
     VolumePurpose,
 )
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.runtime import RunRepository
+from tests.pnca_fixtures import chapter_plan, scene_slot
 
 
 def test_bootstrap_series_authors_then_selects_pnca_root(tmp_path) -> None:
@@ -89,7 +89,7 @@ def test_accept_chapter_delegates_to_parent_pinned_repository_transaction() -> N
         contract_id="chapter_001",
         parent_volume_contract_id="volume_002",
         chapter_ordinal=1,
-        scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+        chapter_plan=chapter_plan(), scene_slots=(scene_slot(),),
     )
     authored = AuthoredContract(
         artifact=SimpleNamespace(artifact_id="art_chapter"),
@@ -126,7 +126,7 @@ def test_author_scene_delegates_only_pinned_request_and_frontier_inputs() -> Non
             contract_id="chapter_001",
             parent_volume_contract_id="volume_001",
             chapter_ordinal=1,
-            scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+            chapter_plan=chapter_plan(), scene_slots=(scene_slot(),),
         ),
     )
     request = SimpleNamespace(artifact_id="art_request")

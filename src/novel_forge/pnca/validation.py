@@ -104,6 +104,11 @@ def validate_scene_structure(
     current_slot = slot_by_id.get(contract.slot_id)
     if current_slot is None:
         raise PNCAStructuralError(f"SceneContract slot is not allocated: {contract.slot_id}")
+    mutation = contract.canon_patch
+    if mutation is not None and mutation.cause_beat_index >= len(contract.writer_view.required_beats):
+        raise PNCAStructuralError(
+            "CanonMutation cause_beat_index must identify a required writer_view beat"
+        )
 
     requirements = {item.requirement_id: item for item in parent_ledger.requirements}
     disposition_ids = [item.requirement_id for item in contract.requirement_dispositions]

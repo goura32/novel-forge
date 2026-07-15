@@ -13,6 +13,7 @@ from novel_forge.pnca.contracts import (
 )
 from novel_forge.pnca.export import PNCAExporter, _validate_audit_disposition
 from novel_forge.runtime import RunRepository, RuntimeContractError
+from tests.pnca_fixtures import writer_view
 
 
 def _artifact(repo: RunRepository, run, *, artifact_type: str, logical_key: str, payload, **kwargs):
@@ -92,7 +93,7 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
         run,
         artifact_type="pnca.writer_view",
         logical_key="pnca.writer_view.s1",
-        payload={"start_context": {}},
+        payload=writer_view().model_dump(mode="json"),
         input_artifact_ids=(contract.artifact_id,),
         metadata={"scene_contract_digest": contract.manifest.content_digest},
     )
@@ -101,7 +102,7 @@ def test_strict_export_uses_only_frozen_bundle_records(tmp_path) -> None:
         run,
         artifact_type="pnca.scene_draft",
         logical_key="pnca.scene_draft.s1",
-        payload={"content": "リナは塔へ向かった。", "coverage": {"evidence": []}},
+        payload={"content": "リナは塔へ向かった。", "coverage": {"evidence": [{"obligation": "required_beat", "beat_index": 0, "draft_quote": "リナは塔へ向かった。"}, {"obligation": "end_constraint", "draft_quote": "リナは塔へ向かった。"}]}},
         input_artifact_ids=(view.artifact_id,),
     )
     assessment = _artifact(
@@ -184,7 +185,7 @@ def test_export_rejects_schema_valid_nonwaivable_audit_even_with_clean_dispositi
         run,
         artifact_type="pnca.writer_view",
         logical_key="pnca.writer_view.s1",
-        payload={"start_context": {}},
+        payload=writer_view().model_dump(mode="json"),
         input_artifact_ids=(contract.artifact_id,),
         metadata={"scene_contract_digest": contract.manifest.content_digest},
     )

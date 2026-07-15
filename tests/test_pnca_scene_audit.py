@@ -6,12 +6,12 @@ from novel_forge.pnca.contracts import (
     ChapterContract,
     FrontierBinding,
     SceneContract,
-    SceneSlot,
     VolumeContract,
 )
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.scene_audit import PNCASceneAuditSynthesizer
 from novel_forge.runtime import RunRepository
+from tests.pnca_fixtures import chapter_plan, scene_slot, writer_view
 
 
 def _artifact(repo: RunRepository, run, *, artifact_type: str, logical_key: str, payload: object, **kwargs: object):
@@ -71,7 +71,7 @@ def test_scene_audit_and_synthesis_produce_provider_free_evidence_artifacts(tmp_
         contract_id="chapter_001",
         parent_volume_contract_id=volume_contract.contract_id,
         chapter_ordinal=1,
-        scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+        chapter_plan=chapter_plan(), scene_slots=(scene_slot(),),
     )
     chapter = _artifact(
         repo,
@@ -94,6 +94,7 @@ def test_scene_audit_and_synthesis_produce_provider_free_evidence_artifacts(tmp_
         slot_id="scene_001",
         frontier_binding=binding,
         canon_effect="none",
+        writer_view=writer_view(),
     )
     scene = _artifact(
         repo,

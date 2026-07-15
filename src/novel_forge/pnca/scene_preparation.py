@@ -59,6 +59,10 @@ class PNCASceneStructurePreparer:
             raise RuntimeContractError("ChapterContract does not bind the supplied parent VolumeContract")
         if contract.slot_id not in {slot.slot_id for slot in parent_chapter.contract.scene_slots}:
             raise RuntimeContractError("SceneContract slot is not allocated by the supplied ChapterContract")
+        if contract.canon_effect != "mutates":
+            raise RuntimeContractError("accepted PNCA SceneContract must mutate Canon")
+        if contract.canon_patch is None:
+            raise RuntimeContractError("accepted PNCA SceneContract mutation requires CanonMutation")
 
         snapshot = self.repository.load_snapshot(slug, binding.input_snapshot_id)
         if snapshot.slots.get("canon.frontier") != binding.frontier_artifact_id:
@@ -136,12 +140,12 @@ class PNCASceneStructurePreparer:
                 task_id="pnca.scene.canon_patch",
                 artifact_type="canon.patch",
                 logical_key=f"canon.patch.{contract.contract_id}",
-                payload={"scene_contract_id": contract.contract_id, "patch": contract.canon_patch},
+                payload={"scene_contract_id": contract.contract_id, "patch": contract.canon_patch.model_dump(mode="json")},
                 payload_name="canon_patch.json",
                 provenance=provenance,
             )
             events = [
-                {"kind": "scene_patch", "scene_contract_id": contract.contract_id, "patch": contract.canon_patch},
+                {"kind": "scene_patch", "scene_contract_id": contract.contract_id, "patch": contract.canon_patch.model_dump(mode="json")},
                 *[
                     {
                         "kind": "entity_admission",

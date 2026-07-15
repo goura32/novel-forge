@@ -212,9 +212,15 @@ class PNCAContractAuthor:
             raise RuntimeContractError("ChapterContract selected scene count must be inside its request bounds")
         if not 1 <= chapter_ordinal <= parent.contract.chapter_count:
             raise RuntimeContractError("chapter request ordinal is outside its parent VolumeContract topology")
-        if isinstance(scene_slot_count, int):
-            min_scene_slots = scene_slot_count
-            max_scene_slots = scene_slot_count
+        chapter_plan = next(
+            (plan for plan in parent.contract.chapter_plans if plan.ordinal == chapter_ordinal), None
+        )
+        if chapter_plan is None:
+            raise RuntimeContractError("chapter request ordinal has no immutable parent ChapterPlan")
+        if scene_slot_count is not None and scene_slot_count != chapter_plan.scene_count:
+            raise RuntimeContractError("chapter request scene count must match its immutable parent ChapterPlan")
+        min_scene_slots = chapter_plan.scene_count
+        max_scene_slots = chapter_plan.scene_count
         authored = self._author(
             run=run,
             task_id="pnca.chapter.contract",
@@ -226,6 +232,7 @@ class PNCAContractAuthor:
             binding_override={
                 "parent_volume_contract_id": parent.contract.contract_id,
                 "chapter_ordinal": chapter_ordinal,
+                "chapter_plan": chapter_plan.model_dump(mode="json"),
                 "volume_purpose": parent.contract.purpose,
                 "series_final_resolution": parent.contract.series_final_resolution,
                 "is_terminal_volume": parent.contract.is_terminal_volume,
@@ -258,6 +265,7 @@ class PNCAContractAuthor:
             raise RuntimeContractError("scene request requires a non-empty slot_id")
         if slot_id not in {slot.slot_id for slot in parent.contract.scene_slots}:
             raise RuntimeContractError("SceneContract slot is not allocated by its parent ChapterContract")
+        allocated_slot = next(slot for slot in parent.contract.scene_slots if slot.slot_id == slot_id)
         expected_terminal = expected_terminal_scene(parent=parent.contract, slot_id=slot_id)
         if bool(request_payload.get("is_terminal_scene", False)) != expected_terminal:
             raise RuntimeContractError("scene request terminal role must match the allocated ChapterContract slot")
@@ -271,12 +279,17 @@ class PNCAContractAuthor:
             lineage_root_digest=frontier_binding.lineage_root_digest,
         )
         admission_allowances = tuple(admission_allowances)
-        authorized_allowance_ids = frozenset(
-            () if scene_slot is None else scene_slot.allowed_admission_allowance_ids
-        )
+        if scene_slot is not None and scene_slot.slot_id != allocated_slot.slot_id:
+            raise RuntimeContractError("scene authoring SceneSlot must match the allocated request slot")
+        scene_slot = allocated_slot
+        authorized_allowance_ids = frozenset(scene_slot.allowed_admission_allowance_ids)
         authorized_admission_allowances = tuple(
             allowance for allowance in admission_allowances if allowance.allowance_id in authorized_allowance_ids
         )
+        bound_request = {
+            **request_payload,
+            "slot_mandate": scene_slot.mandate.model_dump(mode="json"),
+        }
         result = self.executor.execute(
             task_id="pnca.scene.contract",
             artifacts={
@@ -286,7 +299,7 @@ class PNCAContractAuthor:
                 "admission.allowances": [
                     allowance.model_dump(mode="json") for allowance in authorized_admission_allowances
                 ],
-                "scene.request": request_payload,
+                "scene.request": bound_request,
             },
             input_artifact_ids=(parent.artifact.artifact_id, frontier.artifact_id, request.artifact_id),
             scope_id=scope_id,
@@ -324,16 +337,15 @@ class PNCAContractAuthor:
             total_consumed = (*previously_consumed, *rebuilt_consumptions)
         else:
             total_consumed = (*previously_consumed, *proposal.admission_consumptions)
-        # The chapter's parent-pinned volume purpose is authoritative.  Preserve it in
-        # the WriterView instead of trusting a scene proposal to restate the long arc.
-        narrative_contract = dict(proposal.writer_view.narrative_contract)
-        narrative_contract["parent_volume_purpose"] = parent.contract.volume_purpose
-        narrative_contract["series_final_resolution"] = parent.contract.series_final_resolution
-        end_constraints = dict(proposal.writer_view.end_constraints)
+        end_constraints = proposal.writer_view.end_constraints
         if expected_terminal:
-            end_constraints["series_final_resolution"] = parent.contract.series_final_resolution
+            end_constraints = end_constraints.model_copy(
+                update={"series_final_resolution": parent.contract.series_final_resolution}
+            )
+        elif end_constraints.series_final_resolution is not None:
+            end_constraints = end_constraints.model_copy(update={"series_final_resolution": None})
         writer_view = proposal.writer_view.model_copy(
-            update={"narrative_contract": narrative_contract, "end_constraints": end_constraints}
+            update={"end_constraints": end_constraints}
         )
         contract = SceneContract(
             **proposal.model_dump(mode="python", exclude={"writer_view", "admission_consumptions"}),

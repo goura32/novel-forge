@@ -11,14 +11,13 @@ from novel_forge.pnca.contracts import (
     ChapterContract,
     FrontierBinding,
     SceneContract,
-    SceneSlot,
     VolumeContract,
-    WriterView,
 )
 from novel_forge.pnca.export import PNCAExporter
 from novel_forge.pnca.progression import AuthoredContract
 from novel_forge.pnca.workflow import PNCAWorkflow
 from novel_forge.runtime import RunRepository, RuntimeContractError
+from tests.pnca_fixtures import chapter_plan, scene_slot, writer_view
 
 
 def _artifact(repo, run, *, artifact_type, logical_key, payload, **manifest_kwargs):
@@ -52,7 +51,7 @@ def _bootstrap(repo):
     return run, seed, root, snapshot
 
 
-def test_build_and_commit_non_mutating_scene_acceptance_group(tmp_path: Path) -> None:
+def test_build_rejects_non_mutating_scene_acceptance_group(tmp_path: Path) -> None:
     repo = RunRepository(tmp_path)
     run, seed, root, base = _bootstrap(repo)
     common = {
@@ -73,7 +72,7 @@ def test_build_and_commit_non_mutating_scene_acceptance_group(tmp_path: Path) ->
         contract_id="chapter_001",
         parent_volume_contract_id=volume_contract.contract_id,
         chapter_ordinal=1,
-        scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+        chapter_plan=chapter_plan(), scene_slots=(scene_slot(),),
     )
     chapter = _artifact(
         repo,
@@ -96,6 +95,7 @@ def test_build_and_commit_non_mutating_scene_acceptance_group(tmp_path: Path) ->
         slot_id="scene_001",
         frontier_binding=binding,
         canon_effect="none",
+        writer_view=writer_view(),
     )
     scene = _artifact(
         repo,
@@ -109,31 +109,16 @@ def test_build_and_commit_non_mutating_scene_acceptance_group(tmp_path: Path) ->
     )
 
     workflow = PNCAWorkflow(repository=repo, contract_author=object())
-    acceptance = workflow.build_scene_acceptance(
-        slug="series",
-        run=run,
-        scene=AuthoredContract(artifact=scene, contract=scene_contract),
-        parent_chapter=AuthoredContract(artifact=chapter, contract=chapter_contract),
-        parent_volume=AuthoredContract(artifact=volume, contract=volume_contract),
-        frontier_binding=binding,
-        base_snapshot_id=base.selection_snapshot_id,
-    )
-
-    assert acceptance.canon_effect == "none"
-    assert set(acceptance.role_artifact_ids) == {
-        "scene.contract",
-        "parent.requirement_ledger",
-        "accepted.requirement_ledger",
-        "audit.batch",
-        "review.synthesis",
-        "scene.slot_binding",
-        "canon.frontier.output",
-    }
-
-    snapshot = repo.commit_pnca_acceptance(slug="series", acceptance=acceptance, frontier_binding=binding)
-    assert snapshot.slots["pnca.scene.contract.series_001.001.001.scene_001"] == scene.artifact_id
-    assert snapshot.slots["canon.frontier"] == root.artifact_id
-    assert snapshot.slots["pnca.audit.batch.scene_contract_001"] == acceptance.role_artifact_ids["audit.batch"]
+    with pytest.raises(RuntimeContractError, match="must mutate"):
+        workflow.build_scene_acceptance(
+            slug="series",
+            run=run,
+            scene=AuthoredContract(artifact=scene, contract=scene_contract),
+            parent_chapter=AuthoredContract(artifact=chapter, contract=chapter_contract),
+            parent_volume=AuthoredContract(artifact=volume, contract=volume_contract),
+            frontier_binding=binding,
+            base_snapshot_id=base.selection_snapshot_id,
+        )
 
 
 class FakeExecutor:
@@ -149,9 +134,11 @@ class FakeExecutor:
         if task_id == "pnca.scene.render":
             return {"content": "シーンの本文。約500字の自然な日本語で書く。"}
         if task_id == "pnca.scene.coverage":
-            return {"evidence": []}
+            return {"evidence": [{"obligation": "required_beat", "beat_index": 0, "draft_quote": "シーンの本文"}, {"obligation": "end_constraint", "draft_quote": "シーンの本文"}]}
         if task_id == "pnca.draft.audit":
             return {"issues": self._audit_issues}
+        if task_id == "pnca.scene.rerender":
+            return {"content": "シーンの本文。約500字の自然な日本語で書く。", "coverage": {"evidence": [{"obligation": "required_beat", "beat_index": 0, "draft_quote": "シーンの本文"}, {"obligation": "end_constraint", "draft_quote": "シーンの本文"}]}}
         if task_id == "pnca.scene.revise":
             # Revise returns the same draft content (stub); the audit blocker loop re-audits.
             draft = artifacts.get("scene.draft", {})
@@ -185,7 +172,7 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: l
     )
     chapter_contract = ChapterContract(
         contract_id="chapter_001", parent_volume_contract_id="volume_001",
-        chapter_ordinal=1, scene_slots=(SceneSlot(slot_id="scene_001", ordinal=1),),
+        chapter_ordinal=1, chapter_plan=chapter_plan(), scene_slots=(scene_slot(),),
     )
     chapter = _artifact(
         repo, run, artifact_type="pnca.chapter.contract",
@@ -204,7 +191,7 @@ def test_write_volume_renders_and_exports_bundle(tmp_path: Path, audit_issues: l
     scene_contract = SceneContract(
         contract_id="scene_contract_001", slot_id="scene_001",
         frontier_binding=binding, canon_effect="none",
-        writer_view=WriterView(start_context={"scene": "open"}),
+        writer_view=writer_view(),
     )
     scene = _artifact(
         repo, run, artifact_type="pnca.scene.contract",
